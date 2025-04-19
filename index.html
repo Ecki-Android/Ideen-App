@@ -34,6 +34,12 @@
       color: #666;
       margin-top: 0.5rem;
     }
+    .actions {
+      margin-top: 0.5rem;
+    }
+    .actions button {
+      margin-right: 0.5rem;
+    }
   </style>
 </head>
 <body>
@@ -62,11 +68,12 @@
   <div id="ideenListe"></div>
 
   <script>
+    let editIndex = null;
+
     function speichereIdee() {
       const text = document.getElementById("ideeInput").value.trim();
       const kategorie = document.getElementById("kategorie").value;
       const prioritaet = document.getElementById("prioritaet").value;
-
       if (text === "") return;
 
       const jetzt = new Date();
@@ -75,29 +82,60 @@
         hour: "2-digit", minute: "2-digit", second: "2-digit"
       });
 
-      const ideeObj = {
-        text, kategorie, prioritaet, zeit: zeitstempel
-      };
+      let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
 
-      const gespeicherteIdeen = JSON.parse(localStorage.getItem("ideen") || "[]");
-      gespeicherteIdeen.push(ideeObj);
-      localStorage.setItem("ideen", JSON.stringify(gespeicherteIdeen));
-      zeigeIdeen();
+      if (editIndex !== null) {
+        ideen[editIndex] = { text, kategorie, prioritaet, zeit: zeitstempel };
+        editIndex = null;
+      } else {
+        ideen.push({ text, kategorie, prioritaet, zeit: zeitstempel });
+      }
+
+      localStorage.setItem("ideen", JSON.stringify(ideen));
       document.getElementById("ideeInput").value = "";
+      zeigeIdeen();
     }
 
     function zeigeIdeen() {
       const ideenListe = document.getElementById("ideenListe");
-      const gespeicherteIdeen = JSON.parse(localStorage.getItem("ideen") || "[]");
-      ideenListe.innerHTML = gespeicherteIdeen.map(idee => `
+      const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+      ideenListe.innerHTML = ideen.map((idee, index) => `
         <div class="idee">
           <div>${idee.text}</div>
           <div class="meta">Kategorie: ${idee.kategorie} | Priorität: ${idee.prioritaet} | Gespeichert am: ${idee.zeit}</div>
+          <div class="actions">
+            <button onclick="bearbeiteIdee(${index})">✏️ Bearbeiten</button>
+            <button onclick="loescheIdee(${index})">🗑️ Löschen</button>
+          </div>
         </div>
       `).join("");
+    }
+
+    function bearbeiteIdee(index) {
+      const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+      const idee = ideen[index];
+      document.getElementById("ideeInput").value = idee.text;
+      document.getElementById("kategorie").value = idee.kategorie;
+      document.getElementById("prioritaet").value = idee.prioritaet;
+      editIndex = index;
+    }
+
+    function loescheIdee(index) {
+      let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+      ideen.splice(index, 1);
+      localStorage.setItem("ideen", JSON.stringify(ideen));
+      zeigeIdeen();
     }
 
     zeigeIdeen();
   </script>
 </body>
 </html>
+"""
+
+# Datei speichern
+file_path = "/mnt/data/index.html"
+with open(file_path, "w", encoding="utf-8") as f:
+    f.write(html_code_with_edit_delete)
+
+file_path
