@@ -1,134 +1,147 @@
 
+# Wir erstellen eine vollständige HTML-Datei mit den gewünschten Funktionen:
+# - Ideen speichern
+# - Bearbeiten und löschen
+# - Datum + Uhrzeit mit Sekunden anzeigen
+
+html_code = """
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Ideen-App</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 2rem; background: #f0f4f8; color: #333; }
-    h1 { color: #0077cc; }
-    input, select, button, textarea {
-      padding: 0.5rem;
-      margin: 0.5rem 0;
-      border-radius: 8px;
-      border: 1px solid #ccc;
-      width: 100%;
-      box-sizing: border-box;
-    }
-    button {
-      background-color: #0077cc;
-      color: white;
-      cursor: pointer;
-    }
-    button:hover { background-color: #005fa3; }
-    .idee {
-      background: white;
-      margin-top: 1rem;
-      padding: 1rem;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-    }
-    .meta {
-      font-size: 0.8rem;
-      color: #666;
-      margin-top: 0.5rem;
-    }
-    .actions {
-      margin-top: 0.5rem;
-    }
-    .actions button {
-      margin-right: 0.5rem;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ideen-App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f8;
+            margin: 0;
+            padding: 2rem;
+        }
+        h1 {
+            color: #333;
+        }
+        #ideaInput, #categoryInput {
+            padding: 0.5rem;
+            width: 70%;
+            margin-bottom: 0.5rem;
+        }
+        button {
+            padding: 0.5rem 1rem;
+            margin: 0.2rem;
+            border: none;
+            border-radius: 5px;
+            background-color: #0077cc;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #005fa3;
+        }
+        .idea {
+            background: white;
+            border-left: 5px solid #0077cc;
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 5px;
+        }
+        .timestamp {
+            font-size: 0.8rem;
+            color: gray;
+        }
+        .category {
+            font-style: italic;
+            color: #555;
+        }
+    </style>
 </head>
 <body>
-  <h1>Willkommen in deiner Ideen-App, Egbert!</h1>
-  <p>Hier kannst du deine Ideen sammeln, notieren und später erweitern.</p>
+    <h1>Willkommen in deiner Ideen-App, Egbert!</h1>
+    <p>Hier kannst du deine Ideen sammeln, notieren und später erweitern.</p>
 
-  <textarea id="ideeInput" placeholder="Deine Idee..."></textarea>
+    <input type="text" id="ideaInput" placeholder="Neue Idee eingeben" />
+    <input type="text" id="categoryInput" placeholder="Kategorie oder Priorität (optional)" />
+    <button onclick="addIdea()">Idee speichern</button>
 
-  <label for="kategorie">Kategorie:</label>
-  <select id="kategorie">
-    <option value="Privat">Privat</option>
-    <option value="Arbeit">Arbeit</option>
-    <option value="Projekt">Projekt</option>
-    <option value="Später">Später</option>
-  </select>
+    <div id="ideasList"></div>
 
-  <label for="prioritaet">Priorität:</label>
-  <select id="prioritaet">
-    <option value="Hoch">🔴 Hoch</option>
-    <option value="Mittel">🟡 Mittel</option>
-    <option value="Niedrig">🟢 Niedrig</option>
-  </select>
+    <script>
+        function getCurrentTimestamp() {
+            const now = new Date();
+            return now.toLocaleDateString() + " " + now.toLocaleTimeString('de-DE', { hour12: false });
+        }
 
-  <button onclick="speichereIdee()">💾 Idee speichern</button>
+        function saveIdeas(ideas) {
+            localStorage.setItem("ideenListe", JSON.stringify(ideas));
+        }
 
-  <div id="ideenListe"></div>
+        function loadIdeas() {
+            const data = localStorage.getItem("ideenListe");
+            return data ? JSON.parse(data) : [];
+        }
 
-  <script>
-    let editIndex = null;
+        function renderIdeas() {
+            const ideasList = document.getElementById("ideasList");
+            ideasList.innerHTML = "";
+            const ideas = loadIdeas();
 
-    function speichereIdee() {
-      const text = document.getElementById("ideeInput").value.trim();
-      const kategorie = document.getElementById("kategorie").value;
-      const prioritaet = document.getElementById("prioritaet").value;
-      if (text === "") return;
+            ideas.forEach((idea, index) => {
+                const div = document.createElement("div");
+                div.className = "idea";
+                div.innerHTML = `
+                    <div><strong>${idea.text}</strong></div>
+                    <div class="timestamp">${idea.timestamp}</div>
+                    <div class="category">${idea.category ? "Kategorie: " + idea.category : ""}</div>
+                    <button onclick="editIdea(${index})">Bearbeiten</button>
+                    <button onclick="deleteIdea(${index})">Löschen</button>
+                `;
+                ideasList.appendChild(div);
+            });
+        }
 
-      const jetzt = new Date();
-      const zeitstempel = jetzt.toLocaleString("de-DE", {
-        day: "2-digit", month: "2-digit", year: "numeric",
-        hour: "2-digit", minute: "2-digit", second: "2-digit"
-      });
+        function addIdea() {
+            const input = document.getElementById("ideaInput");
+            const category = document.getElementById("categoryInput");
+            const ideas = loadIdeas();
 
-      let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+            if (input.value.trim() === "") return;
 
-      if (editIndex !== null) {
-        ideen[editIndex] = { text, kategorie, prioritaet, zeit: zeitstempel };
-        editIndex = null;
-      } else {
-        ideen.push({ text, kategorie, prioritaet, zeit: zeitstempel });
-      }
+            ideas.push({
+                text: input.value.trim(),
+                timestamp: getCurrentTimestamp(),
+                category: category.value.trim()
+            });
 
-      localStorage.setItem("ideen", JSON.stringify(ideen));
-      document.getElementById("ideeInput").value = "";
-      zeigeIdeen();
-    }
+            saveIdeas(ideas);
+            input.value = "";
+            category.value = "";
+            renderIdeas();
+        }
 
-    function zeigeIdeen() {
-      const ideenListe = document.getElementById("ideenListe");
-      const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-      ideenListe.innerHTML = ideen.map((idee, index) => `
-        <div class="idee">
-          <div>${idee.text}</div>
-          <div class="meta">Kategorie: ${idee.kategorie} | Priorität: ${idee.prioritaet} | Gespeichert am: ${idee.zeit}</div>
-          <div class="actions">
-            <button onclick="bearbeiteIdee(${index})">✏️ Bearbeiten</button>
-            <button onclick="loescheIdee(${index})">🗑️ Löschen</button>
-          </div>
-        </div>
-      `).join("");
-    }
+        function editIdea(index) {
+            const ideas = loadIdeas();
+            const newText = prompt("Neue Idee eingeben:", ideas[index].text);
+            const newCat = prompt("Neue Kategorie eingeben:", ideas[index].category);
+            if (newText !== null) {
+                ideas[index].text = newText;
+                ideas[index].category = newCat;
+                ideas[index].timestamp = getCurrentTimestamp();
+                saveIdeas(ideas);
+                renderIdeas();
+            }
+        }
 
-    function bearbeiteIdee(index) {
-      const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-      const idee = ideen[index];
-      document.getElementById("ideeInput").value = idee.text;
-      document.getElementById("kategorie").value = idee.kategorie;
-      document.getElementById("prioritaet").value = idee.prioritaet;
-      editIndex = index;
-    }
+        function deleteIdea(index) {
+            const ideas = loadIdeas();
+            if (confirm("Diese Idee wirklich löschen?")) {
+                ideas.splice(index, 1);
+                saveIdeas(ideas);
+                renderIdeas();
+            }
+        }
 
-    function loescheIdee(index) {
-      let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-      ideen.splice(index, 1);
-      localStorage.setItem("ideen", JSON.stringify(ideen));
-      zeigeIdeen();
-    }
-
-    zeigeIdeen();
-  </script>
+        window.onload = renderIdeas;
+    </script>
 </body>
 </html>
 """
@@ -136,6 +149,6 @@
 # Datei speichern
 file_path = "/mnt/data/index.html"
 with open(file_path, "w", encoding="utf-8") as f:
-    f.write(html_code_with_edit_delete)
+    f.write(html_code)
 
 file_path
