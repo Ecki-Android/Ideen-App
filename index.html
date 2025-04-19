@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Ideen-App</title>
+  <title>Ideen-App mit Zeitstempel</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -43,9 +43,10 @@
       border-left: 5px solid #0077cc;
       border-radius: 5px;
     }
-    .idea textarea {
-      width: 100%;
-      margin-top: 5px;
+    .idea small {
+      color: #555;
+      display: block;
+      margin-bottom: 5px;
     }
     .controls {
       margin-top: 5px;
@@ -78,7 +79,9 @@
     function addIdea() {
       const ideaText = document.getElementById('newIdea').value.trim();
       if (ideaText) {
-        ideas.push(ideaText);
+        const now = new Date();
+        const timestamp = now.toLocaleString('de-DE'); // z. B. 19.4.2025, 15:47:22
+        ideas.push({ text: ideaText, timestamp: timestamp });
         document.getElementById('newIdea').value = '';
         saveIdeas();
       }
@@ -90,9 +93,11 @@
     }
 
     function editIdea(index) {
-      const newContent = prompt('Neue Idee eingeben:', ideas[index]);
+      const newContent = prompt('Neue Idee eingeben:', ideas[index].text);
       if (newContent !== null) {
-        ideas[index] = newContent;
+        const now = new Date();
+        const timestamp = now.toLocaleString('de-DE');
+        ideas[index] = { text: newContent, timestamp: timestamp };
         saveIdeas();
       }
     }
@@ -103,7 +108,8 @@
       ideas.forEach((idea, index) => {
         list.innerHTML += `
           <div class="idea">
-            <div>${idea}</div>
+            <small>Gespeichert am: ${idea.timestamp}</small>
+            <div>${idea.text}</div>
             <div class="controls">
               <button class="edit-btn" onclick="editIdea(${index})">Bearbeiten</button>
               <button class="delete-btn" onclick="deleteIdea(${index})">Löschen</button>
