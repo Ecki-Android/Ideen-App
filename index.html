@@ -4,121 +4,100 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Ideen-App mit Zeitstempel</title>
+  <title>Ideen-App</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
-      background: #f0f4f8;
-      color: #333;
-    }
-    h1 {
-      color: #0077cc;
-    }
-    textarea {
-      width: 100%;
-      padding: 10px;
-      font-size: 16px;
-      margin-bottom: 10px;
-      border-radius: 5px;
+    body { font-family: Arial, sans-serif; margin: 2rem; background: #f0f4f8; color: #333; }
+    h1 { color: #0077cc; }
+    input, select, button, textarea {
+      padding: 0.5rem;
+      margin: 0.5rem 0;
+      border-radius: 8px;
       border: 1px solid #ccc;
-      resize: vertical;
+      width: 100%;
+      box-sizing: border-box;
     }
     button {
-      padding: 8px 14px;
-      font-size: 14px;
-      margin-right: 5px;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-    .save-btn {
       background-color: #0077cc;
       color: white;
+      cursor: pointer;
     }
-    .idea {
-      background: #fff;
-      margin-bottom: 10px;
-      padding: 10px;
-      border-left: 5px solid #0077cc;
-      border-radius: 5px;
+    button:hover { background-color: #005fa3; }
+    .idee {
+      background: white;
+      margin-top: 1rem;
+      padding: 1rem;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
     }
-    .idea small {
-      color: #555;
-      display: block;
-      margin-bottom: 5px;
-    }
-    .controls {
-      margin-top: 5px;
-    }
-    .edit-btn {
-      background-color: #ffc107;
-    }
-    .delete-btn {
-      background-color: #dc3545;
-      color: white;
+    .meta {
+      font-size: 0.8rem;
+      color: #666;
+      margin-top: 0.5rem;
     }
   </style>
 </head>
 <body>
   <h1>Willkommen in deiner Ideen-App, Egbert!</h1>
   <p>Hier kannst du deine Ideen sammeln, notieren und später erweitern.</p>
-  <textarea id="newIdea" rows="3" placeholder="Deine neue Idee..."></textarea><br/>
-  <button class="save-btn" onclick="addIdea()">Idee speichern</button>
-  <hr/>
-  <div id="ideasList"></div>
+
+  <textarea id="ideeInput" placeholder="Deine Idee..."></textarea>
+
+  <label for="kategorie">Kategorie:</label>
+  <select id="kategorie">
+    <option value="Privat">Privat</option>
+    <option value="Arbeit">Arbeit</option>
+    <option value="Projekt">Projekt</option>
+    <option value="Später">Später</option>
+  </select>
+
+  <label for="prioritaet">Priorität:</label>
+  <select id="prioritaet">
+    <option value="Hoch">🔴 Hoch</option>
+    <option value="Mittel">🟡 Mittel</option>
+    <option value="Niedrig">🟢 Niedrig</option>
+  </select>
+
+  <button onclick="speichereIdee()">💾 Idee speichern</button>
+
+  <div id="ideenListe"></div>
 
   <script>
-    let ideas = JSON.parse(localStorage.getItem('ideenListe')) || [];
+    function speichereIdee() {
+      const text = document.getElementById("ideeInput").value.trim();
+      const kategorie = document.getElementById("kategorie").value;
+      const prioritaet = document.getElementById("prioritaet").value;
 
-    function saveIdeas() {
-      localStorage.setItem('ideenListe', JSON.stringify(ideas));
-      showIdeas();
-    }
+      if (text === "") return;
 
-    function addIdea() {
-      const ideaText = document.getElementById('newIdea').value.trim();
-      if (ideaText) {
-        const now = new Date();
-        const timestamp = now.toLocaleString('de-DE'); // z. B. 19.4.2025, 15:47:22
-        ideas.push({ text: ideaText, timestamp: timestamp });
-        document.getElementById('newIdea').value = '';
-        saveIdeas();
-      }
-    }
-
-    function deleteIdea(index) {
-      ideas.splice(index, 1);
-      saveIdeas();
-    }
-
-    function editIdea(index) {
-      const newContent = prompt('Neue Idee eingeben:', ideas[index].text);
-      if (newContent !== null) {
-        const now = new Date();
-        const timestamp = now.toLocaleString('de-DE');
-        ideas[index] = { text: newContent, timestamp: timestamp };
-        saveIdeas();
-      }
-    }
-
-    function showIdeas() {
-      const list = document.getElementById('ideasList');
-      list.innerHTML = '';
-      ideas.forEach((idea, index) => {
-        list.innerHTML += `
-          <div class="idea">
-            <small>Gespeichert am: ${idea.timestamp}</small>
-            <div>${idea.text}</div>
-            <div class="controls">
-              <button class="edit-btn" onclick="editIdea(${index})">Bearbeiten</button>
-              <button class="delete-btn" onclick="deleteIdea(${index})">Löschen</button>
-            </div>
-          </div>`;
+      const jetzt = new Date();
+      const zeitstempel = jetzt.toLocaleString("de-DE", {
+        day: "2-digit", month: "2-digit", year: "numeric",
+        hour: "2-digit", minute: "2-digit", second: "2-digit"
       });
+
+      const ideeObj = {
+        text, kategorie, prioritaet, zeit: zeitstempel
+      };
+
+      const gespeicherteIdeen = JSON.parse(localStorage.getItem("ideen") || "[]");
+      gespeicherteIdeen.push(ideeObj);
+      localStorage.setItem("ideen", JSON.stringify(gespeicherteIdeen));
+      zeigeIdeen();
+      document.getElementById("ideeInput").value = "";
     }
 
-    showIdeas();
+    function zeigeIdeen() {
+      const ideenListe = document.getElementById("ideenListe");
+      const gespeicherteIdeen = JSON.parse(localStorage.getItem("ideen") || "[]");
+      ideenListe.innerHTML = gespeicherteIdeen.map(idee => `
+        <div class="idee">
+          <div>${idee.text}</div>
+          <div class="meta">Kategorie: ${idee.kategorie} | Priorität: ${idee.prioritaet} | Gespeichert am: ${idee.zeit}</div>
+        </div>
+      `).join("");
+    }
+
+    zeigeIdeen();
   </script>
 </body>
 </html>
