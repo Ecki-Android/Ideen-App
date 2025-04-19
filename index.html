@@ -3,102 +3,116 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Ideen-App</title>
   <style>
     body {
       font-family: Arial, sans-serif;
+      margin: 20px;
       background: #f0f4f8;
-      padding: 2rem;
       color: #333;
     }
-
     h1 {
-      text-align: center;
-      color: #007acc;
+      color: #0077cc;
     }
-
-    .container {
-      max-width: 600px;
-      margin: auto;
-      background: white;
-      padding: 2rem;
-      border-radius: 16px;
-      box-shadow: 0 0 12px rgba(0,0,0,0.1);
-    }
-
     textarea {
       width: 100%;
-      height: 100px;
-      padding: 0.5rem;
-      font-size: 1rem;
+      padding: 10px;
+      font-size: 16px;
+      margin-bottom: 10px;
+      border-radius: 5px;
       border: 1px solid #ccc;
-      border-radius: 8px;
-      margin-bottom: 1rem;
       resize: vertical;
     }
-
     button {
-      padding: 0.7rem 1.5rem;
-      background-color: #007acc;
-      color: white;
+      padding: 8px 14px;
+      font-size: 14px;
+      margin-right: 5px;
       border: none;
-      border-radius: 8px;
+      border-radius: 5px;
       cursor: pointer;
-      font-size: 1rem;
     }
-
-    ul {
-      margin-top: 2rem;
-      list-style-type: none;
-      padding-left: 0;
+    .save-btn {
+      background-color: #0077cc;
+      color: white;
     }
-
-    li {
-      background: #e0f7ff;
-      padding: 0.8rem;
-      border-radius: 8px;
-      margin-bottom: 0.5rem;
+    .idea {
+      background: #fff;
+      margin-bottom: 10px;
+      padding: 10px;
+      border-left: 5px solid #0077cc;
+      border-radius: 5px;
+    }
+    .idea textarea {
+      width: 100%;
+      margin-top: 5px;
+    }
+    .controls {
+      margin-top: 5px;
+    }
+    .edit-btn {
+      background-color: #ffc107;
+    }
+    .delete-btn {
+      background-color: #dc3545;
+      color: white;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>Willkommen in deiner Ideen-App, Egbert!</h1>
-    <p>Hier kannst du deine Ideen sammeln, notieren und später erweitern.</p>
-
-    <textarea id="idee" placeholder="Deine neue Idee..."></textarea>
-    <button onclick="speichereIdee()">Idee speichern</button>
-
-    <ul id="ideenListe"></ul>
-  </div>
+  <h1>Willkommen in deiner Ideen-App, Egbert!</h1>
+  <p>Hier kannst du deine Ideen sammeln, notieren und später erweitern.</p>
+  <textarea id="newIdea" rows="3" placeholder="Deine neue Idee..."></textarea><br/>
+  <button class="save-btn" onclick="addIdea()">Idee speichern</button>
+  <hr/>
+  <div id="ideasList"></div>
 
   <script>
-    const eingabe = document.getElementById('idee');
-    const liste = document.getElementById('ideenListe');
+    let ideas = JSON.parse(localStorage.getItem('ideenListe')) || [];
 
-    function ladeIdeen() {
-      const ideen = JSON.parse(localStorage.getItem('ideen')) || [];
-      liste.innerHTML = '';
-      ideen.forEach(text => {
-        const li = document.createElement('li');
-        li.textContent = text;
-        liste.appendChild(li);
-      });
+    function saveIdeas() {
+      localStorage.setItem('ideenListe', JSON.stringify(ideas));
+      showIdeas();
     }
 
-    function speichereIdee() {
-      const text = eingabe.value.trim();
-      if (text !== '') {
-        const ideen = JSON.parse(localStorage.getItem('ideen')) || [];
-        ideen.push(text);
-        localStorage.setItem('ideen', JSON.stringify(ideen));
-        eingabe.value = '';
-        ladeIdeen();
+    function addIdea() {
+      const ideaText = document.getElementById('newIdea').value.trim();
+      if (ideaText) {
+        ideas.push(ideaText);
+        document.getElementById('newIdea').value = '';
+        saveIdeas();
       }
     }
 
-    ladeIdeen();
+    function deleteIdea(index) {
+      ideas.splice(index, 1);
+      saveIdeas();
+    }
+
+    function editIdea(index) {
+      const newContent = prompt('Neue Idee eingeben:', ideas[index]);
+      if (newContent !== null) {
+        ideas[index] = newContent;
+        saveIdeas();
+      }
+    }
+
+    function showIdeas() {
+      const list = document.getElementById('ideasList');
+      list.innerHTML = '';
+      ideas.forEach((idea, index) => {
+        list.innerHTML += `
+          <div class="idea">
+            <div>${idea}</div>
+            <div class="controls">
+              <button class="edit-btn" onclick="editIdea(${index})">Bearbeiten</button>
+              <button class="delete-btn" onclick="deleteIdea(${index})">Löschen</button>
+            </div>
+          </div>`;
+      });
+    }
+
+    showIdeas();
   </script>
 </body>
 </html>
