@@ -1,10 +1,4 @@
 
-# Wir erstellen eine vollständige HTML-Datei mit den gewünschten Funktionen:
-# - Ideen speichern
-# - Bearbeiten und löschen
-# - Datum + Uhrzeit mit Sekunden anzeigen
-
-html_code = """
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -12,15 +6,8 @@ html_code = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ideen-App</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f6f8;
-            margin: 0;
-            padding: 2rem;
-        }
-        h1 {
-            color: #333;
-        }
+        body { font-family: Arial, sans-serif; background-color: #f4f6f8; margin: 0; padding: 2rem; }
+        h1 { color: #333; }
         #ideaInput, #categoryInput {
             padding: 0.5rem;
             width: 70%;
@@ -35,9 +22,7 @@ html_code = """
             color: white;
             cursor: pointer;
         }
-        button:hover {
-            background-color: #005fa3;
-        }
+        button:hover { background-color: #005fa3; }
         .idea {
             background: white;
             border-left: 5px solid #0077cc;
@@ -45,14 +30,8 @@ html_code = """
             padding: 1rem;
             border-radius: 5px;
         }
-        .timestamp {
-            font-size: 0.8rem;
-            color: gray;
-        }
-        .category {
-            font-style: italic;
-            color: #555;
-        }
+        .timestamp { font-size: 0.8rem; color: gray; }
+        .category { font-style: italic; color: #555; }
     </style>
 </head>
 <body>
@@ -61,10 +40,16 @@ html_code = """
 
     <input type="text" id="ideaInput" placeholder="Neue Idee eingeben" />
     <input type="text" id="categoryInput" placeholder="Kategorie oder Priorität (optional)" />
+    <br>
     <button onclick="addIdea()">Idee speichern</button>
+    <button onclick="exportText()">Export als Text</button>
+    <button onclick="exportPDF()">Export als PDF</button>
+    <button onclick="shareEmail()">Per E-Mail teilen</button>
+    <button onclick="shareWhatsApp()">Per WhatsApp teilen</button>
 
     <div id="ideasList"></div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script>
         function getCurrentTimestamp() {
             const now = new Date();
@@ -140,15 +125,45 @@ html_code = """
             }
         }
 
+        function exportText() {
+            const ideas = loadIdeas();
+            let content = ideas.map(i => `${i.timestamp} | ${i.text} ${i.category ? "(Kategorie: " + i.category + ")" : ""}`).join("\n");
+            const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "ideen-export.txt";
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        async function exportPDF() {
+            const ideas = loadIdeas();
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            ideas.forEach((idea, i) => {
+                doc.text(`${idea.timestamp} - ${idea.text} ${idea.category ? "(Kategorie: " + idea.category + ")" : ""}`, 10, 10 + (i * 10));
+            });
+
+            doc.save("ideen-export.pdf");
+        }
+
+        function shareEmail() {
+            const ideas = loadIdeas();
+            const content = ideas.map(i => `${i.timestamp} | ${i.text} ${i.category ? "(Kategorie: " + i.category + ")" : ""}`).join("\n");
+            const mailto = "mailto:?subject=Meine Ideen&body=" + encodeURIComponent(content);
+            window.location.href = mailto;
+        }
+
+        function shareWhatsApp() {
+            const ideas = loadIdeas();
+            const content = ideas.map(i => `${i.timestamp} | ${i.text} ${i.category ? "(Kategorie: " + i.category + ")" : ""}`).join("\n");
+            const waUrl = "https://wa.me/?text=" + encodeURIComponent(content);
+            window.open(waUrl, "_blank");
+        }
+
         window.onload = renderIdeas;
     </script>
 </body>
 </html>
-"""
-
-# Datei speichern
-file_path = "/mnt/data/index.html"
-with open(file_path, "w", encoding="utf-8") as f:
-    f.write(html_code)
-
-file_path
