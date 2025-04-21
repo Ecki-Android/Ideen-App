@@ -1,135 +1,132 @@
-
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ideen-App</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            padding: 1rem;
-        }
-        h1 {
-            color: #333;
-        }
-        input, select, button, textarea {
-            margin: 0.3rem 0;
-            padding: 0.5rem;
-            font-size: 1rem;
-        }
-        .idea {
-            border-left: 8px solid;
-            padding: 0.5rem;
-            margin: 0.5rem 0;
-            background: #f9f9f9;
-        }
-        .high { border-color: red; }
-        .medium { border-color: orange; }
-        .low { border-color: green; }
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f4f4f4; }
+        h1 { color: #333; }
+        input, select, button, textarea { margin: 5px 0; padding: 10px; width: 100%; }
+        .idea { background: #fff; padding: 15px; margin-bottom: 10px; border-radius: 8px; }
+        .controls { display: flex; justify-content: space-between; margin-top: 10px; }
+        .idea img { max-width: 100px; display: block; margin-top: 5px; }
     </style>
 </head>
 <body>
     <h1>Willkommen in deiner Ideen-App, Egbert!</h1>
-    <textarea id="ideaText" placeholder="Deine Idee..."></textarea><br>
-    <label>Kategorie:
-        <select id="category">
-            <option value="Privat">Privat</option>
-            <option value="Arbeit">Arbeit</option>
-            <option value="Später">Später</option>
-            <option value="Sonstiges">Sonstiges</option>
-        </select>
-    </label><br>
-    <label>Priorität:</label>
-    <button onclick="setPriority('Hoch')" id="pHigh">🔴 Hoch</button>
-    <button onclick="setPriority('Mittel')" id="pMedium">🟠 Mittel</button>
-    <button onclick="setPriority('Niedrig')" id="pLow">🟢 Niedrig</button><br>
-    <button onclick="saveIdea()">💾 Speichern</button>
-    <button onclick="exportIdeas()">📄 Exportieren</button>
-    <button onclick="shareIdeas()">📤 Teilen</button>
+    <p>Hier kannst du deine Ideen sammeln, kategorisieren, priorisieren, bearbeiten, teilen und exportieren.</p>
 
-    <h2>Deine Ideen</h2>
+    <input type="text" id="ideaInput" placeholder="Deine neue Idee hier...">
+    <textarea id="descriptionInput" placeholder="Beschreibung hinzufügen..."></textarea>
+    
+    <label for="categorySelect">Kategorie:</label>
+    <select id="categorySelect">
+        <option value="Privat">Privat</option>
+        <option value="Arbeit">Arbeit</option>
+        <option value="Später">Später</option>
+        <option value="Sonstiges">Sonstiges</option>
+    </select>
+
+    <label for="prioritySelect">Priorität:</label>
+    <div id="priorityButtons">
+        <button onclick="setPriority('Hoch')">Hoch</button>
+        <button onclick="setPriority('Mittel')">Mittel</button>
+        <button onclick="setPriority('Niedrig')">Niedrig</button>
+    </div>
+
+    <input type="file" id="imageUpload" multiple accept="image/*">
+
+    <button onclick="addIdea()">Idee speichern</button>
+    <button onclick="exportIdeas()">Exportieren</button>
+
+    <h2>Gespeicherte Ideen</h2>
     <div id="ideasContainer"></div>
 
     <script>
-        let selectedPriority = "Mittel";
+        let ideas = JSON.parse(localStorage.getItem("ideas")) || [];
+        let selectedPriority = "";
 
-        function setPriority(priority) {
-            selectedPriority = priority;
+        function setPriority(priority) { selectedPriority = priority; }
+
+        function addIdea() {
+            const text = document.getElementById("ideaInput").value;
+            const description = document.getElementById("descriptionInput").value;
+            const category = document.getElementById("categorySelect").value;
+            const date = new Date().toLocaleString();
+            const files = document.getElementById("imageUpload").files;
+            const images = [];
+            for (let file of files) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    images.push(e.target.result);
+                    if (images.length === files.length) saveIdea(text, description, category, selectedPriority, date, images);
+                };
+                reader.readAsDataURL(file);
+            }
+            if (files.length === 0) saveIdea(text, description, category, selectedPriority, date, images);
         }
 
-        function saveIdea() {
-            const text = document.getElementById("ideaText").value;
-            const category = document.getElementById("category").value;
-            const timestamp = new Date().toLocaleString("de-DE", { hour12: false });
-            const idea = { text, category, priority: selectedPriority, timestamp };
-            let ideas = JSON.parse(localStorage.getItem("ideen")) || [];
+        function saveIdea(text, description, category, priority, date, images) {
+            const idea = { text, description, category, priority, date, images };
             ideas.push(idea);
-            localStorage.setItem("ideen", JSON.stringify(ideas));
-            document.getElementById("ideaText").value = "";
+            localStorage.setItem("ideas", JSON.stringify(ideas));
             displayIdeas();
         }
 
         function displayIdeas() {
             const container = document.getElementById("ideasContainer");
             container.innerHTML = "";
-            const ideas = JSON.parse(localStorage.getItem("ideen")) || [];
             ideas.forEach((idea, index) => {
                 const div = document.createElement("div");
-                div.className = "idea " + (idea.priority === "Hoch" ? "high" : idea.priority === "Mittel" ? "medium" : "low");
+                div.className = "idea";
                 div.innerHTML = `
-                    <strong>${idea.timestamp}</strong><br>
-                    <strong>Kategorie:</strong> ${idea.category}<br>
-                    <strong>Priorität:</strong> ${idea.priority}<br>
-                    <strong>Idee:</strong> ${idea.text}<br>
-                    <button onclick="editIdea(${index})">✏️ Bearbeiten</button>
-                    <button onclick="deleteIdea(${index})">🗑️ Löschen</button>
+                    <strong>${idea.text}</strong><br>
+                    <small>${idea.date}</small><br>
+                    <em>${idea.description}</em><br>
+                    Kategorie: ${idea.category}<br>
+                    Priorität: ${idea.priority}<br>
+                    ${idea.images.map(img => `<img src="${img}">`).join("")}
+                    <div class="controls">
+                        <button onclick="editIdea(${index})">Bearbeiten</button>
+                        <button onclick="deleteIdea(${index})">Löschen</button>
+                    </div>
                 `;
                 container.appendChild(div);
             });
         }
 
         function deleteIdea(index) {
-            let ideas = JSON.parse(localStorage.getItem("ideen")) || [];
             ideas.splice(index, 1);
-            localStorage.setItem("ideen", JSON.stringify(ideas));
+            localStorage.setItem("ideas", JSON.stringify(ideas));
             displayIdeas();
         }
 
         function editIdea(index) {
-            let ideas = JSON.parse(localStorage.getItem("ideen")) || [];
             const idea = ideas[index];
-            document.getElementById("ideaText").value = idea.text;
-            document.getElementById("category").value = idea.category;
+            document.getElementById("ideaInput").value = idea.text;
+            document.getElementById("descriptionInput").value = idea.description;
+            document.getElementById("categorySelect").value = idea.category;
             selectedPriority = idea.priority;
-            ideas.splice(index, 1);
-            localStorage.setItem("ideen", JSON.stringify(ideas));
-            displayIdeas();
+            deleteIdea(index);
         }
 
         function exportIdeas() {
-            const ideas = JSON.parse(localStorage.getItem("ideen")) || [];
-            const content = ideas.map(i => `📌 ${i.timestamp} [${i.category}] (${i.priority}): ${i.text}`).join("\n\n");
-            const blob = new Blob([content], { type: "text/plain" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = "ideen-export.txt";
-            a.click();
-            URL.revokeObjectURL(url);
-        }
-
-        function shareIdeas() {
-            const ideas = JSON.parse(localStorage.getItem("ideen")) || [];
-            const text = ideas.map(i => `${i.timestamp} (${i.priority}): ${i.text}`).join("\n");
-            if (navigator.share) {
-                navigator.share({
-                    title: "Meine Ideen",
-                    text: text
-                });
-            } else {
-                alert("Teilen wird von diesem Gerät nicht unterstützt.");
-            }
+            const content = ideas.map(idea => `Titel: ${idea.text}
+Beschreibung: ${idea.description}
+Kategorie: ${idea.category}
+Priorität: ${idea.priority}
+Datum: ${idea.date}
+`).join("
+---
+");
+            const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = "ideen_export.txt";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         }
 
         displayIdeas();
