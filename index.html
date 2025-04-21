@@ -9,36 +9,31 @@
     h1 { color: #333; }
     input, select, textarea, button { margin-top: 10px; padding: 10px; width: 100%; max-width: 500px; }
     .idee { background: white; padding: 15px; margin: 10px 0; border-radius: 8px; box-shadow: 0 0 5px #ccc; }
-    .buttons { display: flex; gap: 10px; margin-top: 10px; }
+    .buttons { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
     .idee img { max-width: 100px; margin-top: 10px; }
     .filter-bar { margin: 20px 0; }
     .filter-bar select { width: auto; }
+    .idee-actions { margin-top: 10px; }
+    .idee-actions button { width: auto; padding: 5px 10px; font-size: 0.9em;}
   </style>
+  <!-- jsPDF CDN für PDF-Export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
   <h1>Willkommen in deiner Ideen-App, Egbert!</h1>
-
   <input type="text" id="ideeText" placeholder="Deine Idee..." />
   <textarea id="ideeDetails" placeholder="Details zur Idee..." rows="3"></textarea>
-
-  <select id="kategorie">
-    <option value="Privat">Privat</option>
-    <option value="Arbeit">Arbeit</option>
-    <option value="Später">Später</option>
-    <option value="Sonstiges">Sonstiges</option>
-  </select>
+  <select id="kategorie"></select>
   <input type="text" id="neueKategorie" placeholder="Neue Kategorie hinzufügen" />
   <button onclick="neueKategorieHinzufuegen()">+ Neue Kategorie</button>
-
   <div>
     <button onclick="setzePrioritaet('Hoch')">🔴 Hoch</button>
     <button onclick="setzePrioritaet('Mittel')">🟠 Mittel</button>
     <button onclick="setzePrioritaet('Niedrig')">🟢 Niedrig</button>
   </div>
-
   <input type="file" id="bilder" multiple accept="image/*" />
-  <button onclick="speichereIdee()">💾 Speichern</button>
-
+  <button id="speichernBtn" onclick="speichereIdee()">💾 Speichern</button>
+  <button id="abbrechenBtn" onclick="abbrechenBearbeiten()" style="display:none;">Abbrechen</button>
   <div class="filter-bar">
     <label>Kategorie filtern:</label>
     <select id="filterKategorie" onchange="zeigeIdeen()"></select>
@@ -49,24 +44,43 @@
       <option value="prio">Nach Priorität</option>
     </select>
   </div>
-
+  <button onclick="exportiereAlsText()">📄 Export als Text</button>
+  <button onclick="exportiereAlsPDF()">📝 Export als PDF</button>
+  <button onclick="teilePerEmail()">✉️ Teilen per E-Mail</button>
+  <button onclick="teilePerWhatsApp()">📱 Teilen per WhatsApp</button>
   <div id="ideenListe"></div>
-
   <script>
     let prioritaet = "";
+    let bearbeiteIndex = null; // Für Bearbeiten-Modus
+
+    const standardKategorien = ["Privat", "Arbeit", "Später", "Sonstiges"];
+
+    function initialisiereKategorien() {
+      let gespeicherteKategorien = JSON.parse(localStorage.getItem("kategorien")) || standardKategorien;
+      const katSelect = document.getElementById("kategorie");
+      const filterSelect = document.getElementById("filterKategorie");
+      katSelect.innerHTML = "";
+      filterSelect.innerHTML = "";
+
+      gespeicherteKategorien.forEach(k => {
+        katSelect.add(new Option(k, k));
+        filterSelect.add(new Option(k, k));
+      });
+      filterSelect.add(new Option("Alle Kategorien", ""), 0);
+    }
 
     function setzePrioritaet(p) {
       prioritaet = p;
     }
 
     function neueKategorieHinzufuegen() {
-      const neueKat = document.getElementById("neueKategorie").value;
-      if (neueKat.trim()) {
-        const katSelect = document.getElementById("kategorie");
-        const filterSelect = document.getElementById("filterKategorie");
-        const option = new Option(neueKat, neueKat);
-        katSelect.add(option);
-        filterSelect.add(option.cloneNode(true));
+      const neueKat = document.getElementById("neueKategorie").value.trim();
+      if (!neueKat) return;
+      let gespeicherteKategorien = JSON.parse(localStorage.getItem("kategorien")) || standardKategorien;
+      if (!gespeicherteKategorien.includes(neueKat)) {
+        gespeicherteKategorien.push(neueKat);
+        localStorage.setItem("kategorien", JSON.stringify(gespeicherteKategorien));
+        initialisiereKategorien();
         document.getElementById("neueKategorie").value = "";
       }
     }
@@ -77,11 +91,7 @@
       const kategorie = document.getElementById("kategorie").value;
       const bilder = document.getElementById("bilder").files;
       const now = new Date();
-      const timestamp = now.toLocaleString("de-DE", {
-        year: 'numeric', month: '2-digit', day: '2-digit',
-        hour: '2-digit', minute: '2-digit', second: '2-digit',
-        hour12: false
-      });
+      const timestamp = now.toLocaleString("de-DE", { hour12: false }) + ":" + now.getSeconds().toString().padStart(2, '0');
 
       const readerPromises = Array.from(bilder).map(file => {
         return new Promise((resolve) => {
@@ -92,9 +102,26 @@
       });
 
       Promise.all(readerPromises).then(bilderData => {
-        const idee = { text, details, kategorie, prioritaet, bilder: bilderData, timestamp };
-        const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-        ideen.push(idee);
+        let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+        if (bearbeiteIndex !== null) {
+          // Bearbeiten-Modus
+          const alteIdee = ideen[bearbeiteIndex];
+          ideen[bearbeiteIndex] = {
+            text,
+            details,
+            kategorie,
+            prioritaet: prioritaet || alteIdee.prioritaet,
+            bilder: bilderData.length > 0 ? bilderData : alteIdee.bilder,
+            timestamp: alteIdee.timestamp // Zeitstempel bleibt erhalten
+          };
+          bearbeiteIndex = null;
+          document.getElementById("speichernBtn").innerText = "💾 Speichern";
+          document.getElementById("abbrechenBtn").style.display = "none";
+        } else {
+          // Neue Idee
+          const idee = { text, details, kategorie, prioritaet, bilder: bilderData, timestamp };
+          ideen.push(idee);
+        }
         localStorage.setItem("ideen", JSON.stringify(ideen));
         zeigeIdeen();
         document.getElementById("ideeText").value = "";
@@ -105,12 +132,15 @@
     }
 
     function zeigeIdeen() {
-      const filter = document.getElementById("filterKategorie").value;
+      const ideenListe = document.getElementById("ideenListe");
+      ideenListe.innerHTML = "";
+      const filterKat = document.getElementById("filterKategorie").value;
       const sortierung = document.getElementById("sortierung").value;
+
       let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
 
-      if (filter) {
-        ideen = ideen.filter(i => i.kategorie === filter);
+      if (filterKat) {
+        ideen = ideen.filter(i => i.kategorie === filterKat);
       }
 
       if (sortierung === "neu") {
@@ -118,60 +148,135 @@
       } else if (sortierung === "alt") {
         ideen.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
       } else if (sortierung === "prio") {
-        const prioWert = { Hoch: 1, Mittel: 2, Niedrig: 3 };
-        ideen.sort((a, b) => prioWert[a.prioritaet] - prioWert[b.prioritaet]);
+        const prioWert = { "Hoch": 3, "Mittel": 2, "Niedrig": 1, "": 0 };
+        ideen.sort((a, b) => prioWert[b.prioritaet] - prioWert[a.prioritaet]);
       }
 
-      const liste = document.getElementById("ideenListe");
-      liste.innerHTML = "";
-
-      ideen.forEach((idee, index) => {
+      ideen.forEach((idee, idx) => {
         const div = document.createElement("div");
         div.className = "idee";
-        div.innerHTML = `
-          <strong>${idee.text}</strong><br>
-          <em>${idee.details}</em><br>
-          Kategorie: ${idee.kategorie} | Priorität: ${idee.prioritaet}<br>
-          Erstellt am: ${idee.timestamp}<br>
-          ${idee.bilder.map(b => `<img src="${b}" />`).join("")}
-          <div class="buttons">
-            <button onclick="bearbeiteIdee(${index})">Bearbeiten</button>
-            <button onclick="loescheIdee(${index})">Löschen</button>
-          </div>`;
-        liste.appendChild(div);
+        div.innerHTML = `<strong>${idee.text}</strong><br>${idee.details}<br><em>${idee.kategorie} | ${idee.prioritaet} | ${idee.timestamp}</em>`;
+        if (idee.bilder && idee.bilder.length > 0) {
+          idee.bilder.forEach(src => {
+            const img = document.createElement("img");
+            img.src = src;
+            div.appendChild(img);
+          });
+        }
+        // Bearbeiten- und Löschen-Buttons
+        const actions = document.createElement("div");
+        actions.className = "idee-actions";
+        const editBtn = document.createElement("button");
+        editBtn.innerText = "✏️ Bearbeiten";
+        editBtn.onclick = () => bearbeiteIdee(idx);
+        const deleteBtn = document.createElement("button");
+        deleteBtn.innerText = "🗑️ Löschen";
+        deleteBtn.onclick = () => loescheIdee(idx);
+        actions.appendChild(editBtn);
+        actions.appendChild(deleteBtn);
+        div.appendChild(actions);
+
+        ideenListe.appendChild(div);
       });
     }
 
-    function loescheIdee(index) {
+    function bearbeiteIdee(idx) {
       const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-      ideen.splice(index, 1);
-      localStorage.setItem("ideen", JSON.stringify(ideen));
-      zeigeIdeen();
-    }
-
-    function bearbeiteIdee(index) {
-      const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-      const idee = ideen[index];
+      const idee = ideen[idx];
       document.getElementById("ideeText").value = idee.text;
       document.getElementById("ideeDetails").value = idee.details;
       document.getElementById("kategorie").value = idee.kategorie;
       prioritaet = idee.prioritaet;
-      ideen.splice(index, 1);
+      bearbeiteIndex = idx;
+      document.getElementById("speichernBtn").innerText = "💾 Aktualisieren";
+      document.getElementById("abbrechenBtn").style.display = "";
+      // Hinweis: Bilder können aus Datenschutzgründen nicht automatisch ins File-Input geladen werden
+      // User muss ggf. neue Bilder auswählen, sonst bleiben die alten erhalten
+    }
+
+    function abbrechenBearbeiten() {
+      bearbeiteIndex = null;
+      document.getElementById("ideeText").value = "";
+      document.getElementById("ideeDetails").value = "";
+      document.getElementById("bilder").value = "";
+      document.getElementById("speichernBtn").innerText = "💾 Speichern";
+      document.getElementById("abbrechenBtn").style.display = "none";
+      prioritaet = "";
+    }
+
+    function loescheIdee(idx) {
+      if (!confirm("Möchtest du diese Idee wirklich löschen?")) return;
+      let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+      ideen.splice(idx, 1);
       localStorage.setItem("ideen", JSON.stringify(ideen));
       zeigeIdeen();
+      abbrechenBearbeiten();
     }
 
-    function ladeFilterKategorie() {
-      const select = document.getElementById("filterKategorie");
-      ["", "Privat", "Arbeit", "Später", "Sonstiges"].forEach(k => {
-        const option = document.createElement("option");
-        option.value = k;
-        option.text = k || "Alle Kategorien";
-        select.appendChild(option);
+    function exportiereAlsText() {
+      const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+      let text = ideen.map(i => `${i.timestamp}\n${i.kategorie} | ${i.prioritaet}\n${i.text}\n${i.details}\n`).join("\n---------------------\n");
+      const blob = new Blob([text], { type: "text/plain" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "ideen.txt";
+      link.click();
+    }
+
+    // PDF-Export mit jsPDF
+    function exportiereAlsPDF() {
+      const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      let y = 10;
+      ideen.forEach((i, idx) => {
+        doc.setFontSize(12);
+        doc.text(`${i.timestamp}`, 10, y);
+        y += 7;
+        doc.text(`${i.kategorie} | ${i.prioritaet}`, 10, y);
+        y += 7;
+        doc.setFont(undefined, 'bold');
+        doc.text(i.text, 10, y);
+        doc.setFont(undefined, 'normal');
+        y += 7;
+        // Details ggf. umbrechen
+        let details = doc.splitTextToSize(i.details, 180);
+        doc.text(details, 10, y);
+        y += details.length * 7;
+        // Bilder als kleine Vorschaubilder (optional)
+        if (i.bilder && i.bilder.length > 0) {
+          i.bilder.forEach(bild => {
+            try {
+              doc.addImage(bild, "JPEG", 10, y, 30, 20);
+              y += 22;
+            } catch (e) {}
+          });
+        }
+        y += 5;
+        if (y > 270 && idx < ideen.length - 1) {
+          doc.addPage();
+          y = 10;
+        }
+        doc.line(10, y, 200, y);
+        y += 7;
       });
+      doc.save("ideen.pdf");
     }
 
-    ladeFilterKategorie();
+    function teilePerEmail() {
+      const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+      let text = ideen.map(i => `${i.timestamp}\n${i.kategorie} | ${i.prioritaet}\n${i.text}\n${i.details}\n`).join("\n---------------------\n");
+      window.location.href = `mailto:?subject=Meine Ideen&body=${encodeURIComponent(text)}`;
+    }
+
+    function teilePerWhatsApp() {
+      const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+      let text = ideen.map(i => `${i.timestamp}\n${i.kategorie} | ${i.prioritaet}\n${i.text}\n${i.details}\n`).join("\n---------------------\n");
+      const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+      window.open(url, "_blank");
+    }
+
+    initialisiereKategorien();
     zeigeIdeen();
   </script>
 </body>
