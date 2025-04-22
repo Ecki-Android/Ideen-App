@@ -20,6 +20,8 @@
     .datei-vorschau { margin: 10px 0; }
     .datei-vorschau a { display: block; margin: 3px 0; }
     .filter-option-alle { color: #666; font-style: italic; }
+    .katHinweis { color: #c00; font-size: 0.95em; margin-left: 10px; }
+    .katLoeschBtn { background:#eee;border:1px solid #c00;color:#c00; }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
@@ -32,6 +34,8 @@
   <select id="kategorie"></select>
   <input type="text" id="neueKategorie" placeholder="Neue Kategorie" />
   <button onclick="neueKategorieHinzufuegen()">+ Kategorie</button>
+  <button class="katLoeschBtn" onclick="kategorieLoeschen()">Kategorie löschen</button>
+  <span id="katHinweis" class="katHinweis" style="display:none;"></span>
 
   <div class="buttons">
     <button id="prioHoch" class="prio-btn" onclick="setzePrioritaet('Hoch')">🔴 Hoch</button>
@@ -144,7 +148,6 @@
       }
 
       document.getElementById("ideenListe").innerHTML = gefilterteIdeen.map((idee, idx) => {
-        // Finde globalen Index für Aktionen
         const globalIdx = ideen.findIndex(i => i === idee);
         return `
         <div class="idee">
@@ -303,6 +306,37 @@
         kategorien.push(neueKat);
         localStorage.setItem("kategorien", JSON.stringify(kategorien));
         initialisiereKategorien();
+        document.getElementById("neueKategorie").value = "";
+      }
+    }
+
+    function kategorieLoeschen() {
+      const kat = document.getElementById("neueKategorie").value.trim();
+      const hinweis = document.getElementById("katHinweis");
+      if (!kat) {
+        hinweis.textContent = "Bitte Kategorie angeben!";
+        hinweis.style.display = "";
+        return;
+      }
+      let kategorien = JSON.parse(localStorage.getItem("kategorien")) || standardKategorien;
+      let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+      if (!kategorien.includes(kat)) {
+        hinweis.textContent = "Kategorie existiert nicht!";
+        hinweis.style.display = "";
+        return;
+      }
+      if (ideen.some(i => i.kategorie === kat)) {
+        hinweis.textContent = "Kategorie wird noch verwendet! Bitte alle Notizen dieser Kategorie zuerst ändern oder löschen.";
+        hinweis.style.display = "";
+        return;
+      }
+      if (confirm(`Kategorie "${kat}" wirklich löschen?`)) {
+        kategorien = kategorien.filter(k => k !== kat);
+        localStorage.setItem("kategorien", JSON.stringify(kategorien));
+        initialisiereKategorien();
+        hinweis.textContent = "Kategorie gelöscht.";
+        hinweis.style.display = "";
+        setTimeout(() => { hinweis.style.display = "none"; }, 2000);
         document.getElementById("neueKategorie").value = "";
       }
     }
