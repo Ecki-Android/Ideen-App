@@ -8,30 +8,57 @@
     body { font-family: Arial, sans-serif; margin: 20px; background: #f4f4f4; }
     h1 { color: #333; }
     input, select, textarea, button { margin-top: 10px; padding: 10px; width: 100%; max-width: 500px; }
-    .idee { background: white; padding: 15px; margin: 10px 0; border-radius: 8px; box-shadow: 0 0 5px #ccc; }
+    .idee { 
+      background: white; 
+      padding: 15px; 
+      margin: 10px 0; 
+      border-radius: 8px; 
+      box-shadow: 0 0 5px #ccc;
+      cursor: move;
+      transition: all 0.3s ease;
+    }
     .buttons { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
     .idee img { max-width: 100px; margin-top: 10px; }
     .filter-bar { margin: 20px 0; }
     .filter-bar select { width: auto; }
     .idee-actions { margin-top: 10px; }
-    .idee-actions button { width: auto; padding: 5px 10px; font-size: 0.9em;}
+    .idee-actions button { width: auto; padding: 5px 10px; font-size: 0.9em; }
+    .drag-over { border: 2px dashed #007bff; background: #e3f2fd; }
+    .dragging { opacity: 0.5; transform: scale(0.98); }
+    .prio-btn { background: #eee; border: 1px solid #ccc; border-radius: 4px; }
+    .prio-btn.selected { background: #ffd700; border-color: #ff9800; color: #222; }
+    .warnung { color: #d32f2f; margin: 10px 0; font-weight: bold; }
+    .info { color: #1976d2; margin: 10px 0; font-weight: bold; }
+    .datei-anhang { 
+      margin: 5px 0; 
+      padding: 5px; 
+      background: #f0f0f0; 
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    @media (hover: none) and (pointer: coarse) {
+      .idee { cursor: default; }
+    }
   </style>
-  <!-- jsPDF CDN für PDF-Export -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
   <h1>Willkommen in deiner Ideen-App, Egbert!</h1>
+  <div id="warnung" class="warnung" style="display:none;"></div>
+  <div id="info" class="info" style="display:none;"></div>
   <input type="text" id="ideeText" placeholder="Deine Idee..." />
   <textarea id="ideeDetails" placeholder="Details zur Idee..." rows="3"></textarea>
   <select id="kategorie"></select>
   <input type="text" id="neueKategorie" placeholder="Neue Kategorie hinzufügen" />
   <button onclick="neueKategorieHinzufuegen()">+ Neue Kategorie</button>
-  <div>
-    <button onclick="setzePrioritaet('Hoch')">🔴 Hoch</button>
-    <button onclick="setzePrioritaet('Mittel')">🟠 Mittel</button>
-    <button onclick="setzePrioritaet('Niedrig')">🟢 Niedrig</button>
+  <div class="buttons">
+    <button id="prioHoch" class="prio-btn" onclick="setzePrioritaet('Hoch')">🔴 Hoch</button>
+    <button id="prioMittel" class="prio-btn" onclick="setzePrioritaet('Mittel')">🟠 Mittel</button>
+    <button id="prioNiedrig" class="prio-btn" onclick="setzePrioritaet('Niedrig')">🟢 Niedrig</button>
   </div>
-  <input type="file" id="bilder" multiple accept="image/*" />
+  <input type="file" id="dateien" multiple accept="*" />
   <button id="speichernBtn" onclick="speichereIdee()">💾 Speichern</button>
   <button id="abbrechenBtn" onclick="abbrechenBearbeiten()" style="display:none;">Abbrechen</button>
   <div class="filter-bar">
@@ -51,9 +78,29 @@
   <div id="ideenListe"></div>
   <script>
     let prioritaet = "";
-    let bearbeiteIndex = null; // Für Bearbeiten-Modus
+    let bearbeiteIndex = null;
 
     const standardKategorien = ["Privat", "Arbeit", "Später", "Sonstiges"];
+
+    function istTouchDevice() {
+      return (('ontouchstart' in window) ||
+        (navigator.maxTouchPoints > 0) ||
+        (navigator.msMaxTouchPoints > 0));
+    }
+
+    function zeigeWarnung(msg) {
+      const warnung = document.getElementById("warnung");
+      warnung.innerText = msg;
+      warnung.style.display = "";
+      setTimeout(() => { warnung.style.display = "none"; }, 3000);
+    }
+
+    function zeigeInfo(msg) {
+      const info = document.getElementById("info");
+      info.innerText = msg;
+      info.style.display = "";
+      setTimeout(() => { info.style.display = "none"; }, 3000);
+    }
 
     function initialisiereKategorien() {
       let gespeicherteKategorien = JSON.parse(localStorage.getItem("kategorien")) || standardKategorien;
@@ -71,6 +118,12 @@
 
     function setzePrioritaet(p) {
       prioritaet = p;
+      ["prioHoch", "prioMittel", "prioNiedrig"].forEach(id => {
+        document.getElementById(id).classList.remove("selected");
+      });
+      if (p === "Hoch") document.getElementById("prioHoch").classList.add("selected");
+      if (p === "Mittel") document.getElementById("prioMittel").classList.add("selected");
+      if (p === "Niedrig") document.getElementById("prioNiedrig").classList.add("selected");
     }
 
     function neueKategorieHinzufuegen() {
@@ -86,48 +139,56 @@
     }
 
     function speichereIdee() {
-      const text = document.getElementById("ideeText").value;
-      const details = document.getElementById("ideeDetails").value;
+      const text = document.getElementById("ideeText").value.trim();
+      const details = document.getElementById("ideeDetails").value.trim();
       const kategorie = document.getElementById("kategorie").value;
-      const bilder = document.getElementById("bilder").files;
+      const dateien = document.getElementById("dateien").files;
+
+      if (!text) {
+        zeigeWarnung("Bitte gib einen Titel für deine Idee ein!");
+        return;
+      }
+
       const now = new Date();
       const timestamp = now.toLocaleString("de-DE", { hour12: false }) + ":" + now.getSeconds().toString().padStart(2, '0');
 
-      const readerPromises = Array.from(bilder).map(file => {
+      const readerPromises = Array.from(dateien).map(file => {
         return new Promise((resolve) => {
           const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
+          reader.onload = () => resolve({
+            name: file.name,
+            type: file.type,
+            data: reader.result
+          });
           reader.readAsDataURL(file);
         });
       });
 
-      Promise.all(readerPromises).then(bilderData => {
+      Promise.all(readerPromises).then(dateienData => {
         let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
         if (bearbeiteIndex !== null) {
-          // Bearbeiten-Modus
           const alteIdee = ideen[bearbeiteIndex];
           ideen[bearbeiteIndex] = {
             text,
             details,
             kategorie,
             prioritaet: prioritaet || alteIdee.prioritaet,
-            bilder: bilderData.length > 0 ? bilderData : alteIdee.bilder,
-            timestamp: alteIdee.timestamp // Zeitstempel bleibt erhalten
+            dateien: dateienData.length > 0 ? dateienData : alteIdee.dateien,
+            timestamp: alteIdee.timestamp
           };
           bearbeiteIndex = null;
           document.getElementById("speichernBtn").innerText = "💾 Speichern";
           document.getElementById("abbrechenBtn").style.display = "none";
         } else {
-          // Neue Idee
-          const idee = { text, details, kategorie, prioritaet, bilder: bilderData, timestamp };
+          const idee = { text, details, kategorie, prioritaet, dateien: dateienData, timestamp };
           ideen.push(idee);
         }
         localStorage.setItem("ideen", JSON.stringify(ideen));
         zeigeIdeen();
         document.getElementById("ideeText").value = "";
         document.getElementById("ideeDetails").value = "";
-        document.getElementById("bilder").value = "";
-        prioritaet = "";
+        document.getElementById("dateien").value = "";
+        setzePrioritaet("");
       });
     }
 
@@ -136,7 +197,6 @@
       ideenListe.innerHTML = "";
       const filterKat = document.getElementById("filterKategorie").value;
       const sortierung = document.getElementById("sortierung").value;
-
       let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
 
       if (filterKat) {
@@ -152,18 +212,43 @@
         ideen.sort((a, b) => prioWert[b.prioritaet] - prioWert[a.prioritaet]);
       }
 
+      let dragDropAktiv = !filterKat && !istTouchDevice();
+      if (istTouchDevice()) {
+        zeigeInfo("Drag & Drop ist auf Touch-Geräten nicht verfügbar.");
+      } else if (filterKat) {
+        zeigeInfo("Drag & Drop ist bei aktiver Filterung deaktiviert.");
+      }
+
       ideen.forEach((idee, idx) => {
         const div = document.createElement("div");
         div.className = "idee";
+        div.dataset.index = idx;
+
+        if (dragDropAktiv) {
+          div.draggable = true;
+          div.addEventListener('dragstart', handleDragStart);
+          div.addEventListener('dragover', handleDragOver);
+          div.addEventListener('dragend', handleDragEnd);
+          div.addEventListener('dragleave', () => div.classList.remove('drag-over'));
+        } else {
+          div.draggable = false;
+        }
+
         div.innerHTML = `<strong>${idee.text}</strong><br>${idee.details}<br><em>${idee.kategorie} | ${idee.prioritaet} | ${idee.timestamp}</em>`;
-        if (idee.bilder && idee.bilder.length > 0) {
-          idee.bilder.forEach(src => {
-            const img = document.createElement("img");
-            img.src = src;
-            div.appendChild(img);
+        
+        if (idee.dateien && idee.dateien.length > 0) {
+          idee.dateien.forEach(file => {
+            const anhang = document.createElement("div");
+            anhang.className = "datei-anhang";
+            anhang.innerHTML = `
+              ${getDateiIcon(file.type)} 
+              ${file.name} 
+              <small>(${formatDateigroesse(file.data)})</small>
+            `;
+            div.appendChild(anhang);
           });
         }
-        // Bearbeiten- und Löschen-Buttons
+
         const actions = document.createElement("div");
         actions.className = "idee-actions";
         const editBtn = document.createElement("button");
@@ -180,28 +265,91 @@
       });
     }
 
+    function getDateiIcon(type) {
+      const icons = {
+        'image/': '🖼️',
+        'application/pdf': '📄',
+        'text/': '📝',
+        'audio/': '🎵',
+        'video/': '🎥',
+        'application/zip': '📦'
+      };
+      for (const [key, icon] of Object.entries(icons)) {
+        if (type.startsWith(key)) return icon;
+      }
+      return '📁';
+    }
+
+    function formatDateigroesse(dataURL) {
+      const groesseBytes = Math.round((dataURL.length * 3) / 4);
+      if (groesseBytes > 1e6) return `${(groesseBytes / 1e6).toFixed(1)} MB`;
+      return `${Math.round(groesseBytes / 1e3)} KB`;
+    }
+
+    function handleDragStart(e) {
+      e.target.classList.add('dragging');
+      e.dataTransfer.setData('text/plain', e.target.dataset.index);
+    }
+
+    function handleDragOver(e) {
+      e.preventDefault();
+      const draggable = document.querySelector('.dragging');
+      const afterElement = getDragAfterElement(e.currentTarget.parentNode, e.clientY);
+      const container = e.currentTarget.parentNode;
+      if (afterElement == null) {
+        container.appendChild(draggable);
+      } else {
+        container.insertBefore(draggable, afterElement);
+      }
+      e.currentTarget.classList.add('drag-over');
+    }
+
+    function handleDragEnd(e) {
+      e.target.classList.remove('dragging');
+      document.querySelectorAll('.idee').forEach(idee => {
+        idee.classList.remove('drag-over');
+      });
+      const neueReihenfolge = Array.from(document.querySelectorAll('.idee'))
+        .map(idee => parseInt(idee.dataset.index));
+      const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+      const neuSortierteIdeen = neueReihenfolge.map(index => ideen[index]);
+      localStorage.setItem("ideen", JSON.stringify(neuSortierteIdeen));
+      zeigeIdeen();
+    }
+
+    function getDragAfterElement(container, y) {
+      const draggableElements = [...container.querySelectorAll('.idee:not(.dragging)')];
+      return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) {
+          return { offset: offset, element: child };
+        } else {
+          return closest;
+        }
+      }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
     function bearbeiteIdee(idx) {
       const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
       const idee = ideen[idx];
       document.getElementById("ideeText").value = idee.text;
       document.getElementById("ideeDetails").value = idee.details;
       document.getElementById("kategorie").value = idee.kategorie;
-      prioritaet = idee.prioritaet;
+      setzePrioritaet(idee.prioritaet);
       bearbeiteIndex = idx;
       document.getElementById("speichernBtn").innerText = "💾 Aktualisieren";
       document.getElementById("abbrechenBtn").style.display = "";
-      // Hinweis: Bilder können aus Datenschutzgründen nicht automatisch ins File-Input geladen werden
-      // User muss ggf. neue Bilder auswählen, sonst bleiben die alten erhalten
     }
 
     function abbrechenBearbeiten() {
       bearbeiteIndex = null;
       document.getElementById("ideeText").value = "";
       document.getElementById("ideeDetails").value = "";
-      document.getElementById("bilder").value = "";
+      document.getElementById("dateien").value = "";
       document.getElementById("speichernBtn").innerText = "💾 Speichern";
       document.getElementById("abbrechenBtn").style.display = "none";
-      prioritaet = "";
+      setzePrioritaet("");
     }
 
     function loescheIdee(idx) {
@@ -215,7 +363,10 @@
 
     function exportiereAlsText() {
       const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-      let text = ideen.map(i => `${i.timestamp}\n${i.kategorie} | ${i.prioritaet}\n${i.text}\n${i.details}\n`).join("\n---------------------\n");
+      let text = ideen.map(i => 
+        `${i.timestamp}\n${i.kategorie} | ${i.prioritaet}\n${i.text}\n${i.details}\n` +
+        (i.dateien?.map(f => ` - ${f.name}`).join('\n') || '')
+      ).join("\n---------------------\n");
       const blob = new Blob([text], { type: "text/plain" });
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
@@ -223,7 +374,6 @@
       link.click();
     }
 
-    // PDF-Export mit jsPDF
     function exportiereAlsPDF() {
       const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
       const { jsPDF } = window.jspdf;
@@ -239,17 +389,13 @@
         doc.text(i.text, 10, y);
         doc.setFont(undefined, 'normal');
         y += 7;
-        // Details ggf. umbrechen
         let details = doc.splitTextToSize(i.details, 180);
         doc.text(details, 10, y);
         y += details.length * 7;
-        // Bilder als kleine Vorschaubilder (optional)
-        if (i.bilder && i.bilder.length > 0) {
-          i.bilder.forEach(bild => {
-            try {
-              doc.addImage(bild, "JPEG", 10, y, 30, 20);
-              y += 22;
-            } catch (e) {}
+        if (i.dateien?.length > 0) {
+          i.dateien.forEach(file => {
+            doc.text(`📎 ${file.name}`, 10, y);
+            y += 7;
           });
         }
         y += 5;
@@ -265,13 +411,19 @@
 
     function teilePerEmail() {
       const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-      let text = ideen.map(i => `${i.timestamp}\n${i.kategorie} | ${i.prioritaet}\n${i.text}\n${i.details}\n`).join("\n---------------------\n");
+      let text = ideen.map(i => 
+        `${i.timestamp}\n${i.kategorie} | ${i.prioritaet}\n${i.text}\n${i.details}\n` +
+        (i.dateien?.map(f => ` - ${f.name}`).join('\n') || '')
+      ).join("\n---------------------\n");
       window.location.href = `mailto:?subject=Meine Ideen&body=${encodeURIComponent(text)}`;
     }
 
     function teilePerWhatsApp() {
       const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-      let text = ideen.map(i => `${i.timestamp}\n${i.kategorie} | ${i.prioritaet}\n${i.text}\n${i.details}\n`).join("\n---------------------\n");
+      let text = ideen.map(i => 
+        `${i.timestamp}\n${i.kategorie} | ${i.prioritaet}\n${i.text}\n${i.details}\n` +
+        (i.dateien?.map(f => ` - ${f.name}`).join('\n') || '')
+      ).join("\n---------------------\n");
       const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
       window.open(url, "_blank");
     }
