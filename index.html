@@ -20,6 +20,7 @@
     .datei-link { color: #1a73e8; text-decoration: underline; cursor: pointer; margin: 5px 0; }
     .export-link-dialog { background: #fff; border: 1px solid #888; padding: 20px; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; }
     .overlay { position: fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.2); z-index:999; }
+    .vorschau-btn { background: #f0f0f0; border: 1px solid #bbb; border-radius: 4px; margin-left: 5px; cursor: pointer; }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
@@ -27,7 +28,6 @@
   <h1>Ideen-App</h1>
   <div id="warnung" class="warnung" style="display:none;"></div>
 
-  <!-- Eingabefelder -->
   <input type="text" id="ideeText" placeholder="Titel*" />
   <textarea id="ideeDetails" placeholder="Beschreibung" rows="3"></textarea>
   <select id="kategorie"></select>
@@ -41,9 +41,9 @@
   </div>
 
   <input type="file" id="dateien" multiple />
-  <button onclick="speichereIdee()">💾 Speichern</button>
+  <button id="speichernBtn" onclick="speichereIdee()">💾 Speichern</button>
+  <button id="abbrechenBtn" onclick="abbrechenBearbeiten()" style="display:none;">Abbrechen</button>
 
-  <!-- Filter/Sortierung -->
   <div class="filter-bar">
     <select id="filterKategorie" onchange="zeigeIdeen()">
       <option value="">Alle Kategorien</option>
@@ -55,7 +55,6 @@
     </select>
   </div>
 
-  <!-- Export-Buttons -->
   <button onclick="exportiereAlsPDF()">📝 PDF</button>
   <button onclick="exportiereAlsText()">📄 Text</button>
   <button onclick="teilePerEmail()">✉️ E-Mail</button>
@@ -70,18 +69,13 @@
     let bearbeiteIndex = null;
     const standardKategorien = ["Arbeit", "Privat", "Projekte"];
 
-    // Initialisierung
     function initialisiereKategorien() {
       const kategorien = JSON.parse(localStorage.getItem("kategorien")) || standardKategorien;
       const select = document.getElementById("kategorie");
       const filter = document.getElementById("filterKategorie");
-      
-      select.innerHTML = filter.innerHTML = kategorien.map(k => 
-        `<option>${k}</option>`
-      ).join("");
+      select.innerHTML = filter.innerHTML = kategorien.map(k => `<option>${k}</option>`).join("");
     }
 
-    // Idee speichern
     function speichereIdee() {
       const text = document.getElementById("ideeText").value.trim();
       if (!text) {
@@ -94,25 +88,32 @@
         data: URL.createObjectURL(file)
       }));
 
+      let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
       const idee = {
         text,
         details: document.getElementById("ideeDetails").value,
         kategorie: document.getElementById("kategorie").value,
         prioritaet,
-        dateien,
-        timestamp: new Date().toLocaleString("de-DE")
+        dateien: dateien.length > 0 ? dateien : (bearbeiteIndex !== null ? ideen[bearbeiteIndex].dateien : []),
+        timestamp: bearbeiteIndex !== null ? ideen[bearbeiteIndex].timestamp : new Date().toLocaleString("de-DE")
       };
 
-      let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-      ideen.push(idee);
+      if (bearbeiteIndex !== null) {
+        ideen[bearbeiteIndex] = idee;
+        bearbeiteIndex = null;
+        document.getElementById("speichernBtn").innerText = "💾 Speichern";
+        document.getElementById("abbrechenBtn").style.display = "none";
+      } else {
+        ideen.push(idee);
+      }
       localStorage.setItem("ideen", JSON.stringify(ideen));
       zeigeIdeen();
       document.getElementById("ideeText").value = "";
       document.getElementById("ideeDetails").value = "";
       document.getElementById("dateien").value = "";
+      setzePrioritaet("");
     }
 
-    // Ideen anzeigen
     function zeigeIdeen() {
       const ideen = JSON.parse(localStorage.getItem("ideen") || "[]")
         .filter(i => !document.getElementById("filterKategorie").value || i.kategorie === document.getElementById("filterKategorie").value)
@@ -131,9 +132,12 @@
           <h3>${idee.text}</h3>
           <p>${idee.details}</p>
           <small>${idee.kategorie} | ${idee.prioritaet} | ${idee.timestamp}</small>
-          ${idee.dateien.map(file => `
-            <div class="datei-link" onclick="window.open('${file.data}')">
-              📎 ${file.name}
+          ${idee.dateien.map((file, fidx) => `
+            <div>
+              <a class="datei-link" href="${file.data}" target="_blank" rel="noopener">
+                📎 ${file.name}
+              </a>
+              <button class="vorschau-btn" onclick="vorschauDatei('${file.data}')">📄 Vorschau</button>
             </div>
           `).join("")}
           <div class="idee-actions">
@@ -147,9 +151,12 @@
       `).join("");
     }
 
-    // Verschieben
+    function vorschauDatei(dataurl) {
+      window.open(dataurl, "_blank");
+    }
+
     function verschiebeIdee(idx, richtung) {
-      const ideen = JSON.parse(localStorage.getItem("ideen"));
+      let ideen = JSON.parse(localStorage.getItem("ideen"));
       const neuePos = idx + richtung;
       if (neuePos < 0 || neuePos >= ideen.length) return;
       [ideen[idx], ideen[neuePos]] = [ideen[neuePos], ideen[idx]];
@@ -157,7 +164,37 @@
       zeigeIdeen();
     }
 
-    // Export-Funktionen
+    function bearbeiteIdee(idx) {
+      const ideen = JSON.parse(localStorage.getItem("ideen"));
+      const idee = ideen[idx];
+      document.getElementById("ideeText").value = idee.text;
+      document.getElementById("ideeDetails").value = idee.details;
+      document.getElementById("kategorie").value = idee.kategorie;
+      setzePrioritaet(idee.prioritaet);
+      bearbeiteIndex = idx;
+      document.getElementById("speichernBtn").innerText = "💾 Aktualisieren";
+      document.getElementById("abbrechenBtn").style.display = "";
+    }
+
+    function abbrechenBearbeiten() {
+      bearbeiteIndex = null;
+      document.getElementById("ideeText").value = "";
+      document.getElementById("ideeDetails").value = "";
+      document.getElementById("dateien").value = "";
+      document.getElementById("speichernBtn").innerText = "💾 Speichern";
+      document.getElementById("abbrechenBtn").style.display = "none";
+      setzePrioritaet("");
+    }
+
+    function loescheIdee(idx) {
+      if (!confirm("Wirklich löschen?")) return;
+      const ideen = JSON.parse(localStorage.getItem("ideen"));
+      ideen.splice(idx, 1);
+      localStorage.setItem("ideen", JSON.stringify(ideen));
+      zeigeIdeen();
+      abbrechenBearbeiten();
+    }
+
     function exportiereAlsPDF() {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
@@ -168,7 +205,11 @@
         doc.text(`Kategorie: ${idee.kategorie}`, 10, y + 5);
         doc.text(`Priorität: ${idee.prioritaet}`, 10, y + 10);
         idee.dateien?.forEach((file, j) => {
-          doc.textWithLink(`📎 ${file.name}`, 10, y + 15 + (j * 5), { url: file.data });
+          if (doc.textWithLink) {
+            doc.textWithLink(`📎 ${file.name}`, 10, y + 15 + (j * 5), { url: file.data });
+          } else {
+            doc.text(`📎 ${file.name}`, 10, y + 15 + (j * 5));
+          }
         });
       });
       doc.save("ideen-export.pdf");
@@ -184,7 +225,6 @@
         `Details: ${idee.details}\n` +
         `Anhänge: ${idee.dateien?.map(f => f.name).join(", ") || "Keine"}\n`
       ).join("\n\n");
-      
       const blob = new Blob([text], { type: "text/plain" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -203,7 +243,6 @@
         `Details: ${idee.details}\n` +
         `Anhänge: ${idee.dateien?.map(f => f.name).join(", ")}\n`
       ).join("\n\n");
-      
       window.location.href = `mailto:?subject=Ideen-Export&body=${encodeURIComponent(text)}`;
     }
 
@@ -217,25 +256,19 @@
         `📝 ${idee.details}\n` +
         `📎 Anhänge: ${idee.dateien?.map(f => f.name).join(", ") || "Keine"}\n`
       ).join("\n\n");
-      
       window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
     }
 
-    // Hilfsfunktionen
-    function setzePrioritaet(p) {
-      prioritaet = p;
-      ["prioHoch", "prioMittel", "prioNiedrig"].forEach(id => 
-        document.getElementById(id).classList.remove("selected")
-      );
-      document.getElementById(`prio${p}`).classList.add("selected");
-    }
-
-    function loescheIdee(idx) {
-      if (!confirm("Wirklich löschen?")) return;
-      const ideen = JSON.parse(localStorage.getItem("ideen"));
-      ideen.splice(idx, 1);
-      localStorage.setItem("ideen", JSON.stringify(ideen));
-      zeigeIdeen();
+    function neueKategorieHinzufuegen() {
+      const neueKat = document.getElementById("neueKategorie").value.trim();
+      if (!neueKat) return;
+      let kategorien = JSON.parse(localStorage.getItem("kategorien")) || standardKategorien;
+      if (!kategorien.includes(neueKat)) {
+        kategorien.push(neueKat);
+        localStorage.setItem("kategorien", JSON.stringify(kategorien));
+        initialisiereKategorien();
+        document.getElementById("neueKategorie").value = "";
+      }
     }
 
     function exportiereAnlagenLink(idx) {
