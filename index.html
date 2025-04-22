@@ -256,12 +256,11 @@
       const idee = ideen[idx];
       if (!idee.dateien || idee.dateien.length === 0) return;
 
-      // Dialog-HTML
       let html = `<div class="export-link-dialog"><b>Anlage als Link exportieren</b><br>`;
       if (idee.dateien.length === 1) {
         html += `<div><b>${idee.dateien[0].name}</b></div>`;
-        html += `<textarea rows="3" readonly>${idee.dateien[0].data}</textarea>`;
-        html += `<button onclick="kopiereExportLink('${idee.dateien[0].data.replace(/'/g,"\\'")}')">Link kopieren</button>`;
+        html += `<textarea id="exportDateiLink" rows="3" readonly>${idee.dateien[0].data}</textarea>`;
+        html += `<button id="copyExportLinkBtn">Link kopieren</button>`;
         html += `<button onclick="schliesseExportDialog()">Schließen</button>`;
       } else {
         html += `<label>Datei auswählen:</label><select id="exportDateiSelect">`;
@@ -270,31 +269,29 @@
         });
         html += `</select>`;
         html += `<textarea id="exportDateiLink" rows="3" readonly>${idee.dateien[0].data}</textarea>`;
-        html += `<button onclick="kopiereExportLink(document.getElementById('exportDateiLink').value)">Link kopieren</button>`;
+        html += `<button id="copyExportLinkBtn">Link kopieren</button>`;
         html += `<button onclick="schliesseExportDialog()">Schließen</button>`;
-        html += `
-        <script>
-          document.getElementById('exportDateiSelect').addEventListener('change',function(){
-            var ideen=JSON.parse(localStorage.getItem('ideen')||'[]');
-            var idee=ideen[${idx}];
-            var sel=+this.value;
-            document.getElementById('exportDateiLink').value=idee.dateien[sel].data;
-          });
-        </script>
-        `;
       }
       html += `</div>`;
       document.getElementById("exportLinkDialog").innerHTML = html;
       document.getElementById("exportLinkDialog").style.display = "";
       document.getElementById("overlay").style.display = "";
+
+      setTimeout(() => {
+        document.getElementById("copyExportLinkBtn").onclick = function() {
+          const link = document.getElementById("exportDateiLink").value;
+          navigator.clipboard.writeText(link);
+          alert("Link in die Zwischenablage kopiert!");
+        };
+        if (idee.dateien.length > 1) {
+          document.getElementById("exportDateiSelect").onchange = function() {
+            const sel = +this.value;
+            document.getElementById("exportDateiLink").value = idee.dateien[sel].data;
+          };
+        }
+      }, 50);
     }
 
-    // Export-Link kopieren
-    function kopiereExportLink(link) {
-      navigator.clipboard.writeText(link);
-      alert("Link in die Zwischenablage kopiert!");
-    }
-    // Dialog schließen
     function schliesseExportDialog() {
       document.getElementById("exportLinkDialog").style.display = "none";
       document.getElementById("overlay").style.display = "none";
