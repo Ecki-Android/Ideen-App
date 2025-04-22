@@ -20,7 +20,8 @@
     .datei-link { color: #1a73e8; text-decoration: underline; cursor: pointer; margin: 5px 0; }
     .export-link-dialog { background: #fff; border: 1px solid #888; padding: 20px; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; }
     .overlay { position: fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.2); z-index:999; }
-    .vorschau-btn { background: #f0f0f0; border: 1px solid #bbb; border-radius: 4px; margin-left: 5px; cursor: pointer; }
+    .datei-vorschau { margin: 10px 0; }
+    .datei-vorschau a { display: block; margin: 3px 0; }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
@@ -41,6 +42,8 @@
   </div>
 
   <input type="file" id="dateien" multiple />
+  <div class="datei-vorschau" id="dateiVorschau"></div>
+  
   <button id="speichernBtn" onclick="speichereIdee()">💾 Speichern</button>
   <button id="abbrechenBtn" onclick="abbrechenBearbeiten()" style="display:none;">Abbrechen</button>
 
@@ -69,13 +72,26 @@
     let bearbeiteIndex = null;
     const standardKategorien = ["Arbeit", "Privat", "Projekte"];
 
+    // Initialisierung
     function initialisiereKategorien() {
       const kategorien = JSON.parse(localStorage.getItem("kategorien")) || standardKategorien;
       const select = document.getElementById("kategorie");
       const filter = document.getElementById("filterKategorie");
-      select.innerHTML = filter.innerHTML = kategorien.map(k => `<option>${k}</option>`).join("");
+      
+      select.innerHTML = filter.innerHTML = kategorien.map(k => 
+        `<option>${k}</option>`
+      ).join("");
     }
 
+    // Dateivorschau
+    document.getElementById("dateien").addEventListener("change", function(e) {
+      const vorschau = document.getElementById("dateiVorschau");
+      vorschau.innerHTML = Array.from(e.target.files).map(file => `
+        <a href="${URL.createObjectURL(file)}" target="_blank">📄 ${file.name}</a>
+      `).join("");
+    });
+
+    // Idee speichern
     function speichereIdee() {
       const text = document.getElementById("ideeText").value.trim();
       if (!text) {
@@ -88,32 +104,36 @@
         data: URL.createObjectURL(file)
       }));
 
-      let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
       const idee = {
         text,
         details: document.getElementById("ideeDetails").value,
         kategorie: document.getElementById("kategorie").value,
         prioritaet,
-        dateien: dateien.length > 0 ? dateien : (bearbeiteIndex !== null ? ideen[bearbeiteIndex].dateien : []),
-        timestamp: bearbeiteIndex !== null ? ideen[bearbeiteIndex].timestamp : new Date().toLocaleString("de-DE")
+        dateien,
+        timestamp: new Date().toLocaleString("de-DE")
       };
 
+      let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+      
       if (bearbeiteIndex !== null) {
         ideen[bearbeiteIndex] = idee;
         bearbeiteIndex = null;
-        document.getElementById("speichernBtn").innerText = "💾 Speichern";
+        document.getElementById("speichernBtn").textContent = "💾 Speichern";
         document.getElementById("abbrechenBtn").style.display = "none";
       } else {
         ideen.push(idee);
       }
+
       localStorage.setItem("ideen", JSON.stringify(ideen));
       zeigeIdeen();
       document.getElementById("ideeText").value = "";
       document.getElementById("ideeDetails").value = "";
       document.getElementById("dateien").value = "";
+      document.getElementById("dateiVorschau").innerHTML = "";
       setzePrioritaet("");
     }
 
+    // Ideen anzeigen
     function zeigeIdeen() {
       const ideen = JSON.parse(localStorage.getItem("ideen") || "[]")
         .filter(i => !document.getElementById("filterKategorie").value || i.kategorie === document.getElementById("filterKategorie").value)
@@ -132,89 +152,89 @@
           <h3>${idee.text}</h3>
           <p>${idee.details}</p>
           <small>${idee.kategorie} | ${idee.prioritaet} | ${idee.timestamp}</small>
-          ${idee.dateien.map((file, fidx) => `
-            <div>
-              <a class="datei-link" href="${file.data}" target="_blank" rel="noopener">
-                📎 ${file.name}
-              </a>
-              <button class="vorschau-btn" onclick="vorschauDatei('${file.data}')">📄 Vorschau</button>
-            </div>
+          ${idee.dateien.map(file => `
+            <a class="datei-link" href="${file.data}" target="_blank">📎 ${file.name}</a>
           `).join("")}
           <div class="idee-actions">
             <button onclick="verschiebeIdee(${idx}, -1)">⬆️</button>
             <button onclick="verschiebeIdee(${idx}, 1)">⬇️</button>
             <button onclick="bearbeiteIdee(${idx})">✏️</button>
             <button onclick="loescheIdee(${idx})">🗑️</button>
-            ${idee.dateien?.length ? `<button onclick="exportiereAnlagenLink(${idx})">🔗</button>` : ''}
           </div>
         </div>
       `).join("");
     }
 
-    function vorschauDatei(dataurl) {
-      window.open(dataurl, "_blank");
-    }
-
+    // Verschieben
     function verschiebeIdee(idx, richtung) {
-      let ideen = JSON.parse(localStorage.getItem("ideen"));
+      const ideen = JSON.parse(localStorage.getItem("ideen"));
       const neuePos = idx + richtung;
-      if (neuePos < 0 || neuePos >= ideen.length) return;
-      [ideen[idx], ideen[neuePos]] = [ideen[neuePos], ideen[idx]];
-      localStorage.setItem("ideen", JSON.stringify(ideen));
-      zeigeIdeen();
+      
+      if (neuePos >= 0 && neuePos < ideen.length) {
+        [ideen[idx], ideen[neuePos]] = [ideen[neuePos], ideen[idx]];
+        localStorage.setItem("ideen", JSON.stringify(ideen));
+        zeigeIdeen();
+      }
     }
 
+    // Bearbeiten
     function bearbeiteIdee(idx) {
       const ideen = JSON.parse(localStorage.getItem("ideen"));
       const idee = ideen[idx];
+      
       document.getElementById("ideeText").value = idee.text;
       document.getElementById("ideeDetails").value = idee.details;
       document.getElementById("kategorie").value = idee.kategorie;
       setzePrioritaet(idee.prioritaet);
       bearbeiteIndex = idx;
-      document.getElementById("speichernBtn").innerText = "💾 Aktualisieren";
+      
+      document.getElementById("speichernBtn").textContent = "💾 Aktualisieren";
       document.getElementById("abbrechenBtn").style.display = "";
+      document.getElementById("dateiVorschau").innerHTML = idee.dateien.map(file => `
+        <a href="${file.data}" target="_blank">📎 ${file.name}</a>
+      `).join("");
     }
 
-    function abbrechenBearbeiten() {
-      bearbeiteIndex = null;
-      document.getElementById("ideeText").value = "";
-      document.getElementById("ideeDetails").value = "";
-      document.getElementById("dateien").value = "";
-      document.getElementById("speichernBtn").innerText = "💾 Speichern";
-      document.getElementById("abbrechenBtn").style.display = "none";
-      setzePrioritaet("");
-    }
-
-    function loescheIdee(idx) {
-      if (!confirm("Wirklich löschen?")) return;
-      const ideen = JSON.parse(localStorage.getItem("ideen"));
-      ideen.splice(idx, 1);
-      localStorage.setItem("ideen", JSON.stringify(ideen));
-      zeigeIdeen();
-      abbrechenBearbeiten();
-    }
-
+    // PDF-Export
     function exportiereAlsPDF() {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
-      doc.text("Ideen-Export", 10, 10);
-      JSON.parse(localStorage.getItem("ideen")).forEach((idee, i) => {
-        const y = 20 + (i * 40);
-        doc.text(`Idee ${i + 1}: ${idee.text}`, 10, y);
-        doc.text(`Kategorie: ${idee.kategorie}`, 10, y + 5);
-        doc.text(`Priorität: ${idee.prioritaet}`, 10, y + 10);
-        idee.dateien?.forEach((file, j) => {
-          if (doc.textWithLink) {
-            doc.textWithLink(`📎 ${file.name}`, 10, y + 15 + (j * 5), { url: file.data });
-          } else {
-            doc.text(`📎 ${file.name}`, 10, y + 15 + (j * 5));
-          }
+      let y = 20;
+      let page = 1;
+
+      JSON.parse(localStorage.getItem("ideen")).forEach((idee, idx) => {
+        if (y > 280) {
+          doc.addPage();
+          page++;
+          y = 20;
+        }
+
+        doc.setFontSize(12);
+        doc.text(`Idee ${idx + 1}: ${idee.text}`, 10, y);
+        y += 10;
+        doc.text(`Kategorie: ${idee.kategorie}`, 10, y);
+        y += 10;
+        doc.text(`Priorität: ${idee.prioritaet}`, 10, y);
+        y += 10;
+        
+        if (idee.details) {
+          const lines = doc.splitTextToSize(idee.details, 180);
+          doc.text(lines, 10, y);
+          y += lines.length * 7;
+        }
+
+        idee.dateien?.forEach(file => {
+          doc.textWithLink(`📎 ${file.name}`, 10, y, { url: file.data });
+          y += 10;
         });
+
+        y += 15;
       });
+
       doc.save("ideen-export.pdf");
     }
 
+    // Weitere Funktionen
     function exportiereAlsText() {
       const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
       const text = ideen.map(idee => 
@@ -225,6 +245,7 @@
         `Details: ${idee.details}\n` +
         `Anhänge: ${idee.dateien?.map(f => f.name).join(", ") || "Keine"}\n`
       ).join("\n\n");
+      
       const blob = new Blob([text], { type: "text/plain" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -243,6 +264,7 @@
         `Details: ${idee.details}\n` +
         `Anhänge: ${idee.dateien?.map(f => f.name).join(", ")}\n`
       ).join("\n\n");
+      
       window.location.href = `mailto:?subject=Ideen-Export&body=${encodeURIComponent(text)}`;
     }
 
@@ -256,7 +278,24 @@
         `📝 ${idee.details}\n` +
         `📎 Anhänge: ${idee.dateien?.map(f => f.name).join(", ") || "Keine"}\n`
       ).join("\n\n");
+      
       window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+    }
+
+    function loescheIdee(idx) {
+      if (!confirm("Wirklich löschen?")) return;
+      const ideen = JSON.parse(localStorage.getItem("ideen"));
+      ideen.splice(idx, 1);
+      localStorage.setItem("ideen", JSON.stringify(ideen));
+      zeigeIdeen();
+    }
+
+    function setzePrioritaet(p) {
+      prioritaet = p;
+      ["prioHoch", "prioMittel", "prioNiedrig"].forEach(id => 
+        document.getElementById(id).classList.remove("selected")
+      );
+      document.getElementById(`prio${p}`).classList.add("selected");
     }
 
     function neueKategorieHinzufuegen() {
@@ -271,23 +310,15 @@
       }
     }
 
-    function exportiereAnlagenLink(idx) {
-      const idee = JSON.parse(localStorage.getItem("ideen"))[idx];
-      document.getElementById("exportLinkDialog").innerHTML = `
-        <div class="export-link-dialog">
-          <h3>${idee.dateien[0].name}</h3>
-          <textarea rows="3">${idee.dateien[0].data}</textarea>
-          <button onclick="navigator.clipboard.writeText('${idee.dateien[0].data}')">📋 Kopieren</button>
-          <button onclick="schliesseExportDialog()">✖️ Schließen</button>
-        </div>
-      `;
-      document.getElementById("exportLinkDialog").style.display = "block";
-      document.getElementById("overlay").style.display = "block";
-    }
-
-    function schliesseExportDialog() {
-      document.getElementById("exportLinkDialog").style.display = "none";
-      document.getElementById("overlay").style.display = "none";
+    function abbrechenBearbeiten() {
+      bearbeiteIndex = null;
+      document.getElementById("ideeText").value = "";
+      document.getElementById("ideeDetails").value = "";
+      document.getElementById("dateien").value = "";
+      document.getElementById("speichernBtn").textContent = "💾 Speichern";
+      document.getElementById("abbrechenBtn").style.display = "none";
+      document.getElementById("dateiVorschau").innerHTML = "";
+      setzePrioritaet("");
     }
 
     function zeigeWarnung(msg) {
