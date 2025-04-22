@@ -8,13 +8,7 @@
     body { font-family: Arial, sans-serif; margin: 20px; background: #f4f4f4; }
     h1 { color: #333; }
     input, select, textarea, button { margin-top: 10px; padding: 10px; width: 100%; max-width: 500px; }
-    .idee { 
-      background: white; 
-      padding: 15px; 
-      margin: 10px 0; 
-      border-radius: 8px; 
-      box-shadow: 0 0 5px #ccc;
-    }
+    .idee { background: white; padding: 15px; margin: 10px 0; border-radius: 8px; box-shadow: 0 0 5px #ccc; }
     .buttons { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
     .filter-bar { margin: 20px 0; }
     .filter-bar select { width: auto; }
@@ -24,13 +18,11 @@
     .prio-btn.selected { background: #ffd700; border-color: #ff9800; color: #222; }
     .warnung { color: #d32f2f; margin: 10px 0; font-weight: bold; }
     .info { color: #1976d2; margin: 10px 0; font-weight: bold; }
-    .datei-link { 
-      color: #1a73e8;
-      text-decoration: underline;
-      cursor: pointer;
-      margin: 5px 0;
-      display: block;
-    }
+    .datei-link { color: #1a73e8; text-decoration: underline; cursor: pointer; margin: 5px 0; display: block; }
+    .export-link-dialog { background: #fff; border: 1px solid #888; border-radius: 8px; box-shadow: 0 0 8px #888; padding: 20px; position: fixed; top: 50%; left: 50%; width: 90vw; max-width: 400px; transform: translate(-50%, -50%); z-index: 1000; }
+    .export-link-dialog select, .export-link-dialog textarea { width: 100%; margin: 10px 0; }
+    .export-link-dialog button { margin-top: 10px; }
+    .overlay { position: fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.2); z-index:999; }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
@@ -72,7 +64,8 @@
   <button onclick="teilePerWhatsApp()">📱 Teilen per WhatsApp</button>
   
   <div id="ideenListe"></div>
-
+  <div id="exportLinkDialog" style="display:none;"></div>
+  <div id="overlay" class="overlay" style="display:none;"></div>
   <script>
     let prioritaet = "";
     let bearbeiteIndex = null;
@@ -233,6 +226,15 @@
         downBtn.onclick = () => verschiebeIdee(idx, 1);
         actions.appendChild(downBtn);
 
+        // Export-Link-Button, wenn Anlagen vorhanden
+        if (idee.dateien && idee.dateien.length > 0) {
+          const exportBtn = document.createElement("button");
+          exportBtn.innerText = "🔗 Anlage als Link exportieren";
+          exportBtn.title = "Exportiere einen Link zu einer Anlage";
+          exportBtn.onclick = () => exportiereAnlagenLink(idx);
+          actions.appendChild(exportBtn);
+        }
+
         // Bearbeiten & Löschen
         const editBtn = document.createElement("button");
         editBtn.innerText = "✏️ Bearbeiten";
@@ -247,6 +249,55 @@
         div.appendChild(actions);
         ideenListe.appendChild(div);
       });
+    }
+
+    function exportiereAnlagenLink(idx) {
+      const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+      const idee = ideen[idx];
+      if (!idee.dateien || idee.dateien.length === 0) return;
+
+      // Dialog-HTML
+      let html = `<div class="export-link-dialog"><b>Anlage als Link exportieren</b><br>`;
+      if (idee.dateien.length === 1) {
+        html += `<div><b>${idee.dateien[0].name}</b></div>`;
+        html += `<textarea rows="3" readonly>${idee.dateien[0].data}</textarea>`;
+        html += `<button onclick="kopiereExportLink('${idee.dateien[0].data.replace(/'/g,"\\'")}')">Link kopieren</button>`;
+        html += `<button onclick="schliesseExportDialog()">Schließen</button>`;
+      } else {
+        html += `<label>Datei auswählen:</label><select id="exportDateiSelect">`;
+        idee.dateien.forEach((file, i) => {
+          html += `<option value="${i}">${file.name}</option>`;
+        });
+        html += `</select>`;
+        html += `<textarea id="exportDateiLink" rows="3" readonly>${idee.dateien[0].data}</textarea>`;
+        html += `<button onclick="kopiereExportLink(document.getElementById('exportDateiLink').value)">Link kopieren</button>`;
+        html += `<button onclick="schliesseExportDialog()">Schließen</button>`;
+        html += `
+        <script>
+          document.getElementById('exportDateiSelect').addEventListener('change',function(){
+            var ideen=JSON.parse(localStorage.getItem('ideen')||'[]');
+            var idee=ideen[${idx}];
+            var sel=+this.value;
+            document.getElementById('exportDateiLink').value=idee.dateien[sel].data;
+          });
+        </script>
+        `;
+      }
+      html += `</div>`;
+      document.getElementById("exportLinkDialog").innerHTML = html;
+      document.getElementById("exportLinkDialog").style.display = "";
+      document.getElementById("overlay").style.display = "";
+    }
+
+    // Export-Link kopieren
+    function kopiereExportLink(link) {
+      navigator.clipboard.writeText(link);
+      alert("Link in die Zwischenablage kopiert!");
+    }
+    // Dialog schließen
+    function schliesseExportDialog() {
+      document.getElementById("exportLinkDialog").style.display = "none";
+      document.getElementById("overlay").style.display = "none";
     }
 
     function bearbeiteIdee(idx) {
