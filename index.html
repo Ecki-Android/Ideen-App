@@ -284,7 +284,7 @@
       const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
       let text = ideen.map(i => 
         `${i.timestamp}\n${i.kategorie} | ${i.prioritaet}\n${i.text}\n${i.details}\n` +
-        (i.dateien?.map(f => ` - ${f.name}: ${f.data}`).join('\n') || '')
+        (i.dateien?.map(f => ` - ${f.name}: Link im Browser öffnen\n   ${f.data}`).join('\n') || '')
       ).join("\n---------------------\n");
       const blob = new Blob([text], { type: "text/plain" });
       const link = document.createElement("a");
@@ -336,7 +336,7 @@
       const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
       let text = ideen.map(i => 
         `${i.timestamp}\n${i.kategorie} | ${i.prioritaet}\n${i.text}\n${i.details}\n` +
-        (i.dateien?.map(f => ` - ${f.name}: ${f.data}`).join('\n') || '')
+        (i.dateien?.map(f => ` - ${f.name}: Link im Browser öffnen\n   ${f.data}`).join('\n') || '')
       ).join("\n---------------------\n");
       window.location.href = `mailto:?subject=Meine Ideen&body=${encodeURIComponent(text)}`;
     }
@@ -345,7 +345,7 @@
       const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
       let text = ideen.map(i => 
         `${i.timestamp}\n${i.kategorie} | ${i.prioritaet}\n${i.text}\n${i.details}\n` +
-        (i.dateien?.map(f => ` - ${f.name}: ${f.data}`).join('\n') || '')
+        (i.dateien?.map(f => ` - ${f.name}: Link im Browser öffnen\n   ${f.data}`).join('\n') || '')
       ).join("\n---------------------\n");
       const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
       window.open(url, "_blank");
