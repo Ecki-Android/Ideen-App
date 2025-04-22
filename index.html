@@ -7,7 +7,9 @@
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; background: #f4f4f4; }
     input, select, textarea, button { margin-top: 10px; padding: 10px; width: 100%; max-width: 500px; }
-    .idee { background: white; padding: 15px; margin: 10px 0; border-radius: 8px; box-shadow: 0 0 5px #ccc; }
+    .idee { background: white; padding: 15px; margin: 10px 0; border-radius: 8px; box-shadow: 0 0 5px #ccc; display: flex; align-items: flex-start; }
+    .idee-content { flex: 1; }
+    .idee-checkbox { margin-right: 10px; margin-top: 5px; }
     .buttons { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
     .filter-bar { margin: 20px 0; }
     .filter-bar select { width: auto; }
@@ -25,6 +27,7 @@
     .katLoeschBtn { background:#eee;border:1px solid #c00;color:#c00; }
     #preview img { max-width: 300px; max-height: 200px; display: block; margin-top: 8px; border: 1px solid #888; }
     #preview iframe { width: 300px; height: 200px; border: 1px solid #888; margin-top: 8px; display: block; }
+    .top-actions { margin-bottom: 12px; display: flex; gap: 10px; flex-wrap: wrap; }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
@@ -66,10 +69,14 @@
     </select>
   </div>
 
-  <button onclick="exportiereAlsPDF()">📝 PDF</button>
-  <button onclick="exportiereAlsText()">📄 Text</button>
-  <button onclick="teilePerEmail()">✉️ E-Mail</button>
-  <button onclick="teilePerWhatsApp()">📱 WhatsApp</button>
+  <div class="top-actions">
+    <button onclick="exportiereAlsPDF()">📝 PDF</button>
+    <button onclick="exportiereAlsText()">📄 Text</button>
+    <button onclick="teilePerEmail()">✉️ E-Mail</button>
+    <button onclick="teilePerWhatsApp()">📱 WhatsApp</button>
+    <button onclick="alleIdeenLoeschen()" style="background:#eee;border:1px solid #c00;color:#c00;">Alle Ideen löschen</button>
+    <button onclick="ausgewaehlteNotizenLoeschen()" style="background:#eee;border:1px solid #c00;color:#c00;">Ausgewählte löschen</button>
+  </div>
 
   <div id="ideenListe"></div>
   <div id="exportLinkDialog" style="display:none;"></div>
@@ -78,6 +85,7 @@
   <script>
     let prioritaet = "";
     let bearbeiteIndex = null;
+    let ausgewaehlt = []; // Array von globalen Indizes
     const standardKategorien = ["Aufgaben", "Projekte", "Privat", "Arbeit", "Später"];
 
     function initialisiereKategorien() {
@@ -100,9 +108,7 @@
       Array.from(e.target.files).forEach(file => {
         const url = URL.createObjectURL(file);
         vorschau.innerHTML += `<a class="datei-link" href="${url}" target="_blank">📄 ${file.name}</a>`;
-        // Speicherort anzeigen (nur Dateiname möglich)
         vorschau.innerHTML += `<div class="datei-info">Speicherort: <i>${file.webkitRelativePath || "(lokal ausgewählt)"}</i></div>`;
-        // Vorschau
         if (file.type.startsWith("image/")) {
           preview.innerHTML += `<b>Vorschau:</b><br><img src="${url}" alt="${file.name}">`;
         } else if (file.type === "application/pdf") {
@@ -170,29 +176,62 @@
         const globalIdx = ideen.findIndex(i => i === idee);
         return `
         <div class="idee">
-          <h3>${idee.text}</h3>
-          <p>${idee.details}</p>
-          <small>${idee.kategorie} | ${idee.prioritaet} | ${idee.timestamp}</small>
-          ${idee.dateien.map(file => `
-            <a class="datei-link" href="${file.data}" target="_blank">📎 ${file.name}</a>
-            <div class="datei-info">Speicherort: <i>${file.name}</i></div>
-            ${
-              file.type.startsWith("image/") 
-                ? `<img src="${file.data}" alt="${file.name}" style="max-width:150px;max-height:100px;border:1px solid #888;margin-bottom:8px;">`
-                : file.type === "application/pdf"
-                  ? `<iframe src="${file.data}" style="width:150px;height:100px;border:1px solid #888;margin-bottom:8px;"></iframe>`
-                  : ""
-            }
-          `).join("")}
-          <div class="idee-actions">
-            <button onclick="verschiebeIdee(${globalIdx}, -1)">⬆️</button>
-            <button onclick="verschiebeIdee(${globalIdx}, 1)">⬇️</button>
-            <button onclick="bearbeiteIdee(${globalIdx})">✏️</button>
-            <button onclick="loescheIdee(${globalIdx})">🗑️</button>
+          <input type="checkbox" class="idee-checkbox" onchange="toggleAuswahl(${globalIdx},this)" ${ausgewaehlt.includes(globalIdx) ? "checked" : ""}>
+          <div class="idee-content">
+            <h3>${idee.text}</h3>
+            <p>${idee.details}</p>
+            <small>${idee.kategorie} | ${idee.prioritaet} | ${idee.timestamp}</small>
+            ${idee.dateien.map(file => `
+              <a class="datei-link" href="${file.data}" target="_blank">📎 ${file.name}</a>
+              <div class="datei-info">Speicherort: <i>${file.name}</i></div>
+              ${
+                file.type.startsWith("image/") 
+                  ? `<img src="${file.data}" alt="${file.name}" style="max-width:150px;max-height:100px;border:1px solid #888;margin-bottom:8px;">`
+                  : file.type === "application/pdf"
+                    ? `<iframe src="${file.data}" style="width:150px;height:100px;border:1px solid #888;margin-bottom:8px;"></iframe>`
+                    : ""
+              }
+            `).join("")}
+            <div class="idee-actions">
+              <button onclick="verschiebeIdee(${globalIdx}, -1)">⬆️</button>
+              <button onclick="verschiebeIdee(${globalIdx}, 1)">⬇️</button>
+              <button onclick="bearbeiteIdee(${globalIdx})">✏️</button>
+              <button onclick="loescheIdee(${globalIdx})">🗑️</button>
+            </div>
           </div>
         </div>
       `;
       }).join("");
+    }
+
+    function toggleAuswahl(idx, box) {
+      if (box.checked) {
+        if (!ausgewaehlt.includes(idx)) ausgewaehlt.push(idx);
+      } else {
+        ausgewaehlt = ausgewaehlt.filter(i => i !== idx);
+      }
+    }
+
+    function ausgewaehlteNotizenLoeschen() {
+      if (!ausgewaehlt.length) {
+        zeigeWarnung("Bitte mindestens eine Notiz auswählen!");
+        return;
+      }
+      if (!confirm("Wirklich die ausgewählten Notizen löschen?")) return;
+      let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+      ideen = ideen.filter((_, idx) => !ausgewaehlt.includes(idx));
+      localStorage.setItem("ideen", JSON.stringify(ideen));
+      ausgewaehlt = [];
+      zeigeIdeen();
+      abbrechenBearbeiten();
+    }
+
+    function alleIdeenLoeschen() {
+      if (!confirm("Wirklich ALLE Ideen löschen?")) return;
+      localStorage.setItem("ideen", "[]");
+      ausgewaehlt = [];
+      zeigeIdeen();
+      abbrechenBearbeiten();
     }
 
     function verschiebeIdee(idx, richtung) {
