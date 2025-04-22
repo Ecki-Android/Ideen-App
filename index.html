@@ -6,7 +6,6 @@
   <title>Ideen-App Pro</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; background: #f4f4f4; }
-    h1 { color: #333; }
     input, select, textarea, button { margin-top: 10px; padding: 10px; width: 100%; max-width: 500px; }
     .idee { background: white; padding: 15px; margin: 10px 0; border-radius: 8px; box-shadow: 0 0 5px #ccc; }
     .buttons { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
@@ -20,8 +19,6 @@
     .datei-link { color: #1a73e8; text-decoration: underline; cursor: pointer; margin: 5px 0; word-break: break-all; }
     .datei-vorschau { margin: 10px 0; }
     .datei-vorschau a { display: block; margin: 3px 0; }
-    .export-link-dialog { background: #fff; border: 1px solid #888; padding: 20px; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; }
-    .overlay { position: fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.2); z-index:999; }
     .filter-option-alle { color: #666; font-style: italic; }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -135,18 +132,21 @@
       const filter = document.getElementById("filterKategorie").value;
       const sortierung = document.getElementById("sortierung").value;
       let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-      if (filter) {
-        ideen = ideen.filter(i => i.kategorie === filter);
-      }
+      let gefilterteIdeen = filter ? ideen.filter(i => i.kategorie === filter) : ideen.slice();
+
       if (sortierung === "neu") {
-        ideen.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        gefilterteIdeen.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
       } else if (sortierung === "alt") {
-        ideen.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+        gefilterteIdeen.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
       } else if (sortierung === "prio") {
         const prio = { "Hoch": 3, "Mittel": 2, "Niedrig": 1 };
-        ideen.sort((a, b) => prio[b.prioritaet] - prio[a.prioritaet]);
+        gefilterteIdeen.sort((a, b) => prio[b.prioritaet] - prio[a.prioritaet]);
       }
-      document.getElementById("ideenListe").innerHTML = ideen.map((idee, idx) => `
+
+      document.getElementById("ideenListe").innerHTML = gefilterteIdeen.map((idee, idx) => {
+        // Finde globalen Index für Aktionen
+        const globalIdx = ideen.findIndex(i => i === idee);
+        return `
         <div class="idee">
           <h3>${idee.text}</h3>
           <p>${idee.details}</p>
@@ -155,44 +155,28 @@
             <a class="datei-link" href="${file.data}" target="_blank">📎 ${file.name}</a>
           `).join("")}
           <div class="idee-actions">
-            <button onclick="verschiebeIdee(${idx}, -1)">⬆️</button>
-            <button onclick="verschiebeIdee(${idx}, 1)">⬇️</button>
-            <button onclick="bearbeiteIdee(${idx})">✏️</button>
-            <button onclick="loescheIdee(${idx})">🗑️</button>
+            <button onclick="verschiebeIdee(${globalIdx}, -1)">⬆️</button>
+            <button onclick="verschiebeIdee(${globalIdx}, 1)">⬇️</button>
+            <button onclick="bearbeiteIdee(${globalIdx})">✏️</button>
+            <button onclick="loescheIdee(${globalIdx})">🗑️</button>
           </div>
         </div>
-      `).join("");
+      `;
+      }).join("");
     }
 
     function verschiebeIdee(idx, richtung) {
-      const filter = document.getElementById("filterKategorie").value;
       let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-      if (filter) {
-        // Verschieben nur in gefilterter Ansicht: Reihenfolge in gefilterter Liste ändern
-        const gefiltert = ideen.filter(i => i.kategorie === filter);
-        const globalIdx = ideen.findIndex(i => i === gefiltert[idx]);
-        const globalIdx2 = ideen.findIndex(i => i === gefiltert[idx + richtung]);
-        if (globalIdx2 < 0) return;
-        [ideen[globalIdx], ideen[globalIdx2]] = [ideen[globalIdx2], ideen[globalIdx]];
-      } else {
-        const neuePos = idx + richtung;
-        if (neuePos < 0 || neuePos >= ideen.length) return;
-        [ideen[idx], ideen[neuePos]] = [ideen[neuePos], ideen[idx]];
-      }
+      const neuePos = idx + richtung;
+      if (neuePos < 0 || neuePos >= ideen.length) return;
+      [ideen[idx], ideen[neuePos]] = [ideen[neuePos], ideen[idx]];
       localStorage.setItem("ideen", JSON.stringify(ideen));
       zeigeIdeen();
     }
 
     function bearbeiteIdee(idx) {
-      const filter = document.getElementById("filterKategorie").value;
       let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-      let idee = null;
-      if (filter) {
-        idee = ideen.filter(i => i.kategorie === filter)[idx];
-        idx = ideen.findIndex(i => i === idee);
-      } else {
-        idee = ideen[idx];
-      }
+      const idee = ideen[idx];
       document.getElementById("ideeText").value = idee.text;
       document.getElementById("ideeDetails").value = idee.details;
       document.getElementById("kategorie").value = idee.kategorie;
@@ -218,15 +202,8 @@
 
     function loescheIdee(idx) {
       if (!confirm("Wirklich löschen?")) return;
-      const filter = document.getElementById("filterKategorie").value;
       let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-      if (filter) {
-        const gefiltert = ideen.filter(i => i.kategorie === filter);
-        const globalIdx = ideen.findIndex(i => i === gefiltert[idx]);
-        ideen.splice(globalIdx, 1);
-      } else {
-        ideen.splice(idx, 1);
-      }
+      ideen.splice(idx, 1);
       localStorage.setItem("ideen", JSON.stringify(ideen));
       zeigeIdeen();
       abbrechenBearbeiten();
