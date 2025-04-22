@@ -16,12 +16,15 @@
     .prio-btn { background: #eee; border: 1px solid #ccc; border-radius: 4px; }
     .prio-btn.selected { background: #ffd700; border-color: #ff9800; color: #222; }
     .warnung { color: #d32f2f; margin: 10px 0; font-weight: bold; }
-    .datei-link { color: #1a73e8; text-decoration: underline; cursor: pointer; margin: 5px 0; word-break: break-all; }
+    .datei-link { color: #1a0dab; text-decoration: underline; cursor: pointer; font-weight: bold; display: inline-block; margin-bottom: 8px; }
+    .datei-info { font-size: 0.96em; color: #333; margin-bottom: 8px; }
     .datei-vorschau { margin: 10px 0; }
     .datei-vorschau a { display: block; margin: 3px 0; }
     .filter-option-alle { color: #666; font-style: italic; }
     .katHinweis { color: #c00; font-size: 0.95em; margin-left: 10px; }
     .katLoeschBtn { background:#eee;border:1px solid #c00;color:#c00; }
+    #preview img { max-width: 300px; max-height: 200px; display: block; margin-top: 8px; border: 1px solid #888; }
+    #preview iframe { width: 300px; height: 200px; border: 1px solid #888; margin-top: 8px; display: block; }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
@@ -45,6 +48,7 @@
 
   <input type="file" id="dateien" multiple />
   <div class="datei-vorschau" id="dateiVorschau"></div>
+  <div id="preview"></div>
   
   <button id="speichernBtn" onclick="speichereIdee()">💾 Speichern</button>
   <button id="abbrechenBtn" onclick="abbrechenBearbeiten()" style="display:none;">Abbrechen</button>
@@ -90,10 +94,23 @@
 
     document.getElementById("dateien").addEventListener("change", function(e) {
       const vorschau = document.getElementById("dateiVorschau");
-      vorschau.innerHTML = Array.from(e.target.files).map(file => {
+      const preview = document.getElementById("preview");
+      vorschau.innerHTML = "";
+      preview.innerHTML = "";
+      Array.from(e.target.files).forEach(file => {
         const url = URL.createObjectURL(file);
-        return `<a class="datei-link" href="${url}" target="_blank">📄 ${file.name}</a>`;
-      }).join("");
+        vorschau.innerHTML += `<a class="datei-link" href="${url}" target="_blank">📄 ${file.name}</a>`;
+        // Speicherort anzeigen (nur Dateiname möglich)
+        vorschau.innerHTML += `<div class="datei-info">Speicherort: <i>${file.webkitRelativePath || "(lokal ausgewählt)"}</i></div>`;
+        // Vorschau
+        if (file.type.startsWith("image/")) {
+          preview.innerHTML += `<b>Vorschau:</b><br><img src="${url}" alt="${file.name}">`;
+        } else if (file.type === "application/pdf") {
+          preview.innerHTML += `<b>Vorschau:</b><br><iframe src="${url}"></iframe>`;
+        } else {
+          preview.innerHTML += "<b>Vorschau:</b> (Keine Vorschau verfügbar für diesen Dateityp)<br>";
+        }
+      });
     });
 
     function speichereIdee() {
@@ -104,7 +121,8 @@
       }
       const dateien = Array.from(document.getElementById("dateien").files).map(file => ({
         name: file.name.replace(/\s+/g, '_'),
-        data: URL.createObjectURL(file)
+        data: URL.createObjectURL(file),
+        type: file.type
       }));
       const idee = {
         text,
@@ -129,6 +147,7 @@
       document.getElementById("ideeDetails").value = "";
       document.getElementById("dateien").value = "";
       document.getElementById("dateiVorschau").innerHTML = "";
+      document.getElementById("preview").innerHTML = "";
       setzePrioritaet("");
     }
 
@@ -156,6 +175,14 @@
           <small>${idee.kategorie} | ${idee.prioritaet} | ${idee.timestamp}</small>
           ${idee.dateien.map(file => `
             <a class="datei-link" href="${file.data}" target="_blank">📎 ${file.name}</a>
+            <div class="datei-info">Speicherort: <i>${file.name}</i></div>
+            ${
+              file.type.startsWith("image/") 
+                ? `<img src="${file.data}" alt="${file.name}" style="max-width:150px;max-height:100px;border:1px solid #888;margin-bottom:8px;">`
+                : file.type === "application/pdf"
+                  ? `<iframe src="${file.data}" style="width:150px;height:100px;border:1px solid #888;margin-bottom:8px;"></iframe>`
+                  : ""
+            }
           `).join("")}
           <div class="idee-actions">
             <button onclick="verschiebeIdee(${globalIdx}, -1)">⬆️</button>
@@ -189,7 +216,17 @@
       document.getElementById("abbrechenBtn").style.display = "";
       document.getElementById("dateiVorschau").innerHTML = idee.dateien.map(file => `
         <a href="${file.data}" target="_blank">📎 ${file.name}</a>
+        <div class="datei-info">Speicherort: <i>${file.name}</i></div>
       `).join("");
+      document.getElementById("preview").innerHTML = idee.dateien.map(file => {
+        if (file.type && file.type.startsWith("image/")) {
+          return `<img src="${file.data}" alt="${file.name}" style="max-width:150px;max-height:100px;border:1px solid #888;margin-bottom:8px;">`;
+        } else if (file.type === "application/pdf") {
+          return `<iframe src="${file.data}" style="width:150px;height:100px;border:1px solid #888;margin-bottom:8px;"></iframe>`;
+        } else {
+          return "";
+        }
+      }).join("");
     }
 
     function abbrechenBearbeiten() {
@@ -200,6 +237,7 @@
       document.getElementById("speichernBtn").textContent = "💾 Speichern";
       document.getElementById("abbrechenBtn").style.display = "none";
       document.getElementById("dateiVorschau").innerHTML = "";
+      document.getElementById("preview").innerHTML = "";
       setzePrioritaet("");
     }
 
