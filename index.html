@@ -28,6 +28,7 @@
     #preview img { max-width: 300px; max-height: 200px; display: block; margin-top: 8px; border: 1px solid #888; }
     #preview iframe { width: 300px; height: 200px; border: 1px solid #888; margin-top: 8px; display: block; }
     .top-actions { margin-bottom: 12px; display: flex; gap: 10px; flex-wrap: wrap; }
+    .hyperlink-container { margin: 10px 0 0 0; }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
@@ -38,6 +39,10 @@
 
   <input type="text" id="ideeText" placeholder="Titel*" />
   <textarea id="ideeDetails" placeholder="Beschreibung" rows="3"></textarea>
+  <button id="hyperlinkBtn" type="button">Datei als Hyperlink einfügen</button>
+  <input type="file" id="hyperlinkFile" style="display:none">
+  <div id="hyperlinkContainer" class="hyperlink-container"></div>
+
   <select id="kategorie"></select>
   <input type="text" id="neueKategorie" placeholder="Neue Kategorie" />
   <button onclick="neueKategorieHinzufuegen()">+ Kategorie</button>
@@ -87,6 +92,7 @@
     let prioritaet = "";
     let bearbeiteIndex = null;
     let ausgewaehlt = [];
+    let hyperlinkFileObj = null;
     const standardKategorien = ["Aufgaben", "Projekte", "Privat", "Arbeit", "Später"];
 
     function istMobil() {
@@ -99,6 +105,27 @@
           "Hinweis: Auf Mobilgeräten ist die Sortierung nicht möglich. Es werden alle Notizen unter Aufgaben angezeigt.";
       }
     });
+
+    // Hyperlink-Funktionalität
+    document.getElementById("hyperlinkBtn").onclick = function() {
+      document.getElementById("hyperlinkFile").click();
+    };
+    document.getElementById("hyperlinkFile").onchange = function(e) {
+      const file = e.target.files[0];
+      const container = document.getElementById("hyperlinkContainer");
+      container.innerHTML = "";
+      hyperlinkFileObj = null;
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      const link = document.createElement("a");
+      link.href = url;
+      link.textContent = file.name;
+      link.className = "datei-link";
+      link.target = "_blank";
+      link.rel = "noopener";
+      container.appendChild(link);
+      hyperlinkFileObj = { name: file.name, data: url, type: file.type };
+    };
 
     function initialisiereKategorien() {
       let gespeicherteKategorien = JSON.parse(localStorage.getItem("kategorien")) || standardKategorien;
@@ -141,6 +168,13 @@
         data: URL.createObjectURL(file),
         type: file.type
       }));
+      // Hyperlink-Datei ggf. anhängen
+      if (hyperlinkFileObj) {
+        dateien.unshift(hyperlinkFileObj);
+        hyperlinkFileObj = null;
+        document.getElementById("hyperlinkContainer").innerHTML = "";
+        document.getElementById("hyperlinkFile").value = "";
+      }
       const idee = {
         text,
         details: document.getElementById("ideeDetails").value,
@@ -196,7 +230,7 @@
               <a class="datei-link" href="${file.data}" target="_blank">📎 ${file.name}</a>
               <div class="datei-info">Speicherort: <i>${file.name}</i></div>
               ${
-                file.type.startsWith("image/") 
+                file.type && file.type.startsWith("image/") 
                   ? `<img src="${file.data}" alt="${file.name}" style="max-width:150px;max-height:100px;border:1px solid #888;margin-bottom:8px;">`
                   : file.type === "application/pdf"
                     ? `<iframe src="${file.data}" style="width:150px;height:100px;border:1px solid #888;margin-bottom:8px;"></iframe>`
