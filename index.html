@@ -82,6 +82,8 @@
     <button onclick="teilePerWhatsApp()">📱 WhatsApp</button>
     <button onclick="alleIdeenLoeschen()" style="background:#eee;border:1px solid #c00;color:#c00;">Alle Ideen löschen</button>
     <button onclick="ausgewaehlteNotizenLoeschen()" style="background:#eee;border:1px solid #c00;color:#c00;">Ausgewählte löschen</button>
+    <button onclick="speichereIdeenAlsDatei()">Datei speichern</button>
+    <button onclick="ladeIdeenAusDatei()">Datei öffnen</button>
   </div>
 
   <div id="ideenListe"></div>
@@ -468,6 +470,64 @@
       warnung.textContent = msg;
       warnung.style.display = "block";
       setTimeout(() => warnung.style.display = "none", 3000);
+    }
+
+    // File System Access API: Datei speichern
+    async function speichereDateiInDateisystem(dateiInhalt, dateiname = "ideen.json") {
+      if (!window.showSaveFilePicker) {
+        alert("Diese Funktion wird von deinem Browser nicht unterstützt.");
+        return;
+      }
+      try {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: dateiname,
+          types: [{
+            description: 'Ideen-App Datei',
+            accept: {'application/json': ['.json']}
+          }]
+        });
+        const writable = await handle.createWritable();
+        await writable.write(dateiInhalt);
+        await writable.close();
+        alert("Datei erfolgreich gespeichert!");
+      } catch (err) {
+        if (err.name !== "AbortError") alert("Speichern fehlgeschlagen: " + err);
+      }
+    }
+
+    async function speichereIdeenAlsDatei() {
+      const ideen = localStorage.getItem("ideen") || "[]";
+      await speichereDateiInDateisystem(ideen, "ideen.json");
+    }
+
+    // File System Access API: Datei öffnen
+    async function dateiAuswaehlenUndLaden() {
+      if (!window.showOpenFilePicker) {
+        alert("Diese Funktion wird von deinem Browser nicht unterstützt.");
+        return;
+      }
+      try {
+        const [handle] = await window.showOpenFilePicker({
+          types: [{
+            description: 'Ideen-App Datei',
+            accept: {'application/json': ['.json']}
+          }]
+        });
+        const file = await handle.getFile();
+        const content = await file.text();
+        return content;
+      } catch (err) {
+        if (err.name !== "AbortError") alert("Öffnen fehlgeschlagen: " + err);
+      }
+    }
+
+    async function ladeIdeenAusDatei() {
+      const content = await dateiAuswaehlenUndLaden();
+      if (content) {
+        localStorage.setItem("ideen", content);
+        zeigeIdeen();
+        alert("Datei geladen!");
+      }
     }
 
     // Initialisierung
