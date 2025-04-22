@@ -14,16 +14,12 @@
       margin: 10px 0; 
       border-radius: 8px; 
       box-shadow: 0 0 5px #ccc;
-      cursor: move;
-      transition: all 0.3s ease;
     }
     .buttons { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
     .filter-bar { margin: 20px 0; }
     .filter-bar select { width: auto; }
-    .idee-actions { margin-top: 10px; }
-    .idee-actions button { width: auto; padding: 5px 10px; font-size: 0.9em; }
-    .drag-over { border: 2px dashed #007bff; background: #e3f2fd; }
-    .dragging { opacity: 0.5; transform: scale(0.98); }
+    .idee-actions { margin-top: 10px; display: flex; gap: 5px; flex-wrap: wrap; }
+    .idee-actions button { padding: 5px 10px; font-size: 0.9em; }
     .prio-btn { background: #eee; border: 1px solid #ccc; border-radius: 4px; }
     .prio-btn.selected { background: #ffd700; border-color: #ff9800; color: #222; }
     .warnung { color: #d32f2f; margin: 10px 0; font-weight: bold; }
@@ -34,9 +30,6 @@
       cursor: pointer;
       margin: 5px 0;
       display: block;
-    }
-    @media (hover: none) and (pointer: coarse) {
-      .idee { cursor: default; }
     }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -85,24 +78,11 @@
     let bearbeiteIndex = null;
     const standardKategorien = ["Privat", "Arbeit", "Später", "Sonstiges"];
 
-    function istTouchDevice() {
-      return (('ontouchstart' in window) ||
-        (navigator.maxTouchPoints > 0) ||
-        (navigator.msMaxTouchPoints > 0));
-    }
-
     function zeigeWarnung(msg) {
       const warnung = document.getElementById("warnung");
       warnung.innerText = msg;
       warnung.style.display = "";
       setTimeout(() => { warnung.style.display = "none"; }, 3000);
-    }
-
-    function zeigeInfo(msg) {
-      const info = document.getElementById("info");
-      info.innerText = msg;
-      info.style.display = "";
-      setTimeout(() => { info.style.display = "none"; }, 3000);
     }
 
     function initialisiereKategorien() {
@@ -192,6 +172,15 @@
       });
     }
 
+    function verschiebeIdee(idx, richtung) {
+      let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+      const neuePos = idx + richtung;
+      if (neuePos < 0 || neuePos >= ideen.length) return;
+      [ideen[idx], ideen[neuePos]] = [ideen[neuePos], ideen[idx]];
+      localStorage.setItem("ideen", JSON.stringify(ideen));
+      zeigeIdeen();
+    }
+
     function zeigeIdeen() {
       const ideenListe = document.getElementById("ideenListe");
       ideenListe.innerHTML = "";
@@ -212,28 +201,9 @@
         ideen.sort((a, b) => prioWert[b.prioritaet] - prioWert[a.prioritaet]);
       }
 
-      let dragDropAktiv = !filterKat && !istTouchDevice();
-      if (istTouchDevice()) {
-        zeigeInfo("Drag & Drop ist auf Touch-Geräten nicht verfügbar.");
-      } else if (filterKat) {
-        zeigeInfo("Drag & Drop ist bei aktiver Filterung deaktiviert.");
-      }
-
       ideen.forEach((idee, idx) => {
         const div = document.createElement("div");
         div.className = "idee";
-        div.dataset.index = idx;
-
-        if (dragDropAktiv) {
-          div.draggable = true;
-          div.addEventListener('dragstart', handleDragStart);
-          div.addEventListener('dragover', handleDragOver);
-          div.addEventListener('dragend', handleDragEnd);
-          div.addEventListener('dragleave', () => div.classList.remove('drag-over'));
-        } else {
-          div.draggable = false;
-        }
-
         div.innerHTML = `<strong>${idee.text}</strong><br>${idee.details}<br><em>${idee.kategorie} | ${idee.prioritaet} | ${idee.timestamp}</em>`;
         
         if (idee.dateien && idee.dateien.length > 0) {
@@ -249,62 +219,34 @@
 
         const actions = document.createElement("div");
         actions.className = "idee-actions";
+        
+        // Verschieben-Buttons
+        const upBtn = document.createElement("button");
+        upBtn.innerText = "⬆️";
+        upBtn.title = "Nach oben verschieben";
+        upBtn.onclick = () => verschiebeIdee(idx, -1);
+        actions.appendChild(upBtn);
+
+        const downBtn = document.createElement("button");
+        downBtn.innerText = "⬇️";
+        downBtn.title = "Nach unten verschieben";
+        downBtn.onclick = () => verschiebeIdee(idx, 1);
+        actions.appendChild(downBtn);
+
+        // Bearbeiten & Löschen
         const editBtn = document.createElement("button");
         editBtn.innerText = "✏️ Bearbeiten";
         editBtn.onclick = () => bearbeiteIdee(idx);
+        actions.appendChild(editBtn);
+
         const deleteBtn = document.createElement("button");
         deleteBtn.innerText = "🗑️ Löschen";
         deleteBtn.onclick = () => loescheIdee(idx);
-        actions.appendChild(editBtn);
         actions.appendChild(deleteBtn);
-        div.appendChild(actions);
 
+        div.appendChild(actions);
         ideenListe.appendChild(div);
       });
-    }
-
-    function handleDragStart(e) {
-      e.target.classList.add('dragging');
-      e.dataTransfer.setData('text/plain', e.target.dataset.index);
-    }
-
-    function handleDragOver(e) {
-      e.preventDefault();
-      const draggable = document.querySelector('.dragging');
-      const afterElement = getDragAfterElement(e.currentTarget.parentNode, e.clientY);
-      const container = e.currentTarget.parentNode;
-      if (afterElement == null) {
-        container.appendChild(draggable);
-      } else {
-        container.insertBefore(draggable, afterElement);
-      }
-      e.currentTarget.classList.add('drag-over');
-    }
-
-    function handleDragEnd(e) {
-      e.target.classList.remove('dragging');
-      document.querySelectorAll('.idee').forEach(idee => {
-        idee.classList.remove('drag-over');
-      });
-      const neueReihenfolge = Array.from(document.querySelectorAll('.idee'))
-        .map(idee => parseInt(idee.dataset.index));
-      const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-      const neuSortierteIdeen = neueReihenfolge.map(index => ideen[index]);
-      localStorage.setItem("ideen", JSON.stringify(neuSortierteIdeen));
-      zeigeIdeen();
-    }
-
-    function getDragAfterElement(container, y) {
-      const draggableElements = [...container.querySelectorAll('.idee:not(.dragging)')];
-      return draggableElements.reduce((closest, child) => {
-        const box = child.getBoundingClientRect();
-        const offset = y - box.top - box.height / 2;
-        if (offset < 0 && offset > closest.offset) {
-          return { offset: offset, element: child };
-        } else {
-          return closest;
-        }
-      }, { offset: Number.NEGATIVE_INFINITY }).element;
     }
 
     function bearbeiteIdee(idx) {
