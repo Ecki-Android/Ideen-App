@@ -33,6 +33,7 @@
 </head>
 <body>
   <h1>Ideen-App</h1>
+  <div id="mobileHinweis" style="display:none; color:#1976d2; font-weight:bold; margin-bottom:10px;"></div>
   <div id="warnung" class="warnung" style="display:none;"></div>
 
   <input type="text" id="ideeText" placeholder="Titel*" />
@@ -85,14 +86,24 @@
   <script>
     let prioritaet = "";
     let bearbeiteIndex = null;
-    let ausgewaehlt = []; // Array von globalen Indizes
+    let ausgewaehlt = [];
     const standardKategorien = ["Aufgaben", "Projekte", "Privat", "Arbeit", "Später"];
+
+    function istMobil() {
+      return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    }
+    window.addEventListener("DOMContentLoaded", function() {
+      if(istMobil()) {
+        document.getElementById("mobileHinweis").style.display = "";
+        document.getElementById("mobileHinweis").textContent =
+          "Hinweis: Auf Mobilgeräten ist die Sortierung nicht möglich. Es werden alle Notizen unter Aufgaben angezeigt.";
+      }
+    });
 
     function initialisiereKategorien() {
       let gespeicherteKategorien = JSON.parse(localStorage.getItem("kategorien")) || standardKategorien;
       const select = document.getElementById("kategorie");
       select.innerHTML = gespeicherteKategorien.map(k => `<option>${k}</option>`).join("");
-      // Filter-Auswahl
       const filterSelect = document.getElementById("filterKategorie");
       filterSelect.innerHTML = '<option value="" class="filter-option-alle">🎯 Alle Ideen</option>';
       gespeicherteKategorien.forEach(k => {
