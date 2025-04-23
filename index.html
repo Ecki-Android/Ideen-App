@@ -5,16 +5,52 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ideen-App Pro</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; background: #f4f4f4; }
-    input, select, textarea, button { margin-top: 10px; padding: 10px; width: 100%; max-width: 500px; }
-    .idee { background: white; padding: 15px; margin: 10px 0; border-radius: 8px; box-shadow: 0 0 5px #ccc; display: flex; align-items: flex-start; justify-content: space-between; }
+    html, body {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      background: #f4f4f4;
+      width: 100vw;
+      max-width: 100vw;
+      overflow-x: hidden;
+    }
+    body { font-family: Arial, sans-serif; margin: 0 0 20px 0; }
+    input, select, textarea, button {
+      margin-top: 10px;
+      padding: 10px;
+      width: 100%;
+      max-width: 100vw;
+      box-sizing: border-box;
+    }
+    textarea { min-height: 60px; }
+    .idee {
+      width: 100%;
+      max-width: 100vw;
+      box-sizing: border-box;
+      overflow-wrap: break-word;
+      word-break: break-word;
+      background: white;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 8px;
+      box-shadow: 0 0 5px #ccc;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+    }
+    .idee-content, .idee-actions, .datei-link, .datei-info, .datei-vorschau, .idee-checkbox {
+      max-width: 100%;
+      box-sizing: border-box;
+      overflow-wrap: break-word;
+      word-break: break-word;
+    }
     .idee-content { flex: 1; }
     .idee-checkbox { margin-left: 10px; margin-top: 5px; min-width: 28px; min-height: 28px; }
     .buttons { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
     .filter-bar { margin: 20px 0; }
     .filter-bar select { width: auto; }
     .idee-actions { margin-top: 10px; display: flex; gap: 5px; flex-wrap: wrap; }
-    .idee-actions button { padding: 5px 10px; font-size: 0.9em; }
+    .idee-actions button { padding: 5px 10px; font-size: 0.9em; width: auto; min-width: 44px; }
     .prio-btn { background: #eee; border: 1px solid #ccc; border-radius: 4px; }
     .prio-btn.selected { background: #ffd700; border-color: #ff9800; color: #222; }
     .warnung { color: #d32f2f; margin: 10px 0; font-weight: bold; }
@@ -31,6 +67,9 @@
     @media (max-width: 600px) {
       .idee { flex-direction: column; }
       .idee-checkbox { margin-left: 0; margin-top: 10px; }
+      .idee-content, .idee-actions, .datei-link, .datei-info, .datei-vorschau, .idee-checkbox {
+        max-width: 100vw;
+      }
     }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -103,8 +142,8 @@
 
     function setzePrioritaet(p) {
       prioritaet = p;
-      ["Hoch", "Mittel", "Niedrig"].forEach(prio => 
-        document.getElementById(`prio${prio}`).classList.remove("selected")
+      ["prioHoch", "prioMittel", "prioNiedrig"].forEach(id => 
+        document.getElementById(id).classList.remove("selected")
       );
       document.getElementById(`prio${p}`).classList.add("selected");
     }
@@ -112,13 +151,11 @@
     function speichereIdee() {
       const text = document.getElementById("ideeText").value.trim();
       if (!text) return zeigeWarnung("Titel ist erforderlich!");
-      
       const dateien = Array.from(document.getElementById("dateien").files).map(file => ({
         name: file.name,
         data: URL.createObjectURL(file),
         type: file.type
       }));
-
       const idee = {
         text,
         details: document.getElementById("ideeDetails").value,
@@ -127,39 +164,37 @@
         dateien,
         timestamp: new Date().toLocaleString("de-DE")
       };
-
       let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-      
       if (bearbeiteIndex !== null) {
         ideen[bearbeiteIndex] = idee;
         bearbeiteIndex = null;
+        document.getElementById("speichernBtn").textContent = "💾 Speichern";
+        document.getElementById("abbrechenBtn").style.display = "none";
       } else {
         ideen.push(idee);
       }
-
       localStorage.setItem("ideen", JSON.stringify(ideen));
       zeigeIdeen();
       document.getElementById("ideeText").value = "";
       document.getElementById("ideeDetails").value = "";
       document.getElementById("dateien").value = "";
+      setzePrioritaet("");
     }
 
     function zeigeIdeen() {
       const filter = document.getElementById("filterKategorie").value;
       const sortierung = document.getElementById("sortierung").value;
-      let ideen = JSON.parse(localStorage.getItem("ideen") || "[]")
-        .filter(i => !filter || i.kategorie === filter)
-        .sort((a, b) => {
-          if (sortierung === "prio") {
-            const prioWerte = { "Hoch": 3, "Mittel": 2, "Niedrig": 1 };
-            return prioWerte[b.prioritaet] - prioWerte[a.prioritaet];
-          }
-          return sortierung === "neu" 
-            ? new Date(b.timestamp) - new Date(a.timestamp) 
-            : new Date(a.timestamp) - new Date(b.timestamp);
-        });
-
-      document.getElementById("ideenListe").innerHTML = ideen.map((idee, idx) => `
+      let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+      let gefilterteIdeen = filter ? ideen.filter(i => i.kategorie === filter) : ideen.slice();
+      if (sortierung === "neu") {
+        gefilterteIdeen.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      } else if (sortierung === "alt") {
+        gefilterteIdeen.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+      } else if (sortierung === "prio") {
+        const prio = { "Hoch": 3, "Mittel": 2, "Niedrig": 1, "": 0 };
+        gefilterteIdeen.sort((a, b) => prio[b.prioritaet] - prio[a.prioritaet]);
+      }
+      document.getElementById("ideenListe").innerHTML = gefilterteIdeen.map((idee, idx) => `
         <div class="idee">
           <div class="idee-content">
             <h3>${idee.text}</h3>
@@ -167,7 +202,7 @@
             <small>${idee.kategorie} | ${idee.prioritaet} | ${idee.timestamp}</small>
             ${idee.dateien.map(file => `
               <a class="datei-link" href="${file.data}" target="_blank">📎 ${file.name}</a>
-              ${file.type.startsWith("image/") ? `<img src="${file.data}" style="max-width:150px;">` : ""}
+              ${file.type && file.type.startsWith("image/") ? `<img src="${file.data}" style="max-width:150px;">` : ""}
             `).join("")}
             <div class="idee-actions">
               <button onclick="verschiebeIdee(${idx}, -1)">⬆️</button>
@@ -186,13 +221,11 @@
     function bearbeiteIdee(idx) {
       const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
       const idee = ideen[idx];
-      
       document.getElementById("ideeText").value = idee.text;
       document.getElementById("ideeDetails").value = idee.details;
       document.getElementById("kategorie").value = idee.kategorie;
       setzePrioritaet(idee.prioritaet);
       bearbeiteIndex = idx;
-      
       document.getElementById("speichernBtn").textContent = "💾 Aktualisieren";
       document.getElementById("abbrechenBtn").style.display = "";
     }
@@ -360,7 +393,11 @@
             y = margin;
           }
           doc.setTextColor(0, 0, 255);
-          doc.textWithLink(`📎 ${file.name}`, margin, y, { url: file.data });
+          if (doc.textWithLink) {
+            doc.textWithLink(`📎 ${file.name}`, margin, y, { url: file.data });
+          } else {
+            doc.text(`📎 ${file.name}`, margin, y);
+          }
           doc.setTextColor(0, 0, 0);
           y += 10;
         });
