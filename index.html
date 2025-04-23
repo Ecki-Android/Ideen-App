@@ -15,14 +15,37 @@
       overflow-x: hidden;
     }
     body { font-family: Arial, sans-serif; margin: 0 0 20px 0; }
-    input, select, textarea, button {
+    input, select, textarea {
       margin-top: 10px;
       padding: 10px;
-      width: 100%;
+      font-size: 1em;
+      width: 400px;
       max-width: 100vw;
       box-sizing: border-box;
+      display: block;
     }
     textarea { min-height: 60px; }
+    button {
+      padding: 10px 18px;
+      font-size: 1em;
+      margin-top: 10px;
+      margin-right: 8px;
+      border-radius: 4px;
+      border: 1px solid #bbb;
+      background: #eee;
+      cursor: pointer;
+      width: auto;
+      min-width: 44px;
+      display: inline-block;
+    }
+    .buttons, .top-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+    .filter-bar { margin: 20px 0; }
+    .filter-bar select { width: auto; }
     .idee {
       width: 100%;
       max-width: 100vw;
@@ -38,24 +61,28 @@
       align-items: flex-start;
       justify-content: space-between;
     }
-    .idee-content, .idee-actions, .datei-link, .datei-info, .datei-vorschau, .idee-checkbox {
+    .idee-content {
+      flex: 1;
       max-width: 100%;
-      box-sizing: border-box;
       overflow-wrap: break-word;
       word-break: break-word;
+      font-size: 1em;
+      line-height: 1.5;
     }
-    .idee-content { flex: 1; }
+    .idee-content h3, .idee-content p, .idee-content small {
+      max-width: 100%;
+      overflow-wrap: break-word;
+      word-break: break-word;
+      font-size: 1em;
+    }
     .idee-checkbox { margin-left: 10px; margin-top: 5px; min-width: 28px; min-height: 28px; }
-    .buttons { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
-    .filter-bar { margin: 20px 0; }
-    .filter-bar select { width: auto; }
     .idee-actions { margin-top: 10px; display: flex; gap: 5px; flex-wrap: wrap; }
-    .idee-actions button { padding: 5px 10px; font-size: 0.9em; width: auto; min-width: 44px; }
+    .idee-actions button { width: auto; min-width: 44px; padding: 6px 10px; font-size: 0.95em; }
     .prio-btn { background: #eee; border: 1px solid #ccc; border-radius: 4px; }
     .prio-btn.selected { background: #ffd700; border-color: #ff9800; color: #222; }
     .warnung { color: #d32f2f; margin: 10px 0; font-weight: bold; }
-    .datei-link { color: #1a0dab; text-decoration: underline; cursor: pointer; font-weight: bold; display: inline-block; margin-bottom: 8px; }
-    .datei-info { font-size: 0.96em; color: #333; margin-bottom: 8px; }
+    .datei-link { color: #1a0dab; text-decoration: underline; cursor: pointer; font-weight: bold; display: inline-block; margin-bottom: 8px; max-width: 100%; overflow-wrap: break-word; word-break: break-word;}
+    .datei-info { font-size: 0.96em; color: #333; margin-bottom: 8px; max-width: 100%; overflow-wrap: break-word; word-break: break-word;}
     .datei-vorschau { margin: 10px 0; }
     .datei-vorschau a { display: block; margin: 3px 0; }
     .filter-option-alle { color: #666; font-style: italic; }
@@ -63,8 +90,9 @@
     .katLoeschBtn { background:#eee;border:1px solid #c00;color:#c00; }
     #preview img { max-width: 300px; max-height: 200px; display: block; margin-top: 8px; border: 1px solid #888; }
     #preview iframe { width: 300px; height: 200px; border: 1px solid #888; margin-top: 8px; display: block; }
-    .top-actions { margin-bottom: 12px; display: flex; gap: 10px; flex-wrap: wrap; }
     @media (max-width: 600px) {
+      input, select, textarea, button { width: 100vw; min-width: 0; max-width: 100vw; }
+      .buttons, .top-actions { flex-direction: column; gap: 0; }
       .idee { flex-direction: column; }
       .idee-checkbox { margin-left: 0; margin-top: 10px; }
       .idee-content, .idee-actions, .datei-link, .datei-info, .datei-vorschau, .idee-checkbox {
