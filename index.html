@@ -28,7 +28,6 @@
     #preview img { max-width: 300px; max-height: 200px; display: block; margin-top: 8px; border: 1px solid #888; }
     #preview iframe { width: 300px; height: 200px; border: 1px solid #888; margin-top: 8px; display: block; }
     .top-actions { margin-bottom: 12px; display: flex; gap: 10px; flex-wrap: wrap; }
-    .hyperlink-container { margin: 10px 0 0 0; }
     @media (max-width: 600px) {
       .idee { flex-direction: column; }
       .idee-checkbox { margin-left: 0; margin-top: 10px; }
@@ -39,7 +38,6 @@
 <body>
   <h1>Ideen-App</h1>
   <div id="warnung" class="warnung" style="display:none;"></div>
-
   <input type="text" id="ideeText" placeholder="Titel*" />
   <textarea id="ideeDetails" placeholder="Beschreibung" rows="3"></textarea>
   <select id="kategorie"></select>
@@ -81,8 +79,8 @@
     <button onclick="teilePerWhatsApp()">📱 WhatsApp</button>
     <button onclick="alleIdeenLoeschen()" style="background:#eee;border:1px solid #c00;color:#c00;">Alle Ideen löschen</button>
     <button onclick="ausgewaehlteNotizenLoeschen()" style="background:#eee;border:1px solid #c00;color:#c00;">Ausgewählte löschen</button>
-    <button onclick="speichereIdeenAlsDatei()">Datei speichern</button>
-    <button onclick="ladeIdeenAusDatei()">Datei öffnen</button>
+    <button id="speicherDateiBtn" onclick="speichereIdeenAlsDatei()">Datei speichern</button>
+    <button id="oeffneDateiBtn" onclick="ladeIdeenAusDatei()">Datei öffnen</button>
   </div>
 
   <div id="ideenListe"></div>
@@ -157,7 +155,7 @@
         gefilterteIdeen.sort((a, b) => prio[b.prioritaet] - prio[a.prioritaet]);
       }
       document.getElementById("ideenListe").innerHTML = gefilterteIdeen.map((idee, idx) => {
-        const globalIdx = JSON.parse(localStorage.getItem("ideen") || "[]").findIndex(i => 
+        const globalIdx = JSON.parse(localStorage.getItem("ideen") || "[]").findIndex(i =>
           i.text === idee.text && i.timestamp === idee.timestamp
         );
         return `
@@ -291,7 +289,6 @@
       abbrechenBearbeiten();
     }
 
-    // Export-Filter
     function getExportIdeen() {
       let alle = JSON.parse(localStorage.getItem("ideen") || "[]");
       if (ausgewaehlt.length > 0) {
@@ -375,6 +372,48 @@
         `📎 Anhänge: ${idee.dateien?.map(f => f.name).join(", ") || "Keine"}\n`
       ).join("\n\n");
       window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+    }
+
+    // Datei speichern/öffnen (Desktop-Chrome/Edge/Opera)
+    async function speichereIdeenAlsDatei() {
+      if (!window.showSaveFilePicker) {
+        alert("Datei speichern ist in diesem Browser nicht verfügbar.");
+        return;
+      }
+      try {
+        const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+        const handle = await window.showSaveFilePicker({
+          suggestedName: "ideen.json",
+          types: [{ description: "JSON-Dateien", accept: { "application/json": [".json"] } }]
+        });
+        const writable = await handle.createWritable();
+        await writable.write(JSON.stringify(ideen, null, 2));
+        await writable.close();
+        alert("Datei erfolgreich gespeichert!");
+      } catch (err) {
+        if (err.name !== "AbortError") alert("Fehler beim Speichern: " + err.message);
+      }
+    }
+
+    async function ladeIdeenAusDatei() {
+      if (!window.showOpenFilePicker) {
+        alert("Datei öffnen ist in diesem Browser nicht verfügbar.");
+        return;
+      }
+      try {
+        const [handle] = await window.showOpenFilePicker({
+          types: [{ description: "JSON-Dateien", accept: { "application/json": [".json"] } }]
+        });
+        const file = await handle.getFile();
+        const content = await file.text();
+        const ideen = JSON.parse(content);
+        if (!Array.isArray(ideen)) throw new Error("Ungültiges Dateiformat");
+        localStorage.setItem("ideen", JSON.stringify(ideen));
+        zeigeIdeen();
+        alert("Datei erfolgreich geladen!");
+      } catch (err) {
+        if (err.name !== "AbortError") alert("Fehler beim Laden: " + err.message);
+      }
     }
 
     function zeigeWarnung(msg) {
