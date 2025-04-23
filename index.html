@@ -129,6 +129,8 @@
         type: file.type,
         pfad: file.webkitRelativePath || file.name
       }));
+      let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+      const erledigt = bearbeiteIndex !== null ? (ideen[bearbeiteIndex]?.erledigt || false) : false;
       const idee = {
         text,
         details: document.getElementById("ideeDetails").value,
@@ -136,9 +138,8 @@
         prioritaet,
         dateien,
         timestamp: new Date().toLocaleString("de-DE"),
-        erledigt: bearbeiteIndex !== null ? ideen[bearbeiteIndex]?.erledigt : false
+        erledigt
       };
-      let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
       if (bearbeiteIndex !== null) {
         ideen[bearbeiteIndex] = idee;
         bearbeiteIndex = null;
@@ -149,7 +150,7 @@
       }
       localStorage.setItem("ideen", JSON.stringify(ideen));
       zeigeIdeen();
-      autoSpeichern();
+      autoSpeichern && autoSpeichern();
       document.getElementById("ideeText").value = "";
       document.getElementById("ideeDetails").value = "";
       document.getElementById("dateien").value = "";
@@ -159,41 +160,45 @@
     function zeigeIdeen() {
       const filter = document.getElementById("filterKategorie").value;
       const sortierung = document.getElementById("sortierung").value;
-      let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-      let gefilterteIdeen = filter ? ideen.filter(i => i.kategorie === filter) : ideen.slice();
-      if (sortierung === "neu") {
-        gefilterteIdeen.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-      } else if (sortierung === "alt") {
-        gefilterteIdeen.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-      } else if (sortierung === "prio") {
-        const prio = { "Hoch": 3, "Mittel": 2, "Niedrig": 1, "": 0 };
-        gefilterteIdeen.sort((a, b) => prio[b.prioritaet] - prio[a.prioritaet]);
-      }
-      document.getElementById("ideenListe").innerHTML = gefilterteIdeen.map((idee, idx) => `
-        <div class="idee${idee.erledigt ? ' erledigt' : ''}">
+      let ideen = JSON.parse(localStorage.getItem("ideen") || "[]")
+        .filter(i => !filter || i.kategorie === filter)
+        .sort((a, b) => {
+          if (sortierung === "prio") {
+            const prioWerte = { "Hoch": 3, "Mittel": 2, "Niedrig": 1 };
+            return prioWerte[b.prioritaet] - prioWerte[a.prioritaet];
+          }
+          return sortierung === "neu" 
+            ? new Date(b.timestamp) - new Date(a.timestamp) 
+            : new Date(a.timestamp) - new Date(b.timestamp);
+        });
+
+      document.getElementById("ideenListe").innerHTML = ideen.map((idee, idx) => {
+        const erledigt = idee.erledigt || false;
+        return `
+        <div class="idee${erledigt ? ' erledigt' : ''}">
           <div class="idee-content">
             <h3>${idee.text}</h3>
             <p>${idee.details}</p>
             <small>${idee.kategorie} | ${idee.prioritaet} | ${idee.timestamp}</small>
-            ${idee.dateien.map(file => `
+            ${idee.dateien?.map(file => `
               <a class="datei-link" href="${file.data}" target="_blank">📎 ${file.name}</a>
               <div class="datei-info">Pfad: <i>${file.pfad || file.name}</i></div>
-              ${file.type && file.type.startsWith("image/") ? `<img src="${file.data}" style="max-width:150px;">` : ""}
+              ${file.type?.startsWith("image/") ? `<img src="${file.data}" style="max-width:150px;">` : ""}
               ${file.type === "application/pdf" ? `<iframe src="${file.data}" style="width:150px;height:100px;"></iframe>` : ""}
             `).join("")}
             <div class="idee-actions">
               <button onclick="verschiebeIdee(${idx}, -1)">⬆️</button>
               <button onclick="verschiebeIdee(${idx}, 1)">⬇️</button>
               <button onclick="bearbeiteIdee(${idx})">✏️</button>
-              <button onclick="toggleErledigt(${idx})">${idee.erledigt ? "↩️" : "✔️"}</button>
+              <button onclick="toggleErledigt(${idx})">${erledigt ? "↩️" : "✔️"}</button>
               <button onclick="loescheIdee(${idx})">🗑️</button>
             </div>
           </div>
           <input type="checkbox" class="idee-checkbox" 
                  onchange="toggleAuswahl(${idx}, this)" 
                  ${ausgewaehlt.includes(idx) ? "checked" : ""}>
-        </div>
-      `).join("");
+        </div>`;
+      }).join("");
     }
 
     function toggleErledigt(idx) {
@@ -201,10 +206,12 @@
       ideen[idx].erledigt = !ideen[idx].erledigt;
       localStorage.setItem("ideen", JSON.stringify(ideen));
       zeigeIdeen();
-      autoSpeichern();
+      autoSpeichern && autoSpeichern();
     }
 
-    // ... [Rest des Codes bleibt unverändert wie in der vorherigen Version] ...
+    // ... (Rest des Codes wie vorher, z.B. bearbeiteIdee, abbrechenBearbeiten, etc.)
+    // Bitte kopiere den Rest aus deiner letzten funktionierenden Version oder aus dem letzten Komplettcode.
+
   </script>
 </body>
 </html>
