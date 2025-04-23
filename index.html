@@ -5,76 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ideen-App Pro</title>
   <style>
-    html, body {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      background: #f4f4f4;
-      width: 100vw;
-      max-width: 100vw;
-      overflow-x: hidden;
-    }
+    html, body { box-sizing: border-box; margin: 0; padding: 0; background: #f4f4f4; width: 100vw; max-width: 100vw; overflow-x: hidden; }
     body { font-family: Arial, sans-serif; margin: 0 0 20px 0; }
-    input, select, textarea {
-      margin-top: 10px;
-      padding: 10px;
-      font-size: 1em;
-      width: 400px;
-      max-width: 100vw;
-      box-sizing: border-box;
-      display: block;
-    }
+    input, select, textarea { margin-top: 10px; padding: 10px; font-size: 1em; width: 400px; max-width: 100vw; box-sizing: border-box; display: block; }
     textarea { min-height: 60px; }
-    button {
-      padding: 10px 18px;
-      font-size: 1em;
-      margin-top: 10px;
-      margin-right: 8px;
-      border-radius: 4px;
-      border: 1px solid #bbb;
-      background: #eee;
-      cursor: pointer;
-      width: auto;
-      min-width: 44px;
-      display: inline-block;
-    }
-    .buttons, .top-actions {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin-top: 10px;
-    }
+    button { padding: 10px 18px; font-size: 1em; margin-top: 10px; margin-right: 8px; border-radius: 4px; border: 1px solid #bbb; background: #eee; cursor: pointer; width: auto; min-width: 44px; display: inline-block; }
+    .buttons, .top-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
     .filter-bar { margin: 20px 0; }
     .filter-bar select { width: auto; }
-    .idee {
-      width: 100%;
-      max-width: 100vw;
-      box-sizing: border-box;
-      overflow-wrap: break-word;
-      word-break: break-word;
-      background: white;
-      padding: 15px;
-      margin: 10px 0;
-      border-radius: 8px;
-      box-shadow: 0 0 5px #ccc;
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-    }
-    .idee-content {
-      flex: 1;
-      max-width: 100%;
-      overflow-wrap: break-word;
-      word-break: break-word;
-      font-size: 1em;
-      line-height: 1.5;
-    }
-    .idee-content h3, .idee-content p, .idee-content small {
-      max-width: 100%;
-      overflow-wrap: break-word;
-      word-break: break-word;
-      font-size: 1em;
-    }
+    .idee { width: 100%; max-width: 100vw; box-sizing: border-box; overflow-wrap: break-word; word-break: break-word; background: white; padding: 15px; margin: 10px 0; border-radius: 8px; box-shadow: 0 0 5px #ccc; display: flex; align-items: flex-start; justify-content: space-between; }
+    .idee-content { flex: 1; max-width: 100%; overflow-wrap: break-word; word-break: break-word; font-size: 1em; line-height: 1.5; }
+    .idee-content h3, .idee-content p, .idee-content small { max-width: 100%; overflow-wrap: break-word; word-break: break-word; font-size: 1em; }
     .idee-checkbox { margin-left: 10px; margin-top: 5px; min-width: 28px; min-height: 28px; }
     .idee-actions { margin-top: 10px; display: flex; gap: 5px; flex-wrap: wrap; }
     .idee-actions button { width: auto; min-width: 44px; padding: 6px 10px; font-size: 0.95em; }
@@ -95,9 +36,7 @@
       .buttons, .top-actions { flex-direction: column; gap: 0; }
       .idee { flex-direction: column; }
       .idee-checkbox { margin-left: 0; margin-top: 10px; }
-      .idee-content, .idee-actions, .datei-link, .datei-info, .datei-vorschau, .idee-checkbox {
-        max-width: 100vw;
-      }
+      .idee-content, .idee-actions, .datei-link, .datei-info, .datei-vorschau, .idee-checkbox { max-width: 100vw; }
     }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -157,6 +96,7 @@
     let prioritaet = "";
     let bearbeiteIndex = null;
     let ausgewaehlt = [];
+    let fileHandle = null; // Für automatisches Speichern im geöffneten Pfad
     const standardKategorien = ["Aufgaben", "Projekte", "Privat", "Arbeit", "Später"];
 
     function initialisiereKategorien() {
@@ -182,7 +122,8 @@
       const dateien = Array.from(document.getElementById("dateien").files).map(file => ({
         name: file.name,
         data: URL.createObjectURL(file),
-        type: file.type
+        type: file.type,
+        pfad: file.webkitRelativePath || file.name // Dateipfad, soweit möglich
       }));
       const idee = {
         text,
@@ -203,6 +144,7 @@
       }
       localStorage.setItem("ideen", JSON.stringify(ideen));
       zeigeIdeen();
+      autoSpeichern();
       document.getElementById("ideeText").value = "";
       document.getElementById("ideeDetails").value = "";
       document.getElementById("dateien").value = "";
@@ -230,7 +172,9 @@
             <small>${idee.kategorie} | ${idee.prioritaet} | ${idee.timestamp}</small>
             ${idee.dateien.map(file => `
               <a class="datei-link" href="${file.data}" target="_blank">📎 ${file.name}</a>
+              <div class="datei-info">Pfad: <i>${file.pfad || file.name}</i></div>
               ${file.type && file.type.startsWith("image/") ? `<img src="${file.data}" style="max-width:150px;">` : ""}
+              ${file.type === "application/pdf" ? `<iframe src="${file.data}" style="width:150px;height:100px;"></iframe>` : ""}
             `).join("")}
             <div class="idee-actions">
               <button onclick="verschiebeIdee(${idx}, -1)">⬆️</button>
@@ -275,6 +219,7 @@
         [ideen[idx], ideen[neuePos]] = [ideen[neuePos], ideen[idx]];
         localStorage.setItem("ideen", JSON.stringify(ideen));
         zeigeIdeen();
+        autoSpeichern();
       }
     }
 
@@ -284,6 +229,7 @@
       ideen.splice(idx, 1);
       localStorage.setItem("ideen", JSON.stringify(ideen));
       zeigeIdeen();
+      autoSpeichern();
       abbrechenBearbeiten();
     }
 
@@ -345,6 +291,7 @@
       localStorage.setItem("ideen", JSON.stringify(ideen));
       ausgewaehlt = [];
       zeigeIdeen();
+      autoSpeichern();
     }
 
     function alleIdeenLoeschen() {
@@ -352,6 +299,7 @@
       localStorage.setItem("ideen", "[]");
       ausgewaehlt = [];
       zeigeIdeen();
+      autoSpeichern();
       abbrechenBearbeiten();
     }
 
@@ -485,6 +433,7 @@
       window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
     }
 
+    // Datei speichern/öffnen (Desktop-Chrome/Edge/Opera) mit automatischem Pfad-Merker
     async function speichereIdeenAlsDatei() {
       if (!window.showSaveFilePicker) {
         alert("Datei speichern ist in diesem Browser nicht verfügbar.");
@@ -492,11 +441,11 @@
       }
       try {
         const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-        const handle = await window.showSaveFilePicker({
+        fileHandle = await window.showSaveFilePicker({
           suggestedName: "ideen.json",
           types: [{ description: "JSON-Dateien", accept: { "application/json": [".json"] } }]
         });
-        const writable = await handle.createWritable();
+        const writable = await fileHandle.createWritable();
         await writable.write(JSON.stringify(ideen, null, 2));
         await writable.close();
         alert("Datei erfolgreich gespeichert!");
@@ -511,10 +460,10 @@
         return;
       }
       try {
-        const [handle] = await window.showOpenFilePicker({
+        [fileHandle] = await window.showOpenFilePicker({
           types: [{ description: "JSON-Dateien", accept: { "application/json": [".json"] } }]
         });
-        const file = await handle.getFile();
+        const file = await fileHandle.getFile();
         const content = await file.text();
         const ideen = JSON.parse(content);
         if (!Array.isArray(ideen)) throw new Error("Ungültiges Dateiformat");
@@ -526,12 +475,38 @@
       }
     }
 
+    // Automatisches Speichern im aktuell geöffneten Pfad
+    async function autoSpeichern() {
+      if (!fileHandle || !window.showSaveFilePicker) return;
+      try {
+        const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+        const writable = await fileHandle.createWritable();
+        await writable.write(JSON.stringify(ideen, null, 2));
+        await writable.close();
+      } catch (err) {
+        // Bei Fehlern (z.B. Berechtigung entzogen) einfach ignorieren
+      }
+    }
+
     function zeigeWarnung(msg) {
       const warnung = document.getElementById("warnung");
       warnung.textContent = msg;
       warnung.style.display = "block";
       setTimeout(() => warnung.style.display = "none", 3000);
     }
+
+    // Dateivorschau beim Hinzufügen von Dateien
+    document.getElementById("dateien").addEventListener("change", function(e) {
+      const vorschau = document.getElementById("dateiVorschau");
+      vorschau.innerHTML = "";
+      Array.from(e.target.files).forEach(file => {
+        const url = URL.createObjectURL(file);
+        vorschau.innerHTML += `<a class="datei-link" href="${url}" target="_blank">📄 ${file.name}</a>
+          <div class="datei-info">Pfad: <i>${file.webkitRelativePath || file.name}</i></div>
+          ${file.type.startsWith("image/") ? `<img src="${url}" style="max-width:150px;">` : ""}
+          ${file.type === "application/pdf" ? `<iframe src="${url}" style="width:150px;height:100px;"></iframe>` : ""}`;
+      });
+    });
 
     // Initialisierung
     initialisiereKategorien();
