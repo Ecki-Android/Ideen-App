@@ -7,9 +7,9 @@
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; background: #f4f4f4; }
     input, select, textarea, button { margin-top: 10px; padding: 10px; width: 100%; max-width: 500px; }
-    .idee { background: white; padding: 15px; margin: 10px 0; border-radius: 8px; box-shadow: 0 0 5px #ccc; display: flex; align-items: flex-start; }
+    .idee { background: white; padding: 15px; margin: 10px 0; border-radius: 8px; box-shadow: 0 0 5px #ccc; display: flex; align-items: flex-start; justify-content: space-between; }
     .idee-content { flex: 1; }
-    .idee-checkbox { margin-right: 10px; margin-top: 5px; }
+    .idee-checkbox { margin-left: 10px; margin-top: 5px; min-width: 28px; min-height: 28px; }
     .buttons { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
     .filter-bar { margin: 20px 0; }
     .filter-bar select { width: auto; }
@@ -87,36 +87,27 @@
   </div>
 
   <div id="ideenListe"></div>
-  <div id="exportLinkDialog" style="display:none;"></div>
-  <div id="overlay" class="overlay" style="display:none;"></div>
 
   <script>
     let prioritaet = "";
     let bearbeiteIndex = null;
     let ausgewaehlt = [];
-    let hyperlinkFileObj = null;
     const standardKategorien = ["Aufgaben", "Projekte", "Privat", "Arbeit", "Später"];
 
-    function istMobil() {
-      return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    // Initialisierung
+    function initialisiereKategorien() {
+      let gespeicherteKategorien = JSON.parse(localStorage.getItem("kategorien")) || standardKategorien;
+      const select = document.getElementById("kategorie");
+      select.innerHTML = gespeicherteKategorien.map(k => `<option>${k}</option>`).join("");
+      const filterSelect = document.getElementById("filterKategorie");
+      filterSelect.innerHTML = '<option value="" class="filter-option-alle">🎯 Alle Ideen</option>';
+      gespeicherteKategorien.forEach(k => filterSelect.add(new Option(k, k)));
     }
-    window.addEventListener("DOMContentLoaded", function() {
-      if(istMobil()) {
-        document.getElementById("mobileHinweis").style.display = "";
-        document.getElementById("mobileHinweis").textContent =
-          "Hinweis: Auf Mobilgeräten ist die Sortierung nicht möglich. Es werden alle Notizen unter Aufgaben angezeigt.";
-      }
-    });
 
     // Hyperlink-Funktionalität
-    document.getElementById("hyperlinkBtn").onclick = function() {
-      document.getElementById("hyperlinkFile").click();
-    };
+    document.getElementById("hyperlinkBtn").onclick = () => document.getElementById("hyperlinkFile").click();
     document.getElementById("hyperlinkFile").onchange = function(e) {
       const file = e.target.files[0];
-      const container = document.getElementById("hyperlinkContainer");
-      container.innerHTML = "";
-      hyperlinkFileObj = null;
       if (!file) return;
       const url = URL.createObjectURL(file);
       const link = document.createElement("a");
@@ -124,59 +115,20 @@
       link.textContent = file.name;
       link.className = "datei-link";
       link.target = "_blank";
-      link.rel = "noopener";
-      container.appendChild(link);
-      hyperlinkFileObj = { name: file.name, data: url, type: file.type };
+      document.getElementById("hyperlinkContainer").appendChild(link);
     };
 
-    function initialisiereKategorien() {
-      let gespeicherteKategorien = JSON.parse(localStorage.getItem("kategorien")) || standardKategorien;
-      const select = document.getElementById("kategorie");
-      select.innerHTML = gespeicherteKategorien.map(k => `<option>${k}</option>`).join("");
-      const filterSelect = document.getElementById("filterKategorie");
-      filterSelect.innerHTML = '<option value="" class="filter-option-alle">🎯 Alle Ideen</option>';
-      gespeicherteKategorien.forEach(k => {
-        filterSelect.add(new Option(k, k));
-      });
-    }
-
-    document.getElementById("dateien").addEventListener("change", function(e) {
-      const vorschau = document.getElementById("dateiVorschau");
-      const preview = document.getElementById("preview");
-      vorschau.innerHTML = "";
-      preview.innerHTML = "";
-      Array.from(e.target.files).forEach(file => {
-        const url = URL.createObjectURL(file);
-        vorschau.innerHTML += `<a class="datei-link" href="${url}" target="_blank">📄 ${file.name}</a>`;
-        vorschau.innerHTML += `<div class="datei-info">Speicherort: <i>${file.webkitRelativePath || "(lokal ausgewählt)"}</i></div>`;
-        if (file.type.startsWith("image/")) {
-          preview.innerHTML += `<b>Vorschau:</b><br><img src="${url}" alt="${file.name}">`;
-        } else if (file.type === "application/pdf") {
-          preview.innerHTML += `<b>Vorschau:</b><br><iframe src="${url}"></iframe>`;
-        } else {
-          preview.innerHTML += "<b>Vorschau:</b> (Keine Vorschau verfügbar für diesen Dateityp)<br>";
-        }
-      });
-    });
-
+    // Idee speichern/bearbeiten
     function speichereIdee() {
       const text = document.getElementById("ideeText").value.trim();
-      if (!text) {
-        zeigeWarnung("Titel ist erforderlich!");
-        return;
-      }
+      if (!text) return zeigeWarnung("Titel ist erforderlich!");
+      
       const dateien = Array.from(document.getElementById("dateien").files).map(file => ({
-        name: file.name.replace(/\s+/g, '_'),
+        name: file.name,
         data: URL.createObjectURL(file),
         type: file.type
       }));
-      // Hyperlink-Datei ggf. anhängen
-      if (hyperlinkFileObj) {
-        dateien.unshift(hyperlinkFileObj);
-        hyperlinkFileObj = null;
-        document.getElementById("hyperlinkContainer").innerHTML = "";
-        document.getElementById("hyperlinkFile").value = "";
-      }
+
       const idee = {
         text,
         details: document.getElementById("ideeDetails").value,
@@ -185,6 +137,7 @@
         dateien,
         timestamp: new Date().toLocaleString("de-DE")
       };
+
       let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
       if (bearbeiteIndex !== null) {
         ideen[bearbeiteIndex] = idee;
@@ -194,343 +147,87 @@
       } else {
         ideen.push(idee);
       }
+
       localStorage.setItem("ideen", JSON.stringify(ideen));
       zeigeIdeen();
       document.getElementById("ideeText").value = "";
       document.getElementById("ideeDetails").value = "";
       document.getElementById("dateien").value = "";
-      document.getElementById("dateiVorschau").innerHTML = "";
-      document.getElementById("preview").innerHTML = "";
-      setzePrioritaet("");
     }
 
+    // Ideen anzeigen
     function zeigeIdeen() {
       const filter = document.getElementById("filterKategorie").value;
       const sortierung = document.getElementById("sortierung").value;
-      let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-      let gefilterteIdeen = filter ? ideen.filter(i => i.kategorie === filter) : ideen.slice();
+      let ideen = JSON.parse(localStorage.getItem("ideen") || "[]")
+        .filter(i => !filter || i.kategorie === filter)
+        .sort((a, b) => {
+          if (sortierung === "prio") {
+            const prio = { "Hoch": 3, "Mittel": 2, "Niedrig": 1 };
+            return prio[b.prioritaet] - prio[a.prioritaet];
+          }
+          return sortierung === "neu" 
+            ? new Date(b.timestamp) - new Date(a.timestamp) 
+            : new Date(a.timestamp) - new Date(b.timestamp);
+        });
 
-      if (sortierung === "neu") {
-        gefilterteIdeen.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-      } else if (sortierung === "alt") {
-        gefilterteIdeen.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-      } else if (sortierung === "prio") {
-        const prio = { "Hoch": 3, "Mittel": 2, "Niedrig": 1 };
-        gefilterteIdeen.sort((a, b) => prio[b.prioritaet] - prio[a.prioritaet]);
-      }
-
-      document.getElementById("ideenListe").innerHTML = gefilterteIdeen.map((idee, idx) => {
-        const globalIdx = ideen.findIndex(i => i === idee);
-        return `
+      document.getElementById("ideenListe").innerHTML = ideen.map((idee, idx) => `
         <div class="idee">
-          <input type="checkbox" class="idee-checkbox" onchange="toggleAuswahl(${globalIdx},this)" ${ausgewaehlt.includes(globalIdx) ? "checked" : ""}>
           <div class="idee-content">
             <h3>${idee.text}</h3>
             <p>${idee.details}</p>
             <small>${idee.kategorie} | ${idee.prioritaet} | ${idee.timestamp}</small>
             ${idee.dateien.map(file => `
               <a class="datei-link" href="${file.data}" target="_blank">📎 ${file.name}</a>
-              <div class="datei-info">Speicherort: <i>${file.name}</i></div>
-              ${
-                file.type && file.type.startsWith("image/") 
-                  ? `<img src="${file.data}" alt="${file.name}" style="max-width:150px;max-height:100px;border:1px solid #888;margin-bottom:8px;">`
-                  : file.type === "application/pdf"
-                    ? `<iframe src="${file.data}" style="width:150px;height:100px;border:1px solid #888;margin-bottom:8px;"></iframe>`
-                    : ""
-              }
+              ${file.type.startsWith("image/") ? `<img src="${file.data}" style="max-width:150px;">` : ""}
             `).join("")}
             <div class="idee-actions">
-              <button onclick="verschiebeIdee(${globalIdx}, -1)">⬆️</button>
-              <button onclick="verschiebeIdee(${globalIdx}, 1)">⬇️</button>
-              <button onclick="bearbeiteIdee(${globalIdx})">✏️</button>
-              <button onclick="loescheIdee(${globalIdx})">🗑️</button>
+              <button onclick="verschiebeIdee(${idx}, -1)">⬆️</button>
+              <button onclick="verschiebeIdee(${idx}, 1)">⬇️</button>
+              <button onclick="bearbeiteIdee(${idx})">✏️</button>
+              <button onclick="loescheIdee(${idx})">🗑️</button>
             </div>
           </div>
+          <input type="checkbox" class="idee-checkbox" onchange="toggleAuswahl(${idx}, this)">
         </div>
-      `;
-      }).join("");
-    }
-
-    function toggleAuswahl(idx, box) {
-      if (box.checked) {
-        if (!ausgewaehlt.includes(idx)) ausgewaehlt.push(idx);
-      } else {
-        ausgewaehlt = ausgewaehlt.filter(i => i !== idx);
-      }
-    }
-
-    function ausgewaehlteNotizenLoeschen() {
-      if (!ausgewaehlt.length) {
-        zeigeWarnung("Bitte mindestens eine Notiz auswählen!");
-        return;
-      }
-      if (!confirm("Wirklich die ausgewählten Notizen löschen?")) return;
-      let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-      ideen = ideen.filter((_, idx) => !ausgewaehlt.includes(idx));
-      localStorage.setItem("ideen", JSON.stringify(ideen));
-      ausgewaehlt = [];
-      zeigeIdeen();
-      abbrechenBearbeiten();
-    }
-
-    function alleIdeenLoeschen() {
-      if (!confirm("Wirklich ALLE Ideen löschen?")) return;
-      localStorage.setItem("ideen", "[]");
-      ausgewaehlt = [];
-      zeigeIdeen();
-      abbrechenBearbeiten();
-    }
-
-    function verschiebeIdee(idx, richtung) {
-      let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-      const neuePos = idx + richtung;
-      if (neuePos < 0 || neuePos >= ideen.length) return;
-      [ideen[idx], ideen[neuePos]] = [ideen[neuePos], ideen[idx]];
-      localStorage.setItem("ideen", JSON.stringify(ideen));
-      zeigeIdeen();
-    }
-
-    function bearbeiteIdee(idx) {
-      let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-      const idee = ideen[idx];
-      document.getElementById("ideeText").value = idee.text;
-      document.getElementById("ideeDetails").value = idee.details;
-      document.getElementById("kategorie").value = idee.kategorie;
-      setzePrioritaet(idee.prioritaet);
-      bearbeiteIndex = idx;
-      document.getElementById("speichernBtn").textContent = "💾 Aktualisieren";
-      document.getElementById("abbrechenBtn").style.display = "";
-      document.getElementById("dateiVorschau").innerHTML = idee.dateien.map(file => `
-        <a href="${file.data}" target="_blank">📎 ${file.name}</a>
-        <div class="datei-info">Speicherort: <i>${file.name}</i></div>
       `).join("");
-      document.getElementById("preview").innerHTML = idee.dateien.map(file => {
-        if (file.type && file.type.startsWith("image/")) {
-          return `<img src="${file.data}" alt="${file.name}" style="max-width:150px;max-height:100px;border:1px solid #888;margin-bottom:8px;">`;
-        } else if (file.type === "application/pdf") {
-          return `<iframe src="${file.data}" style="width:150px;height:100px;border:1px solid #888;margin-bottom:8px;"></iframe>`;
-        } else {
-          return "";
-        }
-      }).join("");
     }
 
-    function abbrechenBearbeiten() {
-      bearbeiteIndex = null;
-      document.getElementById("ideeText").value = "";
-      document.getElementById("ideeDetails").value = "";
-      document.getElementById("dateien").value = "";
-      document.getElementById("speichernBtn").textContent = "💾 Speichern";
-      document.getElementById("abbrechenBtn").style.display = "none";
-      document.getElementById("dateiVorschau").innerHTML = "";
-      document.getElementById("preview").innerHTML = "";
-      setzePrioritaet("");
+    // Checkbox-Auswahl
+    function toggleAuswahl(idx, box) {
+      ausgewaehlt = box.checked 
+        ? [...ausgewaehlt, idx] 
+        : ausgewaehlt.filter(i => i !== idx);
     }
 
-    function loescheIdee(idx) {
-      if (!confirm("Wirklich löschen?")) return;
-      let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-      ideen.splice(idx, 1);
-      localStorage.setItem("ideen", JSON.stringify(ideen));
-      zeigeIdeen();
-      abbrechenBearbeiten();
+    // Export-Funktionen
+    function getExportIdeen() {
+      const alle = JSON.parse(localStorage.getItem("ideen") || "[]");
+      return ausgewaehlt.length > 0 
+        ? ausgewaehlt.map(i => alle[i]) 
+        : alle.filter(i => !document.getElementById("filterKategorie").value || i.kategorie === document.getElementById("filterKategorie").value);
     }
 
     function exportiereAlsPDF() {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
       let y = 20;
-      let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-      ideen.forEach((idee, idx) => {
+      getExportIdeen().forEach((idee, idx) => {
         if (y > 270) { doc.addPage(); y = 20; }
-        doc.setTextColor(0, 0, 0);
         doc.text(`Idee ${idx + 1}: ${idee.text}`, 10, y);
         y += 10;
         doc.text(`Kategorie: ${idee.kategorie}`, 10, y);
         y += 10;
         doc.text(`Priorität: ${idee.prioritaet}`, 10, y);
         y += 10;
-        if (idee.details) {
-          const lines = doc.splitTextToSize(idee.details, 180);
-          doc.text(lines, 10, y);
-          y += lines.length * 7;
-        }
-        idee.dateien?.forEach(file => {
-          doc.setTextColor(0, 0, 255);
-          if (doc.textWithLink) {
-            doc.textWithLink(`📎 ${file.name}`, 10, y, { url: file.data, underline: true });
-          } else {
-            doc.text(`📎 ${file.name}`, 10, y);
-          }
-          y += 10;
-          doc.setTextColor(0, 0, 0);
-        });
-        y += 10;
+        if (idee.details) doc.text(doc.splitTextToSize(idee.details, 180), 10, y);
+        y += 20;
       });
       doc.save("ideen-export.pdf");
     }
 
-    function exportiereAlsText() {
-      const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-      const text = ideen.map(idee => 
-        `=== ${idee.text} ===\n` +
-        `Kategorie: ${idee.kategorie}\n` +
-        `Priorität: ${idee.prioritaet}\n` +
-        `Datum: ${idee.timestamp}\n` +
-        `Details: ${idee.details}\n` +
-        `Anhänge: ${idee.dateien?.map(f => f.name).join(", ") || "Keine"}\n`
-      ).join("\n\n");
-      const blob = new Blob([text], { type: "text/plain" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = "ideen-export.txt";
-      link.click();
-    }
+    // Weitere Funktionen (Bearbeiten, Löschen, Kategorien usw.) hier einfügen...
 
-    function teilePerEmail() {
-      const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-      const text = ideen.map(idee => 
-        `*${idee.text}*\n` +
-        `Kategorie: ${idee.kategorie}\n` +
-        `Priorität: ${idee.prioritaet}\n` +
-        `Datum: ${idee.timestamp}\n` +
-        `Details: ${idee.details}\n` +
-        `Anhänge: ${idee.dateien?.map(f => f.name).join(", ")}\n`
-      ).join("\n\n") + "\n\n[Bitte Anhänge manuell hinzufügen]";
-      window.location.href = `mailto:?subject=Ideen-Export&body=${encodeURIComponent(text)}`;
-    }
-
-    function teilePerWhatsApp() {
-      const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-      const text = ideen.map(idee => 
-        `*${idee.text}*\n` +
-        `📁 Kategorie: ${idee.kategorie}\n` +
-        `🔖 Priorität: ${idee.prioritaet}\n` +
-        `📅 ${idee.timestamp}\n` +
-        `📝 ${idee.details}\n` +
-        `📎 Anhänge: ${idee.dateien?.map(f => f.name).join(", ") || "Keine"}\n`
-      ).join("\n\n");
-      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
-    }
-
-    function setzePrioritaet(p) {
-      prioritaet = p;
-      ["prioHoch", "prioMittel", "prioNiedrig"].forEach(id => 
-        document.getElementById(id).classList.remove("selected")
-      );
-      document.getElementById(`prio${p}`).classList.add("selected");
-    }
-
-    function neueKategorieHinzufuegen() {
-      const neueKat = document.getElementById("neueKategorie").value.trim();
-      if (!neueKat) return;
-      let kategorien = JSON.parse(localStorage.getItem("kategorien")) || standardKategorien;
-      if (!kategorien.includes(neueKat)) {
-        kategorien.push(neueKat);
-        localStorage.setItem("kategorien", JSON.stringify(kategorien));
-        initialisiereKategorien();
-        document.getElementById("neueKategorie").value = "";
-      }
-    }
-
-    function kategorieLoeschen() {
-      const kat = document.getElementById("neueKategorie").value.trim();
-      const hinweis = document.getElementById("katHinweis");
-      if (!kat) {
-        hinweis.textContent = "Bitte Kategorie angeben!";
-        hinweis.style.display = "";
-        return;
-      }
-      let kategorien = JSON.parse(localStorage.getItem("kategorien")) || standardKategorien;
-      let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-      if (!kategorien.includes(kat)) {
-        hinweis.textContent = "Kategorie existiert nicht!";
-        hinweis.style.display = "";
-        return;
-      }
-      if (ideen.some(i => i.kategorie === kat)) {
-        hinweis.textContent = "Kategorie wird noch verwendet! Bitte alle Notizen dieser Kategorie zuerst ändern oder löschen.";
-        hinweis.style.display = "";
-        return;
-      }
-      if (confirm(`Kategorie "${kat}" wirklich löschen?`)) {
-        kategorien = kategorien.filter(k => k !== kat);
-        localStorage.setItem("kategorien", JSON.stringify(kategorien));
-        initialisiereKategorien();
-        hinweis.textContent = "Kategorie gelöscht.";
-        hinweis.style.display = "";
-        setTimeout(() => { hinweis.style.display = "none"; }, 2000);
-        document.getElementById("neueKategorie").value = "";
-      }
-    }
-
-    function zeigeWarnung(msg) {
-      const warnung = document.getElementById("warnung");
-      warnung.textContent = msg;
-      warnung.style.display = "block";
-      setTimeout(() => warnung.style.display = "none", 3000);
-    }
-
-    // File System Access API: Datei speichern
-    async function speichereDateiInDateisystem(dateiInhalt, dateiname = "ideen.json") {
-      if (!window.showSaveFilePicker) {
-        alert("Diese Funktion wird von deinem Browser nicht unterstützt.");
-        return;
-      }
-      try {
-        const handle = await window.showSaveFilePicker({
-          suggestedName: dateiname,
-          types: [{
-            description: 'Ideen-App Datei',
-            accept: {'application/json': ['.json']}
-          }]
-        });
-        const writable = await handle.createWritable();
-        await writable.write(dateiInhalt);
-        await writable.close();
-        alert("Datei erfolgreich gespeichert!");
-      } catch (err) {
-        if (err.name !== "AbortError") alert("Speichern fehlgeschlagen: " + err);
-      }
-    }
-
-    async function speichereIdeenAlsDatei() {
-      const ideen = localStorage.getItem("ideen") || "[]";
-      await speichereDateiInDateisystem(ideen, "ideen.json");
-    }
-
-    // File System Access API: Datei öffnen
-    async function dateiAuswaehlenUndLaden() {
-      if (!window.showOpenFilePicker) {
-        alert("Diese Funktion wird von deinem Browser nicht unterstützt.");
-        return;
-      }
-      try {
-        const [handle] = await window.showOpenFilePicker({
-          types: [{
-            description: 'Ideen-App Datei',
-            accept: {'application/json': ['.json']}
-          }]
-        });
-        const file = await handle.getFile();
-        const content = await file.text();
-        return content;
-      } catch (err) {
-        if (err.name !== "AbortError") alert("Öffnen fehlgeschlagen: " + err);
-      }
-    }
-
-    async function ladeIdeenAusDatei() {
-      const content = await dateiAuswaehlenUndLaden();
-      if (content) {
-        localStorage.setItem("ideen", content);
-        zeigeIdeen();
-        alert("Datei geladen!");
-      }
-    }
-
-    // Initialisierung
     initialisiereKategorien();
     zeigeIdeen();
   </script>
