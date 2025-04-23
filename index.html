@@ -38,6 +38,7 @@
 <body>
   <h1>Ideen-App</h1>
   <div id="warnung" class="warnung" style="display:none;"></div>
+
   <input type="text" id="ideeText" placeholder="Titel*" />
   <textarea id="ideeDetails" placeholder="Beschreibung" rows="3"></textarea>
   <select id="kategorie"></select>
@@ -102,8 +103,8 @@
 
     function setzePrioritaet(p) {
       prioritaet = p;
-      ["prioHoch", "prioMittel", "prioNiedrig"].forEach(id => 
-        document.getElementById(id).classList.remove("selected")
+      ["Hoch", "Mittel", "Niedrig"].forEach(prio => 
+        document.getElementById(`prio${prio}`).classList.remove("selected")
       );
       document.getElementById(`prio${p}`).classList.add("selected");
     }
@@ -111,11 +112,13 @@
     function speichereIdee() {
       const text = document.getElementById("ideeText").value.trim();
       if (!text) return zeigeWarnung("Titel ist erforderlich!");
+      
       const dateien = Array.from(document.getElementById("dateien").files).map(file => ({
         name: file.name,
         data: URL.createObjectURL(file),
         type: file.type
       }));
+
       const idee = {
         text,
         details: document.getElementById("ideeDetails").value,
@@ -124,41 +127,39 @@
         dateien,
         timestamp: new Date().toLocaleString("de-DE")
       };
+
       let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+      
       if (bearbeiteIndex !== null) {
         ideen[bearbeiteIndex] = idee;
         bearbeiteIndex = null;
-        document.getElementById("speichernBtn").textContent = "💾 Speichern";
-        document.getElementById("abbrechenBtn").style.display = "none";
       } else {
         ideen.push(idee);
       }
+
       localStorage.setItem("ideen", JSON.stringify(ideen));
       zeigeIdeen();
       document.getElementById("ideeText").value = "";
       document.getElementById("ideeDetails").value = "";
       document.getElementById("dateien").value = "";
-      setzePrioritaet("");
     }
 
     function zeigeIdeen() {
       const filter = document.getElementById("filterKategorie").value;
       const sortierung = document.getElementById("sortierung").value;
-      let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-      let gefilterteIdeen = filter ? ideen.filter(i => i.kategorie === filter) : ideen.slice();
-      if (sortierung === "neu") {
-        gefilterteIdeen.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-      } else if (sortierung === "alt") {
-        gefilterteIdeen.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-      } else if (sortierung === "prio") {
-        const prio = { "Hoch": 3, "Mittel": 2, "Niedrig": 1, "": 0 };
-        gefilterteIdeen.sort((a, b) => prio[b.prioritaet] - prio[a.prioritaet]);
-      }
-      document.getElementById("ideenListe").innerHTML = gefilterteIdeen.map((idee, idx) => {
-        const globalIdx = JSON.parse(localStorage.getItem("ideen") || "[]").findIndex(i =>
-          i.text === idee.text && i.timestamp === idee.timestamp
-        );
-        return `
+      let ideen = JSON.parse(localStorage.getItem("ideen") || "[]")
+        .filter(i => !filter || i.kategorie === filter)
+        .sort((a, b) => {
+          if (sortierung === "prio") {
+            const prioWerte = { "Hoch": 3, "Mittel": 2, "Niedrig": 1 };
+            return prioWerte[b.prioritaet] - prioWerte[a.prioritaet];
+          }
+          return sortierung === "neu" 
+            ? new Date(b.timestamp) - new Date(a.timestamp) 
+            : new Date(a.timestamp) - new Date(b.timestamp);
+        });
+
+      document.getElementById("ideenListe").innerHTML = ideen.map((idee, idx) => `
         <div class="idee">
           <div class="idee-content">
             <h3>${idee.text}</h3>
@@ -166,29 +167,32 @@
             <small>${idee.kategorie} | ${idee.prioritaet} | ${idee.timestamp}</small>
             ${idee.dateien.map(file => `
               <a class="datei-link" href="${file.data}" target="_blank">📎 ${file.name}</a>
-              ${file.type && file.type.startsWith("image/") ? `<img src="${file.data}" style="max-width:150px;">` : ""}
+              ${file.type.startsWith("image/") ? `<img src="${file.data}" style="max-width:150px;">` : ""}
             `).join("")}
             <div class="idee-actions">
-              <button onclick="verschiebeIdee(${globalIdx}, -1)">⬆️</button>
-              <button onclick="verschiebeIdee(${globalIdx}, 1)">⬇️</button>
-              <button onclick="bearbeiteIdee(${globalIdx})">✏️</button>
-              <button onclick="loescheIdee(${globalIdx})">🗑️</button>
+              <button onclick="verschiebeIdee(${idx}, -1)">⬆️</button>
+              <button onclick="verschiebeIdee(${idx}, 1)">⬇️</button>
+              <button onclick="bearbeiteIdee(${idx})">✏️</button>
+              <button onclick="loescheIdee(${idx})">🗑️</button>
             </div>
           </div>
-          <input type="checkbox" class="idee-checkbox" onchange="toggleAuswahl(${globalIdx}, this)" ${ausgewaehlt.includes(globalIdx) ? "checked" : ""}>
+          <input type="checkbox" class="idee-checkbox" 
+                 onchange="toggleAuswahl(${idx}, this)" 
+                 ${ausgewaehlt.includes(idx) ? "checked" : ""}>
         </div>
-        `;
-      }).join("");
+      `).join("");
     }
 
     function bearbeiteIdee(idx) {
       const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
       const idee = ideen[idx];
+      
       document.getElementById("ideeText").value = idee.text;
       document.getElementById("ideeDetails").value = idee.details;
       document.getElementById("kategorie").value = idee.kategorie;
       setzePrioritaet(idee.prioritaet);
       bearbeiteIndex = idx;
+      
       document.getElementById("speichernBtn").textContent = "💾 Aktualisieren";
       document.getElementById("abbrechenBtn").style.display = "";
     }
@@ -206,10 +210,11 @@
     function verschiebeIdee(idx, richtung) {
       let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
       const neuePos = idx + richtung;
-      if (neuePos < 0 || neuePos >= ideen.length) return;
-      [ideen[idx], ideen[neuePos]] = [ideen[neuePos], ideen[idx]];
-      localStorage.setItem("ideen", JSON.stringify(ideen));
-      zeigeIdeen();
+      if (neuePos >= 0 && neuePos < ideen.length) {
+        [ideen[idx], ideen[neuePos]] = [ideen[neuePos], ideen[idx]];
+        localStorage.setItem("ideen", JSON.stringify(ideen));
+        zeigeIdeen();
+      }
     }
 
     function loescheIdee(idx) {
@@ -301,32 +306,73 @@
     function exportiereAlsPDF() {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
-      let y = 20;
-      getExportIdeen().forEach((idee, idx) => {
-        if (y > 270) { doc.addPage(); y = 20; }
-        doc.text(`Idee ${idx + 1}: ${idee.text}`, 10, y);
-        y += 10;
-        doc.text(`Kategorie: ${idee.kategorie}`, 10, y);
-        y += 10;
-        doc.text(`Priorität: ${idee.prioritaet}`, 10, y);
-        y += 10;
-        if (idee.details) {
-          const lines = doc.splitTextToSize(idee.details, 180);
-          doc.text(lines, 10, y);
-          y += lines.length * 7;
-        }
-        idee.dateien?.forEach(file => {
-          doc.setTextColor(0, 0, 255);
-          if (doc.textWithLink) {
-            doc.textWithLink(`📎 ${file.name}`, 10, y, { url: file.data, underline: true });
-          } else {
-            doc.text(`📎 ${file.name}`, 10, y);
+      const margin = 15;
+      const pageHeight = doc.internal.pageSize.getHeight();
+      let y = margin;
+      const ideen = getExportIdeen();
+
+      ideen.forEach((idee, idx) => {
+        // Titel
+        const titel = `Idee ${idx + 1}: ${idee.text}`;
+        const titelLines = doc.splitTextToSize(titel, 180);
+        titelLines.forEach(line => {
+          if (y + 10 > pageHeight - margin) {
+            doc.addPage();
+            y = margin;
           }
+          doc.text(line, margin, y);
           y += 10;
-          doc.setTextColor(0, 0, 0);
         });
-        y += 10;
+
+        // Metadaten
+        const meta = [
+          `Kategorie: ${idee.kategorie}`,
+          `Priorität: ${idee.prioritaet}`,
+          `Datum: ${idee.timestamp}`
+        ];
+        
+        meta.forEach(text => {
+          if (y + 10 > pageHeight - margin) {
+            doc.addPage();
+            y = margin;
+          }
+          doc.text(text, margin, y);
+          y += 10;
+        });
+
+        // Details
+        if (idee.details) {
+          const detailLines = doc.splitTextToSize(idee.details, 180);
+          detailLines.forEach(line => {
+            if (y + 10 > pageHeight - margin) {
+              doc.addPage();
+              y = margin;
+            }
+            doc.text(line, margin, y);
+            y += 10;
+          });
+        }
+
+        // Dateianhänge
+        idee.dateien?.forEach(file => {
+          if (y + 10 > pageHeight - margin) {
+            doc.addPage();
+            y = margin;
+          }
+          doc.setTextColor(0, 0, 255);
+          doc.textWithLink(`📎 ${file.name}`, margin, y, { url: file.data });
+          doc.setTextColor(0, 0, 0);
+          y += 10;
+        });
+
+        // Abstand zur nächsten Notiz
+        y += 15;
+        if (y > pageHeight - margin) {
+          doc.addPage();
+          y = margin;
+        }
       });
+
       doc.save("ideen-export.pdf");
     }
 
@@ -374,7 +420,6 @@
       window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
     }
 
-    // Datei speichern/öffnen (Desktop-Chrome/Edge/Opera)
     async function speichereIdeenAlsDatei() {
       if (!window.showSaveFilePicker) {
         alert("Datei speichern ist in diesem Browser nicht verfügbar.");
