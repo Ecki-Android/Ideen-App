@@ -23,6 +23,7 @@
     .beschreibung-historie { margin: 8px 0 12px 0; }
     .beschreibung-item { margin: 4px 0 4px 0; padding: 6px 8px; background: #f8f8f8; border-left: 3px solid #bbb; font-size: 0.98em; }
     .beschreibung-zeit { color: #666; font-size: 0.9em; margin-bottom: 2px; display: block;}
+    .beschreibung-eingabe { margin: 10px 0; background: #f9f9f9; border-left: 3px solid #bbb; padding: 8px; }
     .idee-checkbox { margin-left: 10px; margin-top: 5px; min-width: 28px; min-height: 28px; }
     .idee-actions { margin-top: 10px; display: flex; gap: 5px; flex-wrap: wrap; }
     .idee-actions button { width: auto; min-width: 44px; padding: 6px 10px; font-size: 0.95em; }
@@ -59,12 +60,6 @@
   <button onclick="neueKategorieHinzufuegen()">+ Kategorie</button>
   <button class="katLoeschBtn" onclick="kategorieLoeschen()">Kategorie löschen</button>
   <span id="katHinweis" class="katHinweis" style="display:none;"></span>
-  <button id="addBeschreibungBtn" type="button" onclick="zeigeBeschreibungEingabe()">+ Beschreibung</button>
-  <div id="beschreibungEingabe" style="display:none; margin-top:10px;">
-    <textarea id="beschreibungText" placeholder="Neue Beschreibung" rows="2"></textarea>
-    <button onclick="beschreibungSpeichern()">💾 Speichern</button>
-    <button onclick="beschreibungAbbrechen()">❌ Abbrechen</button>
-  </div>
 
   <div class="buttons">
     <button id="prioHoch" class="prio-btn" onclick="setzePrioritaet('Hoch')">🔴 Hoch</button>
@@ -104,6 +99,11 @@
   </div>
 
   <div id="ideenListe"></div>
+  <div id="beschreibungDialog" style="display:none;" class="beschreibung-eingabe">
+    <textarea id="beschreibungText" placeholder="Weitere Beschreibung" rows="2"></textarea>
+    <button onclick="beschreibungSpeichern()">💾 Speichern</button>
+    <button onclick="beschreibungAbbrechen()">❌ Abbrechen</button>
+  </div>
 
   <script>
     let prioritaet = "";
@@ -215,7 +215,7 @@
               <button onclick="bearbeiteIdee(${idx})">✏️</button>
               <button onclick="toggleErledigt(${idx})">${erledigt ? "↩️" : "✔️"}</button>
               <button onclick="loescheIdee(${idx})">🗑️</button>
-              <button onclick="zeigeBeschreibungEingabe(${idx})">+ Beschreibung</button>
+              <button onclick="zeigeBeschreibungDialog(${idx})">+ Beschreibung</button>
             </div>
           </div>
           <input type="checkbox" class="idee-checkbox" 
@@ -225,15 +225,15 @@
       }).join("");
     }
 
-    function zeigeBeschreibungEingabe(idx) {
+    function zeigeBeschreibungDialog(idx) {
       beschreibungFuerIndex = idx;
-      document.getElementById("beschreibungEingabe").style.display = "block";
+      document.getElementById("beschreibungDialog").style.display = "block";
       document.getElementById("beschreibungText").value = "";
       document.getElementById("beschreibungText").focus();
     }
 
     function beschreibungAbbrechen() {
-      document.getElementById("beschreibungEingabe").style.display = "none";
+      document.getElementById("beschreibungDialog").style.display = "none";
       beschreibungFuerIndex = null;
       document.getElementById("beschreibungText").value = "";
     }
@@ -243,7 +243,7 @@
       if (!text) return;
       const timestamp = new Date().toLocaleString("de-DE");
       let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-      let idx = beschreibungFuerIndex !== null ? beschreibungFuerIndex : (bearbeiteIndex !== null ? bearbeiteIndex : ideen.length - 1);
+      let idx = beschreibungFuerIndex;
       if (!ideen[idx].beschreibungen) ideen[idx].beschreibungen = [];
       ideen[idx].beschreibungen.push({ text, timestamp });
       localStorage.setItem("ideen", JSON.stringify(ideen));
@@ -251,7 +251,7 @@
       beschreibungAbbrechen();
     }
 
-    // ... Restliche Funktionen bleiben wie in deiner Version (bearbeiteIdee, abbrechenBearbeiten, verschiebeIdee, loescheIdee, Kategorien, Export, Datei speichern/öffnen etc.) ...
+    // ... Restliche Funktionen wie in deiner Version (bearbeiteIdee, abbrechenBearbeiten, verschiebeIdee, loescheIdee, Kategorien, Export, Datei speichern/öffnen etc.) ...
 
     initialisiereKategorien();
     zeigeIdeen();
