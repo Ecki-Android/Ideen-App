@@ -48,6 +48,7 @@
     }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://alcdn.msauth.net/browser/2.24.0/js/msal-browser.min.js"></script>
 </head>
 <body>
   <h1>Ideen-App</h1>
@@ -96,6 +97,7 @@
     <button onclick="ausgewaehlteNotizenLoeschen()" style="background:#eee;border:1px solid #c00;color:#c00;">Ausgewählte löschen</button>
     <button id="speicherDateiBtn" onclick="speichereIdeenAlsDatei()">Datei speichern</button>
     <button id="oeffneDateiBtn" onclick="ladeIdeenAusDatei()">Datei öffnen</button>
+    <button onclick="handleLogin()">🔑 Mit Microsoft anmelden</button>
   </div>
 
   <div id="ideenListe"></div>
@@ -106,12 +108,78 @@
   </div>
 
   <script>
+    // Konfiguration mit DEINEN Azure-IDs
+    const msalConfig = {
+      auth: {
+        clientId: "ddf69193-7eab-4847-a995-b6c08f0df9ae",
+        authority: "https://login.microsoftonline.com/41449a7c-0cbc-4a78-8554-5c3742d81595",
+        redirectUri: window.location.origin
+      }
+    };
+
+    let accessToken = null;
+    let msalInstance = null;
     let prioritaet = "";
     let bearbeiteIndex = null;
     let ausgewaehlt = [];
     let fileHandle = null;
     let beschreibungFuerIndex = null;
     const standardKategorien = ["Aufgaben", "Projekte", "Privat", "Arbeit", "Später"];
+
+    async function handleLogin() {
+      msalInstance = new msal.PublicClientApplication(msalConfig);
+      try {
+        const loginResponse = await msalInstance.loginPopup({ scopes: ["Files.ReadWrite", "offline_access"] });
+        const tokenResponse = await msalInstance.acquireTokenSilent({ 
+          scopes: ["Files.ReadWrite", "offline_access"],
+          account: loginResponse.account 
+        });
+        accessToken = tokenResponse.accessToken;
+        alert("Microsoft-Login erfolgreich!");
+      } catch (err) {
+        alert("Microsoft-Login fehlgeschlagen: " + err.message);
+      }
+    }
+
+    async function uploadToOneDrive(file) {
+      if (!accessToken) {
+        alert("Bitte zuerst mit Microsoft anmelden!");
+        return null;
+      }
+      const fileName = `ideenapp/${Date.now()}_${file.name}`;
+      const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${fileName}:/content`;
+      try {
+        const uploadResponse = await fetch(endpoint, {
+          method: "PUT",
+          headers: {
+            "Authorization": `Bearer ${accessToken}`,
+            "Content-Type": file.type
+          },
+          body: file
+        });
+        const data = await uploadResponse.json();
+        return await createShareLink(data.id);
+      } catch (err) {
+        alert("Upload zu OneDrive fehlgeschlagen: " + err.message);
+        return null;
+      }
+    }
+
+    async function createShareLink(fileId) {
+      const endpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/createLink`;
+      try {
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${accessToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ type: "view", scope: "anonymous" })
+        });
+        const data = await response.json();
+        return data.link.webUrl;
+      } catch (err) {
+        alert("Share-Link fehlgeschlagen: " + err.message);
+        return null;
+      }
+    }
 
     function initialisiereKategorien() {
       const kategorien = JSON.parse(localStorage.getItem("kategorien")) || standardKategorien;
@@ -130,18 +198,35 @@
       document.getElementById(`prio${p}`).classList.add("selected");
     }
 
-    function speichereIdee() {
+    async function speichereIdee() {
       const text = document.getElementById("ideeText").value.trim();
       if (!text) return zeigeWarnung("Titel ist erforderlich!");
-      const dateien = Array.from(document.getElementById("dateien").files).map(file => ({
-        name: file.name,
-        data: URL.createObjectURL(file),
-        type: file.type,
-        pfad: file.webkitRelativePath || file.name
-      }));
+      
+      let dateien = [];
+      if (accessToken) {
+        dateien = await Promise.all(
+          Array.from(document.getElementById("dateien").files).map(async (file) => {
+            const shareLink = await uploadToOneDrive(file);
+            return {
+              name: file.name,
+              type: file.type,
+              link: shareLink
+            };
+          })
+        );
+      } else {
+        dateien = Array.from(document.getElementById("dateien").files).map(file => ({
+          name: file.name,
+          data: URL.createObjectURL(file),
+          type: file.type,
+          pfad: file.webkitRelativePath || file.name
+        }));
+      }
+
       let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
       const erledigt = bearbeiteIndex !== null ? (ideen[bearbeiteIndex]?.erledigt || false) : false;
       const beschreibungen = bearbeiteIndex !== null ? (ideen[bearbeiteIndex]?.beschreibungen || []) : [];
+      
       const idee = {
         text,
         details: document.getElementById("ideeDetails").value,
@@ -152,6 +237,7 @@
         erledigt,
         beschreibungen
       };
+
       if (bearbeiteIndex !== null) {
         ideen[bearbeiteIndex] = idee;
         bearbeiteIndex = null;
@@ -160,9 +246,9 @@
       } else {
         ideen.push(idee);
       }
+      
       localStorage.setItem("ideen", JSON.stringify(ideen));
       zeigeIdeen();
-      autoSpeichern();
       document.getElementById("ideeText").value = "";
       document.getElementById("ideeDetails").value = "";
       document.getElementById("dateien").value = "";
@@ -204,10 +290,10 @@
             ` : ""}
             <small>${idee.kategorie} | ${idee.prioritaet} | ${idee.timestamp}</small>
             ${idee.dateien?.map(file => `
-              <a class="datei-link" href="${file.data}" target="_blank">📎 ${file.name}</a>
-              <div class="datei-info">Pfad: <i>${file.pfad || file.name}</i></div>
-              ${file.type?.startsWith("image/") ? `<img src="${file.data}" style="max-width:150px;">` : ""}
-              ${file.type === "application/pdf" ? `<iframe src="${file.data}" style="width:150px;height:100px;"></iframe>` : ""}
+              <a class="datei-link" href="${file.link || file.data}" target="_blank">🌐 ${file.name}</a>
+              ${file.link ? `<div class="datei-info">OneDrive-Link</div>` : `<div class="datei-info">Pfad: <i>${file.pfad || file.name}</i></div>`}
+              ${file.type?.startsWith("image/") ? `<img src="${file.link || file.data}" style="max-width:150px;">` : ""}
+              ${file.type === "application/pdf" ? `<iframe src="${file.link || file.data}" style="width:150px;height:100px;"></iframe>` : ""}
             `).join("")}
             <div class="idee-actions">
               <button onclick="verschiebeIdee(${idx}, -1)">⬆️</button>
@@ -256,7 +342,6 @@
       ideen[idx].erledigt = !ideen[idx].erledigt;
       localStorage.setItem("ideen", JSON.stringify(ideen));
       zeigeIdeen();
-      autoSpeichern();
     }
 
     function bearbeiteIdee(idx) {
@@ -288,7 +373,6 @@
         [ideen[idx], ideen[neuePos]] = [ideen[neuePos], ideen[idx]];
         localStorage.setItem("ideen", JSON.stringify(ideen));
         zeigeIdeen();
-        autoSpeichern();
       }
     }
 
@@ -298,7 +382,6 @@
       ideen.splice(idx, 1);
       localStorage.setItem("ideen", JSON.stringify(ideen));
       zeigeIdeen();
-      autoSpeichern();
       abbrechenBearbeiten();
     }
 
@@ -360,7 +443,6 @@
       localStorage.setItem("ideen", JSON.stringify(ideen));
       ausgewaehlt = [];
       zeigeIdeen();
-      autoSpeichern();
     }
 
     function alleIdeenLoeschen() {
@@ -368,7 +450,6 @@
       localStorage.setItem("ideen", "[]");
       ausgewaehlt = [];
       zeigeIdeen();
-      autoSpeichern();
       abbrechenBearbeiten();
     }
 
@@ -450,9 +531,9 @@
           }
           doc.setTextColor(0, 0, 255);
           if (doc.textWithLink) {
-            doc.textWithLink(`📎 ${file.name}`, margin, y, { url: file.data });
+            doc.textWithLink(`🌐 ${file.name}`, margin, y, { url: file.link || file.data });
           } else {
-            doc.text(`📎 ${file.name}`, margin, y);
+            doc.text(`🌐 ${file.name}`, margin, y);
           }
           doc.setTextColor(0, 0, 0);
           y += 10;
@@ -572,16 +653,6 @@
       } catch (err) {
         if (err.name !== "AbortError") alert("Fehler beim Laden: " + err.message);
       }
-    }
-
-    async function autoSpeichern() {
-      if (!fileHandle || !window.showSaveFilePicker) return;
-      try {
-        const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-        const writable = await fileHandle.createWritable();
-        await writable.write(JSON.stringify(ideen, null, 2));
-        await writable.close();
-      } catch (err) {}
     }
 
     function zeigeWarnung(msg) {
