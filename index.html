@@ -52,6 +52,9 @@
 </head>
 <body>
   <h1>Ideen-App</h1>
+  <div id="loginHinweis" class="warnung" style="display:none;">
+    Anmeldung erforderlich: Bitte melden Sie sich zuerst mit Ihrem Microsoft-Konto an. Ohne Anmeldung sind keine Cloud-Links und keine Synchronisation möglich.
+  </div>
   <div id="warnung" class="warnung" style="display:none;"></div>
   <input type="text" id="ideeText" placeholder="Titel*" />
   <textarea id="ideeDetails" placeholder="Beschreibung" rows="3"></textarea>
@@ -92,6 +95,7 @@
     <button id="speicherDateiBtn" onclick="speichereIdeenAlsDatei()">Datei speichern</button>
     <button id="oeffneDateiBtn" onclick="ladeIdeenAusDatei()">Datei öffnen</button>
     <button onclick="handleLogin()" style="background:#e6f4ff;border-color:#0067b8;color:#0067b8;">🔑 Mit Microsoft anmelden</button>
+    <button onclick="handleLogout()" style="background:#ffe0e0;border-color:#c00;color:#c00;">🔒 Abmelden</button>
   </div>
   <div id="ideenListe"></div>
   <div id="beschreibungDialog" style="display:none;" class="beschreibung-eingabe">
@@ -105,7 +109,7 @@
         clientId: "ddf69193-7eab-4847-a995-b6c08f0df9ae",
         authority: "https://login.microsoftonline.com/683748a6-faf7-45ef-9da3-10e903da0b00",
         knownAuthorities: ["login.microsoftonline.com"],
-        redirectUri: window.location.origin
+        redirectUri: "https://ecki-android.github.io"
       }
     };
     let accessToken = null;
@@ -115,7 +119,9 @@
     let ausgewaehlt = [];
     let fileHandle = null;
     let beschreibungFuerIndex = null;
+    let istGespeichert = true;
     const standardKategorien = ["Aufgaben", "Projekte", "Privat", "Arbeit", "Später"];
+    
     async function handleLogin() {
       try {
         msalInstance = new msal.PublicClientApplication(msalConfig);
@@ -128,10 +134,34 @@
         });
         accessToken = tokenResponse.accessToken;
         zeigeWarnung("Erfolgreich bei Microsoft angemeldet!");
+        pruefeLoginHinweis();
       } catch (err) {
         zeigeWarnung("Login fehlgeschlagen: " + err.message);
       }
     }
+    
+    async function handleLogout() {
+      if (!istGespeichert) {
+        if (!confirm("Bitte speichern Sie Ihre Änderungen, bevor Sie sich abmelden! Trotzdem abmelden?")) return;
+      }
+      try {
+        if (msalInstance) {
+          const currentAccount = msalInstance.getAllAccounts()[0];
+          if (currentAccount) {
+            await msalInstance.logoutPopup({
+              account: currentAccount,
+              postLogoutRedirectUri: "https://ecki-android.github.io"
+            });
+          }
+        }
+        accessToken = null;
+        pruefeLoginHinweis();
+        zeigeWarnung("Sie wurden erfolgreich abgemeldet.");
+      } catch (err) {
+        zeigeWarnung("Abmeldung fehlgeschlagen: " + err.message);
+      }
+    }
+    
     async function uploadToOneDrive(file) {
       if (!accessToken) {
         zeigeWarnung("Bitte zuerst mit Microsoft anmelden!");
@@ -169,6 +199,7 @@
         return null;
       }
     }
+    
     function initialisiereKategorien() {
       const kategorien = JSON.parse(localStorage.getItem("kategorien")) || standardKategorien;
       const select = document.getElementById("kategorie");
@@ -177,13 +208,16 @@
       filterSelect.innerHTML = '<option value="" class="filter-option-alle">🎯 Alle Ideen</option>';
       kategorien.forEach(k => filterSelect.add(new Option(k, k)));
     }
+    
     function setzePrioritaet(p) {
       prioritaet = p;
       ["prioHoch", "prioMittel", "prioNiedrig"].forEach(id => 
         document.getElementById(id).classList.remove("selected")
       );
       document.getElementById(`prio${p}`).classList.add("selected");
+      istGespeichert = false;
     }
+    
     async function speichereIdee() {
       const text = document.getElementById("ideeText").value.trim();
       if (!text) return zeigeWarnung("Titel ist erforderlich!");
@@ -231,7 +265,10 @@
       document.getElementById("ideeDetails").value = "";
       document.getElementById("dateien").value = "";
       setzePrioritaet("");
+      istGespeichert = true;
+      zeigeWarnung("Idee erfolgreich gespeichert!");
     }
+    
     function zeigeIdeen() {
       const filter = document.getElementById("filterKategorie").value;
       const sortierung = document.getElementById("sortierung").value;
@@ -286,17 +323,21 @@
         </div>`;
       }).join("");
     }
+    
     function zeigeBeschreibungDialog(idx) {
       beschreibungFuerIndex = idx;
       document.getElementById("beschreibungDialog").style.display = "block";
       document.getElementById("beschreibungText").value = "";
       document.getElementById("beschreibungText").focus();
+      istGespeichert = false;
     }
+    
     function beschreibungAbbrechen() {
       document.getElementById("beschreibungDialog").style.display = "none";
       beschreibungFuerIndex = null;
       document.getElementById("beschreibungText").value = "";
     }
+    
     function beschreibungSpeichern() {
       const text = document.getElementById("beschreibungText").value.trim();
       if (!text) return;
@@ -308,13 +349,17 @@
       localStorage.setItem("ideen", JSON.stringify(ideen));
       zeigeIdeen();
       beschreibungAbbrechen();
+      istGespeichert = true;
     }
+    
     function toggleErledigt(idx) {
       let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
       ideen[idx].erledigt = !ideen[idx].erledigt;
       localStorage.setItem("ideen", JSON.stringify(ideen));
       zeigeIdeen();
+      istGespeichert = true;
     }
+    
     function bearbeiteIdee(idx) {
       const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
       const idee = ideen[idx];
@@ -325,7 +370,9 @@
       bearbeiteIndex = idx;
       document.getElementById("speichernBtn").textContent = "💾 Aktualisieren";
       document.getElementById("abbrechenBtn").style.display = "";
+      istGespeichert = false;
     }
+    
     function abbrechenBearbeiten() {
       bearbeiteIndex = null;
       document.getElementById("ideeText").value = "";
@@ -334,7 +381,9 @@
       document.getElementById("speichernBtn").textContent = "💾 Speichern";
       document.getElementById("abbrechenBtn").style.display = "none";
       setzePrioritaet("");
+      istGespeichert = true;
     }
+    
     function verschiebeIdee(idx, richtung) {
       let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
       const neuePos = idx + richtung;
@@ -342,8 +391,10 @@
         [ideen[idx], ideen[neuePos]] = [ideen[neuePos], ideen[idx]];
         localStorage.setItem("ideen", JSON.stringify(ideen));
         zeigeIdeen();
+        istGespeichert = false;
       }
     }
+    
     function loescheIdee(idx) {
       if (!confirm("Wirklich löschen?")) return;
       let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
@@ -351,7 +402,9 @@
       localStorage.setItem("ideen", JSON.stringify(ideen));
       zeigeIdeen();
       abbrechenBearbeiten();
+      istGespeichert = true;
     }
+    
     function neueKategorieHinzufuegen() {
       const neueKat = document.getElementById("neueKategorie").value.trim();
       if (!neueKat) return;
@@ -361,8 +414,12 @@
         localStorage.setItem("kategorien", JSON.stringify(kategorien));
         initialisiereKategorien();
         document.getElementById("neueKategorie").value = "";
+        zeigeWarnung("Kategorie hinzugefügt: " + neueKat);
+      } else {
+        zeigeWarnung("Kategorie existiert bereits!");
       }
     }
+    
     function kategorieLoeschen() {
       const kat = document.getElementById("neueKategorie").value.trim();
       const hinweis = document.getElementById("katHinweis");
@@ -393,6 +450,7 @@
         document.getElementById("neueKategorie").value = "";
       }
     }
+    
     function toggleAuswahl(idx, box) {
       if (box.checked) {
         if (!ausgewaehlt.includes(idx)) ausgewaehlt.push(idx);
@@ -400,6 +458,7 @@
         ausgewaehlt = ausgewaehlt.filter(i => i !== idx);
       }
     }
+    
     function ausgewaehlteNotizenLoeschen() {
       if (!confirm("Ausgewählte Notizen löschen?")) return;
       let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
@@ -407,14 +466,18 @@
       localStorage.setItem("ideen", JSON.stringify(ideen));
       ausgewaehlt = [];
       zeigeIdeen();
+      istGespeichert = true;
     }
+    
     function alleIdeenLoeschen() {
       if (!confirm("Wirklich ALLE Ideen löschen?")) return;
       localStorage.setItem("ideen", "[]");
       ausgewaehlt = [];
       zeigeIdeen();
       abbrechenBearbeiten();
+      istGespeichert = true;
     }
+    
     function getExportIdeen() {
       let alle = JSON.parse(localStorage.getItem("ideen") || "[]");
       if (ausgewaehlt.length > 0) {
@@ -423,6 +486,7 @@
       const filter = document.getElementById("filterKategorie").value;
       return filter ? alle.filter(i => i.kategorie === filter) : alle;
     }
+    
     function exportiereAlsPDF() {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
@@ -502,6 +566,7 @@
       });
       doc.save("ideen-export.pdf");
     }
+    
     function exportiereAlsText() {
       const ideen = getExportIdeen();
       const text = ideen.map(idee => 
@@ -521,6 +586,7 @@
       link.download = "ideen-export.txt";
       link.click();
     }
+    
     function teilePerEmail() {
       const ideen = getExportIdeen();
       const text = ideen.map(idee => 
@@ -535,6 +601,7 @@
       ).join("\n\n") + "\n\n[Bitte Anhänge manuell hinzufügen]";
       window.location.href = `mailto:?subject=Ideen-Export&body=${encodeURIComponent(text)}`;
     }
+    
     function teilePerWhatsApp() {
       const ideen = getExportIdeen();
       const text = ideen.map(idee => 
@@ -550,6 +617,7 @@
       ).join("\n\n");
       window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
     }
+    
     async function speichereIdeenAlsDatei() {
       try {
         const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
@@ -562,6 +630,7 @@
           await writable.write(JSON.stringify(ideen, null, 2));
           await writable.close();
           alert("Datei erfolgreich gespeichert!");
+          istGespeichert = true;
         } else {
           const blob = new Blob([JSON.stringify(ideen)], { type: "application/json" });
           const url = URL.createObjectURL(blob);
@@ -569,11 +638,13 @@
           link.href = url;
           link.download = "ideen.json";
           link.click();
+          istGespeichert = true;
         }
       } catch (err) {
         if (err.name !== "AbortError") alert("Fehler beim Speichern: " + err.message);
       }
     }
+    
     async function ladeIdeenAusDatei() {
       try {
         let file;
@@ -597,16 +668,34 @@
         ausgewaehlt = [];
         zeigeIdeen();
         alert("Datei erfolgreich geladen!");
+        istGespeichert = true;
       } catch (err) {
         if (err.name !== "AbortError") alert("Fehler beim Laden: " + err.message);
       }
     }
+    
     function zeigeWarnung(msg) {
       const warnung = document.getElementById("warnung");
       warnung.textContent = msg;
       warnung.style.display = "block";
       setTimeout(() => warnung.style.display = "none", 3000);
     }
+    
+    function pruefeLoginHinweis() {
+      if (!accessToken) {
+        document.getElementById("loginHinweis").style.display = "block";
+      } else {
+        document.getElementById("loginHinweis").style.display = "none";
+      }
+    }
+    
+    document.getElementById("ideeText").addEventListener("input", () => {
+      istGespeichert = false;
+    });
+    document.getElementById("ideeDetails").addEventListener("input", () => {
+      istGespeichert = false;
+    });
+    
     document.getElementById("dateien").addEventListener("change", function(e) {
       const vorschau = document.getElementById("dateiVorschau");
       vorschau.innerHTML = "";
@@ -617,9 +706,21 @@
           ${file.type.startsWith("image/") ? `<img src="${url}" style="max-width:150px;">` : ""}
           ${file.type === "application/pdf" ? `<iframe src="${url}" style="width:150px;height:100px;"></iframe>` : ""}`;
       });
+      istGespeichert = false;
     });
+    
+    window.addEventListener("beforeunload", function (event) {
+      if (!istGespeichert) {
+        const confirmationMessage = "Sie haben ungespeicherte Änderungen. Möchten Sie die Seite wirklich verlassen?";
+        event.preventDefault();
+        event.returnValue = confirmationMessage;
+        return confirmationMessage;
+      }
+    });
+    
     initialisiereKategorien();
     zeigeIdeen();
+    pruefeLoginHinweis();
   </script>
 </body>
 </html>
