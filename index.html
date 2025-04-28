@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ideen-App Pro</title>
   <style>
+    /* Vollständiger CSS-Code */
     html, body { box-sizing: border-box; margin: 0; padding: 0; background: #f4f4f4; width: 100vw; max-width: 100vw; overflow-x: hidden; }
     body { font-family: Arial, sans-serif; margin: 0 0 20px 0; }
     input, select, textarea { margin-top: 10px; padding: 10px; font-size: 1em; width: 400px; max-width: 100vw; box-sizing: border-box; display: block; }
@@ -97,7 +98,7 @@
     <button onclick="ausgewaehlteNotizenLoeschen()" style="background:#eee;border:1px solid #c00;color:#c00;">Ausgewählte löschen</button>
     <button id="speicherDateiBtn" onclick="speichereIdeenAlsDatei()">Datei speichern</button>
     <button id="oeffneDateiBtn" onclick="ladeIdeenAusDatei()">Datei öffnen</button>
-    <button onclick="handleLogin()">🔑 Mit Microsoft anmelden</button>
+    <button onclick="handleLogin()" style="background:#e6f4ff;border-color:#0067b8;color:#0067b8;">🔑 Mit Microsoft anmelden</button>
   </div>
 
   <div id="ideenListe"></div>
@@ -108,17 +109,17 @@
   </div>
 
   <script>
-    // Konfiguration mit DEINEN Azure-IDs
+    // Konfiguration mit DEINEN Azure-Daten
     const msalConfig = {
       auth: {
         clientId: "ddf69193-7eab-4847-a995-b6c08f0df9ae",
-        authority: "https://login.microsoftonline.com/41449a7c-0cbc-4a78-8554-5c3742d81595",
+        authority: "https://login.microsoftonline.com/41449a7c-0cbc-4a78-8554-5c3742d81595/v2.0",
         redirectUri: window.location.origin
       }
     };
 
     let accessToken = null;
-    let msalInstance = null;
+    let msalInstance = new msal.PublicClientApplication(msalConfig);
     let prioritaet = "";
     let bearbeiteIndex = null;
     let ausgewaehlt = [];
@@ -126,61 +127,69 @@
     let beschreibungFuerIndex = null;
     const standardKategorien = ["Aufgaben", "Projekte", "Privat", "Arbeit", "Später"];
 
+    // Microsoft-Login-Handler
     async function handleLogin() {
-      msalInstance = new msal.PublicClientApplication(msalConfig);
       try {
-        const loginResponse = await msalInstance.loginPopup({ scopes: ["Files.ReadWrite", "offline_access"] });
-        const tokenResponse = await msalInstance.acquireTokenSilent({ 
-          scopes: ["Files.ReadWrite", "offline_access"],
-          account: loginResponse.account 
+        const loginResponse = await msalInstance.loginPopup({
+          scopes: ["Files.ReadWrite", "offline_access"]
         });
+        
+        const tokenResponse = await msalInstance.acquireTokenSilent({
+          scopes: ["Files.ReadWrite"],
+          account: loginResponse.account
+        });
+
         accessToken = tokenResponse.accessToken;
-        alert("Microsoft-Login erfolgreich!");
+        zeigeWarnung("Erfolgreich bei Microsoft angemeldet!");
       } catch (err) {
-        alert("Microsoft-Login fehlgeschlagen: " + err.message);
+        zeigeWarnung("Login fehlgeschlagen: " + err.message);
       }
     }
 
+    // OneDrive-Upload-Funktion
     async function uploadToOneDrive(file) {
       if (!accessToken) {
-        alert("Bitte zuerst mit Microsoft anmelden!");
+        zeigeWarnung("Bitte zuerst mit Microsoft anmelden!");
         return null;
       }
-      const fileName = `ideenapp/${Date.now()}_${file.name}`;
-      const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${fileName}:/content`;
+
       try {
-        const uploadResponse = await fetch(endpoint, {
-          method: "PUT",
-          headers: {
-            "Authorization": `Bearer ${accessToken}`,
-            "Content-Type": file.type
-          },
-          body: file
-        });
+        const fileName = `ideenapp/${Date.now()}_${file.name}`;
+        const uploadResponse = await fetch(
+          `https://graph.microsoft.com/v1.0/me/drive/root:/${fileName}:/content`,
+          {
+            method: "PUT",
+            headers: {
+              "Authorization": `Bearer ${accessToken}`,
+              "Content-Type": file.type
+            },
+            body: file
+          }
+        );
+
         const data = await uploadResponse.json();
-        return await createShareLink(data.id);
+        
+        const shareResponse = await fetch(
+          `https://graph.microsoft.com/v1.0/me/drive/items/${data.id}/createLink`,
+          {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${accessToken}`,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ type: "view", scope: "anonymous" })
+          }
+        );
+
+        const shareData = await shareResponse.json();
+        return shareData.link.webUrl;
       } catch (err) {
-        alert("Upload zu OneDrive fehlgeschlagen: " + err.message);
+        zeigeWarnung("OneDrive-Fehler: " + err.message);
         return null;
       }
     }
 
-    async function createShareLink(fileId) {
-      const endpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/createLink`;
-      try {
-        const response = await fetch(endpoint, {
-          method: "POST",
-          headers: { "Authorization": `Bearer ${accessToken}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ type: "view", scope: "anonymous" })
-        });
-        const data = await response.json();
-        return data.link.webUrl;
-      } catch (err) {
-        alert("Share-Link fehlgeschlagen: " + err.message);
-        return null;
-      }
-    }
-
+    // Kernfunktionen der App
     function initialisiereKategorien() {
       const kategorien = JSON.parse(localStorage.getItem("kategorien")) || standardKategorien;
       const select = document.getElementById("kategorie");
@@ -201,16 +210,15 @@
     async function speichereIdee() {
       const text = document.getElementById("ideeText").value.trim();
       if (!text) return zeigeWarnung("Titel ist erforderlich!");
-      
+
       let dateien = [];
       if (accessToken) {
         dateien = await Promise.all(
           Array.from(document.getElementById("dateien").files).map(async (file) => {
-            const shareLink = await uploadToOneDrive(file);
             return {
               name: file.name,
               type: file.type,
-              link: shareLink
+              link: await uploadToOneDrive(file)
             };
           })
         );
@@ -218,8 +226,7 @@
         dateien = Array.from(document.getElementById("dateien").files).map(file => ({
           name: file.name,
           data: URL.createObjectURL(file),
-          type: file.type,
-          pfad: file.webkitRelativePath || file.name
+          type: file.type
         }));
       }
 
@@ -290,8 +297,8 @@
             ` : ""}
             <small>${idee.kategorie} | ${idee.prioritaet} | ${idee.timestamp}</small>
             ${idee.dateien?.map(file => `
-              <a class="datei-link" href="${file.link || file.data}" target="_blank">🌐 ${file.name}</a>
-              ${file.link ? `<div class="datei-info">OneDrive-Link</div>` : `<div class="datei-info">Pfad: <i>${file.pfad || file.name}</i></div>`}
+              <a class="datei-link" href="${file.link || file.data}" target="_blank">${file.link ? '🌐' : '📎'} ${file.name}</a>
+              ${file.link ? '<div class="datei-info">OneDrive-Link</div>' : ''}
               ${file.type?.startsWith("image/") ? `<img src="${file.link || file.data}" style="max-width:150px;">` : ""}
               ${file.type === "application/pdf" ? `<iframe src="${file.link || file.data}" style="width:150px;height:100px;"></iframe>` : ""}
             `).join("")}
@@ -556,7 +563,6 @@
         `Kategorie: ${idee.kategorie}\n` +
         `Priorität: ${idee.prioritaet}\n` +
         `Datum: ${idee.timestamp}\n` +
-        `Details: ${idee.details}\n` +
         (idee.beschreibungen && idee.beschreibungen.length
           ? "Weitere Beschreibungen:\n" + idee.beschreibungen.map(b => `[${b.timestamp}] ${b.text}`).join("\n")
           : "") +
@@ -577,7 +583,6 @@
         `Kategorie: ${idee.kategorie}\n` +
         `Priorität: ${idee.prioritaet}\n` +
         `Datum: ${idee.timestamp}\n` +
-        `Details: ${idee.details}\n` +
         (idee.beschreibungen && idee.beschreibungen.length
           ? "Weitere Beschreibungen:\n" + idee.beschreibungen.map(b => `[${b.timestamp}] ${b.text}`).join("\n")
           : "") +
