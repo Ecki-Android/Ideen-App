@@ -53,7 +53,6 @@
 <body>
   <h1>Ideen-App</h1>
   <div id="warnung" class="warnung" style="display:none;"></div>
-
   <input type="text" id="ideeText" placeholder="Titel*" />
   <textarea id="ideeDetails" placeholder="Beschreibung" rows="3"></textarea>
   <select id="kategorie"></select>
@@ -61,20 +60,16 @@
   <button onclick="neueKategorieHinzufuegen()">+ Kategorie</button>
   <button class="katLoeschBtn" onclick="kategorieLoeschen()">Kategorie löschen</button>
   <span id="katHinweis" class="katHinweis" style="display:none;"></span>
-
   <div class="buttons">
     <button id="prioHoch" class="prio-btn" onclick="setzePrioritaet('Hoch')">🔴 Hoch</button>
     <button id="prioMittel" class="prio-btn" onclick="setzePrioritaet('Mittel')">🟠 Mittel</button>
     <button id="prioNiedrig" class="prio-btn" onclick="setzePrioritaet('Niedrig')">🟢 Niedrig</button>
   </div>
-
   <input type="file" id="dateien" multiple />
   <div class="datei-vorschau" id="dateiVorschau"></div>
   <div id="preview"></div>
-  
   <button id="speichernBtn" onclick="speichereIdee()">💾 Speichern</button>
   <button id="abbrechenBtn" onclick="abbrechenBearbeiten()" style="display:none;">Abbrechen</button>
-
   <div class="filter-bar">
     <label>Filter:</label>
     <select id="filterKategorie" onchange="zeigeIdeen()">
@@ -87,7 +82,6 @@
       <option value="prio">Nach Priorität</option>
     </select>
   </div>
-
   <div class="top-actions">
     <button onclick="exportiereAlsPDF()">📝 PDF</button>
     <button onclick="exportiereAlsText()">📄 Text</button>
@@ -99,22 +93,19 @@
     <button id="oeffneDateiBtn" onclick="ladeIdeenAusDatei()">Datei öffnen</button>
     <button onclick="handleLogin()" style="background:#e6f4ff;border-color:#0067b8;color:#0067b8;">🔑 Mit Microsoft anmelden</button>
   </div>
-
   <div id="ideenListe"></div>
   <div id="beschreibungDialog" style="display:none;" class="beschreibung-eingabe">
     <textarea id="beschreibungText" placeholder="Weitere Beschreibung" rows="2"></textarea>
     <button onclick="beschreibungSpeichern()">💾 Speichern</button>
     <button onclick="beschreibungAbbrechen()">❌ Abbrechen</button>
   </div>
-
   <script>
-    // MSAL-Konfiguration mit deinen IDs
     const msalConfig = {
       auth: {
         clientId: "ddf69193-7eab-4847-a995-b6c08f0df9ae",
-        authority: "https://login.microsoftonline.com/41449a7c-0cbc-4a78-8554-5c3742d81595/v2.0",
-        redirectUri: window.location.origin,
-        knownAuthorities: ["login.microsoftonline.com"]
+        authority: "https://login.microsoftonline.com/683748a6-faf7-45ef-9da3-10e903da0b00",
+        knownAuthorities: ["login.microsoftonline.com"],
+        redirectUri: window.location.origin
       }
     };
     let accessToken = null;
@@ -125,7 +116,6 @@
     let fileHandle = null;
     let beschreibungFuerIndex = null;
     const standardKategorien = ["Aufgaben", "Projekte", "Privat", "Arbeit", "Später"];
-
     async function handleLogin() {
       try {
         msalInstance = new msal.PublicClientApplication(msalConfig);
@@ -142,7 +132,6 @@
         zeigeWarnung("Login fehlgeschlagen: " + err.message);
       }
     }
-
     async function uploadToOneDrive(file) {
       if (!accessToken) {
         zeigeWarnung("Bitte zuerst mit Microsoft anmelden!");
@@ -180,7 +169,6 @@
         return null;
       }
     }
-
     function initialisiereKategorien() {
       const kategorien = JSON.parse(localStorage.getItem("kategorien")) || standardKategorien;
       const select = document.getElementById("kategorie");
@@ -189,7 +177,6 @@
       filterSelect.innerHTML = '<option value="" class="filter-option-alle">🎯 Alle Ideen</option>';
       kategorien.forEach(k => filterSelect.add(new Option(k, k)));
     }
-
     function setzePrioritaet(p) {
       prioritaet = p;
       ["prioHoch", "prioMittel", "prioNiedrig"].forEach(id => 
@@ -197,7 +184,6 @@
       );
       document.getElementById(`prio${p}`).classList.add("selected");
     }
-
     async function speichereIdee() {
       const text = document.getElementById("ideeText").value.trim();
       if (!text) return zeigeWarnung("Titel ist erforderlich!");
@@ -246,7 +232,6 @@
       document.getElementById("dateien").value = "";
       setzePrioritaet("");
     }
-
     function zeigeIdeen() {
       const filter = document.getElementById("filterKategorie").value;
       const sortierung = document.getElementById("sortierung").value;
@@ -261,7 +246,6 @@
             ? new Date(b.timestamp) - new Date(a.timestamp) 
             : new Date(a.timestamp) - new Date(b.timestamp);
         });
-
       document.getElementById("ideenListe").innerHTML = ideen.map((idee, idx) => {
         const erledigt = idee.erledigt || false;
         return `
@@ -302,20 +286,17 @@
         </div>`;
       }).join("");
     }
-
     function zeigeBeschreibungDialog(idx) {
       beschreibungFuerIndex = idx;
       document.getElementById("beschreibungDialog").style.display = "block";
       document.getElementById("beschreibungText").value = "";
       document.getElementById("beschreibungText").focus();
     }
-
     function beschreibungAbbrechen() {
       document.getElementById("beschreibungDialog").style.display = "none";
       beschreibungFuerIndex = null;
       document.getElementById("beschreibungText").value = "";
     }
-
     function beschreibungSpeichern() {
       const text = document.getElementById("beschreibungText").value.trim();
       if (!text) return;
@@ -328,14 +309,12 @@
       zeigeIdeen();
       beschreibungAbbrechen();
     }
-
     function toggleErledigt(idx) {
       let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
       ideen[idx].erledigt = !ideen[idx].erledigt;
       localStorage.setItem("ideen", JSON.stringify(ideen));
       zeigeIdeen();
     }
-
     function bearbeiteIdee(idx) {
       const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
       const idee = ideen[idx];
@@ -347,7 +326,6 @@
       document.getElementById("speichernBtn").textContent = "💾 Aktualisieren";
       document.getElementById("abbrechenBtn").style.display = "";
     }
-
     function abbrechenBearbeiten() {
       bearbeiteIndex = null;
       document.getElementById("ideeText").value = "";
@@ -357,7 +335,6 @@
       document.getElementById("abbrechenBtn").style.display = "none";
       setzePrioritaet("");
     }
-
     function verschiebeIdee(idx, richtung) {
       let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
       const neuePos = idx + richtung;
@@ -367,7 +344,6 @@
         zeigeIdeen();
       }
     }
-
     function loescheIdee(idx) {
       if (!confirm("Wirklich löschen?")) return;
       let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
@@ -376,7 +352,6 @@
       zeigeIdeen();
       abbrechenBearbeiten();
     }
-
     function neueKategorieHinzufuegen() {
       const neueKat = document.getElementById("neueKategorie").value.trim();
       if (!neueKat) return;
@@ -388,7 +363,6 @@
         document.getElementById("neueKategorie").value = "";
       }
     }
-
     function kategorieLoeschen() {
       const kat = document.getElementById("neueKategorie").value.trim();
       const hinweis = document.getElementById("katHinweis");
@@ -419,7 +393,6 @@
         document.getElementById("neueKategorie").value = "";
       }
     }
-
     function toggleAuswahl(idx, box) {
       if (box.checked) {
         if (!ausgewaehlt.includes(idx)) ausgewaehlt.push(idx);
@@ -427,7 +400,6 @@
         ausgewaehlt = ausgewaehlt.filter(i => i !== idx);
       }
     }
-
     function ausgewaehlteNotizenLoeschen() {
       if (!confirm("Ausgewählte Notizen löschen?")) return;
       let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
@@ -436,7 +408,6 @@
       ausgewaehlt = [];
       zeigeIdeen();
     }
-
     function alleIdeenLoeschen() {
       if (!confirm("Wirklich ALLE Ideen löschen?")) return;
       localStorage.setItem("ideen", "[]");
@@ -444,7 +415,6 @@
       zeigeIdeen();
       abbrechenBearbeiten();
     }
-
     function getExportIdeen() {
       let alle = JSON.parse(localStorage.getItem("ideen") || "[]");
       if (ausgewaehlt.length > 0) {
@@ -453,7 +423,6 @@
       const filter = document.getElementById("filterKategorie").value;
       return filter ? alle.filter(i => i.kategorie === filter) : alle;
     }
-
     function exportiereAlsPDF() {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
@@ -461,7 +430,6 @@
       const pageHeight = doc.internal.pageSize.getHeight();
       let y = margin;
       const ideen = getExportIdeen();
-
       ideen.forEach((idee, idx) => {
         const titel = `Idee ${idx + 1}: ${idee.text}`;
         const titelLines = doc.splitTextToSize(titel, 180);
@@ -473,7 +441,6 @@
           doc.text(line, margin, y);
           y += 10;
         });
-
         const meta = [
           `Kategorie: ${idee.kategorie}`,
           `Priorität: ${idee.prioritaet}`,
@@ -487,7 +454,6 @@
           doc.text(text, margin, y);
           y += 10;
         });
-
         if (idee.details) {
           const detailLines = doc.splitTextToSize(idee.details, 180);
           detailLines.forEach(line => {
@@ -499,7 +465,6 @@
             y += 10;
           });
         }
-
         if (idee.beschreibungen && idee.beschreibungen.length) {
           doc.text("Weitere Beschreibungen:", margin, y); y += 10;
           idee.beschreibungen.forEach(b => {
@@ -515,7 +480,6 @@
             });
           });
         }
-
         idee.dateien?.forEach(file => {
           if (y + 10 > pageHeight - margin) {
             doc.addPage();
@@ -530,17 +494,14 @@
           doc.setTextColor(0, 0, 0);
           y += 10;
         });
-
         y += 15;
         if (y > pageHeight - margin) {
           doc.addPage();
           y = margin;
         }
       });
-
       doc.save("ideen-export.pdf");
     }
-
     function exportiereAlsText() {
       const ideen = getExportIdeen();
       const text = ideen.map(idee => 
@@ -560,7 +521,6 @@
       link.download = "ideen-export.txt";
       link.click();
     }
-
     function teilePerEmail() {
       const ideen = getExportIdeen();
       const text = ideen.map(idee => 
@@ -575,7 +535,6 @@
       ).join("\n\n") + "\n\n[Bitte Anhänge manuell hinzufügen]";
       window.location.href = `mailto:?subject=Ideen-Export&body=${encodeURIComponent(text)}`;
     }
-
     function teilePerWhatsApp() {
       const ideen = getExportIdeen();
       const text = ideen.map(idee => 
@@ -591,7 +550,6 @@
       ).join("\n\n");
       window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
     }
-
     async function speichereIdeenAlsDatei() {
       try {
         const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
@@ -616,7 +574,6 @@
         if (err.name !== "AbortError") alert("Fehler beim Speichern: " + err.message);
       }
     }
-
     async function ladeIdeenAusDatei() {
       try {
         let file;
@@ -644,14 +601,12 @@
         if (err.name !== "AbortError") alert("Fehler beim Laden: " + err.message);
       }
     }
-
     function zeigeWarnung(msg) {
       const warnung = document.getElementById("warnung");
       warnung.textContent = msg;
       warnung.style.display = "block";
       setTimeout(() => warnung.style.display = "none", 3000);
     }
-
     document.getElementById("dateien").addEventListener("change", function(e) {
       const vorschau = document.getElementById("dateiVorschau");
       vorschau.innerHTML = "";
@@ -663,7 +618,6 @@
           ${file.type === "application/pdf" ? `<iframe src="${url}" style="width:150px;height:100px;"></iframe>` : ""}`;
       });
     });
-
     initialisiereKategorien();
     zeigeIdeen();
   </script>
