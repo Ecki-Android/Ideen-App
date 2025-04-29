@@ -109,12 +109,17 @@ input,select,textarea,button{width:100vw;min-width:0;max-width:100vw;}
 <input type="hidden" id="beschreibungBeschreibungIndex" value="" />
 </div>
 <script>
-// Microsoft-Konfiguration und globale Variablen
-const msalConfig={auth:{clientId:"ddf69193-7eab-4847-a995-b6c08f0df9ae",authority:"https://login.microsoftonline.com/683748a6-faf7-45ef-9da3-10e903da0b00",knownAuthorities:["login.microsoftonline.com"],redirectUri:"https://ecki-android.github.io"}};
-let accessToken=null,msalInstance=null,prioritaet="",bearbeiteIdeeId=null,ausgewaehlt=[],fileHandle=null,istGespeichert=true,filterMandantValue="",standardKategorien=["Aufgaben","Projekte","Privat","Arbeit","Später"];
-
-// Hilfsfunktionen für ID-basierte Operationen
 function generateUniqueId(){return`idee_${Date.now()}_${Math.random().toString(36).substring(2,9)}`;}
+function migrateIdeenToIds(){
+  let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");
+  let updated=false;
+  ideen=ideen.map(idee=>{
+    if(!idee.id){idee.id=generateUniqueId();updated=true;}
+    return idee;
+  });
+  if(updated){localStorage.setItem("ideen",JSON.stringify(ideen));}
+  return ideen;
+}
 function findIdeeIndexById(id){
   const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");
   return ideen.findIndex(idee=>idee.id===id);
@@ -123,69 +128,27 @@ function getIdeeById(id){
   const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");
   return ideen.find(idee=>idee.id===id);
 }
-function migrateIdeenToIds(){
-  let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");
-  let updated=false;
-  ideen=ideen.map(idee=>{
-    if(!idee.id){
-      idee.id=generateUniqueId();
-      updated=true;
-    }
-    return idee;
-  });
-  if(updated){
-    localStorage.setItem("ideen",JSON.stringify(ideen));
-  }
-  return ideen;
-}
-
-// Microsoft-Login Funktionen
-async function handleLogin(){try{msalInstance=new msal.PublicClientApplication(msalConfig);const l=await msalInstance.loginPopup({scopes:["Files.ReadWrite","offline_access"]});const t=await msalInstance.acquireTokenSilent({scopes:["Files.ReadWrite"],account:l.account});accessToken=t.accessToken;zeigeWarnung("Erfolgreich bei Microsoft angemeldet!");pruefeLoginHinweis();}catch(e){zeigeWarnung("Login fehlgeschlagen: "+e.message);}}
-async function handleLogout(){if(!istGespeichert){if(!confirm("Bitte speichern Sie Ihre Änderungen, bevor Sie sich abmelden! Trotzdem abmelden?"))return;}try{if(msalInstance){const a=msalInstance.getAllAccounts()[0];if(a){await msalInstance.logoutPopup({account:a,postLogoutRedirectUri:"https://ecki-android.github.io"});}}accessToken=null;pruefeLoginHinweis();zeigeWarnung("Sie wurden erfolgreich abgemeldet.");}catch(e){zeigeWarnung("Abmeldung fehlgeschlagen: "+e.message);}}
-async function uploadToOneDrive(f){if(!accessToken){zeigeWarnung("Bitte zuerst mit Microsoft anmelden!");return null;}try{const n=`ideenapp/${Date.now()}_${f.name}`;const u=await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${n}:/content`,{method:"PUT",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":f.type},body:f});const d=await u.json();const s=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${d.id}/createLink`,{method:"POST",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":"application/json"},body:JSON.stringify({type:"view",scope:"anonymous"})});const j=await s.json();return j.link.webUrl;}catch(e){zeigeWarnung("OneDrive-Fehler: "+e.message);return null;}}
-
-// UI-Hilfsfunktionen
-function pruefeLoginHinweis(){if(!accessToken){document.getElementById("loginHinweis").style.display="block";}else{document.getElementById("loginHinweis").style.display="none";}}
-function zeigeWarnung(msg){const w=document.getElementById("warnung");w.textContent=msg;w.style.display="block";setTimeout(()=>w.style.display="none",3000);}
-function initialisiereKategorien(){const k=JSON.parse(localStorage.getItem("kategorien"))||standardKategorien;const s=document.getElementById("kategorie");s.innerHTML=k.map(n=>`<option>${n}</option>`).join("");const f=document.getElementById("filterKategorie");f.innerHTML='<option value="" class="filter-option-alle">🎯 Alle Ideen</option>';k.forEach(n=>f.add(new Option(n,n)));}
+let prioritaet="",bearbeiteIdeeId=null,ausgewaehlt=[],istGespeichert=true,filterMandantValue="",standardKategorien=["Aufgaben","Projekte","Privat","Arbeit","Später"];
 function setzePrioritaet(p){prioritaet=p;["prioHoch","prioMittel","prioNiedrig"].forEach(id=>document.getElementById(id).classList.remove("selected"));if(p)document.getElementById(`prio${p}`).classList.add("selected");istGespeichert=false;}
 function filterNachMandant(){filterMandantValue=document.getElementById("filterMandant").value.trim();zeigeIdeen();}
 function filterMandantZuruecksetzen(){filterMandantValue="";document.getElementById("filterMandant").value="";zeigeIdeen();}
-
-// Speichern und Anzeige von Ideen
 function speichereIdee(){
   const text=document.getElementById("ideeText").value.trim();
   if(!text)return zeigeWarnung("Titel ist erforderlich!");
-  
   let dateien=[];
-  if(accessToken){
-    Promise.all(Array.from(document.getElementById("dateien").files).map(async file=>({
-      name:file.name,
-      type:file.type,
-      link:await uploadToOneDrive(file)
-    }))).then(d=>{
-      dateien=d;
-      saveIdeeObjekt(dateien);
-    });
-  }else{
-    dateien=Array.from(document.getElementById("dateien").files).map(file=>({
-      name:file.name,
-      data:URL.createObjectURL(file),
-      type:file.type,
-      pfad:file.webkitRelativePath||file.name
-    }));
-    saveIdeeObjekt(dateien);
-  }
+  dateien=Array.from(document.getElementById("dateien").files).map(file=>({
+    name:file.name,
+    data:URL.createObjectURL(file),
+    type:file.type,
+    pfad:file.webkitRelativePath||file.name
+  }));
+  saveIdeeObjekt(dateien);
 }
-
 function saveIdeeObjekt(dateien){
   let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");
-  
-  // Bei Bearbeitung existierende Daten übernehmen
   let erledigt=false;
   let beschreibungen=[];
   let ideeId;
-  
   if(bearbeiteIdeeId){
     const idx=findIdeeIndexById(bearbeiteIdeeId);
     if(idx!==-1){
@@ -196,7 +159,6 @@ function saveIdeeObjekt(dateien){
   }else{
     ideeId=generateUniqueId();
   }
-  
   const idee={
     id: ideeId,
     text: document.getElementById("ideeText").value.trim(),
@@ -210,7 +172,6 @@ function saveIdeeObjekt(dateien){
     erledigt,
     beschreibungen
   };
-  
   if(bearbeiteIdeeId){
     const idx=findIdeeIndexById(bearbeiteIdeeId);
     if(idx!==-1){
@@ -222,7 +183,6 @@ function saveIdeeObjekt(dateien){
   }else{
     ideen.push(idee);
   }
-  
   localStorage.setItem("ideen",JSON.stringify(ideen));
   zeigeIdeen();
   document.getElementById("ideeText").value="";
@@ -233,41 +193,21 @@ function saveIdeeObjekt(dateien){
   setzePrioritaet("");
   istGespeichert=true;
 }
-
 function zeigeIdeen(){
-  // Migriere alte Ideen zu ID-basierten Ideen
   let ideen=migrateIdeenToIds();
-  
-  // Filter anwenden
   const filter=document.getElementById("filterKategorie").value;
-  if(filter){
-    ideen=ideen.filter(i=>i.kategorie===filter);
-  }
-  
-  if(filterMandantValue){
-    ideen=ideen.filter(i=>(i.mandantennummer||"").toLowerCase()===filterMandantValue.toLowerCase());
-  }
-  
-  // Sortierung anwenden
+  if(filter){ideen=ideen.filter(i=>i.kategorie===filter);}
+  if(filterMandantValue){ideen=ideen.filter(i=>(i.mandantennummer||"").toLowerCase()===filterMandantValue.toLowerCase());}
   const sortierung=document.getElementById("sortierung").value;
   ideen=ideen.sort((a,b)=>{
-    if(sortierung==="prio"){
-      const p={"Hoch":3,"Mittel":2,"Niedrig":1};
-      return (p[b.prioritaet]||0)-(p[a.prioritaet]||0);
-    }
-    if(sortierung==="neu"){
-      return new Date(b.timestamp||0)-new Date(a.timestamp||0);
-    }
+    if(sortierung==="prio"){const p={"Hoch":3,"Mittel":2,"Niedrig":1};return (p[b.prioritaet]||0)-(p[a.prioritaet]||0);}
+    if(sortierung==="neu"){return new Date(b.timestamp||0)-new Date(a.timestamp||0);}
     return new Date(a.timestamp||0)-new Date(b.timestamp||0);
   });
-  
-  // HTML für Ideenliste erstellen
   document.getElementById("ideenListe").innerHTML=ideen.map(idee=>{
     const erledigt=idee.erledigt||false;
     const anzeigeDatum=new Date(idee.timestamp||new Date()).toLocaleString("de-DE");
-    
-    return `
-    <div class="idee${erledigt?' erledigt':''}" data-id="${idee.id}">
+    return `<div class="idee${erledigt?' erledigt':''}" data-id="${idee.id}">
       <div class="idee-content">
         <h3>${idee.text}</h3>
         <p>${idee.details||""}</p>
@@ -307,155 +247,19 @@ function zeigeIdeen(){
     </div>`;
   }).join("");
 }
-
-// Beschreibungsfunktionen
-function zeigeBeschreibungDialog(ideeId){
-  document.getElementById("beschreibungIdeeId").value=ideeId;
-  document.getElementById("beschreibungBeschreibungIndex").value="";
-  document.getElementById("beschreibungDialogTitle").textContent="Neue Beschreibung";
-  document.getElementById("beschreibungDialog").style.display="block";
-  document.getElementById("beschreibungText").value="";
-  document.getElementById("beschreibungText").focus();
-  istGespeichert=false;
-}
-
-function bearbeiteBeschreibung(ideeId, beschrIdx){
-  document.getElementById("beschreibungIdeeId").value=ideeId;
-  document.getElementById("beschreibungBeschreibungIndex").value=beschrIdx;
-  
-  const idee=getIdeeById(ideeId);
-  if(idee && idee.beschreibungen && idee.beschreibungen[beschrIdx]){
-    document.getElementById("beschreibungDialogTitle").textContent="Beschreibung bearbeiten";
-    document.getElementById("beschreibungDialog").style.display="block";
-    document.getElementById("beschreibungText").value=idee.beschreibungen[beschrIdx].text||"";
-    document.getElementById("beschreibungText").focus();
-    istGespeichert=false;
-  }else{
-    zeigeWarnung("Fehler: Beschreibung nicht gefunden!");
-  }
-}
-
-function beschreibungSpeichern(){
-  const text=document.getElementById("beschreibungText").value.trim();
-  if(!text) return;
-  
-  const ideeId=document.getElementById("beschreibungIdeeId").value;
-  const beschrIndex=document.getElementById("beschreibungBeschreibungIndex").value;
-  
-  let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");
-  const index=findIdeeIndexById(ideeId);
-  
-  if(index===-1){
-    zeigeWarnung("Fehler: Notiz nicht gefunden!");
-    return;
-  }
-  
-  if(beschrIndex===""){
-    // Neue Beschreibung hinzufügen
-    const jetzt=new Date();
-    const timestamp=jetzt.toLocaleString("de-DE");
-    const isoTimestamp=jetzt.toISOString();
-    
-    if(!ideen[index].beschreibungen){
-      ideen[index].beschreibungen=[];
-    }
-    
-    ideen[index].beschreibungen.push({
-      text: text,
-      timestamp: timestamp,
-      isoTimestamp: isoTimestamp
-    });
-    
-    zeigeWarnung("Beschreibung hinzugefügt");
-  }else{
-    // Bestehende Beschreibung bearbeiten
-    const beschrIdx=parseInt(beschrIndex);
-    if(!isNaN(beschrIdx) && ideen[index].beschreibungen && beschrIdx >= 0 && beschrIdx < ideen[index].beschreibungen.length){
-      ideen[index].beschreibungen[beschrIdx].text=text;
-      zeigeWarnung("Beschreibung aktualisiert");
-    }else{
-      zeigeWarnung("Fehler beim Bearbeiten der Beschreibung");
-      return;
-    }
-  }
-  
-  localStorage.setItem("ideen", JSON.stringify(ideen));
-  zeigeIdeen();
-  beschreibungAbbrechen();
-  istGespeichert=true;
-}
-
-function beschreibungAbbrechen(){
-  document.getElementById("beschreibungDialog").style.display="none";
-  document.getElementById("beschreibungIdeeId").value="";
-  document.getElementById("beschreibungBeschreibungIndex").value="";
-  document.getElementById("beschreibungText").value="";
-}
-
-// Aktionen auf Ideen
-function toggleErledigt(ideeId){
-  let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");
-  const index=findIdeeIndexById(ideeId);
-  
-  if(index!==-1){
-    ideen[index].erledigt=!ideen[index].erledigt;
-    localStorage.setItem("ideen",JSON.stringify(ideen));
-    zeigeIdeen();
-    istGespeichert=true;
-  }else{
-    zeigeWarnung("Notiz nicht gefunden!");
-  }
-}
-
-function bearbeiteIdee(ideeId){
-  const idee=getIdeeById(ideeId);
-  
-  if(idee){
-    document.getElementById("ideeText").value=idee.text;
-    document.getElementById("ideeDetails").value=idee.details||"";
-    document.getElementById("kategorie").value=idee.kategorie;
-    document.getElementById("mandantennummer").value=idee.mandantennummer||"";
-    document.getElementById("firmenname").value=idee.firmenname||"";
-    setzePrioritaet(idee.prioritaet);
-    bearbeiteIdeeId=ideeId;
-    document.getElementById("speichernBtn").textContent="💾 Aktualisieren";
-    document.getElementById("abbrechenBtn").style.display="";
-    istGespeichert=false;
-  }else{
-    zeigeWarnung("Notiz nicht gefunden!");
-  }
-}
-
-function abbrechenBearbeiten(){
-  bearbeiteIdeeId=null;
-  document.getElementById("ideeText").value="";
-  document.getElementById("ideeDetails").value="";
-  document.getElementById("mandantennummer").value="";
-  document.getElementById("firmenname").value="";
-  document.getElementById("dateien").value="";
-  document.getElementById("speichernBtn").textContent="💾 Speichern";
-  document.getElementById("abbrechenBtn").style.display="none";
-  setzePrioritaet("");
-  istGespeichert=true;
-}
-
 function verschiebeIdee(ideeId, richtung){
   let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");
-  const index=findIdeeIndexById(ideeId);
-  
+  const index=ideen.findIndex(idee=>idee.id===ideeId);
   if(index!==-1){
     const neuePos=index+richtung;
-    if(neuePos>=0 && neuePos<ideen.length){
+    if(neuePos>=0&&neuePos<ideen.length){
       [ideen[index],ideen[neuePos]]=[ideen[neuePos],ideen[index]];
       localStorage.setItem("ideen",JSON.stringify(ideen));
       zeigeIdeen();
       istGespeichert=false;
     }
-  }else{
-    zeigeWarnung("Notiz nicht gefunden!");
   }
 }
-
 function loescheIdee(ideeId){
   if(!confirm("Wirklich löschen?")) return;
   
