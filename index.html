@@ -37,6 +37,7 @@ button{padding:10px 18px;font-size:1em;margin-top:10px;margin-right:8px;border-r
 .katLoeschBtn{background:#eee;border:1px solid #c00;color:#c00;}
 #preview img{max-width:300px;max-height:200px;display:block;margin-top:8px;border:1px solid #888;}
 #preview iframe{width:300px;height:200px;border:1px solid #888;margin-top:8px;display:block;}
+.edit-btn{padding:3px 8px;font-size:0.8em;margin-left:5px;background:#f0f0f0;border:1px solid #ddd;cursor:pointer;border-radius:3px;}
 @media (max-width:600px){
 input,select,textarea,button{width:100vw;min-width:0;max-width:100vw;}
 .buttons,.top-actions{flex-direction:column;gap:0;}
@@ -100,51 +101,729 @@ input,select,textarea,button{width:100vw;min-width:0;max-width:100vw;}
 </div>
 <div id="ideenListe"></div>
 <div id="beschreibungDialog" style="display:none;" class="beschreibung-eingabe">
+<h3 id="beschreibungDialogTitle">Neue Beschreibung</h3>
 <textarea id="beschreibungText" placeholder="Weitere Beschreibung" rows="2"></textarea>
 <button onclick="beschreibungSpeichern()">💾 Speichern</button>
 <button onclick="beschreibungAbbrechen()">❌ Abbrechen</button>
+<input type="hidden" id="beschreibungIdeeId" value="" />
+<input type="hidden" id="beschreibungBeschreibungIndex" value="" />
 </div>
 <script>
+// Microsoft-Konfiguration und globale Variablen
 const msalConfig={auth:{clientId:"ddf69193-7eab-4847-a995-b6c08f0df9ae",authority:"https://login.microsoftonline.com/683748a6-faf7-45ef-9da3-10e903da0b00",knownAuthorities:["login.microsoftonline.com"],redirectUri:"https://ecki-android.github.io"}};
-let accessToken=null,msalInstance=null,prioritaet="",bearbeiteIndex=null,ausgewaehlt=[],fileHandle=null,beschreibungFuerIndex=null,istGespeichert=true,filterMandantValue="",standardKategorien=["Aufgaben","Projekte","Privat","Arbeit","Später"];
+let accessToken=null,msalInstance=null,prioritaet="",bearbeiteIdeeId=null,ausgewaehlt=[],fileHandle=null,istGespeichert=true,filterMandantValue="",standardKategorien=["Aufgaben","Projekte","Privat","Arbeit","Später"];
+
+// Hilfsfunktionen für ID-basierte Operationen
+function generateUniqueId(){return`idee_${Date.now()}_${Math.random().toString(36).substring(2,9)}`;}
+function findIdeeIndexById(id){
+  const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");
+  return ideen.findIndex(idee=>idee.id===id);
+}
+function getIdeeById(id){
+  const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");
+  return ideen.find(idee=>idee.id===id);
+}
+function migrateIdeenToIds(){
+  let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");
+  let updated=false;
+  ideen=ideen.map(idee=>{
+    if(!idee.id){
+      idee.id=generateUniqueId();
+      updated=true;
+    }
+    return idee;
+  });
+  if(updated){
+    localStorage.setItem("ideen",JSON.stringify(ideen));
+  }
+  return ideen;
+}
+
+// Microsoft-Login Funktionen
 async function handleLogin(){try{msalInstance=new msal.PublicClientApplication(msalConfig);const l=await msalInstance.loginPopup({scopes:["Files.ReadWrite","offline_access"]});const t=await msalInstance.acquireTokenSilent({scopes:["Files.ReadWrite"],account:l.account});accessToken=t.accessToken;zeigeWarnung("Erfolgreich bei Microsoft angemeldet!");pruefeLoginHinweis();}catch(e){zeigeWarnung("Login fehlgeschlagen: "+e.message);}}
 async function handleLogout(){if(!istGespeichert){if(!confirm("Bitte speichern Sie Ihre Änderungen, bevor Sie sich abmelden! Trotzdem abmelden?"))return;}try{if(msalInstance){const a=msalInstance.getAllAccounts()[0];if(a){await msalInstance.logoutPopup({account:a,postLogoutRedirectUri:"https://ecki-android.github.io"});}}accessToken=null;pruefeLoginHinweis();zeigeWarnung("Sie wurden erfolgreich abgemeldet.");}catch(e){zeigeWarnung("Abmeldung fehlgeschlagen: "+e.message);}}
 async function uploadToOneDrive(f){if(!accessToken){zeigeWarnung("Bitte zuerst mit Microsoft anmelden!");return null;}try{const n=`ideenapp/${Date.now()}_${f.name}`;const u=await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${n}:/content`,{method:"PUT",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":f.type},body:f});const d=await u.json();const s=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${d.id}/createLink`,{method:"POST",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":"application/json"},body:JSON.stringify({type:"view",scope:"anonymous"})});const j=await s.json();return j.link.webUrl;}catch(e){zeigeWarnung("OneDrive-Fehler: "+e.message);return null;}}
+
+// UI-Hilfsfunktionen
 function pruefeLoginHinweis(){if(!accessToken){document.getElementById("loginHinweis").style.display="block";}else{document.getElementById("loginHinweis").style.display="none";}}
 function zeigeWarnung(msg){const w=document.getElementById("warnung");w.textContent=msg;w.style.display="block";setTimeout(()=>w.style.display="none",3000);}
 function initialisiereKategorien(){const k=JSON.parse(localStorage.getItem("kategorien"))||standardKategorien;const s=document.getElementById("kategorie");s.innerHTML=k.map(n=>`<option>${n}</option>`).join("");const f=document.getElementById("filterKategorie");f.innerHTML='<option value="" class="filter-option-alle">🎯 Alle Ideen</option>';k.forEach(n=>f.add(new Option(n,n)));}
 function setzePrioritaet(p){prioritaet=p;["prioHoch","prioMittel","prioNiedrig"].forEach(id=>document.getElementById(id).classList.remove("selected"));if(p)document.getElementById(`prio${p}`).classList.add("selected");istGespeichert=false;}
 function filterNachMandant(){filterMandantValue=document.getElementById("filterMandant").value.trim();zeigeIdeen();}
 function filterMandantZuruecksetzen(){filterMandantValue="";document.getElementById("filterMandant").value="";zeigeIdeen();}
-function speichereIdee(){const text=document.getElementById("ideeText").value.trim();if(!text)return zeigeWarnung("Titel ist erforderlich!");let dateien=[];if(accessToken){Promise.all(Array.from(document.getElementById("dateien").files).map(async file=>({name:file.name,type:file.type,link:await uploadToOneDrive(file)}))).then(d=>{dateien=d;saveIdeeObjekt(dateien);});}else{dateien=Array.from(document.getElementById("dateien").files).map(file=>({name:file.name,data:URL.createObjectURL(file),type:file.type,pfad:file.webkitRelativePath||file.name}));saveIdeeObjekt(dateien);}}
-function saveIdeeObjekt(dateien){let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const erledigt=bearbeiteIndex!==null?(ideen[bearbeiteIndex]?.erledigt||false):false;const beschreibungen=bearbeiteIndex!==null?(ideen[bearbeiteIndex]?.beschreibungen||[]):[];const idee={text:document.getElementById("ideeText").value.trim(),details:document.getElementById("ideeDetails").value,kategorie:document.getElementById("kategorie").value,prioritaet,mandantennummer:document.getElementById("mandantennummer").value.trim(),firmenname:document.getElementById("firmenname").value.trim(),dateien,timestamp:new Date().toISOString(),erledigt,beschreibungen};if(bearbeiteIndex!==null){ideen[bearbeiteIndex]=idee;bearbeiteIndex=null;document.getElementById("speichernBtn").textContent="💾 Speichern";document.getElementById("abbrechenBtn").style.display="none";}else{ideen.push(idee);}localStorage.setItem("ideen",JSON.stringify(ideen));zeigeIdeen();document.getElementById("ideeText").value="";document.getElementById("ideeDetails").value="";document.getElementById("mandantennummer").value="";document.getElementById("firmenname").value="";document.getElementById("dateien").value="";setzePrioritaet("");istGespeichert=true;}
-function zeigeIdeen(){const filter=document.getElementById("filterKategorie").value;const sortierung=document.getElementById("sortierung").value;let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");if(filter)ideen=ideen.filter(i=>i.kategorie===filter);if(filterMandantValue)ideen=ideen.filter(i=>(i.mandantennummer||"").toLowerCase()===filterMandantValue.toLowerCase());ideen=ideen.sort((a,b)=>{if(sortierung==="prio"){const p={"Hoch":3,"Mittel":2,"Niedrig":1};return(p[b.prioritaet]||0)-(p[a.prioritaet]||0);}if(sortierung==="neu"){return new Date(b.timestamp)-new Date(a.timestamp);}return new Date(a.timestamp)-new Date(b.timestamp);});document.getElementById("ideenListe").innerHTML=ideen.map((idee,idx)=>{const erledigt=idee.erledigt||false;const anzeigeDatum=new Date(idee.timestamp).toLocaleString("de-DE");return`<div class="idee${erledigt?' erledigt':''}"><div class="idee-content"><h3>${idee.text}</h3><p>${idee.details||""}</p>${idee.mandantennummer?`<div>Mandantennummer: <b>${idee.mandantennummer}</b></div>`:""}${idee.firmenname?`<div>Firmenname: <b>${idee.firmenname}</b></div>`:""}${idee.beschreibungen&&idee.beschreibungen.length?`<div class="beschreibung-historie"><b>Weitere Beschreibungen:</b>${idee.beschreibungen.map(b=>`<div class="beschreibung-item"><span class="beschreibung-zeit">${b.timestamp}</span>${b.text}</div>`).join("")}</div>`:""}<small>${idee.kategorie} | ${idee.prioritaet||"Keine"} | ${anzeigeDatum}</small>${idee.dateien?.map(file=>`<a class="datei-link" href="${file.link||file.data}" target="_blank">${file.link?'🌐':'📎'} ${file.name}</a>${file.link?'<div class="datei-info">OneDrive-Link</div>':`<div class="datei-info">Pfad: <i>${file.pfad||file.name}</i></div>`}${file.type?.startsWith("image/")?`<img src="${file.link||file.data}" style="max-width:150px;">`:""}${file.type==="application/pdf"?`<iframe src="${file.link||file.data}" style="width:150px;height:100px;"></iframe>`:""}`).join("")}<div class="idee-actions"><button onclick="verschiebeIdee(${idx},-1)">⬆️</button><button onclick="verschiebeIdee(${idx},1)">⬇️</button><button onclick="bearbeiteIdee(${idx})">✏️</button><button onclick="toggleErledigt(${idx})">${erledigt?"↩️":"✔️"}</button><button onclick="loescheIdee(${idx})">🗑️</button><button onclick="zeigeBeschreibungDialog(${idx})">+ Beschreibung</button></div></div><input type="checkbox" class="idee-checkbox" onchange="toggleAuswahl(${idx},this)" ${ausgewaehlt.includes(idx)?"checked":""}></div>`;}).join("");}
-function zeigeBeschreibungDialog(idx){beschreibungFuerIndex=idx;document.getElementById("beschreibungDialog").style.display="block";document.getElementById("beschreibungText").value="";document.getElementById("beschreibungText").focus();istGespeichert=false;}
-function beschreibungAbbrechen(){document.getElementById("beschreibungDialog").style.display="none";beschreibungFuerIndex=null;document.getElementById("beschreibungText").value="";}
-function beschreibungSpeichern(){const t=document.getElementById("beschreibungText").value.trim();if(!t)return;const timestamp=new Date().toLocaleString("de-DE");let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");let idx=beschreibungFuerIndex;if(!ideen[idx].beschreibungen)ideen[idx].beschreibungen=[];ideen[idx].beschreibungen.push({text:t,timestamp});localStorage.setItem("ideen",JSON.stringify(ideen));zeigeIdeen();beschreibungAbbrechen();istGespeichert=true;}
-function toggleErledigt(idx){let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");ideen[idx].erledigt=!ideen[idx].erledigt;localStorage.setItem("ideen",JSON.stringify(ideen));zeigeIdeen();istGespeichert=true;}
-function bearbeiteIdee(idx){const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idee=ideen[idx];document.getElementById("ideeText").value=idee.text;document.getElementById("ideeDetails").value=idee.details||"";document.getElementById("kategorie").value=idee.kategorie;document.getElementById("mandantennummer").value=idee.mandantennummer||"";document.getElementById("firmenname").value=idee.firmenname||"";setzePrioritaet(idee.prioritaet);bearbeiteIndex=idx;document.getElementById("speichernBtn").textContent="💾 Aktualisieren";document.getElementById("abbrechenBtn").style.display="";istGespeichert=false;}
-function abbrechenBearbeiten(){bearbeiteIndex=null;document.getElementById("ideeText").value="";document.getElementById("ideeDetails").value="";document.getElementById("mandantennummer").value="";document.getElementById("firmenname").value="";document.getElementById("dateien").value="";document.getElementById("speichernBtn").textContent="💾 Speichern";document.getElementById("abbrechenBtn").style.display="none";setzePrioritaet("");istGespeichert=true;}
-function verschiebeIdee(idx,richtung){let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const neuePos=idx+richtung;if(neuePos>=0&&neuePos<ideen.length){[ideen[idx],ideen[neuePos]]=[ideen[neuePos],ideen[idx]];localStorage.setItem("ideen",JSON.stringify(ideen));zeigeIdeen();istGespeichert=false;}}
-function loescheIdee(idx){if(!confirm("Wirklich löschen?"))return;let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");ideen.splice(idx,1);localStorage.setItem("ideen",JSON.stringify(ideen));zeigeIdeen();abbrechenBearbeiten();istGespeichert=true;}
-function neueKategorieHinzufuegen(){const neueKat=document.getElementById("neueKategorie").value.trim();if(!neueKat)return;let kategorien=JSON.parse(localStorage.getItem("kategorien"))||standardKategorien;if(!kategorien.includes(neueKat)){kategorien.push(neueKat);localStorage.setItem("kategorien",JSON.stringify(kategorien));initialisiereKategorien();document.getElementById("neueKategorie").value="";zeigeWarnung("Kategorie hinzugefügt: "+neueKat);}else{zeigeWarnung("Kategorie existiert bereits!");}}
-function kategorieLoeschen(){const kat=document.getElementById("neueKategorie").value.trim();const hinweis=document.getElementById("katHinweis");if(!kat){hinweis.textContent="Bitte Kategorie angeben!";hinweis.style.display="";return;}let kategorien=JSON.parse(localStorage.getItem("kategorien"))||standardKategorien;let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");if(!kategorien.includes(kat)){hinweis.textContent="Kategorie existiert nicht!";hinweis.style.display="";return;}if(ideen.some(i=>i.kategorie===kat)){hinweis.textContent="Kategorie wird noch verwendet! Bitte alle Notizen dieser Kategorie zuerst ändern oder löschen.";hinweis.style.display="";return;}if(confirm(`Kategorie "${kat}" wirklich löschen?`)){kategorien=kategorien.filter(k=>k!==kat);localStorage.setItem("kategorien",JSON.stringify(kategorien));initialisiereKategorien();hinweis.textContent="Kategorie gelöscht.";hinweis.style.display="";setTimeout(()=>{hinweis.style.display="none";},2000);document.getElementById("neueKategorie").value="";}}
-function toggleAuswahl(idx,box){if(box.checked){if(!ausgewaehlt.includes(idx))ausgewaehlt.push(idx);}else{ausgewaehlt=ausgewaehlt.filter(i=>i!==idx);}}
-function ausgewaehlteNotizenLoeschen(){if(!confirm("Ausgewählte Notizen löschen?"))return;let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");ideen=ideen.filter((_,idx)=>!ausgewaehlt.includes(idx));localStorage.setItem("ideen",JSON.stringify(ideen));ausgewaehlt=[];zeigeIdeen();istGespeichert=true;}
-function alleIdeenLoeschen(){if(!confirm("Wirklich ALLE Ideen löschen?"))return;localStorage.setItem("ideen","[]");ausgewaehlt=[];zeigeIdeen();abbrechenBearbeiten();istGespeichert=true;}
-function getExportIdeen(){let alle=JSON.parse(localStorage.getItem("ideen")||"[]");if(ausgewaehlt.length>0){return ausgewaehlt.map(idx=>alle[idx]).filter(Boolean);}const filter=document.getElementById("filterKategorie").value;let ideen=filter?alle.filter(i=>i.kategorie===filter):alle;if(filterMandantValue)ideen=ideen.filter(i=>(i.mandantennummer||"").toLowerCase()===filterMandantValue.toLowerCase());return ideen;}
-function exportiereAlsPDF(){const{jsPDF}=window.jspdf;const doc=new jsPDF();const margin=15;const pageHeight=doc.internal.pageSize.getHeight();let y=margin;const ideen=getExportIdeen();ideen.forEach((idee,idx)=>{const titel=`Idee ${idx+1}: ${idee.text}`;const titelLines=doc.splitTextToSize(titel,180);titelLines.forEach(line=>{if(y+10>pageHeight-margin){doc.addPage();y=margin;}doc.text(line,margin,y);y+=10;});const meta=[`Kategorie: ${idee.kategorie}`,`Priorität: ${idee.prioritaet||"Keine"}`,`Datum: ${new Date(idee.timestamp).toLocaleString("de-DE")}`];if(idee.mandantennummer)meta.push(`Mandantennummer: ${idee.mandantennummer}`);if(idee.firmenname)meta.push(`Firmenname: ${idee.firmenname}`);meta.forEach(text=>{if(y+10>pageHeight-margin){doc.addPage();y=margin;}doc.text(text,margin,y);y+=10;});if(idee.details){const detailLines=doc.splitTextToSize(idee.details,180);detailLines.forEach(line=>{if(y+10>pageHeight-margin){doc.addPage();y=margin;}doc.text(line,margin,y);y+=10;});}if(idee.beschreibungen&&idee.beschreibungen.length){doc.text("Weitere Beschreibungen:",margin,y);y+=10;idee.beschreibungen.forEach(b=>{const beschr=`[${b.timestamp}] ${b.text}`;const lines=doc.splitTextToSize(beschr,180);lines.forEach(line=>{if(y+10>pageHeight-margin){doc.addPage();y=margin;}doc.text(line,margin,y);y+=10;});});}idee.dateien?.forEach(file=>{if(y+10>pageHeight-margin){doc.addPage();y=margin;}doc.setTextColor(0,0,255);if(doc.textWithLink){doc.textWithLink(`🌐 ${file.name}`,margin,y,{url:file.link||file.data});}else{doc.text(`🌐 ${file.name}`,margin,y);}doc.setTextColor(0,0,0);y+=10;});y+=15;if(y>pageHeight-margin){doc.addPage();y=margin;}});doc.save("ideen-export.pdf");}
-function exportiereAlsText(){const ideen=getExportIdeen();const text=ideen.map(idee=>`=== ${idee.text} ===\nKategorie: ${idee.kategorie}\nPriorität: ${idee.prioritaet||"Keine"}\nDatum: ${new Date(idee.timestamp).toLocaleString("de-DE")}\n${idee.mandantennummer?"Mandantennummer: "+idee.mandantennummer+"\n":""}${idee.firmenname?"Firmenname: "+idee.firmenname+"\n":""}${idee.beschreibungen&&idee.beschreibungen.length?"Weitere Beschreibungen:\n"+idee.beschreibungen.map(b=>`[${b.timestamp}] ${b.text}`).join("\n"):""}\nAnhänge: ${idee.dateien?.map(f=>f.name).join(", ")||"Keine"}\n`).join("\n\n");const blob=new Blob([text],{type:"text/plain"});const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download="ideen-export.txt";link.click();}
-function teilePerEmail(){const ideen=getExportIdeen();const text=ideen.map(idee=>`*${idee.text}*\nKategorie: ${idee.kategorie}\nPriorität: ${idee.prioritaet||"Keine"}\nDatum: ${new Date(idee.timestamp).toLocaleString("de-DE")}\n${idee.mandantennummer?"Mandantennummer: "+idee.mandantennummer+"\n":""}${idee.firmenname?"Firmenname: "+idee.firmenname+"\n":""}${idee.beschreibungen&&idee.beschreibungen.length?"Weitere Beschreibungen:\n"+idee.beschreibungen.map(b=>`[${b.timestamp}] ${b.text}`).join("\n"):""}\nAnhänge: ${idee.dateien?.map(f=>f.name).join(", ")||"Keine"}\n`).join("\n\n")+"\n\n[Bitte Anhänge manuell hinzufügen]";window.location.href=`mailto:?subject=Ideen-Export&body=${encodeURIComponent(text)}`;}
-function teilePerWhatsApp(){const ideen=getExportIdeen();const text=ideen.map(idee=>`*${idee.text}*\n📁 Kategorie: ${idee.kategorie}\n🔖 Priorität: ${idee.prioritaet||"Keine"}\n📅 ${new Date(idee.timestamp).toLocaleString("de-DE")}\n📝 ${idee.details||""}\n${idee.mandantennummer?"Mandantennummer: "+idee.mandantennummer+"\n":""}${idee.firmenname?"Firmenname: "+idee.firmenname+"\n":""}${idee.beschreibungen&&idee.beschreibungen.length?"Weitere Beschreibungen:\n"+idee.beschreibungen.map(b=>`[${b.timestamp}] ${b.text}`).join("\n"):""}\n📎 Anhänge: ${idee.dateien?.map(f=>f.name).join(", ")||"Keine"}\n`).join("\n\n");window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,"_blank");}
-async function speichereIdeenAlsDatei(){try{const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");if(window.showSaveFilePicker){fileHandle=await window.showSaveFilePicker({suggestedName:"ideen.json",types:[{description:"JSON-Dateien",accept:{"application/json":[".json"]}}]});const writable=await fileHandle.createWritable();await writable.write(JSON.stringify(ideen,null,2));await writable.close();alert("Datei erfolgreich gespeichert!");istGespeichert=true;}else{const blob=new Blob([JSON.stringify(ideen)],{type:"application/json"});const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download="ideen.json";link.click();istGespeichert=true;}}catch(e){if(e.name!=="AbortError")alert("Fehler beim Speichern: "+e.message);}}
-async function ladeIdeenAusDatei(){try{let file;if(window.showOpenFilePicker){[fileHandle]=await window.showOpenFilePicker({types:[{description:"JSON-Dateien",accept:{"application/json":[".json"]}}]});file=await fileHandle.getFile();}else{const input=document.createElement('input');input.type='file';input.accept='.json';input.onchange=e=>file=e.target.files[0];input.click();await new Promise(resolve=>input.onchange=resolve);}const content=await file.text();const ideen=JSON.parse(content);if(!Array.isArray(ideen))throw new Error("Ungültiges Dateiformat");localStorage.setItem("ideen",JSON.stringify(ideen));ausgewaehlt=[];zeigeIdeen();alert("Datei erfolgreich geladen!");istGespeichert=true;}catch(e){if(e.name!=="AbortError")alert("Fehler beim Laden: "+e.message);}}
+
+// Speichern und Anzeige von Ideen
+function speichereIdee(){
+  const text=document.getElementById("ideeText").value.trim();
+  if(!text)return zeigeWarnung("Titel ist erforderlich!");
+  
+  let dateien=[];
+  if(accessToken){
+    Promise.all(Array.from(document.getElementById("dateien").files).map(async file=>({
+      name:file.name,
+      type:file.type,
+      link:await uploadToOneDrive(file)
+    }))).then(d=>{
+      dateien=d;
+      saveIdeeObjekt(dateien);
+    });
+  }else{
+    dateien=Array.from(document.getElementById("dateien").files).map(file=>({
+      name:file.name,
+      data:URL.createObjectURL(file),
+      type:file.type,
+      pfad:file.webkitRelativePath||file.name
+    }));
+    saveIdeeObjekt(dateien);
+  }
+}
+
+function saveIdeeObjekt(dateien){
+  let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");
+  
+  // Bei Bearbeitung existierende Daten übernehmen
+  let erledigt=false;
+  let beschreibungen=[];
+  let ideeId;
+  
+  if(bearbeiteIdeeId){
+    const idx=findIdeeIndexById(bearbeiteIdeeId);
+    if(idx!==-1){
+      erledigt=ideen[idx].erledigt||false;
+      beschreibungen=ideen[idx].beschreibungen||[];
+      ideeId=bearbeiteIdeeId;
+    }
+  }else{
+    ideeId=generateUniqueId();
+  }
+  
+  const idee={
+    id: ideeId,
+    text: document.getElementById("ideeText").value.trim(),
+    details: document.getElementById("ideeDetails").value,
+    kategorie: document.getElementById("kategorie").value,
+    prioritaet,
+    mandantennummer: document.getElementById("mandantennummer").value.trim(),
+    firmenname: document.getElementById("firmenname").value.trim(),
+    dateien,
+    timestamp: new Date().toISOString(),
+    erledigt,
+    beschreibungen
+  };
+  
+  if(bearbeiteIdeeId){
+    const idx=findIdeeIndexById(bearbeiteIdeeId);
+    if(idx!==-1){
+      ideen[idx]=idee;
+    }
+    bearbeiteIdeeId=null;
+    document.getElementById("speichernBtn").textContent="💾 Speichern";
+    document.getElementById("abbrechenBtn").style.display="none";
+  }else{
+    ideen.push(idee);
+  }
+  
+  localStorage.setItem("ideen",JSON.stringify(ideen));
+  zeigeIdeen();
+  document.getElementById("ideeText").value="";
+  document.getElementById("ideeDetails").value="";
+  document.getElementById("mandantennummer").value="";
+  document.getElementById("firmenname").value="";
+  document.getElementById("dateien").value="";
+  setzePrioritaet("");
+  istGespeichert=true;
+}
+
+function zeigeIdeen(){
+  // Migriere alte Ideen zu ID-basierten Ideen
+  let ideen=migrateIdeenToIds();
+  
+  // Filter anwenden
+  const filter=document.getElementById("filterKategorie").value;
+  if(filter){
+    ideen=ideen.filter(i=>i.kategorie===filter);
+  }
+  
+  if(filterMandantValue){
+    ideen=ideen.filter(i=>(i.mandantennummer||"").toLowerCase()===filterMandantValue.toLowerCase());
+  }
+  
+  // Sortierung anwenden
+  const sortierung=document.getElementById("sortierung").value;
+  ideen=ideen.sort((a,b)=>{
+    if(sortierung==="prio"){
+      const p={"Hoch":3,"Mittel":2,"Niedrig":1};
+      return (p[b.prioritaet]||0)-(p[a.prioritaet]||0);
+    }
+    if(sortierung==="neu"){
+      return new Date(b.timestamp||0)-new Date(a.timestamp||0);
+    }
+    return new Date(a.timestamp||0)-new Date(b.timestamp||0);
+  });
+  
+  // HTML für Ideenliste erstellen
+  document.getElementById("ideenListe").innerHTML=ideen.map(idee=>{
+    const erledigt=idee.erledigt||false;
+    const anzeigeDatum=new Date(idee.timestamp||new Date()).toLocaleString("de-DE");
+    
+    return `
+    <div class="idee${erledigt?' erledigt':''}" data-id="${idee.id}">
+      <div class="idee-content">
+        <h3>${idee.text}</h3>
+        <p>${idee.details||""}</p>
+        ${idee.mandantennummer?`<div>Mandantennummer: <b>${idee.mandantennummer}</b></div>`:""}
+        ${idee.firmenname?`<div>Firmenname: <b>${idee.firmenname}</b></div>`:""}
+        ${idee.beschreibungen&&idee.beschreibungen.length?`
+          <div class="beschreibung-historie">
+            <b>Weitere Beschreibungen:</b>
+            ${idee.beschreibungen.map((b,beschrIdx)=>`
+              <div class="beschreibung-item">
+                <span class="beschreibung-zeit">${b.timestamp||""}</span>
+                ${b.text||""}
+                <button onclick="bearbeiteBeschreibung('${idee.id}',${beschrIdx})" class="edit-btn">✏️</button>
+              </div>
+            `).join("")}
+          </div>
+        `:""}
+        <small>${idee.kategorie} | ${idee.prioritaet||"Keine"} | ${anzeigeDatum}</small>
+        ${idee.dateien?.map(file=>`
+          <a class="datei-link" href="${file.link||file.data}" target="_blank">${file.link?'🌐':'📎'} ${file.name}</a>
+          ${file.link?'<div class="datei-info">OneDrive-Link</div>':`<div class="datei-info">Pfad: <i>${file.pfad||file.name}</i></div>`}
+          ${file.type?.startsWith("image/")?`<img src="${file.link||file.data}" style="max-width:150px;">`:""}
+          ${file.type==="application/pdf"?`<iframe src="${file.link||file.data}" style="width:150px;height:100px;"></iframe>`:""}
+        `).join("")}
+        <div class="idee-actions">
+          <button onclick="verschiebeIdee('${idee.id}',-1)">⬆️</button>
+          <button onclick="verschiebeIdee('${idee.id}',1)">⬇️</button>
+          <button onclick="bearbeiteIdee('${idee.id}')">✏️</button>
+          <button onclick="toggleErledigt('${idee.id}')">${erledigt?"↩️":"✔️"}</button>
+          <button onclick="loescheIdee('${idee.id}')">🗑️</button>
+          <button onclick="zeigeBeschreibungDialog('${idee.id}')">+ Beschreibung</button>
+        </div>
+      </div>
+      <input type="checkbox" class="idee-checkbox" 
+             onchange="toggleAuswahl('${idee.id}',this)" 
+             ${ausgewaehlt.includes(idee.id)?"checked":""}>
+    </div>`;
+  }).join("");
+}
+
+// Beschreibungsfunktionen
+function zeigeBeschreibungDialog(ideeId){
+  document.getElementById("beschreibungIdeeId").value=ideeId;
+  document.getElementById("beschreibungBeschreibungIndex").value="";
+  document.getElementById("beschreibungDialogTitle").textContent="Neue Beschreibung";
+  document.getElementById("beschreibungDialog").style.display="block";
+  document.getElementById("beschreibungText").value="";
+  document.getElementById("beschreibungText").focus();
+  istGespeichert=false;
+}
+
+function bearbeiteBeschreibung(ideeId, beschrIdx){
+  document.getElementById("beschreibungIdeeId").value=ideeId;
+  document.getElementById("beschreibungBeschreibungIndex").value=beschrIdx;
+  
+  const idee=getIdeeById(ideeId);
+  if(idee && idee.beschreibungen && idee.beschreibungen[beschrIdx]){
+    document.getElementById("beschreibungDialogTitle").textContent="Beschreibung bearbeiten";
+    document.getElementById("beschreibungDialog").style.display="block";
+    document.getElementById("beschreibungText").value=idee.beschreibungen[beschrIdx].text||"";
+    document.getElementById("beschreibungText").focus();
+    istGespeichert=false;
+  }else{
+    zeigeWarnung("Fehler: Beschreibung nicht gefunden!");
+  }
+}
+
+function beschreibungSpeichern(){
+  const text=document.getElementById("beschreibungText").value.trim();
+  if(!text) return;
+  
+  const ideeId=document.getElementById("beschreibungIdeeId").value;
+  const beschrIndex=document.getElementById("beschreibungBeschreibungIndex").value;
+  
+  let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");
+  const index=findIdeeIndexById(ideeId);
+  
+  if(index===-1){
+    zeigeWarnung("Fehler: Notiz nicht gefunden!");
+    return;
+  }
+  
+  if(beschrIndex===""){
+    // Neue Beschreibung hinzufügen
+    const jetzt=new Date();
+    const timestamp=jetzt.toLocaleString("de-DE");
+    const isoTimestamp=jetzt.toISOString();
+    
+    if(!ideen[index].beschreibungen){
+      ideen[index].beschreibungen=[];
+    }
+    
+    ideen[index].beschreibungen.push({
+      text: text,
+      timestamp: timestamp,
+      isoTimestamp: isoTimestamp
+    });
+    
+    zeigeWarnung("Beschreibung hinzugefügt");
+  }else{
+    // Bestehende Beschreibung bearbeiten
+    const beschrIdx=parseInt(beschrIndex);
+    if(!isNaN(beschrIdx) && ideen[index].beschreibungen && beschrIdx >= 0 && beschrIdx < ideen[index].beschreibungen.length){
+      ideen[index].beschreibungen[beschrIdx].text=text;
+      zeigeWarnung("Beschreibung aktualisiert");
+    }else{
+      zeigeWarnung("Fehler beim Bearbeiten der Beschreibung");
+      return;
+    }
+  }
+  
+  localStorage.setItem("ideen", JSON.stringify(ideen));
+  zeigeIdeen();
+  beschreibungAbbrechen();
+  istGespeichert=true;
+}
+
+function beschreibungAbbrechen(){
+  document.getElementById("beschreibungDialog").style.display="none";
+  document.getElementById("beschreibungIdeeId").value="";
+  document.getElementById("beschreibungBeschreibungIndex").value="";
+  document.getElementById("beschreibungText").value="";
+}
+
+// Aktionen auf Ideen
+function toggleErledigt(ideeId){
+  let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");
+  const index=findIdeeIndexById(ideeId);
+  
+  if(index!==-1){
+    ideen[index].erledigt=!ideen[index].erledigt;
+    localStorage.setItem("ideen",JSON.stringify(ideen));
+    zeigeIdeen();
+    istGespeichert=true;
+  }else{
+    zeigeWarnung("Notiz nicht gefunden!");
+  }
+}
+
+function bearbeiteIdee(ideeId){
+  const idee=getIdeeById(ideeId);
+  
+  if(idee){
+    document.getElementById("ideeText").value=idee.text;
+    document.getElementById("ideeDetails").value=idee.details||"";
+    document.getElementById("kategorie").value=idee.kategorie;
+    document.getElementById("mandantennummer").value=idee.mandantennummer||"";
+    document.getElementById("firmenname").value=idee.firmenname||"";
+    setzePrioritaet(idee.prioritaet);
+    bearbeiteIdeeId=ideeId;
+    document.getElementById("speichernBtn").textContent="💾 Aktualisieren";
+    document.getElementById("abbrechenBtn").style.display="";
+    istGespeichert=false;
+  }else{
+    zeigeWarnung("Notiz nicht gefunden!");
+  }
+}
+
+function abbrechenBearbeiten(){
+  bearbeiteIdeeId=null;
+  document.getElementById("ideeText").value="";
+  document.getElementById("ideeDetails").value="";
+  document.getElementById("mandantennummer").value="";
+  document.getElementById("firmenname").value="";
+  document.getElementById("dateien").value="";
+  document.getElementById("speichernBtn").textContent="💾 Speichern";
+  document.getElementById("abbrechenBtn").style.display="none";
+  setzePrioritaet("");
+  istGespeichert=true;
+}
+
+function verschiebeIdee(ideeId, richtung){
+  let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");
+  const index=findIdeeIndexById(ideeId);
+  
+  if(index!==-1){
+    const neuePos=index+richtung;
+    if(neuePos>=0 && neuePos<ideen.length){
+      [ideen[index],ideen[neuePos]]=[ideen[neuePos],ideen[index]];
+      localStorage.setItem("ideen",JSON.stringify(ideen));
+      zeigeIdeen();
+      istGespeichert=false;
+    }
+  }else{
+    zeigeWarnung("Notiz nicht gefunden!");
+  }
+}
+
+function loescheIdee(ideeId){
+  if(!confirm("Wirklich löschen?")) return;
+  
+  let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");
+  const index=findIdeeIndexById(ideeId);
+  
+  if(index!==-1){
+    ideen.splice(index,1);
+    localStorage.setItem("ideen",JSON.stringify(ideen));
+    zeigeIdeen();
+    abbrechenBearbeiten();
+    istGespeichert=true;
+  }else{
+    zeigeWarnung("Notiz nicht gefunden!");
+  }
+}
+
+// Kategoriefunktionen
+function neueKategorieHinzufuegen(){
+  const neueKat=document.getElementById("neueKategorie").value.trim();
+  if(!neueKat) return;
+  
+  let kategorien=JSON.parse(localStorage.getItem("kategorien"))||standardKategorien;
+  if(!kategorien.includes(neueKat)){
+    kategorien.push(neueKat);
+    localStorage.setItem("kategorien",JSON.stringify(kategorien));
+    initialisiereKategorien();
+    document.getElementById("neueKategorie").value="";
+    zeigeWarnung("Kategorie hinzugefügt: "+neueKat);
+  }else{
+    zeigeWarnung("Kategorie existiert bereits!");
+  }
+}
+
+function kategorieLoeschen(){
+  const kat=document.getElementById("neueKategorie").value.trim();
+  const hinweis=document.getElementById("katHinweis");
+  
+  if(!kat){
+    hinweis.textContent="Bitte Kategorie angeben!";
+    hinweis.style.display="";
+    return;
+  }
+  
+  let kategorien=JSON.parse(localStorage.getItem("kategorien"))||standardKategorien;
+  let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");
+  
+  if(!kategorien.includes(kat)){
+    hinweis.textContent="Kategorie existiert nicht!";
+    hinweis.style.display="";
+    return;
+  }
+  
+  if(ideen.some(i=>i.kategorie===kat)){
+    hinweis.textContent="Kategorie wird noch verwendet! Bitte alle Notizen dieser Kategorie zuerst ändern oder löschen.";
+    hinweis.style.display="";
+    return;
+  }
+  
+  if(confirm(`Kategorie "${kat}" wirklich löschen?`)){
+    kategorien=kategorien.filter(k=>k!==kat);
+    localStorage.setItem("kategorien",JSON.stringify(kategorien));
+    initialisiereKategorien();
+    hinweis.textContent="Kategorie gelöscht.";
+    hinweis.style.display="";
+    setTimeout(()=>{hinweis.style.display="none";},2000);
+    document.getElementById("neueKategorie").value="";
+  }
+}
+
+// Auswahl- und Löschfunktionen
+function toggleAuswahl(ideeId,box){
+  if(box.checked){
+    if(!ausgewaehlt.includes(ideeId)) ausgewaehlt.push(ideeId);
+  }else{
+    ausgewaehlt=ausgewaehlt.filter(id=>id!==ideeId);
+  }
+}
+
+function ausgewaehlteNotizenLoeschen(){
+  if(!confirm("Ausgewählte Notizen löschen?")) return;
+  
+  let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");
+  ideen=ideen.filter(idee=>!ausgewaehlt.includes(idee.id));
+  localStorage.setItem("ideen",JSON.stringify(ideen));
+  ausgewaehlt=[];
+  zeigeIdeen();
+  istGespeichert=true;
+}
+
+function alleIdeenLoeschen(){
+  if(!confirm("Wirklich ALLE Ideen löschen?")) return;
+  localStorage.setItem("ideen","[]");
+  ausgewaehlt=[];
+  zeigeIdeen();
+  abbrechenBearbeiten();
+  istGespeichert=true;
+}
+
+// Export-Funktionen
+function getExportIdeen(){
+  let alle=migrateIdeenToIds();
+  
+  if(ausgewaehlt.length>0){
+    return alle.filter(idee=>ausgewaehlt.includes(idee.id));
+  }
+  
+  const filter=document.getElementById("filterKategorie").value;
+  let ideen=filter?alle.filter(i=>i.kategorie===filter):alle;
+  
+  if(filterMandantValue){
+    ideen=ideen.filter(i=>(i.mandantennummer||"").toLowerCase()===filterMandantValue.toLowerCase());
+  }
+  
+  return ideen;
+}
+
+function exportiereAlsPDF(){
+  const{jsPDF}=window.jspdf;
+  const doc=new jsPDF();
+  const margin=15;
+  const pageHeight=doc.internal.pageSize.getHeight();
+  let y=margin;
+  const ideen=getExportIdeen();
+  
+  ideen.forEach((idee,idx)=>{
+    const titel=`Idee ${idx+1}: ${idee.text}`;
+    const titelLines=doc.splitTextToSize(titel,180);
+    titelLines.forEach(line=>{
+      if(y+10>pageHeight-margin){
+        doc.addPage();
+        y=margin;
+      }
+      doc.text(line,margin,y);
+      y+=10;
+    });
+    
+    const meta=[
+      `Kategorie: ${idee.kategorie}`,
+      `Priorität: ${idee.prioritaet||"Keine"}`,
+      `Datum: ${new Date(idee.timestamp||new Date()).toLocaleString("de-DE")}`
+    ];
+    
+    if(idee.mandantennummer)meta.push(`Mandantennummer: ${idee.mandantennummer}`);
+    if(idee.firmenname)meta.push(`Firmenname: ${idee.firmenname}`);
+    
+    meta.forEach(text=>{
+      if(y+10>pageHeight-margin){
+        doc.addPage();
+        y=margin;
+      }
+      doc.text(text,margin,y);
+      y+=10;
+    });
+    
+    if(idee.details){
+      const detailLines=doc.splitTextToSize(idee.details,180);
+      detailLines.forEach(line=>{
+        if(y+10>pageHeight-margin){
+          doc.addPage();
+          y=margin;
+        }
+        doc.text(line,margin,y);
+        y+=10;
+      });
+    }
+    
+    if(idee.beschreibungen&&idee.beschreibungen.length){
+      doc.text("Weitere Beschreibungen:",margin,y);
+      y+=10;
+      idee.beschreibungen.forEach(b=>{
+        const beschr=`[${b.timestamp||""}] ${b.text||""}`;
+        const lines=doc.splitTextToSize(beschr,180);
+        lines.forEach(line=>{
+          if(y+10>pageHeight-margin){
+            doc.addPage();
+            y=margin;
+          }
+          doc.text(line,margin,y);
+          y+=10;
+        });
+      });
+    }
+    
+    idee.dateien?.forEach(file=>{
+      if(y+10>pageHeight-margin){
+        doc.addPage();
+        y=margin;
+      }
+      doc.setTextColor(0,0,255);
+      if(doc.textWithLink){
+        doc.textWithLink(`🌐 ${file.name}`,margin,y,{url:file.link||file.data});
+      }else{
+        doc.text(`🌐 ${file.name}`,margin,y);
+      }
+      doc.setTextColor(0,0,0);
+      y+=10;
+    });
+    
+    y+=15;
+    if(y>pageHeight-margin){
+      doc.addPage();
+      y=margin;
+    }
+  });
+  
+  doc.save("ideen-export.pdf");
+}
+
+function exportiereAlsText(){
+  const ideen=getExportIdeen();
+  const text=ideen.map(idee=>
+    `=== ${idee.text} ===\n`+
+    `Kategorie: ${idee.kategorie}\n`+
+    `Priorität: ${idee.prioritaet||"Keine"}\n`+
+    `Datum: ${new Date(idee.timestamp||new Date()).toLocaleString("de-DE")}\n`+
+    (idee.mandantennummer?`Mandantennummer: ${idee.mandantennummer}\n`:"")+
+    (idee.firmenname?`Firmenname: ${idee.firmenname}\n`:"")+
+    (idee.beschreibungen&&idee.beschreibungen.length?
+      "Weitere Beschreibungen:\n"+idee.beschreibungen.map(b=>`[${b.timestamp||""}] ${b.text||""}`).join("\n"):"")+
+    `\nAnhänge: ${idee.dateien?.map(f=>`${f.name} ${f.link?" ("+f.link+")":""}`).join(", ")||"Keine"}\n`
+  ).join("\n\n");
+  
+  const blob=new Blob([text],{type:"text/plain"});
+  const url=URL.createObjectURL(blob);
+  const link=document.createElement("a");
+  link.href=url;
+  link.download="ideen-export.txt";
+  link.click();
+}
+
+function teilePerEmail(){
+  const ideen=getExportIdeen();
+  const text=ideen.map(idee=>
+    `*${idee.text}*\n`+
+    `Kategorie: ${idee.kategorie}\n`+
+    `Priorität: ${idee.prioritaet||"Keine"}\n`+
+    `Datum: ${new Date(idee.timestamp||new Date()).toLocaleString("de-DE")}\n`+
+    (idee.mandantennummer?`Mandantennummer: ${idee.mandantennummer}\n`:"")+
+    (idee.firmenname?`Firmenname: ${idee.firmenname}\n`:"")+
+    (idee.beschreibungen&&idee.beschreibungen.length?
+      "Weitere Beschreibungen:\n"+idee.beschreibungen.map(b=>`[${b.timestamp||""}] ${b.text||""}`).join("\n"):"")+
+    `\nAnhänge: ${idee.dateien?.map(f=>`${f.name} ${f.link?" ("+f.link+")":""}`).join(", ")||"Keine"}\n`
+  ).join("\n\n")+"\n\n[Bitte Anhänge manuell hinzufügen]";
+  
+  window.location.href=`mailto:?subject=Ideen-Export&body=${encodeURIComponent(text)}`;
+}
+
+function teilePerWhatsApp(){
+  const ideen=getExportIdeen();
+  const text=ideen.map(idee=>{
+    let anhaengeText="Keine";
+    if(idee.dateien && idee.dateien.length>0){
+      anhaengeText=idee.dateien.map(f=>{
+        return f.link?`${f.name}: ${f.link}`:f.name;
+      }).join(", ");
+    }
+    
+    return `*${idee.text}*\n`+
+      `📁 Kategorie: ${idee.kategorie}\n`+
+      `🔖 Priorität: ${idee.prioritaet||"Keine"}\n`+
+      `📅 ${new Date(idee.timestamp||new Date()).toLocaleString("de-DE")}\n`+
+      `📝 ${idee.details||""}\n`+
+      (idee.mandantennummer?`Mandantennummer: ${idee.mandantennummer}\n`:"")+
+      (idee.firmenname?`Firmenname: ${idee.firmenname}\n`:"")+
+      (idee.beschreibungen&&idee.beschreibungen.length?
+        "Weitere Beschreibungen:\n"+idee.beschreibungen.map(b=>`[${b.timestamp||""}] ${b.text||""}`).join("\n"):"")+
+      `\n📎 Anhänge: ${anhaengeText}\n`;
+  }).join("\n\n");
+  
+  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,"_blank");
+}
+
+// Datei-Funktionen
+async function speichereIdeenAlsDatei(){
+  try{
+    const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");
+    if(window.showSaveFilePicker){
+      fileHandle=await window.showSaveFilePicker({
+        suggestedName:"ideen.json",
+        types:[{description:"JSON-Dateien",accept:{"application/json":[".json"]}}]
+      });
+      const writable=await fileHandle.createWritable();
+      await writable.write(JSON.stringify(ideen,null,2));
+      await writable.close();
+      alert("Datei erfolgreich gespeichert!");
+      istGespeichert=true;
+    }else{
+      const blob=new Blob([JSON.stringify(ideen)],{type:"application/json"});
+      const url=URL.createObjectURL(blob);
+      const link=document.createElement("a");
+      link.href=url;
+      link.download="ideen.json";
+      link.click();
+      istGespeichert=true;
+    }
+  }catch(e){
+    if(e.name!=="AbortError")alert("Fehler beim Speichern: "+e.message);
+  }
+}
+
+async function ladeIdeenAusDatei(){
+  try{
+    let file;
+    if(window.showOpenFilePicker){
+      [fileHandle]=await window.showOpenFilePicker({
+        types:[{description:"JSON-Dateien",accept:{"application/json":[".json"]}}]
+      });
+      file=await fileHandle.getFile();
+    }else{
+      const input=document.createElement('input');
+      input.type='file';
+      input.accept='.json';
+      input.onchange=e=>file=e.target.files[0];
+      input.click();
+      await new Promise(resolve=>input.onchange=resolve);
+    }
+    
+    const content=await file.text();
+    const ideen=JSON.parse(content);
+    if(!Array.isArray(ideen))throw new Error("Ungültiges Dateiformat");
+    
+    // IDs generieren, falls alte Daten geladen werden
+    const ideen_mit_ids=ideen.map(idee=>{
+      if(!idee.id){
+        idee.id=generateUniqueId();
+      }
+      return idee;
+    });
+    
+    localStorage.setItem("ideen",JSON.stringify(ideen_mit_ids));
+    ausgewaehlt=[];
+    zeigeIdeen();
+    alert("Datei erfolgreich geladen!");
+    istGespeichert=true;
+  }catch(e){
+    if(e.name!=="AbortError")alert("Fehler beim Laden: "+e.message);
+  }
+}
+
+// Event-Listener
 document.getElementById("ideeText").addEventListener("input",()=>{istGespeichert=false;});
 document.getElementById("ideeDetails").addEventListener("input",()=>{istGespeichert=false;});
 document.getElementById("mandantennummer").addEventListener("input",()=>{istGespeichert=false;});
 document.getElementById("firmenname").addEventListener("input",()=>{istGespeichert=false;});
-document.getElementById("dateien").addEventListener("change",function(e){const v=document.getElementById("dateiVorschau");v.innerHTML="";Array.from(e.target.files).forEach(file=>{const url=URL.createObjectURL(file);v.innerHTML+=`<a class="datei-link" href="${url}" target="_blank">📄 ${file.name}</a><div class="datei-info">Pfad: <i>${file.webkitRelativePath||file.name}</i></div>${file.type.startsWith("image/")?`<img src="${url}" style="max-width:150px;">`:""}${file.type==="application/pdf"?`<iframe src="${url}" style="width:150px;height:100px;"></iframe>`:""}`;});istGespeichert=false;});
-window.addEventListener("beforeunload",function(e){if(!istGespeichert){const msg="Sie haben ungespeicherte Änderungen. Möchten Sie die Seite wirklich verlassen?";e.preventDefault();e.returnValue=msg;return msg;}});
+document.getElementById("dateien").addEventListener("change",function(e){
+  const v=document.getElementById("dateiVorschau");
+  v.innerHTML="";
+  Array.from(e.target.files).forEach(file=>{
+    const url=URL.createObjectURL(file);
+    v.innerHTML+=`<a class="datei-link" href="${url}" target="_blank">📄 ${file.name}</a>
+    <div class="datei-info">Pfad: <i>${file.webkitRelativePath||file.name}</i></div>
+    ${file.type.startsWith("image/")?`<img src="${url}" style="max-width:150px;">`:""}
+    ${file.type==="application/pdf"?`<iframe src="${url}" style="width:150px;height:100px;"></iframe>`:""}`;
+  });
+  istGespeichert=false;
+});
+
+window.addEventListener("beforeunload",function(e){
+  if(!istGespeichert){
+    const msg="Sie haben ungespeicherte Änderungen. Möchten Sie die Seite wirklich verlassen?";
+    e.preventDefault();
+    e.returnValue=msg;
+    return msg;
+  }
+});
+
+// Initialisierung
 initialisiereKategorien();
 zeigeIdeen();
 pruefeLoginHinweis();
