@@ -368,7 +368,7 @@ function zeigeBeschreibungDialog(ideeId, descTimestamp = null){
     beschreibungZuBearbeitenderTimestamp = descTimestamp; // Speichern des Timestamps (null beim Hinzufügen)
 
     const beschreibungTextarea = document.getElementById("beschreibungText");
-    const dialogTitel = document.getElementById("beschreibungDialogTitel"); // Füge diesen Titel im HTML hinzu, falls gewünscht
+    // const dialogTitel = document.getElementById("beschreibungDialogTitel"); // Füge diesen Titel im HTML hinzu, falls gewünscht
 
     if (descTimestamp !== null) {
          // Bearbeiten einer vorhandenen Beschreibung
@@ -424,9 +424,10 @@ function beschreibungSpeichern(){
               }
          } else {
               // Hinzufügen einer neuen Beschreibung
-              const timestamp = new Date().toLocaleString("de-DE"); // Neuer Timestamp
+              // Generiere einen einzigartigen Timestamp für neue Einträge (wichtig für die Bearbeitungs-ID)
+              const timestamp = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); // ISO String + Zufallsteil
               if(!ideen[ideeIndex].beschreibungen) ideen[ideeIndex].beschreibungen = [];
-              ideen[ideeIndex].beschreibungen.push({ text: t, timestamp: timestamp });
+              ideen[ideeIndex].beschreibungen.push({ text: t, timestamp: timestamp }); // Verwende den generierten Timestamp
          }
 
          localStorage.setItem("ideen", JSON.stringify(ideen));
@@ -441,7 +442,12 @@ function beschreibungSpeichern(){
 
 // Neue Funktion zum Aufruf durch den einzelnen Bearbeiten-Button
 function bearbeiteEinzelneBeschreibung(ideeId, descTimestamp) {
-    zeigeBeschreibungDialog(ideeId, descTimestamp); // Ruft den Dialog im Bearbeitungsmodus auf
+    // Sicherstellen, dass der Timestamp übergeben wird
+    if (descTimestamp) {
+        zeigeBeschreibungDialog(ideeId, descTimestamp); // Ruft den Dialog im Bearbeitungsmodus auf
+    } else {
+        zeigeWarnung("Fehler: Kann Beschreibung ohne Timestamp nicht bearbeiten.");
+    }
 }
 
 
@@ -485,7 +491,7 @@ function bearbeiteIdee(ideeId){
          idee.dateien.forEach(file => {
              const fileUrl = file.link || file.data; // Nutze Link oder lokale URL
              if (fileUrl) {
-                 dateiVorschauDiv.innerHTML += `<a class="datei-link" href="${fileUrl}" target="_blank">${file.link ? '🌐' : '📎'} ${file.name}</a>${file.link ? '<div class="datei-info">OneDrive-Link</div>' : (file.pfad ? `<div class="datei-info">Pfad: <i>${file.pfad}</i></div>` : '')}${file.type?.startsWith("image/") ? `<img src="${file.link||file.data}" style="max-width:150px;">`:""}${file.type==="application/pdf"?`<iframe src="${file.link||file.data}" style="width:150px;height:100px;"></iframe>`:""}`;
+                 dateiVorschauDiv.innerHTML += `<a class="datei-link" href="${fileUrl}" target="_blank">${file.link ? '🌐' : '📎'} ${file.name}</a>${file.link ? '<div class="datei-info">OneDrive-Link</div>' : (file.pfad ? `<div class="datei-info">Pfad: <i>${file.pfad}</i></div>` : '')}${file.type?.startsWith("image/")?`<img src="${file.link||file.data}" style="max-width:150px;">`:""}${file.type==="application/pdf"?`<iframe src="${file.link||file.data}" style="width:150px;height:100px;"></iframe>`:""}`;
              }
          });
      }
@@ -572,7 +578,7 @@ function loescheIdee(ideeId){
         if (bearbeiteId === ideeId) { // Prüfe, ob die gelöschte Idee gerade bearbeitet wird
              abbrechenBearbeiten(); // Bearbeitungsformular leeren/schließen
         }
-        if (beschreibungFuerId === ideeId) { // Prüfe, ob die gelöschte Idee gerade Beschreibungen bearbeitet/hinzufügt
+        if (beschreibungFuerId === ideeId) { // Prüfe, ob die gelöschte Idee gerade Beschreibungen bearbeitet/hinzugefügt
             beschreibungAbbrechen(); // Beschreibungs-Dialog schließen
         }
         zeigeIdeen(); // Liste neu rendern
@@ -677,11 +683,12 @@ function getExportIdeen(){
 
 
 function exportiereAlsPDF(){const{jsPDF}=window.jspdf;const doc=new jsPDF();const margin=15;const pageHeight=doc.internal.pageSize.getHeight();let y=margin;const ideen=getExportIdeen();ideen.forEach((idee,idx)=>{const titel=`Idee ${idx+1}: ${idee.text}`;const titelLines=doc.splitTextToSize(titel,180);titelLines.forEach(line=>{if(y+10>pageHeight-margin){doc.addPage();y=margin;}doc.text(line,margin,y);y+=10;});const meta=[`Kategorie: ${idee.kategorie}`,`Priorität: ${idee.prioritaet||"Keine"}`,`Datum: ${new Date(idee.timestamp).toLocaleString("de-DE")}`];if(idee.mandantennummer)meta.push(`Mandantennummer: ${idee.mandantennummer}`);if(idee.firmenname)meta.push(`Firmenname: ${idee.firmenname}`);meta.forEach(text=>{if(y+10>pageHeight-margin){doc.addPage();y=margin;}doc.text(text,margin,y);y+=10;});if(idee.details){const detailLines=doc.splitTextToSize(idee.details,180);detailLines.forEach(line=>{if(y+10>pageHeight-margin){doc.addPage();y=margin;}doc.text(line,margin,y);y+=10;});}if(idee.beschreibungen&&idee.beschreibungen.length){doc.text("Weitere Beschreibungen:",margin,y);y+=10;idee.beschreibungen.forEach(b=>{const beschr=`[${b.timestamp}] ${b.text}`;const lines=doc.splitTextToSize(beschr,180);lines.forEach(line=>{if(y+10>pageHeight-margin){doc.addPage();y=margin;}doc.text(line,margin,y);y+=10;});});}idee.dateien?.forEach(file=>{if(y+10>pageHeight-margin){doc.addPage();y=margin;}doc.setTextColor(0,0,255);if(doc.textWithLink){doc.textWithLink(`🌐 ${file.name}`,margin,y,{url:file.link||file.data});}else{doc.text(`🌐 ${file.name}`,margin,y);}doc.setTextColor(0,0,0);y+=10;});y+=15;if(y>pageHeight-margin){doc.addPage();y=margin;}});doc.save("ideen-export.pdf");}
-function exportiereAlsText(){const ideen=getExportIdeen();const text=ideen.map(idee=>`=== ${idee.text} ===\nKategorie: ${idee.kategorie}\nPriorität: ${idee.prioritaet||"Keine"}\nDatum: ${new Date(idee.timestamp).toLocaleString("de-DE")}\n${idee.mandantennummer?"Mandantennummer: "+idee.mandantennummer+"\n":""}${idee.firmenname?"Firmenname: "+idee.firmenname+"\n":""}${idee.beschreibungen&&idee.beschreibungen.length?"Weitere Beschreibungen:\n"+idee.beschreibungen.map(b=>`[${b.timestamp}] ${b.text}`).join("\n"):""}${idee.details?`Beschreibung: ${idee.details}\n`:""}\nAnhänge: ${idee.dateien?.map(f=>f.name).join(", ")||"Keine"}\n`).join("\n\n");const blob=new Blob([text],{type:"text/plain"});const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download="ideen-export.txt";link.click();}
+function exportiereAlsText(){const ideen=getExportIdeen();const text=ideen.map(idee=>`=== ${idee.text} ===\nKategorie: ${idee.kategorie}\nPriorität: ${idee.prioritaet||"Keine"}\nDatum: ${new Date(idee.timestamp).toLocaleString("de-DE")}\n${idee.mandantennummer?"Mandantennummer: "+idee.mandantennummer+"\n":""}${idee.firmenname?"Firmenname: "+idee.firmenname+"\n":""}${idee.beschreibungen&&idee.beschreibungen.length?"Weitere Beschreibungen:\n"+idee.beschreibungen.map(b=>`[${b.timestamp}] ${b.text}`).join("\n"):""}${idee.details?`Beschreibung: ${idee.details}\n`:""}\nAnhänge: ${idee.dateien?.map(f=>f.name).join(", ")||"Keine"}\n`).join("\n\n");const blob=new Blob([text],{type:"text/plain"});const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download="ideen-export.txt";link.click();;}
 
-function teilePerEmail(){const ideen=getExportIdeen();const text=ideen.map(idee=>`*${idee.text}*\nKategorie: ${idee.kategorie}\nPriorität: ${idee.prioritaet||"Keine"}\nDatum: ${new Date(idee.timestamp).toLocaleString("de-DE")}\n${idee.mandantennummer?"Mandantennummer: "+idee.mandantennummer+"\n":""}${idee.firmenname?"Firmenname: "+idee.firmenname+"\n":""}${idee.beschreibungen&&idee.beschreibungen.length?"Weitere Beschreibungen:\n"+idee.beschreibungen.map(b=>`[${b.timestamp}] ${b.text}`).join("\n"):""}${idee.details?`Beschreibung: ${idee.details}\n`:""}\nAnhänge: ${idee.dateien?.map(f=>f.name).join(", ")||"Keine"}\n`).join("\n\n")+"\n\n[Bitte Anhänge manuell hinzufügen]";window.location.href=`mailto:?subject=Ideen-Export&body=${encodeURIComponent(text)}`;}
+function teilePerEmail(){const ideen=getExportIdeen();const text=ideen.map(idee=>`*${idee.text}*\nKategorie: ${idee.kategorie}\nPriorität: ${idee.prioritaet||"Keine"}\nDatum: ${new Date(idee.timestamp).toLocaleString("de-DE")}\n${idee.mandantennummer?"Mandantennummer: "+idee.mandantennummer+"\n":""}${idee.firmenname?"Firmenname: "+idee.firmenname+"\n":""}${idee.beschreibungen&&idee.beschreibungen.length?"Weitere Beschreibungen:\n"+idee.beschreibungen.map(b=>`[${b.timestamp}] ${b.text}`).join("\n"):""}${idee.details?`Beschreibung: ${idee.details}\n`:""}\nAnhänge: ${idee.dateien?.map(f=>`${f.name} (${f.link||f.data})`).join(", ")||"Keine"}\n`).join("\n\n")+"\n\n[Bitte Anhänge manuell hinzufügen]";window.location.href=`mailto:?subject=Ideen-Export&body=${encodeURIComponent(text)}`;} // *** ÄNDERUNG HIER: Fügt Link/URL hinzu ***
 
-// Geändert: Fügt nun Links/URLs zu den Dateinamen hinzu
+
+// Geändert: Fügt nun Links/URLs zu den Dateinamen hinzu (war schon in letzter Version geändert)
 function teilePerWhatsApp(){
     const ideen = getExportIdeen();
     const text = ideen.map(idee =>
@@ -693,7 +700,7 @@ function teilePerWhatsApp(){
         `${idee.mandantennummer?`Mandantennummer: ${idee.mandantennummer}\n`:""}` + // Mandant nur einfügen, wenn vorhanden
         `${idee.firmenname?`Firmenname: ${idee.firmenname}\n`:""}` + // Firmenname nur einfügen, wenn vorhanden
         `${idee.beschreibungen&&idee.beschreibungen.length?`Weitere Beschreibungen:\n${idee.beschreibungen.map(b=>`  - [${b.timestamp}] ${b.text}`).join("\n")}\n`:""}` + // Beschreibungen einfügen, wenn vorhanden
-        `📎 Anhänge: ${idee.dateien?.map(f=>`${f.name} (${f.link||f.data})`).join(", ")||"Keine"}\n` // *** ÄNDERUNG HIER: Fügt Link/URL hinzu ***
+        `📎 Anhänge: ${idee.dateien?.map(f=>`${f.name} (${f.link||f.data})`).join(", ")||"Keine"}\n` // Fügt Link/URL hinzu
     ).join("\n\n");
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,"_blank");
 }
