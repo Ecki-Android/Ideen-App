@@ -127,7 +127,7 @@ input,select,textarea,button{width:100vw;min-width:0;max-width:100vw;}
 <button onclick="exportiereAlsText()">📄 Text</button>
 <button onclick="teilePerEmail()">✉️ E-Mail</button>
 <button onclick="teilePerWhatsApp()">📱 WhatsApp</button>
-<button class="onedrive-btn" onclick="saveToOneDrive()">☁️ Auf OneDrive speichern</button>
+<button class="onedrive-btn" onclick="console.log('Save button clicked'); saveToOneDrive()">☁️ Auf OneDrive speichern</button>
 <button class="onedrive-btn" onclick="loadFromOneDrive()">☁️ Von OneDrive laden</button>
 <button onclick="alleIdeenLoeschen()" style="background:#eee;border:1px solid #c00;color:#c00;">Alle Ideen löschen</button>
 <button onclick="ausgewaehlteNotizenLoeschen()" style="background:#eee;border:1px solid #c00;color:#c00;">Ausgewählte löschen</button>
@@ -159,11 +159,11 @@ function generateUUID() {
 }
 
 
-async function handleLogin(){try{msalInstance=new msal.PublicClientApplication(msalConfig);const l=await msalInstance.loginPopup({scopes:["Files.ReadWrite","offline_access"]});const t=await msalInstance.acquireTokenSilent({scopes:["Files.ReadWrite"],account:l.account});accessToken=t.accessToken;zeigeWarnung("Erfolgreich bei Microsoft angemeldet!");pruefeLoginHinweis();}catch(e){zeigeWarnung("Login fehlgeschlagen: "+e.message);}}
+async function handleLogin(){try{msalInstance=new msal.PublicClientApplication(msalConfig);const l=await msalInstance.loginPopup({scopes:["Files.ReadWrite","offline_access"]});const t=await msalInstance.acquireTokenSilent({scopes:["Files.ReadWrite"],account:l.account});accessToken=t.accessToken;zeigeWarnung("Erfolgreich bei Microsoft angemeldet!");pruefeLoginHinweis();return true;}catch(e){zeigeWarnung("Login fehlgeschlagen: "+e.message);return false;}} // Rückgabewert hinzugefügt
 async function handleLogout(){if(!istGespeichert){if(!confirm("Bitte speichern Sie Ihre Änderungen, bevor Sie sich abmelden! Trotzdem abmelden?"))return;}try{if(msalInstance){const a=msalInstance.getAllAccounts()[0];if(a){await msalInstance.logoutPopup({account:a,postLogoutRedirectUri:"https://ecki-android.github.io"});}}accessToken=null;pruefeLoginHinweis();zeigeWarnung("Sie wurden erfolgreich abgemeldet.");}catch(e){zeigeWarnung("Abmeldung fehlgeschlagen: "+e.message);}}
 async function uploadToOneDrive(f){if(!accessToken){zeigeWarnung("Bitte zuerst mit Microsoft anmelden!");return null;}try{const n=`ideenapp/${Date.now()}_${f.name}`;const u=await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${n}:/content`,{method:"PUT",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":f.type},body:f});const d=await u.json();const s=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${d.id}/createLink`,{method:"POST",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":"application/json"},body:JSON.stringify({type:"view",scope:"anonymous"})});const j=await s.json();return j.link.webUrl;}catch(e){zeigeWarnung("OneDrive-Fehler: "+e.message);return null;}}
 function pruefeLoginHinweis(){if(!accessToken){document.getElementById("loginHinweis").style.display="block";}else{document.getElementById("loginHinweis").style.display="none";}}
-function zeigeWarnung(msg){const w=document.getElementById("warnung");w.textContent=msg;w.style.display="block";setTimeout(()=>w.style.display="none",3000);}
+function zeigeWarnung(msg){const w=document.getElementById("warnung");w.textContent=msg;w.style.display="block";setTimeout(()=>w.style.display="none",6000);} // Anzeigedauer erhöht
 function initialisiereKategorien(){const k=JSON.parse(localStorage.getItem("kategorien"))||standardKategorien;const s=document.getElementById("kategorie");s.innerHTML=k.map(n=>`<option>${n}</option>`).join("");const f=document.getElementById("filterKategorie");f.innerHTML='<option value="" class="filter-option-alle">🎯 Alle Ideen</option>';k.forEach(n=>f.add(new Option(n,n)));}
 function setzePrioritaet(p){prioritaet=p;["prioHoch","prioMittel","prioNiedrig"].forEach(id=>document.getElementById(id).classList.remove("selected"));if(p)document.getElementById(`prio${p}`).classList.add("selected");istGespeichert=false;}
 function filterNachMandant(){filterMandantValue=document.getElementById("filterMandant").value.trim();zeigeIdeen();}
@@ -501,7 +501,7 @@ function bearbeiteIdee(ideeId){
          idee.dateien.forEach(file => {
              const fileUrl = file.link || file.data; // Nutze Link oder lokale URL
              if (fileUrl) {
-                 dateiVorschauDiv.innerHTML += `<a class="datei-link" href="${fileUrl}" target="_blank">${file.link ? '🌐' : '📎'} ${file.name}</a>${file.link ? '<div class="datei-info">OneDrive-Link</div>' : (file.pfad ? `<div class="datei-info">Pfad: <i>${file.pfad}</i></div>` : '')}${file.type?.startsWith("image/")?`<img src="${file.link||file.data}" style="max-width:150px;">`:""}${file.type==="application/pdf"?`<iframe src="${file.link||file.data}" style="width:150px;height:100px;"></iframe>`:""}`;
+                 dateiVorschauDiv.innerHTML += `<a class="datei-link" href="${fileUrl}" target="_blank">${file.link ? '🌐' : '📎'} ${file.name}</a>${file.link?'<div class="datei-info">OneDrive-Link</div>':`<div class="datei-info">Pfad: <i>${file.pfad||file.name}</i></div>`}${file.type?.startsWith("image/")?`<img src="${file.link||file.data}" style="max-width:150px;">`:""}${file.type==="application/pdf"?`<iframe src="${file.link||file.data}" style="width:150px;height:100px;"></iframe>`:""}`;
              }
          });
      }
@@ -713,6 +713,93 @@ function teilePerWhatsApp(){
         `📎 Anhänge: ${idee.dateien?.map(f=>`${f.name} (${f.link||f.data})`).join(", ")||"Keine"}\n` // Fügt Link/URL hinzu
     ).join("\n\n");
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,"_blank");
+}
+
+// NEUE FUNKTION: Speichern der Ideen auf OneDrive
+async function saveToOneDrive(){
+    // DIAGNOSE: Prüfen, ob Funktion aufgerufen wird
+    console.log('Save button clicked');
+    debugger; // Halte hier an, wenn DevTools geöffnet sind
+
+    if(!accessToken){
+        console.log('No access token, attempting login');
+        // Versuche, den Benutzer anzumelden, bevor wir speichern
+        const loginSuccess = await handleLogin();
+        // Nach dem asynchronen await handleLogin() wird die Ausführung hier fortgesetzt
+        if (!loginSuccess || !accessToken) {
+             // Wenn Login fehlschlägt oder abgebrochen wird
+             console.log('Login failed or cancelled after prompt');
+             zeigeWarnung("Anmeldung für OneDrive-Speicherung fehlgeschlagen oder abgebrochen.");
+             return; // Wichtig: Hier wirklich abbrechen, wenn Login fehlschlägt
+        }
+         // Wenn Login erfolgreich war, sollte accessToken jetzt gesetzt sein.
+         console.log('Login successful, proceeding with save.');
+         // KEIN rekursiver Aufruf hier mehr. Die Funktion fährt einfach fort,
+         // weil accessToken jetzt gesetzt ist.
+    } else {
+        console.log('Access token found, proceeding with save.');
+    }
+
+
+    const ideenData = JSON.stringify(JSON.parse(localStorage.getItem("ideen")||"[]"), null, 2); // Ideen holen & formatieren
+    const filePath = "/ideenapp/ideen.json"; // Fester Pfad auf OneDrive
+
+    zeigeWarnung("Speichere Ideen auf OneDrive..."); // Feedback starten
+
+    try{
+        // API Endpunkt zum Hochladen von Dateiinhalten
+        // PUT erstellt oder überschreibt die Datei
+        const uploadUrl = `https://graph.microsoft.com/v1.0/me/drive/root:${filePath}:/content`;
+
+        const response = await fetch(uploadUrl, {
+            method: "PUT",
+            headers: {
+                "Authorization": `Bearer ${accessToken}`,
+                "Content-Type": "application/json"
+            },
+            body: ideenData // Die JSON-Daten als Body
+        });
+
+        if(response.ok){
+            console.log('OneDrive save successful');
+            zeigeWarnung("Ideen erfolgreich auf OneDrive gespeichert!");
+            istGespeichert = true; // Als gespeichert markieren
+        } else {
+            console.log('OneDrive save failed', response.status);
+            const error = await response.json().catch(() => null); // Versuche, Fehler-JSON zu parsen
+            zeigeWarnung(`Fehler beim Speichern auf OneDrive: ${response.status} - ${error?.error?.message || response.statusText || 'Unbekannter Fehler'}`);
+        }
+
+    } catch(e){
+        console.error('Exception during OneDrive save:', e);
+        zeigeWarnung("Fehler beim Speichern auf OneDrive: " + e.message);
+    }
+}
+
+// NEUE FUNKTION (Platzhalter): Laden der Ideen von OneDrive
+async function loadFromOneDrive(){
+     // DIAGNOSE: Prüfen, ob Funktion aufgerufen wird
+     console.log('Load button clicked');
+     debugger; // Halte hier an, wenn DevTools geöffnet sind
+
+     if(!accessToken){
+         console.log('No access token for load, prompting login');
+         zeigeWarnung("Bitte zuerst mit Microsoft anmelden!");
+         // Optional: handleLogin() wie bei saveToOneDrive() aufrufen und dann Ladefunktion erneut versuchen?
+         // Hier simplifiziert: Nur Meldung. Ladefunktion ist ohnehin nicht implementiert.
+         return;
+     }
+     console.log('Access token found for load, proceeding.');
+
+     zeigeWarnung("Laden von OneDrive ist noch nicht implementiert."); // Implementierung fehlt noch
+     // TODO: Implement load from OneDrive
+     // 1. Datei von OneDrive herunterladen (z.B. /ideenapp/ideen.json)
+     //    fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/ideenapp/ideen.json:/content`, { headers: {"Authorization": `Bearer ${accessToken}`} })
+     // 2. Response als Text erhalten
+     // 3. JSON parsen
+     // 4. Daten in localStorage speichern
+     // 5. ensureIdeasHaveIds() und zeigeIdeen() aufrufen
+     // 6. Erfolgs- oder Fehlermeldung anzeigen
 }
 
 
