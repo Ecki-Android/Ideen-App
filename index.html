@@ -195,7 +195,7 @@ function generateUUID() {
 }
 
 
-async function handleLogin(){try{msalInstance=new msal.PublicClientApplication(msalConfig);const l=await msalInstance.loginPopup({scopes:["Files.ReadWrite","offline_access"]});const t=await msalInstance.acquireTokenSilent({scopes:["Files.ReadWrite"],account:l.account});accessToken=t.accessToken;zeigeWarnung("Erfolgreich bei Microsoft angemeldet!", 'success');pruefeLoginHinweis();return true;}catch(e){zeigeWarnung("Login fehlgeschlagen: "+e.message);return false;}} // Rückgabewert und Typ 'success' hinzugefügt
+async function handleLogin(){try{msalInstance=new msal.PublicClientApplication(msalConfig);const l=await msalInstance.loginPopup({scopes:["Files.ReadWrite","offline_access"]});const t=await msalInstance.acquireTokenSilent({scopes:["Files.ReadWrite"],account:l.account});accessToken=t.accessToken;zeigeWarnung("Erfolgreich bei Microsoft angemeldet!", 'success');pruefeLoginHinweis();return true;}catch(e){zeigeWarnung("Login fehlgeschlagen: "+e.message);return false;}} // Typ 'success' hinzugefügt
 async function handleLogout(){if(!istGespeichert){if(!confirm("Bitte speichern Sie Ihre Änderungen, bevor Sie sich abmelden! Trotzdem abmelden!"))return;}try{if(msalInstance){const a=msalInstance.getAllAccounts()[0];if(a){await msalInstance.logoutPopup({account:a,postLogoutRedirectUri:"https://ecki-android.github.io"});}}accessToken=null;pruefeLoginHinweis();zeigeWarnung("Sie wurden erfolgreich abgemeldet.", 'success');}catch(e){zeigeWarnung("Abmeldung fehlgeschlagen: "+e.message);}} // Typ 'success' hinzugefügt
 function pruefeLoginHinweis(){if(!accessToken){document.getElementById("loginHinweis").style.display="block";}else{document.getElementById("loginHinweis").style.display="none";}}
 
@@ -250,7 +250,7 @@ function speichereIdee(){
                       const ideeInBearbeitung = originalIdeen.find(item => item.id === bearbeiteId);
                       if (ideeInBearbeitung && ideeInBearbeitung.dateien) {
                            // Füge alte Dateien hinzu, die einen Link haben (OneDrive-Links behalten)
-                           dateien = dateien.concat(ideeInbearbeitung.dateien.filter(oldFile => oldFile.link)); // Nur alte Dateien mit Link behalten
+                           dateien = dateien.concat(ideeInBearbeitung.dateien.filter(oldFile => oldFile.link)); // Nur alte Dateien mit Link behalten
                             // Optional: Logik zum Umgang mit lokalen (blob:) URLs beim Bearbeiten überdenken
                             // Aktuell werden neue lokale Dateien hinzugefügt, alte lokale Dateien verworfen.
                             // Das ist konsistent, da lokale URLs nach Neuladen nicht mehr gültig sind.
@@ -400,7 +400,7 @@ function zeigeIdeen(){
             return new Date(b.timestamp) - new Date(a.timestamp);
         }
         // sortierung === "alt"
-        return new Date(a.timestamp) - new Date(b.timestamp); // *** Diese Zeile ist jetzt vollständig ***
+        return new Date(a.timestamp) - new Date(b.timestamp);
     });
 
     const ideenListeDiv = document.getElementById("ideenListe");
@@ -412,18 +412,19 @@ function zeigeIdeen(){
         const anzeigeDatum = new Date(idee.timestamp).toLocaleString("de-DE");
 
         // Verwende ideeId für Action button calls und Checkbox
-        return`<div class="idee${erledigt?' erledigt':''}"><div class="idee-content"><h3><span class="math-inline">\{idee\.text\}</h3\><p\></span>{idee.details||""}</p>${idee.mandantennummer?`<div>Mandantennummer: <b>${idee.mandantennummer}</b></div>`:""}${idee.firmenname?`<div>Firmenname: <b>${idee.firmenname}</b></div>`:""}${idee.beschreibungen&&idee.beschreibungen.length?`<div class="beschreibung-historie"><b>Weitere Beschreibungen:</b>${idee.beschreibungen.map(b=>`<div class="beschreibung-item"><div class="beschreibung-text-zeit"><span class="beschreibung-zeit"><span class="math-inline">\{b\.timestamp\}</span\></span>{b.text}</div><button class="edit-beschreibung-btn" onclick="bearbeiteEinzelneBeschreibung('<span class="math-inline">\{ideeId\}', '</span>{b.timestamp}')">✏️</button></div>`).join("")}</div>`:""}<small>${idee.kategorie} | ${idee.prioritaet||"Keine"} | <span class="math-inline">\{anzeigeDatum\}</small\></span>{idee.dateien?.map(file=>`<a class="datei-link" href="${file.link||file.data}" target="_blank">${file.link?'🌐':'📎'} ${file.name}</a>${file.link?'<div class="datei-info">OneDrive-Link</div>':`<div class="datei-info">Pfad: <i>${file.pfad||file.name}</i></div>`}${file.type?.startsWith("image/")?`<img src="${file.link||file.data}" style="max-width:150px;">`:""}${file.type==="application/pdf"?`<iframe src="${file.link||file.data}" style="width:150px;height:100px;"></iframe>`:""}`).join("")}<div class="idee-actions"><button onclick="verschiebeIdee('<span class="math-inline">\{ideeId\}',\-1\)"\>⬆️</button\><button onclick\="verschiebeIdee\('</span>{ideeId}',1)">⬇️</button><button onclick="bearbeiteIdee('<span class="math-inline">\{ideeId\}'\)"\>✏️</button\><button onclick\="toggleErledigt\('</span>{ideeId}')"><span class="math-inline">\{erledigt?"↩️"\:"✔️"\}</button\><button onclick\="loescheIdee\('</span>{ideeId}')">🗑️</button><button onclick="zeigeBeschreibungDialog('<span class="math-inline">\{ideeId\}'\)"\>\+ Beschreibung</button\></div\></div\><input type\="checkbox" class\="idee\-checkbox" onchange\="toggleAuswahl\('</span>{ideeId}',this)" ${ausgewaehlt.includes(ideeId)?"checked":""}></div>`;
+        return`<div class="idee${erledigt?' erledigt':''}"><div class="idee-content"><h3>${idee.text}</h3><p>${idee.details||""}</p>${idee.mandantennummer?`<div>Mandantennummer: <b>${idee.mandantennummer}</b></div>`:""}${idee.firmenname?`<div>Firmenname: <b>${idee.firmenname}</b></div>`:""}${idee.beschreibungen&&idee.beschreibungen.length?`<div class="beschreibung-historie"><b>Weitere Beschreibungen:</b>${idee.beschreibungen.map(b=>`<div class="beschreibung-item"><div class="beschreibung-text-zeit"><span class="beschreibung-zeit">${b.timestamp}</span>${b.text}</div><button class="edit-beschreibung-btn" onclick="bearbeiteEinzelneBeschreibung('${ideeId}', '${b.timestamp}')">✏️</button></div>`).join("")}</div>`:""}<small>${idee.kategorie} | ${idee.prioritaet||"Keine"} | ${anzeigeDatum}</small>${idee.dateien?.map(file=>`<a class="datei-link" href="${file.link||file.data}" target="_blank">${file.link?'🌐':'📎'} ${file.name}</a>${file.link?'<div class="datei-info">OneDrive-Link</div>':`<div class="datei-info">Pfad: <i>${file.pfad||file.name}</i></div>`}${file.type?.startsWith("image/")?`<img src="${file.link||file.data}" style="max-width:150px;">`:""}${file.type==="application/pdf"?`<iframe src="${file.link||file.data}" style="width:150px;height:100px;"></iframe>`:""}`).join("")}<div class="idee-actions"><button onclick="verschiebeIdee('${ideeId}',-1)">⬆️</button><button onclick="verschiebeIdee('${ideeId}',1)">⬇️</button><button onclick="bearbeiteIdee('${ideeId}')">✏️</button><button onclick="toggleErledigt('${ideeId}')">${erledigt?"↩️":"✔️"}</button><button onclick="loescheIdee('${ideeId}')">🗑️</button><button onclick="zeigeBeschreibungDialog('${ideeId}')">+ Beschreibung</button></div></div><input type="checkbox" class="idee-checkbox" onchange="toggleAuswahl('${ideeId}',this)" ${ausgewaehlt.includes(ideeId)?"checked":""}></div>`;
     }).join("");
 
     // Das Bearbeitungsformular schließen, wenn die bearbeitete Idee durch Filter unsichtbar wird
     if (bearbeiteId !== null) {
         const ideeInBearbeitungIstNochSichtbar = filteredIdeen.some(idee => idee.id === bearbeiteId);
         if (!ideeInBearbeitungIstNochSichtbar) {
-            abbrechenBearbeiten(); // Bricht ab, wenn bearbeitete Idee nicht mehr in gefilterter Liste ist
+            abbrechenBearbeiten(); // Bricht ab, wenn bearbeitete Idee durch Filter unsichtbar wird
         }
     }
     // Das Beschreibungs-Dialog schließen, wenn die Idee durch Filter unsichtbar wird
     if (beschreibungFuerId !== null) {
+         // FIX: Korrigierte Bedingung: Prüfe, ob die Idee mit beschreibungFuerId noch in filteredIdeen ist
          const ideeFuerBeschreibungIstNochSichtbar = filteredIdeen.some(idee => idee.id === beschreibungFuerId);
          if (!ideeFuerBeschreibungIstNochSichtbar) {
               beschreibungAbbrechen(); // Bricht ab, wenn Idee nicht mehr in gefilterter Liste ist
@@ -521,89 +522,83 @@ function bearbeiteEinzelneBeschreibung(ideeId, descTimestamp) {
 }
 
 
-// Geändert: Nimmt Idee-ID entgegen
-function toggleErledigt(ideeId){
-    let ideen = JSON.parse(localStorage.getItem("ideen")||"[]");
-    const ideeIndex = ideen.findIndex(item => item.id === ideeId);
-
-    if (ideeIndex !== -1) {
-        ideen[ideeIndex].erledigt = !(ideen[ideeIndex].erledigt || false);
-        localStorage.setItem("ideen", JSON.stringify(ideen));
-        zeigeIdeen(); // Liste neu rendern (Filter beachten!)
-        istGespeichert = false; // Statusänderung = ungespeichert
+// Geändert: Nimmt Idee-ID entgegen und arbeitet mit Array von IDs
+function toggleAuswahl(ideeId,box){
+    if(box.checked){
+        if(!ausgewaehlt.includes(ideeId)) ausgewaehlt.push(ideeId);
+    } else {
+        ausgewaehlt = ausgewaehlt.filter(id => id !== ideeId);
     }
+    // Console.log zur Überprüfung
+    // console.log("Ausgewählt IDs:", ausgewaehlt);
 }
 
-// Geändert: Nimmt Idee-ID entgegen
-function bearbeiteIdee(ideeId){
-    const ideen = JSON.parse(localStorage.getItem("ideen")||"[]");
-    const idee = ideen.find(item => item.id === ideeId); // Finde Idee anhand ID
-
-    if (!idee) {
-        zeigeWarnung("Fehler: Idee zum Bearbeiten nicht gefunden (ID: " + ideeId + ").");
+function ausgewaehlteNotizenLoeschen(){
+    if(ausgewaehlt.length === 0) {
+        zeigeWarnung("Keine Notizen ausgewählt.");
         return;
     }
+    if(!confirm(`Wirklich ${ausgewaehlt.length} ausgewählte Notiz(en) löschen?`)) return;
 
-    document.getElementById("ideeText").value = idee.text;
-    document.getElementById("ideeDetails").value = idee.details || "";
-    document.getElementById("kategorie").value = idee.kategorie;
-    document.getElementById("mandantennummer").value = idee.mandantennummer || "";
-    document.getElementById("firmenname").value = idee.firmenname || "";
-    prioritaet = idee.prioritaet; // Setze die globale prioritaet Variable
-    setzePrioritaet(idee.prioritaet); // Aktualisiere UI basierend auf der globalen Variable
+    let ideen = JSON.parse(localStorage.getItem("ideen")||"[]");
+    // Erstelle ein neues Array, das nur die nicht ausgewählten Ideen enthält
+    const neueIdeenListe = ideen.filter(item => !ausgewaehlt.includes(item.id));
 
-    bearbeiteId = ideeId; // Speichere die ID der bearbeiteten Idee
+    localStorage.setItem("ideen", JSON.stringify(neueIdeenListe));
 
-    // Dateivorschau beim Bearbeiten anzeigen (URLs für lokale Dateien neu generieren)
-    const dateiVorschauDiv = document.getElementById("dateiVorschau");
-    dateiVorschauDiv.innerHTML = ""; // Leeren
-     if (idee.dateien) {
-         idee.dateien.forEach(file => {
-             const fileUrl = file.link || file.data; // Nutze Link oder lokale URL
-             if (fileUrl) {
-                 dateiVorschauDiv.innerHTML += `<a class="datei-link" href="<span class="math-inline">\{fileUrl\}" target\="\_blank"\></span>{file.link ? '🌐' : '📎'} <span class="math-inline">\{file\.name\}</a\></span>{file.link?'<div class="datei-info">OneDrive-Link</div>':`<div class="datei-info">Pfad: <i>${file.pfad||file.name}</i></div>`}${file.type?.startsWith("image/")?`<img src="${file.link||file.data}" style="max-width:150px;">`:""}${file.type==="application/pdf"?`<iframe src="${file.link||file.data}" style="width:150px;height:100px;"></iframe>`:""}`;
-             }
-         });
+    // Prüfe, ob die gerade bearbeitete Idee gelöscht wurde
+    if (bearbeiteId !== null && ausgewaehlt.includes(bearbeiteId)) {
+        abbrechenBearbeiten();
+    }
+     // Prüfe, ob die Idee, deren Beschreibung bearbeitet wird, gelöscht wurde
+     if (beschreibungFuerId !== null && ausgewaehlt.includes(beschreibungFuerId)) {
+          beschreibungAbbrechen();
      }
 
-    document.getElementById("speichernBtn").textContent = "💾 Aktualisieren";
-    document.getElementById("abbrechenBtn").style.display = "";
-    istGespeichert = false;
-}
 
-function abbrechenBearbeiten(){
-    bearbeiteId = null; // Bearbeitungs-ID zurücksetzen
-    document.getElementById("ideeText").value = "";
-    document.getElementById("ideeDetails").value = "";
-    document.getElementById("mandantennummer").value = "";
-    document.getElementById("firmenname").value = "";
-    document.getElementById("dateien").value = ""; // Dateifeld leeren
-    document.getElementById("dateiVorschau").innerHTML = ""; // Dateivorschau leeren
-    document.getElementById("speichernBtn").textContent = "💾 Speichern";
-    document.getElementById("abbrechenBtn").style.display = "none";
-    setzePrioritaet(""); // Priorität zurücksetzen (setzt globale Var und UI)
+    ausgewaehlt = []; // Auswahl leeren
+    zeigeIdeen(); // Liste neu rendern
     istGespeichert = true;
 }
 
-// Geändert: Nimmt Idee-ID entgegen
-function verschiebeIdee(ideeId, richtung){
-    let fullIdeen = JSON.parse(localStorage.getItem("ideen")||"[]");
-    // Finde die aktuell gefilterte und sortierte Liste, um die Position zu bestimmen
+function alleIdeenLoeschen(){
+    if(!confirm("Wirklich ALLE Ideen löschen?"))return;
+    localStorage.setItem("ideen","[]");
+    ausgewaehlt=[]; // Auswahl leeren
+    bearbeiteId = null; // Bearbeitungsmodus beenden
+    beschreibungFuerId = null; // Beschreibungseingabe beenden
+    beschreibungZuBearbeitenderTimestamp = null; // Bearbeitungsstatus Beschreibung zurücksetzen
+    zeigeIdeen(); // Liste neu rendern
+    abbrechenBearbeiten(); // Stellt sicher, dass das Formular geleert wird
+    istGespeichert=true;
+}
+
+function getExportIdeen(){
+    let ideen = JSON.parse(localStorage.getItem("ideen")||"[]");
+
+    if(ausgewaehlt.length > 0){
+        // Exportiere nur ausgewählte Ideen (basierend auf IDs)
+        return ideen.filter(item => ausgewaehlt.includes(item.id));
+    }
+
+    // Wenn nichts ausgewählt ist, exportiere die aktuell gefilterte und sortierte Liste
+    // Dies erfordert das erneute Anwenden der Filter und Sortierung.
     const filterKategorie = document.getElementById("filterKategorie").value;
-    const filterMandantValue = document.getElementById("filterMandant").value.trim();
-    const filterArchivValue = document.getElementById("filterArchiv").value;
-    const sortierung = document.getElementById("sortierung").value;
+    const filterMandantValue = document.getElementById("filterMandant").value.trim(); // Muss hier neu gelesen werden
+    const filterArchivValue = document.getElementById("filterArchiv").value; // Archiv-Filter für Export
+    const sortierung = document.getElementById("sortierung").value; // Sortierung für Export
 
-    let currentViewIdeen = [...fullIdeen]; // Kopie für Filterung/Sortierung der Ansicht
+    let exportIdeen = [...ideen]; // Kopie für Filterung/Sortierung
 
-    if(filterKategorie) currentViewIdeen = currentViewIdeen.filter(i => i.kategorie === filterKategorie);
-    if(filterMandantValue) currentViewIdeen = currentViewIdeen.filter(i => (i.mandantennummer||"").toLowerCase() === filterMandantValue.toLowerCase());
-     if (filterArchivValue === "nicht_erledigt") {
-         currentViewIdeen = currentViewIdeen.filter(i => !(i.erledigt || false));
-     } else if (filterArchivValue === "erledigt") {
-         currentViewIdeen = currentViewIdeen.filter(i => (i.erledigt || false));
-     }
-    currentViewIdeen.sort((a,b)=>{
+    if(filterKategorie) exportIdeen = exportIdeen.filter(i => i.kategorie === filterKategorie);
+    if(filterMandantValue) exportIdeen = exportIdeen.filter(i => (i.mandantennummer||"").toLowerCase() === filterMandantValue.toLowerCase());
+    if (filterArchivValue === "nicht_erledigt") {
+        exportIdeen = exportIdeen.filter(i => !(i.erledigt || false));
+    } else if (filterArchivValue === "erledigt") {
+        exportIdeen = exportIdeen.filter(i => (i.erledigt || false));
+    }
+
+    exportIdeen.sort((a,b)=>{
         if(sortierung==="prio"){
             const p={"Hoch":3,"Mittel":2,"Niedrig":1};
             return (p[b.prioritaet]||0) - (p[a.prioritaet]||0);
@@ -611,1077 +606,177 @@ function verschiebeIdee(ideeId, richtung){
         if(sortierung==="neu"){
             return new Date(b.timestamp) - new Date(a.timestamp);
         }
-        // sortierung === "alt"
-        return new Date(a.timestamp) - new Date(b.timestamp); // *** Diese Zeile ist jetzt vollständig ***
+        return new Date(a.timestamp) - new Date(b.timestamp);
     });
 
-    const ideenListeDiv = document.getElementById("ideenListe");
-    ideenListeDiv.innerHTML = filteredIdeen.map(idee => {
-        // Verwende die Idee.id für alle Aktionen und die Auswahl
-        const ideeId = idee.id; // Die eindeutige ID der Idee
+    return exportIdeen;
+}
 
-        const erledigt = idee.erledigt || false;
-        const anzeigeDatum = new Date(idee.timestamp).toLocaleString("de-DE");
 
-        // Verwende ideeId für Action button calls und Checkbox
-        return`<div class="idee${erledigt?' erledigt':''}"><div class="idee-content"><h3><span class="math-inline">\{idee\.text\}</h3\><p\></span>{idee.details||""}</p>${idee.mandantennummer?`<div>Mandantennummer: <b>${idee.mandantennummer}</b></div>`:""}${idee.firmenname?`<div>Firmenname: <b>${idee.firmenname}</b></div>`:""}${idee.beschreibungen&&idee.beschreibungen.length?`<div class="beschreibung-historie"><b>Weitere Beschreibungen:</b>${idee.beschreibungen.map(b=>`<div class="beschreibung-item"><div class="beschreibung-text-zeit"><span class="beschreibung-zeit"><span class="math-inline">\{b\.timestamp\}</span\></span>{b.text}</div><button class="edit-beschreibung-btn" onclick="bearbeiteEinzelneBeschreibung('<span class="math-inline">\{ideeId\}', '</span>{b.timestamp}')">✏️</button></div>`).join("")}</div>`:""}<small>${idee.kategorie} | ${idee.prioritaet||"Keine"} | <span class="math-inline">\{anzeigeDatum\}</small\></span>{idee.dateien?.map(file=>`<a class="datei-link" href="${file.link||file.data}" target="_blank">${file.link?'🌐':'📎'} ${file.name}</a>${file.link?'<div class="datei-info">OneDrive-Link</div>':`<div class="datei-info">Pfad: <i>${file.pfad||file.name}</i></div>`}${file.type?.startsWith("image/")?`<img src="${file.link||file.data}" style="max-width:150px;">`:""}${file.type==="application/pdf"?`<iframe src="${file.link||file.data}" style="width:150px;height:100px;"></iframe>`:""}`).join("")}<div class="idee-actions"><button onclick="verschiebeIdee('<span class="math-inline">\{ideeId\}',\-1\)"\>⬆️</button\><button onclick\="verschiebeIdee\('</span>{ideeId}',1)">⬇️</button><button onclick="bearbeiteIdee('<span class="math-inline">\{ideeId\}'\)"\>✏️</button\><button onclick\="toggleErledigt\('</span>{ideeId}')"><span class="math-inline">\{erledigt?"↩️"\:"✔️"\}</button\><button onclick\="loescheIdee\('</span>{ideeId}')">🗑️</button><button onclick="zeigeBeschreibungDialog('<span class="math-inline">\{ideeId\}'\)"\>\+ Beschreibung</button\></div\></div\><input type\="checkbox" class\="idee\-checkbox" onchange\="toggleAuswahl\('</span>{ideeId}',this)" ${ausgewaehlt.includes(ideeId)?"checked":""}></div>`;
-    }).join("");
+function exportiereAlsPDF(){const{jsPDF}=window.jspdf;const doc=new jsPDF();const margin=15;const pageHeight=doc.internal.pageSize.getHeight();let y=margin;const ideen=getExportIdeen();ideen.forEach((idee,idx)=>{const titel=`Idee ${idx+1}: ${idee.text}`;const titelLines=doc.splitTextToSize(titel,180);titelLines.forEach(line=>{if(y+10>pageHeight-margin){doc.addPage();y=margin;}doc.text(line,margin,y);y+=10;});const meta=[`Kategorie: ${idee.kategorie}`,`Priorität: ${idee.prioritaet||"Keine"}`,`Datum: ${new Date(idee.timestamp).toLocaleString("de-DE")}`];if(idee.mandantennummer)meta.push(`Mandantennummer: ${idee.mandantennummer}`);if(idee.firmenname)meta.push(`Firmenname: ${idee.firmenname}`);meta.forEach(text=>{if(y+10>pageHeight-margin){doc.addPage();y=margin;}doc.text(text,margin,y);y+=10;});if(idee.details){const detailLines=doc.splitTextToSize(idee.details,180);detailLines.forEach(line=>{if(y+10>pageHeight-margin){doc.addPage();y=margin;}doc.text(line,margin,y);y+=10;});}if(idee.beschreibungen&&idee.beschreibungen.length){doc.text("Weitere Beschreibungen:",margin,y);y+=10;idee.beschreibungen.forEach(b=>{const beschr=`[${b.timestamp}] ${b.text}`;const lines=doc.splitTextToSize(beschr,180);lines.forEach(line=>{if(y+10>pageHeight-margin){doc.addPage();y=margin;}doc.text(line,margin,y);y+=10;});});}idee.dateien?.forEach(file=>{if(y+10>pageHeight-margin){doc.addPage();y=margin;}doc.setTextColor(0,0,255);if(doc.textWithLink){doc.textWithLink(`🌐 ${file.name}`,margin,y,{url:file.link||file.data});}else{doc.text(`🌐 ${file.name}`,margin,y);}doc.setTextColor(0,0,0);y+=10;});y+=15;if(y>pageHeight-margin){doc.addPage();y=margin;}});doc.save("ideen-export.pdf");}
+function exportiereAlsText(){const ideen=getExportIdeen();const text=ideen.map(idee=>`=== ${idee.text} ===\nKategorie: ${idee.kategorie}\nPriorität: ${idee.prioritaet||"Keine"}\nDatum: ${new Date(idee.timestamp).toLocaleString("de-DE")}\n${idee.mandantennummer?"Mandantennummer: "+idee.mandantennummer+"\n":""}${idee.firmenname?"Firmenname: "+idee.firmenname+"\n":""}${idee.beschreibungen&&idee.beschreibungen.length?"Weitere Beschreibungen:\n"+idee.beschreibungen.map(b=>`[${b.timestamp}] ${b.text}`).join("\n"):""}${idee.details?`Beschreibung: ${idee.details}\n`:""}\nAnhänge: ${idee.dateien?.map(f=>f.name).join(", ")||"Keine"}\n`).join("\n\n");const blob=new Blob([text],{type:"text/plain"});const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download="ideen-export.txt";link.click();;}
 
-    // Das Bearbeitungsformular schließen, wenn die bearbeitete Idee durch Filter unsichtbar wird
-    if (bearbeiteId !== null) {
-        const ideeInBearbeitungIstNochSichtbar = filteredIdeen.some(idee => idee.id === bearbeiteId);
-        if (!ideeInBearbeitungIstNochSichtbar) {
-            abbrechenBearbeiten(); // Bricht ab, wenn bearbeitete Idee nicht mehr in gefilterter Liste ist
+function teilePerEmail(){const ideen=getExportIdeen();const text=ideen.map(idee=>`*${idee.text}*\nKategorie: ${idee.kategorie}\nPriorität: ${idee.prioritaet||"Keine"}\nDatum: ${new Date(idee.timestamp).toLocaleString("de-DE")}\n${idee.mandantennummer?"Mandantennummer: "+idee.mandantennummer+"\n":""}${idee.firmenname?"Firmenname: "+idee.firmenname+"\n":""}${idee.beschreibungen&&idee.beschreibungen.length?"Weitere Beschreibungen:\n"+idee.beschreibungen.map(b=>`[${b.timestamp}] ${b.text}`).join("\n"):""}${idee.details?`Beschreibung: ${idee.details}\n`:""}\nAnhänge: ${idee.dateien?.map(f=>`${f.name} (${f.link||f.data})`).join(", ")||"Keine"}\n`).join("\n\n")+"\n\n[Bitte Anhänge manuell hinzufügen]";window.location.href=`mailto:?subject=Ideen-Export&body=${encodeURIComponent(text)}`;} // *** ÄNDERUNG HIER: Fügt Link/URL hinzu ***
+
+function teilePerWhatsApp(){
+    const ideen = getExportIdeen();
+    const text = ideen.map(idee =>
+        `*${idee.text}*\n` +
+        `📁 Kategorie: ${idee.kategorie}\n` +
+        `🔖 Priorität: ${idee.prioritaet||"Keine"}\n` +
+        `📅 ${new Date(idee.timestamp).toLocaleString("de-DE")}\n` +
+        `${idee.details?`📝 ${idee.details}\n`:""}` + // Details nur einfügen, wenn vorhanden
+        `${idee.mandantennummer?`Mandantennummer: ${idee.mandantennummer}\n`:""}` + // Mandant nur einfügen, wenn vorhanden
+        `${idee.firmenname?`Firmenname: ${idee.firmenname}\n`:""}` + // Firmenname nur einfügen, wenn vorhanden
+        `${idee.beschreibungen&&idee.beschreibungen.length?`Weitere Beschreibungen:\n${idee.beschreibungen.map(b=>`  - [${b.timestamp}] ${b.text}`).join("\n")}\n`:""}` + // Beschreibungen einfügen, wenn vorhanden
+        `📎 Anhänge: ${idee.dateien?.map(f=>`${f.name} (${f.link||f.data})`).join(", ")||"Keine"}\n` // Fügt Link/URL hinzu
+    ).join("\n\n");
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,"_blank");
+}
+
+async function uploadToOneDrive(f){if(!accessToken){zeigeWarnung("Bitte zuerst mit Microsoft anmelden!");return null;}try{const n=`ideenapp/${Date.now()}_${f.name}`;const u=await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${n}:/content`,{method:"PUT",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":f.type},body:f});const d=await u.json();const s=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${d.id}/createLink`,{method:"POST",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":"application/json"},body:JSON.stringify({type:"view",scope:"anonymous"})});const j=await s.json();return j.link.webUrl;}catch(e){zeigeWarnung("OneDrive-Fehler beim Upload: "+e.message);return null;}} // Angepasste Fehlermeldung
+
+// NEUE FUNKTION: Speichern der Ideen auf OneDrive
+async function saveToOneDrive(){
+    if(!accessToken){
+        const loginSuccess = await handleLogin(); // handleLogin zeigt schon Meldung
+        if (!loginSuccess || !accessToken) {
+             // Meldung wird schon in handleLogin() gezeigt
+             return;
         }
     }
-    // Das Beschreibungs-Dialog schließen, wenn die Idee durch Filter unsichtbar wird
-    if (beschreibungFuerId !== null) {
-         const ideeFuerBeschreibungIstNochSichtbar = filteredIdeen.some(idee => idee.id === beschreibungFuerId);
-         if (!ideeFuerBeschreibungIstNochSichtbar) {
-              beschreibungAbbrechen(); // Bricht ab, wenn Idee nicht mehr in gefilterter Liste ist
-         }
+
+    const ideenData = JSON.stringify(JSON.parse(localStorage.getItem("ideen")||"[]"), null, 2); // Ideen holen & formatieren
+    const filePath = "/ideenapp/ideen.json"; // Fester Pfad auf OneDrive
+
+    // Initialmeldung "Speichere..." - jetzt mit Typ 'info'
+    zeigeWarnung("Speichere Ideen auf OneDrive...", 'info');
+
+    try{
+        const uploadUrl = `https://graph.microsoft.com/v1.0/me/drive/root:${filePath}:/content`;
+
+        const response = await fetch(uploadUrl, {
+            method: "PUT",
+            headers: {
+                "Authorization": `Bearer ${accessToken}`,
+                "Content-Type": "application/json"
+            },
+            body: ideenData
+        });
+
+        if(response.ok){
+            zeigeWarnung("Ideen erfolgreich auf OneDrive gespeichert!", 'success'); // Grüner Erfolg
+            istGespeichert = true;
+        } else {
+            // Fehlerfall - rote Warnung
+            const error = await response.json().catch(() => null);
+            zeigeWarnung(`Fehler beim Speichern auf OneDrive: ${response.status} - ${error?.error?.message || response.statusText || 'Unbekannter Fehler'}`);
+        }
+
+    } catch(e){
+        // Catch bei Netzwerk- oder anderen Fehlern - rote Warnung
+        console.error('Exception during OneDrive save:', e);
+        zeigeWarnung("Fehler beim Speichern auf OneDrive: " + e.message);
     }
 }
 
-// Geändert: Kann nun auch zum Bearbeiten verwendet werden (mit optionalem descTimestamp)
-function zeigeBeschreibungDialog(ideeId, descTimestamp = null){
-    beschreibungFuerId = ideeId; // Speichern der Idee-ID
-    beschreibungZuBearbeitenderTimestamp = descTimestamp; // Speichern des Timestamps (null beim Hinzufügen)
+// NEUE FUNKTION (Platzhalter): Laden der Ideen von OneDrive
+async function loadFromOneDrive(){
+     if(!accessToken){
+         // Meldung wird schon in handleLogin() gezeigt
+         const loginSuccess = await handleLogin();
+         if (!loginSuccess || !accessToken) {
+             return;
+         }
+     }
+     // Platzhalter Meldung - Typ 'info'
+     zeigeWarnung("Laden von OneDrive ist noch nicht implementiert.", 'info');
 
-    const beschreibungTextarea = document.getElementById("beschreibungText");
-    // const dialogTitel = document.getElementById("beschreibungDialogTitel"); // Füge diesen Titel im HTML hinzu, falls gewünscht
+     // TODO: Implement load from OneDrive
+     // 1. Datei von OneDrive herunterladen (z.B. /ideenapp/ideen.json)
+     //    fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/ideenapp/ideen.json:/content`, { headers: {"Authorization": `Bearer ${accessToken}`} })
+     // 2. Response als Text erhalten
+     // 3. JSON parsen
+     // 4. Daten in localStorage speichern
+     // 5. ensureIdeasHaveIds() und zeigeIdeen() aufrufen
+     // 6. Erfolgs- oder Fehlermeldung anzeigen
+}
 
-    if (descTimestamp !== null) {
-         // Bearbeiten einer vorhandenen Beschreibung
-         const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-         const idee = ideen.find(item => item.id === ideeId);
-         const beschreibung = idee?.beschreibungen.find(b => b.timestamp === descTimestamp);
 
-         if (beschreibung) {
-              beschreibungTextarea.value = beschreibung.text;
-              // if (dialogTitel) dialogTitel.textContent = "Beschreibung bearbeiten";
+async function speichereIdeenAlsDatei(){try{const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");if(window.showSaveFilePicker){fileHandle=await window.showSaveFilePicker({suggestedName:"ideen.json",types:[{description:"JSON-Dateien",accept:{"application/json":[".json"]}}]});const writable=await fileHandle.createWritable();await writable.write(JSON.stringify(ideen,null,2));await writable.close();zeigeWarnung("Datei erfolgreich lokal gespeichert!", 'success');istGespeichert=true;}else{const blob=new Blob([JSON.stringify(ideen)],{type:"application/json"});const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download="ideen.json";link.click();zeigeWarnung("Datei erfolgreich lokal gespeichert!", 'success');istGespeichert=true;}}catch(e){if(e.name!=="AbortError")zeigeWarnung("Fehler beim lokalen Speichern: "+e.message);}} // Angepasste Meldungen
+async function ladeIdeenAusDatei(){try{let file;if(window.showOpenFilePicker){[fileHandle]=await window.showOpenFilePicker({types:[{description:"JSON-Dateien",accept:{"application/json":[".json"]}}]});file=await fileHandle.getFile();}else{const input=document.createElement('input');input.type='file';input.accept='.json';input.onchange=e=>file=e.target.files[0];input.click();await new Promise(resolve=>input.onchange=resolve);}const content=await file.text();const ideen=JSON.parse(content);
+        // Optional: Prüfen, ob IDs existieren und ggf. generieren für alte Einträge ohne ID nach dem Laden
+         let changed = false; // Variable hinzugefügt
+         if (Array.isArray(ideen)) {
+              ideen.forEach(idee => {
+                   if (!idee.id) {
+                        idee.id = generateUUID(); // Füge IDs für alte Einträge hinzu
+                        changed = true;
+                   }
+                   // Optional: Beschreibungen von Array zu Array von Objekten konvertieren, falls alte Daten nur Strings waren
+                   if (Array.isArray(idee.beschreibungen) && idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
+                        idee.beschreibungen = idee.beschreibungen.map(text => ({text: text, timestamp: 'Unbekannt'})); // Oder aktuellen Timestamp
+                        changed = true;
+                   } else if (!Array.isArray(idee.beschreibungen)) {
+                        idee.beschreibungen = []; // Sicherstellen, dass beschreibungen ein Array ist
+                        changed = true;
+                   }
+              });
+              ausgewaehlt = []; // Auswahl leeren nach Laden aus Datei, da Indizes/IDs sich ändern könnten
          } else {
-              zeigeWarnung("Fehler: Beschreibung zum Bearbeiten nicht gefunden.");
-              beschreibungAbbrechen();
-              return;
+             throw new Error("Ungültiges Dateiformat");
          }
-    } else {
-         // Hinzufügen einer neuen Beschreibung
-         beschreibungTextarea.value = "";
-         // if (dialogTitel) dialogTitel.textContent = "Weitere Beschreibung hinzufügen";
-    }
+         // Speichere geänderte Ideen zurück, falls Migration/IDs hinzugefügt wurden
+         if (changed) {
+              localStorage.setItem("ideen", JSON.stringify(ideen)); // Speichern der migrierten Daten
+         } else {
+            // Wenn keine Änderungen durch Migration, einfach nur die neuen Daten setzen (wird unten gemacht)
+            // localStorage.setItem("ideen", JSON.stringify(ideen)); // Nicht nötig hier, wird unten gemacht
+         }
 
+         localStorage.setItem("ideen", JSON.stringify(ideen)); // Daten immer in localStorage speichern
+         zeigeIdeen(); // Ideen anzeigen
+         zeigeWarnung("Datei erfolgreich lokal geladen!", 'success'); // Erfolgsmeldung
+         istGespeichert=true;}catch(e){if(e.name!=="AbortError")zeigeWarnung("Fehler beim lokalen Laden: "+e.message);}} // Angepasste Meldungen
 
-    document.getElementById("beschreibungDialog").style.display = "block";
-    beschreibungTextarea.focus();
-    istGespeichert = false;
-}
+document.getElementById("ideeText").addEventListener("input",()=>{istGespeichert=false;});
+document.getElementById("ideeDetails").addEventListener("input",()=>{istGespeichert=false;});
+document.getElementById("mandantennummer").addEventListener("input",()=>{istGespeichert=false;});
+document.getElementById("firmenname").addEventListener("input",()=>{istGespeichert=false;});
+document.getElementById("dateien").addEventListener("change",function(e){const v=document.getElementById("dateiVorschau");v.innerHTML="";Array.from(e.target.files).forEach(file=>{const url=URL.createObjectURL(file);v.innerHTML+=`<a class="datei-link" href="${url}" target="_blank">📄 ${file.name}</a><div class="datei-info">Pfad: <i>${file.webkitRelativePath||file.name}</i></div>${file.type.startsWith("image/")?`<img src="${url}" style="max-width:150px;">`:""}${file.type==="application/pdf"?`<iframe src="${url}" style="width:150px;height:100px;"></iframe>`:""}`;});istGespeichert=false;});
+window.addEventListener("beforeunload",function(e){if(!istGespeichert){const msg="Sie haben ungespeicherte Änderungen. Möchten Sie die Seite wirklich verlassen?";e.preventDefault();e.returnValue=msg;return msg;}});
 
-function beschreibungAbbrechen(){
-    document.getElementById("beschreibungDialog").style.display = "none";
-    beschreibungFuerId = null;
-    beschreibungZuBearbeitenderTimestamp = null; // Zurücksetzen
-    document.getElementById("beschreibungText").value = "";
-}
-
-// Geändert: Behandelt nun Hinzufügen und Bearbeiten
-function beschreibungSpeichern(){
-    const t = document.getElementById("beschreibungText").value.trim();
-    if(!t) return;
+// Beim Initialisieren oder Laden aus Datei sicherstellen, dass alle Ideen eine ID haben
+function ensureIdeasHaveIds() {
     let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-
-    // Finde die Idee anhand der gespeicherten ID
-    const ideeIndex = ideen.findIndex(item => item.id === beschreibungFuerId);
-
-    if (ideeIndex !== -1) {
-         if (beschreibungZuBearbeitenderTimestamp !== null) {
-              // Bearbeiten einer vorhandenen Beschreibung
-              const beschreibungIndex = ideen[ideeIndex].beschreibungen.findIndex(b => b.timestamp === beschreibungZuBearbeitenderTimestamp);
-              if (beschreibungIndex !== -1) {
-                   ideen[ideeIndex].beschreibungen[beschreibungIndex].text = t; // Text aktualisieren
-                   // Timestamp wird hier nicht geändert, könnte man aber
-              } else {
-                   zeigeWarnung("Fehler: Beschreibungseintrag zum Bearbeiten nicht gefunden.");
-              }
-         } else {
-              // Hinzufügen einer neuen Beschreibung
-              // Generiere einen einzigartigen Timestamp für neue Einträge (wichtig für die Bearbeitungs-ID)
-              const timestamp = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); // ISO String + Zufallsteil
-              if(!ideen[ideeIndex].beschreibungen) ideen[ideeIndex].beschreibungen = [];
-              ideen[ideeIndex].beschreibungen.push({ text: t, timestamp: timestamp }); // Verwende den generierten Timestamp
-         }
-
-         localStorage.setItem("ideen", JSON.stringify(ideen));
-         zeigeIdeen(); // Liste neu rendern
-    } else {
-         zeigeWarnung("Fehler: Idee für Beschreibung nicht gefunden (ID: " + beschreibungFuerId + ").");
-    }
-
-    beschreibungAbbrechen(); // Dialog schließen und Hilfsvariablen zurücksetzen
-    istGespeichert = true;
-}
-
-// Neue Funktion zum Aufruf durch den einzelnen Bearbeiten-Button
-function bearbeiteEinzelneBeschreibung(ideeId, descTimestamp) {
-    // Sicherstellen, dass der Timestamp übergeben wird
-    if (descTimestamp) {
-        zeigeBeschreibungDialog(ideeId, descTimestamp); // Ruft den Dialog im Bearbeitungsmodus auf
-    } else {
-        // Dies sollte nicht passieren, da der Button nur bei bestehenden Beschreibungen erscheint
-        zeigeWarnung("Interner Fehler: Timestamp für Bearbeitung fehlt.");
-    }
-}
-
-
-// Geändert: Nimmt Idee-ID entgegen
-function toggleErledigt(ideeId){
-    let ideen = JSON.parse(localStorage.getItem("ideen")||"[]");
-    const ideeIndex = ideen.findIndex(item => item.id === ideeId);
-
-    if (ideeIndex !== -1) {
-        ideen[ideeIndex].erledigt = !(ideen[ideeIndex].erledigt || false);
-        localStorage.setItem("ideen", JSON.stringify(ideen));
-        zeigeIdeen(); // Liste neu rendern (Filter beachten!)
-        istGespeichert = false; // Statusänderung = ungespeichert
-    }
-}
-
-// Geändert: Nimmt Idee-ID entgegen
-function bearbeiteIdee(ideeId){
-    const ideen = JSON.parse(localStorage.getItem("ideen")||"[]");
-    const idee = ideen.find(item => item.id === ideeId); // Finde Idee anhand ID
-
-    if (!idee) {
-        zeigeWarnung("Fehler: Idee zum Bearbeiten nicht gefunden (ID: " + ideeId + ").");
-        return;
-    }
-
-    document.getElementById("ideeText").value = idee.text;
-    document.getElementById("ideeDetails").value = idee.details || "";
-    document.getElementById("kategorie").value = idee.kategorie;
-    document.getElementById("mandantennummer").value = idee.mandantennummer || "";
-    document.getElementById("firmenname").value = idee.firmenname || "";
-    prioritaet = idee.prioritaet; // Setze die globale prioritaet Variable
-    setzePrioritaet(idee.prioritaet); // Aktualisiere UI basierend auf der globalen Variable
-
-    bearbeiteId = ideeId; // Speichere die ID der bearbeiteten Idee
-
-    // Dateivorschau beim Bearbeiten anzeigen (URLs für lokale Dateien neu generieren)
-    const dateiVorschauDiv = document.getElementById("dateiVorschau");
-    dateiVorschauDiv.innerHTML = ""; // Leeren
-     if (idee.dateien) {
-         idee.dateien.forEach(file => {
-             const fileUrl = file.link || file.data; // Nutze Link oder lokale URL
-             if (fileUrl) {
-                 dateiVorschauDiv.innerHTML += `<a class="datei-link" href="<span class="math-inline">\{fileUrl\}" target\="\_blank"\></span>{file.link ? '🌐' : '📎'} <span class="math-inline">\{file\.name\}</a\></span>{file.link?'<div class="datei-info">OneDrive-Link</div>':`<div class="datei-info">Pfad: <i>${file.pfad||file.name}</i></div>`}${file.type?.startsWith("image/")?`<img src="${file.link||file.data}" style="max-width:150px;">`:""}${file.type==="application/pdf"?`<iframe src="${file.link||file.data}" style="width:150px;height:100px;"></iframe>`:""}`;
-             }
-         });
-     }
-
-    document.getElementById("speichernBtn").textContent = "💾 Aktualisieren";
-    document.getElementById("abbrechenBtn").style.display = "";
-    istGespeichert = false;
-}
-
-function abbrechenBearbeiten(){
-    bearbeiteId = null; // Bearbeitungs-ID zurücksetzen
-    document.getElementById("ideeText").value = "";
-    document.getElementById("ideeDetails").value = "";
-    document.getElementById("mandantennummer").value = "";
-    document.getElementById("firmenname").value = "";
-    document.getElementById("dateien").value = ""; // Dateifeld leeren
-    document.getElementById("dateiVorschau").innerHTML = ""; // Dateivorschau leeren
-    document.getElementById("speichernBtn").textContent = "💾 Speichern";
-    document.getElementById("abbrechenBtn").style.display = "none";
-    setzePrioritaet(""); // Priorität zurücksetzen (setzt globale Var und UI)
-    istGespeichert = true;
-}
-
-// Geändert: Nimmt Idee-ID entgegen
-function verschiebeIdee(ideeId, richtung){
-    let fullIdeen = JSON.parse(localStorage.getItem("ideen")||"[]");
-    // Finde die aktuell gefilterte und sortierte Liste, um die Position zu bestimmen
-    const filterKategorie = document.getElementById("filterKategorie").value;
-    const filterMandantValue = document.getElementById("filterMandant").value.trim();
-    const filterArchivValue = document.getElementById("filterArchiv").value;
-    const sortierung = document.getElementById("sortierung").value;
-
-    let currentViewIdeen = [...fullIdeen]; // Kopie für Filterung/Sortierung der Ansicht
-
-    if(filterKategorie) currentViewIdeen = currentViewIdeen.filter(i => i.kategorie === filterKategorie);
-    if(filterMandantValue) currentViewIdeen = currentViewIdeen.filter(i => (i.mandantennummer||"").toLowerCase() === filterMandantValue.toLowerCase());
-     if (filterArchivValue === "nicht_erledigt") {
-         currentViewIdeen = currentViewIdeen.filter(i => !(i.erledigt || false));
-     } else if (filterArchivValue === "erledigt") {
-         currentViewIdeen = currentViewIdeen.filter(i => (i.erledigt || false));
-     }
-    currentViewIdeen.sort((a,b)=>{
-        if(sortierung==="prio"){
-            const p={"Hoch":3,"Mittel":2,"Niedrig":1};
-            return (p[b.prioritaet]||0) - (p[a.prioritaet]||0);
+    let changed = false;
+    ideen.forEach(idee => {
+        if (!idee.id) {
+            idee.id = generateUUID();
+            changed = true;
         }
-        if(sortierung==="neu"){
-            return new Date(b.timestamp) - new Date(a.timestamp);
+        // Optional: Beschreibungen von Array zu Array von Objekten konvertieren, falls alte Daten nur Strings waren
+        if (Array.isArray(idee.beschreibungen) && idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
+             idee.beschreibungen = idee.beschreibungen.map(text => ({text: text, timestamp: 'Unbekannt'})); // Oder aktuellen Timestamp
+             changed = true; // Markiere als geändert, falls Konvertierung nötig war
+        } else if (!Array.isArray(idee.beschreibungen)) {
+             idee.beschreibungen = []; // Sicherstellen, dass beschreibungen ein Array ist
+             changed = true; // Markiere als geändert, falls Array neu erstellt wurde
         }
-        // sortierung === "alt"
-        return new Date(a.timestamp) - new Date(b.timestamp); // *** Diese Zeile ist jetzt vollständig ***
     });
-
-    const ideenListeDiv = document.getElementById("ideenListe");
-    ideenListeDiv.innerHTML = filteredIdeen.map(idee => {
-        // Verwende die Idee.id für alle Aktionen und die Auswahl
-        const ideeId = idee.id; // Die eindeutige ID der Idee
-
-        const erledigt = idee.erledigt || false;
-        const anzeigeDatum = new Date(idee.timestamp).toLocaleString("de-DE");
-
-        // Verwende ideeId für Action button calls und Checkbox
-        return`<div class="idee${erledigt?' erledigt':''}"><div class="idee-content"><h3><span class="math-inline">\{idee\.text\}</h3\><p\></span>{idee.details||""}</p>${idee.mandantennummer?`<div>Mandantennummer: <b>${idee.mandantennummer}</b></div>`:""}${idee.firmenname?`<div>Firmenname: <b>${idee.firmenname}</b></div>`:""}${idee.beschreibungen&&idee.beschreibungen.length?`<div class="beschreibung-historie"><b>Weitere Beschreibungen:</b>${idee.beschreibungen.map(b=>`<div class="beschreibung-item"><div class="beschreibung-text-zeit"><span class="beschreibung-zeit"><span class="math-inline">\{b\.timestamp\}</span\></span>{b.text}</div><button class="edit-beschreibung-btn" onclick="bearbeiteEinzelneBeschreibung('<span class="math-inline">\{ideeId\}', '</span>{b.timestamp}')">✏️</button></div>`).join("")}</div>`:""}<small>${idee.kategorie} | ${idee.prioritaet||"Keine"} | <span class="math-inline">\{anzeigeDatum\}</small\></span>{idee.dateien?.map(file=>`<a class="datei-link" href="${file.link||file.data}" target="_blank">${file.link?'🌐':'📎'} ${file.name}</a>${file.link?'<div class="datei-info">OneDrive-Link</div>':`<div class="datei-info">Pfad: <i>${file.pfad||file.name}</i></div>`}${file.type?.startsWith("image/")?`<img src="${file.link||file.data}" style="max-width:150px;">`:""}${file.type==="application/pdf"?`<iframe src="${file.link||file.data}" style="width:150px;height:100px;"></iframe>`:""}`).join("")}<div class="idee-actions"><button onclick="verschiebeIdee('<span class="math-inline">\{ideeId\}',\-1\)"\>⬆️</button\><button onclick\="verschiebeIdee\('</span>{ideeId}',1)">⬇️</button><button onclick="bearbeiteIdee('<span class="math-inline">\{ideeId\}'\)"\>✏️</button\><button onclick\="toggleErledigt\('</span>{ideeId}')"><span class="math-inline">\{erledigt?"↩️"\:"✔️"\}</button\><button onclick\="loescheIdee\('</span>{ideeId}')">🗑️</button><button onclick="zeigeBeschreibungDialog('<span class="math-inline">\{ideeId\}'\)"\>\+ Beschreibung</button\></div\></div\><input type\="checkbox" class\="idee\-checkbox" onchange\="toggleAuswahl\('</span>{ideeId}',this)" ${ausgewaehlt.includes(ideeId)?"checked":""}></div>`;
-    }).join("");
-
-    // Das Bearbeitungsformular schließen, wenn die bearbeitete Idee durch Filter unsichtbar wird
-    if (bearbeiteId !== null) {
-        const ideeInBearbeitungIstNochSichtbar = filteredIdeen.some(idee => idee.id === bearbeiteId);
-        if (!ideeInBearbeitungIstNochSichtbar) {
-            abbrechenBearbeiten(); // Bricht ab, wenn bearbeitete Idee nicht mehr in gefilterter Liste ist
-        }
-    }
-    // Das Beschreibungs-Dialog schließen, wenn die Idee durch Filter unsichtbar wird
-    if (beschreibungFuerId !== null) {
-         const ideeFuerBeschreibungIstNochSichtbar = filteredIdeen.some(idee => idee.id === beschreibungFuerId);
-         if (!ideeFuerBeschreibungIstNochSichtbar) {
-              beschreibungAbbrechen(); // Bricht ab, wenn Idee nicht mehr in gefilterter Liste ist
-         }
-    }
-}
-
-// Geändert: Kann nun auch zum Bearbeiten verwendet werden (mit optionalem descTimestamp)
-function zeigeBeschreibungDialog(ideeId, descTimestamp = null){
-    beschreibungFuerId = ideeId; // Speichern der Idee-ID
-    beschreibungZuBearbeitenderTimestamp = descTimestamp; // Speichern des Timestamps (null beim Hinzufügen)
-
-    const beschreibungTextarea = document.getElementById("beschreibungText");
-    // const dialogTitel = document.getElementById("beschreibungDialogTitel"); // Füge diesen Titel im HTML hinzu, falls gewünscht
-
-    if (descTimestamp !== null) {
-         // Bearbeiten einer vorhandenen Beschreibung
-         const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-         const idee = ideen.find(item => item.id === ideeId);
-         const beschreibung = idee?.beschreibungen.find(b => b.timestamp === descTimestamp);
-
-         if (beschreibung) {
-              beschreibungTextarea.value = beschreibung.text;
-              // if (dialogTitel) dialogTitel.textContent = "Beschreibung bearbeiten";
-         } else {
-              zeigeWarnung("Fehler: Beschreibung zum Bearbeiten nicht gefunden.");
-              beschreibungAbbrechen();
-              return;
-         }
-    } else {
-         // Hinzufügen einer neuen Beschreibung
-         beschreibungTextarea.value = "";
-         // if (dialogTitel) dialogTitel.textContent = "Weitere Beschreibung hinzufügen";
-    }
-
-
-    document.getElementById("beschreibungDialog").style.display = "block";
-    beschreibungTextarea.focus();
-    istGespeichert = false;
-}
-
-function beschreibungAbbrechen(){
-    document.getElementById("beschreibungDialog").style.display = "none";
-    beschreibungFuerId = null;
-    beschreibungZuBearbeitenderTimestamp = null; // Zurücksetzen
-    document.getElementById("beschreibungText").value = "";
-}
-
-// Geändert: Behandelt nun Hinzufügen und Bearbeiten
-function beschreibungSpeichern(){
-    const t = document.getElementById("beschreibungText").value.trim();
-    if(!t) return;
-    let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-
-    // Finde die Idee anhand der gespeicherten ID
-    const ideeIndex = ideen.findIndex(item => item.id === beschreibungFuerId);
-
-    if (ideeIndex !== -1) {
-         if (beschreibungZuBearbeitenderTimestamp !== null) {
-              // Bearbeiten einer vorhandenen Beschreibung
-              const beschreibungIndex = ideen[ideeIndex].beschreibungen.findIndex(b => b.timestamp === beschreibungZuBearbeitenderTimestamp);
-              if (beschreibungIndex !== -1) {
-                   ideen[ideeIndex].beschreibungen[beschreibungIndex].text = t; // Text aktualisieren
-                   // Timestamp wird hier nicht geändert, könnte man aber
-              } else {
-                   zeigeWarnung("Fehler: Beschreibungseintrag zum Bearbeiten nicht gefunden.");
-              }
-         } else {
-              // Hinzufügen einer neuen Beschreibung
-              // Generiere einen einzigartigen Timestamp für neue Einträge (wichtig für die Bearbeitungs-ID)
-              const timestamp = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); // ISO String + Zufallsteil
-              if(!ideen[ideeIndex].beschreibungen) ideen[ideeIndex].beschreibungen = [];
-              ideen[ideeIndex].beschreibungen.push({ text: t, timestamp: timestamp }); // Verwende den generierten Timestamp
-         }
-
-         localStorage.setItem("ideen", JSON.stringify(ideen));
-         zeigeIdeen(); // Liste neu rendern
-    } else {
-         zeigeWarnung("Fehler: Idee für Beschreibung nicht gefunden (ID: " + beschreibungFuerId + ").");
-    }
-
-    beschreibungAbbrechen(); // Dialog schließen und Hilfsvariablen zurücksetzen
-    istGespeichert = true;
-}
-
-// Neue Funktion zum Aufruf durch den einzelnen Bearbeiten-Button
-function bearbeiteEinzelneBeschreibung(ideeId, descTimestamp) {
-    // Sicherstellen, dass der Timestamp übergeben wird
-    if (descTimestamp) {
-        zeigeBeschreibungDialog(ideeId, descTimestamp); // Ruft den Dialog im Bearbeitungsmodus auf
-    } else {
-        // Dies sollte nicht passieren, da der Button nur bei bestehenden Beschreibungen erscheint
-        zeigeWarnung("Interner Fehler: Timestamp für Bearbeitung fehlt.");
-    }
-}
-
-
-// Geändert: Nimmt Idee-ID entgegen
-function toggleErledigt(ideeId){
-    let ideen = JSON.parse(localStorage.getItem("ideen")||"[]");
-    const ideeIndex = ideen.findIndex(item => item.id === ideeId);
-
-    if (ideeIndex !== -1) {
-        ideen[ideeIndex].erledigt = !(ideen[ideeIndex].erledigt || false);
+    if (changed) {
         localStorage.setItem("ideen", JSON.stringify(ideen));
-        zeigeIdeen(); // Liste neu rendern (Filter beachten!)
-        istGespeichert = false; // Statusänderung = ungespeichert
     }
-}
-
-// Geändert: Nimmt Idee-ID entgegen
-function bearbeiteIdee(ideeId){
-    const ideen = JSON.parse(localStorage.getItem("ideen")||"[]");
-    const idee = ideen.find(item => item.id === ideeId); // Finde Idee anhand ID
-
-    if (!idee) {
-        zeigeWarnung("Fehler: Idee zum Bearbeiten nicht gefunden (ID: " + ideeId + ").");
-        return;
-    }
-
-    document.getElementById("ideeText").value = idee.text;
-    document.getElementById("ideeDetails").value = idee.details || "";
-    document.getElementById("kategorie").value = idee.kategorie;
-    document.getElementById("mandantennummer").value = idee.mandantennummer || "";
-    document.getElementById("firmenname").value = idee.firmenname || "";
-    prioritaet = idee.prioritaet; // Setze die globale prioritaet Variable
-    setzePrioritaet(idee.prioritaet); // Aktualisiere UI basierend auf der globalen Variable
-
-    bearbeiteId = ideeId; // Speichere die ID der bearbeiteten Idee
-
-    // Dateivorschau beim Bearbeiten anzeigen (URLs für lokale Dateien neu generieren)
-    const dateiVorschauDiv = document.getElementById("dateiVorschau");
-    dateiVorschauDiv.innerHTML = ""; // Leeren
-     if (idee.dateien) {
-         idee.dateien.forEach(file => {
-             const fileUrl = file.link || file.data; // Nutze Link oder lokale URL
-             if (fileUrl) {
-                 dateiVorschauDiv.innerHTML += `<a class="datei-link" href="<span class="math-inline">\{fileUrl\}" target\="\_blank"\></span>{file.link ? '🌐' : '📎'} <span class="math-inline">\{file\.name\}</a\></span>{file.link?'<div class="datei-info">OneDrive-Link</div>':`<div class="datei-info">Pfad: <i>${file.pfad||file.name}</i></div>`}${file.type?.startsWith("image/")?`<img src="${file.link||file.data}" style="max-width:150px;">`:""}${file.type==="application/pdf"?`<iframe src="${file.link||file.data}" style="width:150px;height:100px;"></iframe>`:""}`;
-             }
-         });
-     }
-
-    document.getElementById("speichernBtn").textContent = "💾 Aktualisieren";
-    document.getElementById("abbrechenBtn").style.display = "";
-    istGespeichert = false;
-}
-
-function abbrechenBearbeiten(){
-    bearbeiteId = null; // Bearbeitungs-ID zurücksetzen
-    document.getElementById("ideeText").value = "";
-    document.getElementById("ideeDetails").value = "";
-    document.getElementById("mandantennummer").value = "";
-    document.getElementById("firmenname").value = "";
-    document.getElementById("dateien").value = ""; // Dateifeld leeren
-    document.getElementById("dateiVorschau").innerHTML = ""; // Dateivorschau leeren
-    document.getElementById("speichernBtn").textContent = "💾 Speichern";
-    document.getElementById("abbrechenBtn").style.display = "none";
-    setzePrioritaet(""); // Priorität zurücksetzen (setzt globale Var und UI)
-    istGespeichert = true;
-}
-
-// Geändert: Nimmt Idee-ID entgegen
-function verschiebeIdee(ideeId, richtung){
-    let fullIdeen = JSON.parse(localStorage.getItem("ideen")||"[]");
-    // Finde die aktuell gefilterte und sortierte Liste, um die Position zu bestimmen
-    const filterKategorie = document.getElementById("filterKategorie").value;
-    const filterMandantValue = document.getElementById("filterMandant").value.trim();
-    const filterArchivValue = document.getElementById("filterArchiv").value;
-    const sortierung = document.getElementById("sortierung").value;
-
-    let currentViewIdeen = [...fullIdeen]; // Kopie für Filterung/Sortierung der Ansicht
-
-    if(filterKategorie) currentViewIdeen = currentViewIdeen.filter(i => i.kategorie === filterKategorie);
-    if(filterMandantValue) currentViewIdeen = currentViewIdeen.filter(i => (i.mandantennummer||"").toLowerCase() === filterMandantValue.toLowerCase());
-     if (filterArchivValue === "nicht_erledigt") {
-         currentViewIdeen = currentViewIdeen.filter(i => !(i.erledigt || false));
-     } else if (filterArchivValue === "erledigt") {
-         currentViewIdeen = currentViewIdeen.filter(i => (i.erledigt || false));
-     }
-    currentViewIdeen.sort((a,b)=>{
-        if(sortierung==="prio"){
-            const p={"Hoch":3,"Mittel":2,"Niedrig":1};
-            return (p[b.prioritaet]||0) - (p[a.prioritaet]||0);
-        }
-        if(sortierung==="neu"){
-            return new Date(b.timestamp) - new Date(a.timestamp);
-        }
-        // sortierung === "alt"
-        return new Date(a.timestamp) - new Date(b.timestamp); // *** Diese Zeile ist jetzt vollständig ***
-    });
-
-    const ideenListeDiv = document.getElementById("ideenListe");
-    ideenListeDiv.innerHTML = filteredIdeen.map(idee => {
-        // Verwende die Idee.id für alle Aktionen und die Auswahl
-        const ideeId = idee.id; // Die eindeutige ID der Idee
-
-        const erledigt = idee.erledigt || false;
-        const anzeigeDatum = new Date(idee.timestamp).toLocaleString("de-DE");
-
-        // Verwende ideeId für Action button calls und Checkbox
-        return`<div class="idee${erledigt?' erledigt':''}"><div class="idee-content"><h3><span class="math-inline">\{idee\.text\}</h3\><p\></span>{idee.details||""}</p>${idee.mandantennummer?`<div>Mandantennummer: <b>${idee.mandantennummer}</b></div>`:""}${idee.firmenname?`<div>Firmenname: <b>${idee.firmenname}</b></div>`:""}${idee.beschreibungen&&idee.beschreibungen.length?`<div class="beschreibung-historie"><b>Weitere Beschreibungen:</b>${idee.beschreibungen.map(b=>`<div class="beschreibung-item"><div class="beschreibung-text-zeit"><span class="beschreibung-zeit"><span class="math-inline">\{b\.timestamp\}</span\></span>{b.text}</div><button class="edit-beschreibung-btn" onclick="bearbeiteEinzelneBeschreibung('<span class="math-inline">\{ideeId\}', '</span>{b.timestamp}')">✏️</button></div>`).join("")}</div>`:""}<small>${idee.kategorie} | ${idee.prioritaet||"Keine"} | <span class="math-inline">\{anzeigeDatum\}</small\></span>{idee.dateien?.map(file=>`<a class="datei-link" href="${file.link||file.data}" target="_blank">${file.link?'🌐':'📎'} ${file.name}</a>${file.link?'<div class="datei-info">OneDrive-Link</div>':`<div class="datei-info">Pfad: <i>${file.pfad||file.name}</i></div>`}${file.type?.startsWith("image/")?`<img src="${file.link||file.data}" style="max-width:150px;">`:""}${file.type==="application/pdf"?`<iframe src="${file.link||file.data}" style="width:150px;height:100px;"></iframe>`:""}`).join("")}<div class="idee-actions"><button onclick="verschiebeIdee('<span class="math-inline">\{ideeId\}',\-1\)"\>⬆️</button\><button onclick\="verschiebeIdee\('</span>{ideeId}',1)">⬇️</button><button onclick="bearbeiteIdee('<span class="math-inline">\{ideeId\}'\)"\>✏️</button\><button onclick\="toggleErledigt\('</span>{ideeId}')"><span class="math-inline">\{erledigt?"↩️"\:"✔️"\}</button\><button onclick\="loescheIdee\('</span>{ideeId}')">🗑️</button><button onclick="zeigeBeschreibungDialog('<span class="math-inline">\{ideeId\}'\)"\>\+ Beschreibung</button\></div\></div\><input type\="checkbox" class\="idee\-checkbox" onchange\="toggleAuswahl\('</span>{ideeId}',this)" ${ausgewaehlt.includes(ideeId)?"checked":""}></div>`;
-    }).join("");
-
-    // Das Bearbeitungsformular schließen, wenn die bearbeitete Idee durch Filter unsichtbar wird
-    if (bearbeiteId !== null) {
-        const ideeInBearbeitungIstNochSichtbar = filteredIdeen.some(idee => idee.id === bearbeiteId);
-        if (!ideeInBearbeitungIstNochSichtbar) {
-            abbrechenBearbeiten(); // Bricht ab, wenn bearbeitete Idee nicht mehr in gefilterter Liste ist
-        }
-    }
-    // Das Beschreibungs-Dialog schließen, wenn die Idee durch Filter unsichtbar wird
-    if (beschreibungFuerId !== null) {
-         const ideeFuerBeschreibungIstNochSichtbar = filteredIdeen.some(idee => idee.id === beschreibungFuerId);
-         if (!ideeFuerBeschreibungIstNochSichtbar) {
-              beschreibungAbbrechen(); // Bricht ab, wenn Idee nicht mehr in gefilterter Liste ist
-         }
-    }
-}
-
-// Geändert: Kann nun auch zum Bearbeiten verwendet werden (mit optionalem descTimestamp)
-function zeigeBeschreibungDialog(ideeId, descTimestamp = null){
-    beschreibungFuerId = ideeId; // Speichern der Idee-ID
-    beschreibungZuBearbeitenderTimestamp = descTimestamp; // Speichern des Timestamps (null beim Hinzufügen)
-
-    const beschreibungTextarea = document.getElementById("beschreibungText");
-    // const dialogTitel = document.getElementById("beschreibungDialogTitel"); // Füge diesen Titel im HTML hinzu, falls gewünscht
-
-    if (descTimestamp !== null) {
-         // Bearbeiten einer vorhandenen Beschreibung
-         const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-         const idee = ideen.find(item => item.id === ideeId);
-         const beschreibung = idee?.beschreibungen.find(b => b.timestamp === descTimestamp);
-
-         if (beschreibung) {
-              beschreibungTextarea.value = beschreibung.text;
-              // if (dialogTitel) dialogTitel.textContent = "Beschreibung bearbeiten";
-         } else {
-              zeigeWarnung("Fehler: Beschreibung zum Bearbeiten nicht gefunden.");
-              beschreibungAbbrechen();
-              return;
-         }
-    } else {
-         // Hinzufügen einer neuen Beschreibung
-         beschreibungTextarea.value = "";
-         // if (dialogTitel) dialogTitel.textContent = "Weitere Beschreibung hinzufügen";
-    }
-
-
-    document.getElementById("beschreibungDialog").style.display = "block";
-    beschreibungTextarea.focus();
-    istGespeichert = false;
-}
-
-function beschreibungAbbrechen(){
-    document.getElementById("beschreibungDialog").style.display = "none";
-    beschreibungFuerId = null;
-    beschreibungZuBearbeitenderTimestamp = null; // Zurücksetzen
-    document.getElementById("beschreibungText").value = "";
-}
-
-// Geändert: Behandelt nun Hinzufügen und Bearbeiten
-function beschreibungSpeichern(){
-    const t = document.getElementById("beschreibungText").value.trim();
-    if(!t) return;
-    let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-
-    // Finde die Idee anhand der gespeicherten ID
-    const ideeIndex = ideen.findIndex(item => item.id === beschreibungFuerId);
-
-    if (ideeIndex !== -1) {
-         if (beschreibungZuBearbeitenderTimestamp !== null) {
-              // Bearbeiten einer vorhandenen Beschreibung
-              const beschreibungIndex = ideen[ideeIndex].beschreibungen.findIndex(b => b.timestamp === beschreibungZuBearbeitenderTimestamp);
-              if (beschreibungIndex !== -1) {
-                   ideen[ideeIndex].beschreibungen[beschreibungIndex].text = t; // Text aktualisieren
-                   // Timestamp wird hier nicht geändert, könnte man aber
-              } else {
-                   zeigeWarnung("Fehler: Beschreibungseintrag zum Bearbeiten nicht gefunden.");
-              }
-         } else {
-              // Hinzufügen einer neuen Beschreibung
-              // Generiere einen einzigartigen Timestamp für neue Einträge (wichtig für die Bearbeitungs-ID)
-              const timestamp = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); // ISO String + Zufallsteil
-              if(!ideen[ideeIndex].beschreibungen) ideen[ideeIndex].beschreibungen = [];
-              ideen[ideeIndex].beschreibungen.push({ text: t, timestamp: timestamp }); // Verwende den generierten Timestamp
-         }
-
-         localStorage.setItem("ideen", JSON.stringify(ideen));
-         zeigeIdeen(); // Liste neu rendern
-    } else {
-         zeigeWarnung("Fehler: Idee für Beschreibung nicht gefunden (ID: " + beschreibungFuerId + ").");
-    }
-
-    beschreibungAbbrechen(); // Dialog schließen und Hilfsvariablen zurücksetzen
-    istGespeichert = true;
-}
-
-// Neue Funktion zum Aufruf durch den einzelnen Bearbeiten-Button
-function bearbeiteEinzelneBeschreibung(ideeId, descTimestamp) {
-    // Sicherstellen, dass der Timestamp übergeben wird
-    if (descTimestamp) {
-        zeigeBeschreibungDialog(ideeId, descTimestamp); // Ruft den Dialog im Bearbeitungsmodus auf
-    } else {
-        // Dies sollte nicht passieren, da der Button nur bei bestehenden Beschreibungen erscheint
-        zeigeWarnung("Interner Fehler: Timestamp für Bearbeitung fehlt.");
-    }
+    // Leere die Auswahl beim Start/Laden, da alte Indizes/IDs ungültig sein könnten
+    ausgewaehlt = [];
 }
 
 
-// Geändert: Nimmt Idee-ID entgegen
-function toggleErledigt(ideeId){
-    let ideen = JSON.parse(localStorage.getItem("ideen")||"[]");
-    const ideeIndex = ideen.findIndex(item => item.id === ideeId);
-
-    if (ideeIndex !== -1) {
-        ideen[ideeIndex].erledigt = !(ideen[ideeIndex].erledigt || false);
-        localStorage.setItem("ideen", JSON.stringify(ideen));
-        zeigeIdeen(); // Liste neu rendern (Filter beachten!)
-        istGespeichert = false; // Statusänderung = ungespeichert
-    }
-}
-
-// Geändert: Nimmt Idee-ID entgegen
-function bearbeiteIdee(ideeId){
-    const ideen = JSON.parse(localStorage.getItem("ideen")||"[]");
-    const idee = ideen.find(item => item.id === ideeId); // Finde Idee anhand ID
-
-    if (!idee) {
-        zeigeWarnung("Fehler: Idee zum Bearbeiten nicht gefunden (ID: " + ideeId + ").");
-        return;
-    }
-
-    document.getElementById("ideeText").value = idee.text;
-    document.getElementById("ideeDetails").value = idee.details || "";
-    document.getElementById("kategorie").value = idee.kategorie;
-    document.getElementById("mandantennummer").value = idee.mandantennummer || "";
-    document.getElementById("firmenname").value = idee.firmenname || "";
-    prioritaet = idee.prioritaet; // Setze die globale prioritaet Variable
-    setzePrioritaet(idee.prioritaet); // Aktualisiere UI basierend auf der globalen Variable
-
-    bearbeiteId = ideeId; // Speichere die ID der bearbeiteten Idee
-
-    // Dateivorschau beim Bearbeiten anzeigen (URLs für lokale Dateien neu generieren)
-    const dateiVorschauDiv = document.getElementById("dateiVorschau");
-    dateiVorschauDiv.innerHTML = ""; // Leeren
-     if (idee.dateien) {
-         idee.dateien.forEach(file => {
-             const fileUrl = file.link || file.data; // Nutze Link oder lokale URL
-             if (fileUrl) {
-                 dateiVorschauDiv.innerHTML += `<a class="datei-link" href="<span class="math-inline">\{fileUrl\}" target\="\_blank"\></span>{file.link ? '🌐' : '📎'} <span class="math-inline">\{file\.name\}</a\></span>{file.link?'<div class="datei-info">OneDrive-Link</div>':`<div class="datei-info">Pfad: <i>${file.pfad||file.name}</i></div>`}${file.type?.startsWith("image/")?`<img src="${file.link||file.data}" style="max-width:150px;">`:""}${file.type==="application/pdf"?`<iframe src="${file.link||file.data}" style="width:150px;height:100px;"></iframe>`:""}`;
-             }
-         });
-     }
-
-    document.getElementById("speichernBtn").textContent = "💾 Aktualisieren";
-    document.getElementById("abbrechenBtn").style.display = "";
-    istGespeichert = false;
-}
-
-function abbrechenBearbeiten(){
-    bearbeiteId = null; // Bearbeitungs-ID zurücksetzen
-    document.getElementById("ideeText").value = "";
-    document.getElementById("ideeDetails").value = "";
-    document.getElementById("mandantennummer").value = "";
-    document.getElementById("firmenname").value = "";
-    document.getElementById("dateien").value = ""; // Dateifeld leeren
-    document.getElementById("dateiVorschau").innerHTML = ""; // Dateivorschau leeren
-    document.getElementById("speichernBtn").textContent = "💾 Speichern";
-    document.getElementById("abbrechenBtn").style.display = "none";
-    setzePrioritaet(""); // Priorität zurücksetzen (setzt globale Var und UI)
-    istGespeichert = true;
-}
-
-// Geändert: Nimmt Idee-ID entgegen
-function verschiebeIdee(ideeId, richtung){
-    let fullIdeen = JSON.parse(localStorage.getItem("ideen")||"[]");
-    // Finde die aktuell gefilterte und sortierte Liste, um die Position zu bestimmen
-    const filterKategorie = document.getElementById("filterKategorie").value;
-    const filterMandantValue = document.getElementById("filterMandant").value.trim();
-    const filterArchivValue = document.getElementById("filterArchiv").value;
-    const sortierung = document.getElementById("sortierung").value;
-
-    let currentViewIdeen = [...fullIdeen]; // Kopie für Filterung/Sortierung der Ansicht
-
-    if(filterKategorie) currentViewIdeen = currentViewIdeen.filter(i => i.kategorie === filterKategorie);
-    if(filterMandantValue) currentViewIdeen = currentViewIdeen.filter(i => (i.mandantennummer||"").toLowerCase() === filterMandantValue.toLowerCase());
-     if (filterArchivValue === "nicht_erledigt") {
-         currentViewIdeen = currentViewIdeen.filter(i => !(i.erledigt || false));
-     } else if (filterArchivValue === "erledigt") {
-         currentViewIdeen = currentViewIdeen.filter(i => (i.erledigt || false));
-     }
-    currentViewIdeen.sort((a,b)=>{
-        if(sortierung==="prio"){
-            const p={"Hoch":3,"Mittel":2,"Niedrig":1};
-            return (p[b.prioritaet]||0) - (p[a.prioritaet]||0);
-        }
-        if(sortierung==="neu"){
-            return new Date(b.timestamp) - new Date(a.timestamp);
-        }
-        // sortierung === "alt"
-        return new Date(a.timestamp) - new Date(b.timestamp); // *** Diese Zeile ist jetzt vollständig ***
-    });
-
-    const ideenListeDiv = document.getElementById("ideenListe");
-    ideenListeDiv.innerHTML = filteredIdeen.map(idee => {
-        // Verwende die Idee.id für alle Aktionen und die Auswahl
-        const ideeId = idee.id; // Die eindeutige ID der Idee
-
-        const erledigt = idee.erledigt || false;
-        const anzeigeDatum = new Date(idee.timestamp).toLocaleString("de-DE");
-
-        // Verwende ideeId für Action button calls und Checkbox
-        return`<div class="idee${erledigt?' erledigt':''}"><div class="idee-content"><h3><span class="math-inline">\{idee\.text\}</h3\><p\></span>{idee.details||""}</p>${idee.mandantennummer?`<div>Mandantennummer: <b>${idee.mandantennummer}</b></div>`:""}${idee.firmenname?`<div>Firmenname: <b>${idee.firmenname}</b></div>`:""}${idee.beschreibungen&&idee.beschreibungen.length?`<div class="beschreibung-historie"><b>Weitere Beschreibungen:</b>${idee.beschreibungen.map(b=>`<div class="beschreibung-item"><div class="beschreibung-text-zeit"><span class="beschreibung-zeit"><span class="math-inline">\{b\.timestamp\}</span\></span>{b.text}</div><button class="edit-beschreibung-btn" onclick="bearbeiteEinzelneBeschreibung('<span class="math-inline">\{ideeId\}', '</span>{b.timestamp}')">✏️</button></div>`).join("")}</div>`:""}<small>${idee.kategorie} | ${idee.prioritaet||"Keine"} | <span class="math-inline">\{anzeigeDatum\}</small\></span>{idee.dateien?.map(file=>`<a class="datei-link" href="${file.link||file.data}" target="_blank">${file.link?'🌐':'📎'} ${file.name}</a>${file.link?'<div class="datei-info">OneDrive-Link</div>':`<div class="datei-info">Pfad: <i>${file.pfad||file.name}</i></div>`}${file.type?.startsWith("image/")?`<img src="${file.link||file.data}" style="max-width:150px;">`:""}${file.type==="application/pdf"?`<iframe src="${file.link||file.data}" style="width:150px;height:100px;"></iframe>`:""}`).join("")}<div class="idee-actions"><button onclick="verschiebeIdee('<span class="math-inline">\{ideeId\}',\-1\)"\>⬆️</button\><button onclick\="verschiebeIdee\('</span>{ideeId}',1)">⬇️</button><button onclick="bearbeiteIdee('<span class="math-inline">\{ideeId\}'\)"\>✏️</button\><button onclick\="toggleErledigt\('</span>{ideeId}')"><span class="math-inline">\{erledigt?"↩️"\:"✔️"\}</button\><button onclick\="loescheIdee\('</span>{ideeId}')">🗑️</button><button onclick="zeigeBeschreibungDialog('<span class="math-inline">\{ideeId\}'\)"\>\+ Beschreibung</button\></div\></div\><input type\="checkbox" class\="idee\-checkbox" onchange\="toggleAuswahl\('</span>{ideeId}',this)" ${ausgewaehlt.includes(ideeId)?"checked":""}></div>`;
-    }).join("");
-
-    // Das Bearbeitungsformular schließen, wenn die bearbeitete Idee durch Filter unsichtbar wird
-    if (bearbeiteId !== null) {
-        const ideeInBearbeitungIstNochSichtbar = filteredIdeen.some(idee => idee.id === bearbeiteId);
-        if (!ideeInBearbeitungIstNochSichtbar) {
-            abbrechenBearbeiten(); // Bricht ab, wenn bearbeitete Idee nicht mehr in gefilterter Liste ist
-        }
-    }
-    // Das Beschreibungs-Dialog schließen, wenn die Idee durch Filter unsichtbar wird
-    if (beschreibungFuerId !== null) {
-         const ideeFuerBeschreibungIstNochSichtbar = filteredIdeen.some(idee => idee.id === beschreibungFuerId);
-         if (!ideeFuerBeschreibungIstNochSichtbar) {
-              beschreibungAbbrechen(); // Bricht ab, wenn Idee nicht mehr in gefilterter Liste ist
-         }
-    }
-}
-
-// Geändert: Kann nun auch zum Bearbeiten verwendet werden (mit optionalem descTimestamp)
-function zeigeBeschreibungDialog(ideeId, descTimestamp = null){
-    beschreibungFuerId = ideeId; // Speichern der Idee-ID
-    beschreibungZuBearbeitenderTimestamp = descTimestamp; // Speichern des Timestamps (null beim Hinzufügen)
-
-    const beschreibungTextarea = document.getElementById("beschreibungText");
-    // const dialogTitel = document.getElementById("beschreibungDialogTitel"); // Füge diesen Titel im HTML hinzu, falls gewünscht
-
-    if (descTimestamp !== null) {
-         // Bearbeiten einer vorhandenen Beschreibung
-         const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-         const idee = ideen.find(item => item.id === ideeId);
-         const beschreibung = idee?.beschreibungen.find(b => b.timestamp === descTimestamp);
-
-         if (beschreibung) {
-              beschreibungTextarea.value = beschreibung.text;
-              // if (dialogTitel) dialogTitel.textContent = "Beschreibung bearbeiten";
-         } else {
-              zeigeWarnung("Fehler: Beschreibung zum Bearbeiten nicht gefunden.");
-              beschreibungAbbrechen();
-              return;
-         }
-    } else {
-         // Hinzufügen einer neuen Beschreibung
-         beschreibungTextarea.value = "";
-         // if (dialogTitel) dialogTitel.textContent = "Weitere Beschreibung hinzufügen";
-    }
-
-
-    document.getElementById("beschreibungDialog").style.display = "block";
-    beschreibungTextarea.focus();
-    istGespeichert = false;
-}
-
-function beschreibungAbbrechen(){
-    document.getElementById("beschreibungDialog").style.display = "none";
-    beschreibungFuerId = null;
-    beschreibungZuBearbeitenderTimestamp = null; // Zurücksetzen
-    document.getElementById("beschreibungText").value = "";
-}
-
-// Geändert: Behandelt nun Hinzufügen und Bearbeiten
-function beschreibungSpeichern(){
-    const t = document.getElementById("beschreibungText").value.trim();
-    if(!t) return;
-    let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-
-    // Finde die Idee anhand der gespeicherten ID
-    const ideeIndex = ideen.findIndex(item => item.id === beschreibungFuerId);
-
-    if (ideeIndex !== -1) {
-         if (beschreibungZuBearbeitenderTimestamp !== null) {
-              // Bearbeiten einer vorhandenen Beschreibung
-              const beschreibungIndex = ideen[ideeIndex].beschreibungen.findIndex(b => b.timestamp === beschreibungZuBearbeitenderTimestamp);
-              if (beschreibungIndex !== -1) {
-                   ideen[ideeIndex].beschreibungen[beschreibungIndex].text = t; // Text aktualisieren
-                   // Timestamp wird hier nicht geändert, könnte man aber
-              } else {
-                   zeigeWarnung("Fehler: Beschreibungseintrag zum Bearbeiten nicht gefunden.");
-              }
-         } else {
-              // Hinzufügen einer neuen Beschreibung
-              // Generiere einen einzigartigen Timestamp für neue Einträge (wichtig für die Bearbeitungs-ID)
-              const timestamp = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); // ISO String + Zufallsteil
-              if(!ideen[ideeIndex].beschreibungen) ideen[ideeIndex].beschreibungen = [];
-              ideen[ideeIndex].beschreibungen.push({ text: t, timestamp: timestamp }); // Verwende den generierten Timestamp
-         }
-
-         localStorage.setItem("ideen", JSON.stringify(ideen));
-         zeigeIdeen(); // Liste neu rendern
-    } else {
-         zeigeWarnung("Fehler: Idee für Beschreibung nicht gefunden (ID: " + beschreibungFuerId + ").");
-    }
-
-    beschreibungAbbrechen(); // Dialog schließen und Hilfsvariablen zurücksetzen
-    istGespeichert = true;
-}
-
-// Neue Funktion zum Aufruf durch den einzelnen Bearbeiten-Button
-function bearbeiteEinzelneBeschreibung(ideeId, descTimestamp) {
-    // Sicherstellen, dass der Timestamp übergeben wird
-    if (descTimestamp) {
-        zeigeBeschreibungDialog(ideeId, descTimestamp); // Ruft den Dialog im Bearbeitungsmodus auf
-    } else {
-        // Dies sollte nicht passieren, da der Button nur bei bestehenden Beschreibungen erscheint
-        zeigeWarnung("Interner Fehler: Timestamp für Bearbeitung fehlt.");
-    }
-}
-
-
-// Geändert: Nimmt Idee-ID entgegen
-function toggleErledigt(ideeId){
-    let ideen = JSON.parse(localStorage.getItem("ideen")||"[]");
-    const ideeIndex = ideen.findIndex(item => item.id === ideeId);
-
-    if (ideeIndex !== -1) {
-        ideen[ideeIndex].erledigt = !(ideen[ideeIndex].erledigt || false);
-        localStorage.setItem("ideen", JSON.stringify(ideen));
-        zeigeIdeen(); // Liste neu rendern (Filter beachten!)
-        istGespeichert = false; // Statusänderung = ungespeichert
-    }
-}
-
-// Geändert: Nimmt Idee-ID entgegen
-function bearbeiteIdee(ideeId){
-    const ideen = JSON.parse(localStorage.getItem("ideen")||"[]");
-    const idee = ideen.find(item => item.id === ideeId); // Finde Idee anhand ID
-
-    if (!idee) {
-        zeigeWarnung("Fehler: Idee zum Bearbeiten nicht gefunden (ID: " + ideeId + ").");
-        return;
-    }
-
-    document.getElementById("ideeText").value = idee.text;
-    document.getElementById("ideeDetails").value = idee.details || "";
-    document.getElementById("kategorie").value = idee.kategorie;
-    document.getElementById("mandantennummer").value = idee.mandantennummer || "";
-    document.getElementById("firmenname").value = idee.firmenname || "";
-    prioritaet = idee.prioritaet; // Setze die globale prioritaet Variable
-    setzePrioritaet(idee.prioritaet); // Aktualisiere UI basierend auf der globalen Variable
-
-    bearbeiteId = ideeId; // Speichere die ID der bearbeiteten Idee
-
-    // Dateivorschau beim Bearbeiten anzeigen (URLs für lokale Dateien neu generieren)
-    const dateiVorschauDiv = document.getElementById("dateiVorschau");
-    dateiVorschauDiv.innerHTML = ""; // Leeren
-     if (idee.dateien) {
-         idee.dateien.forEach(file => {
-             const fileUrl = file.link || file.data; // Nutze Link oder lokale URL
-             if (fileUrl) {
-                 dateiVorschauDiv.innerHTML += `<a class="datei-link" href="<span class="math-inline">\{fileUrl\}" target\="\_blank"\></span>{file.link ? '🌐' : '📎'} <span class="math-inline">\{file\.name\}</a\></span>{file.link?'<div class="datei-info">OneDrive-Link</div>':`<div class="datei-info">Pfad: <i>${file.pfad||file.name}</i></div>`}${file.type?.startsWith("image/")?`<img src="${file.link||file.data}" style="max-width:150px;">`:""}${file.type==="application/pdf"?`<iframe src="${file.link||file.data}" style="width:150px;height:100px;"></iframe>`:""}`;
-             }
-         });
-     }
-
-    document.getElementById("speichernBtn").textContent = "💾 Aktualisieren";
-    document.getElementById("abbrechenBtn").style.display = "";
-    istGespeichert = false;
-}
-
-function abbrechenBearbeiten(){
-    bearbeiteId = null; // Bearbeitungs-ID zurücksetzen
-    document.getElementById("ideeText").value = "";
-    document.getElementById("ideeDetails").value = "";
-    document.getElementById("mandantennummer").value = "";
-    document.getElementById("firmenname").value = "";
-    document.getElementById("dateien").value = ""; // Dateifeld leeren
-    document.getElementById("dateiVorschau").innerHTML = ""; // Dateivorschau leeren
-    document.getElementById("speichernBtn").textContent = "💾 Speichern";
-    document.getElementById("abbrechenBtn").style.display = "none";
-    setzePrioritaet(""); // Priorität zurücksetzen (setzt globale Var und UI)
-    istGespeichert = true;
-}
-
-// Geändert: Nimmt Idee-ID entgegen
-function verschiebeIdee(ideeId, richtung){
-    let fullIdeen = JSON.parse(localStorage.getItem("ideen")||"[]");
-    // Finde die aktuell gefilterte und sortierte Liste, um die Position zu bestimmen
-    const filterKategorie = document.getElementById("filterKategorie").value;
-    const filterMandantValue = document.getElementById("filterMandant").value.trim();
-    const filterArchivValue = document.getElementById("filterArchiv").value;
-    const sortierung = document.getElementById("sortierung").value;
-
-    let currentViewIdeen = [...fullIdeen]; // Kopie für Filterung/Sortierung der Ansicht
-
-    if(filterKategorie) currentViewIdeen = currentViewIdeen.filter(i => i.kategorie === filterKategorie);
-    if(filterMandantValue) currentViewIdeen = currentViewIdeen.filter(i => (i.mandantennummer||"").toLowerCase() === filterMandantValue.toLowerCase());
-     if (filterArchivValue === "nicht_erledigt") {
-         currentViewIdeen = currentViewIdeen.filter(i => !(i.erledigt || false));
-     } else if (filterArchivValue === "erledigt") {
-         currentViewIdeen = currentViewIdeen.filter(i => (i.erledigt || false));
-     }
-    currentViewIdeen.sort((a,b)=>{
-        if(sortierung==="prio"){
-            const p={"Hoch":3,"Mittel":2,"Niedrig":1};
-            return (p[b.prioritaet]||0) - (p[a.prioritaet]||0);
-        }
-        if(sortierung==="neu"){
-            return new Date(b.timestamp) - new Date(a.timestamp);
-        }
-        // sortierung === "alt"
-        return new Date(a.timestamp) - new Date(b.timestamp); // *** Diese Zeile ist jetzt vollständig ***
-    });
-
-    const ideenListeDiv = document.getElementById("ideenListe");
-    ideenListeDiv.innerHTML = filteredIdeen.map(idee => {
-        // Verwende die Idee.id für alle Aktionen und die Auswahl
-        const ideeId = idee.id; // Die eindeutige ID der Idee
-
-        const erledigt = idee.erledigt || false;
-        const anzeigeDatum = new Date(idee.timestamp).toLocaleString("de-DE");
-
-        // Verwende ideeId für Action button calls und Checkbox
-        return`<div class="idee${erledigt?' erledigt':''}"><div class="idee-content"><h3><span class="math-inline">\{idee\.text\}</h3\><p\></span>{idee.details||""}</p>${idee.mandantennummer?`<div>Mandantennummer: <b>${idee.mandantennummer}</b></div>`:""}${idee.firmenname?`<div>Firmenname: <b>${idee.firmenname}</b></div>`:""}${idee.beschreibungen&&idee.beschreibungen.length?`<div class="beschreibung-historie"><b>Weitere Beschreibungen:</b>${idee.beschreibungen.map(b=>`<div class="beschreibung-item"><div class="beschreibung-text-zeit"><span class="beschreibung-zeit"><span class="math-inline">\{b\.timestamp\}</span\></span>{b.text}</div><button class="edit-beschreibung-btn" onclick="bearbeiteEinzelneBeschreibung('<span class="math-inline">\{ideeId\}', '</span>{b.timestamp}')">✏️</button></div>`).join("")}</div>`:""}<small>${idee.kategorie} | ${idee.prioritaet||"Keine"} | <span class="math-inline">\{anzeigeDatum\}</small\></span>{idee.dateien?.map(file=>`<a class="datei-link" href="${file.link||file.data}" target="_blank">${file.link?'🌐':'📎'} ${file.name}</a>${file.link?'<div class="datei-info">OneDrive-Link</div>':`<div class="datei-info">Pfad: <i>${file.pfad||file.name}</i></div>`}${file.type?.startsWith("image/")?`<img src="${file.link||file.data}" style="max-width:150px;">`:""}${file.type==="application/pdf"?`<iframe src="${file.link||file.data}" style="width:150px;height:100px;"></iframe>`:""}`).join("")}<div class="idee-actions"><button onclick="verschiebeIdee('<span class="math-inline">\{ideeId\}',\-1\)"\>⬆️</button\><button onclick\="verschiebeIdee\('</span>{ideeId}',1)">⬇️</button><button onclick="bearbeiteIdee('<span class="math-inline">\{ideeId\}'\)"\>✏️</button\><button onclick\="toggleErledigt\('</span>{ideeId}')"><span class="math-inline">\{erledigt?"↩️"\:"✔️"\}</button\><button onclick\="loescheIdee\('</span>{ideeId}')">🗑️</button><button onclick="zeigeBeschreibungDialog('<span class="math-inline">\{ideeId\}'\)"\>\+ Beschreibung</button\></div\></div\><input type\="checkbox" class\="idee\-checkbox" onchange\="toggleAuswahl\('</span>{ideeId}',this)" ${ausgewaehlt.includes(ideeId)?"checked":""}></div>`;
-    }).join("");
-
-    // Das Bearbeitungsformular schließen, wenn die bearbeitete Idee durch Filter unsichtbar wird
-    if (bearbeiteId !== null) {
-        const ideeInBearbeitungIstNochSichtbar = filteredIdeen.some(idee => idee.id === bearbeiteId);
-        if (!ideeInBearbeitungIstNochSichtbar) {
-            abbrechenBearbeiten(); // Bricht ab, wenn bearbeitete Idee nicht mehr in gefilterter Liste ist
-        }
-    }
-    // Das Beschreibungs-Dialog schließen, wenn die Idee durch Filter unsichtbar wird
-    if (beschreibungFuerId !== null) {
-         const ideeFuerBeschreibungIstNochSichtbar = filteredIdeen.some(idee => idee.id === beschreibungFuerId);
-         if (!ideeFuerBeschreibungIstNochSichtbar) {
-              beschreibungAbbrechen(); // Bricht ab, wenn Idee nicht mehr in gefilterter Liste ist
-         }
-    }
-}
-
-// Geändert: Kann nun auch zum Bearbeiten verwendet werden (mit optionalem descTimestamp)
-function zeigeBeschreibungDialog(ideeId, descTimestamp = null){
-    beschreibungFuerId = ideeId; // Speichern der Idee-ID
-    beschreibungZuBearbeitenderTimestamp = descTimestamp; // Speichern des Timestamps (null beim Hinzufügen)
-
-    const beschreibungTextarea = document.getElementById("beschreibungText");
-    // const dialogTitel = document.getElementById("beschreibungDialogTitel"); // Füge diesen Titel im HTML hinzu, falls gewünscht
-
-    if (descTimestamp !== null) {
-         // Bearbeiten einer vorhandenen Beschreibung
-         const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-         const idee = ideen.find(item => item.id === ideeId);
-         const beschreibung = idee?.beschreibungen.find(b => b.timestamp === descTimestamp);
-
-         if (beschreibung) {
-              beschreibungTextarea.value = beschreibung.text;
-              // if (dialogTitel) dialogTitel.textContent = "Beschreibung bearbeiten";
-         } else {
-              zeigeWarnung("Fehler: Beschreibung zum Bearbeiten nicht gefunden.");
-              beschreibungAbbrechen();
-              return;
-         }
-    } else {
-         // Hinzufügen einer neuen Beschreibung
-         beschreibungTextarea.value = "";
-         // if (dialogTitel) dialogTitel.textContent = "Weitere Beschreibung hinzufügen";
-    }
-
-
-    document.getElementById("beschreibungDialog").style.display = "block";
-    beschreibungTextarea.focus();
-    istGespeichert = false;
-}
-
-function beschreibungAbbrechen(){
-    document.getElementById("beschreibungDialog").style.display = "none";
-    beschreibungFuerId = null;
-    beschreibungZuBearbeitenderTimestamp = null; // Zurücksetzen
-    document.getElementById("beschreibungText").value = "";
-}
-
-// Geändert: Behandelt nun Hinzufügen und Bearbeiten
-function beschreibungSpeichern(){
-    const t = document.getElementById("beschreibungText").value.trim();
-    if(!t) return;
-    let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-
-    // Finde die Idee anhand der gespeicherten ID
-    const ideeIndex = ideen.findIndex(item => item.id === beschreibungFuerId);
-
-    if (ideeIndex !== -1) {
-         if (beschreibungZuBearbeitenderTimestamp !== null) {
-              // Bearbeiten einer vorhandenen Beschreibung
-              const beschreibungIndex = ideen[ideeIndex].beschreibungen.findIndex(b => b.timestamp === beschreibungZuBearbeitenderTimestamp);
-              if (beschreibungIndex !== -1) {
-                   ideen[ideeIndex].beschreibungen[beschreibungIndex].text = t; // Text aktualisieren
-                   // Timestamp wird hier nicht geändert, könnte man aber
-              } else {
-                   zeigeWarnung("Fehler: Beschreibungseintrag zum Bearbeiten nicht gefunden.");
-              }
-         } else {
-              // Hinzufügen einer neuen Beschreibung
-              // Generiere einen einzigartigen Timestamp für neue Einträge (wichtig für die Bearbeitungs-ID)
-              const timestamp = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); // ISO String + Zufallsteil
-              if(!ideen[ideeIndex].beschreibungen) ideen[ideeIndex].beschreibungen = [];
-              ideen[ideeIndex].beschreibungen.push({ text: t, timestamp: timestamp }); // Verwende den generierten Timestamp
-         }
-
-         localStorage.setItem("ideen", JSON.stringify(ideen));
-         zeigeIdeen(); // Liste neu rendern
-    } else {
-         zeigeWarnung("Fehler: Idee für Beschreibung nicht gefunden (ID: " + beschreibungFuerId + ").");
-    }
-
-    beschreibungAbbrechen(); // Dialog schließen und Hilfsvariablen zurücksetzen
-    istGespeichert = true;
-}
-
-// Neue Funktion zum Aufruf durch den einzelnen Bearbeiten-Button
-function bearbeiteEinzelneBeschreibung(ideeId, descTimestamp) {
-    // Sicherstellen, dass der Timestamp übergeben wird
-    if (descTimestamp) {
-        zeigeBeschreibungDialog(ideeId, descTimestamp); // Ruft den Dialog im Bearbeitungsmodus auf
-    } else {
-        // Dies sollte nicht passieren, da der Button nur bei bestehenden Beschreibungen erscheint
-        zeigeWarnung("Interner Fehler: Timestamp für Bearbeitung fehlt.");
-    }
-}
-
-
-// Geändert: Nimmt Idee-ID entgegen
-function toggleErledigt(ideeId){
-    let ideen = JSON.parse(localStorage.getItem("ideen")||"[]");
-    const ideeIndex = ideen.findIndex(item => item.id === ideeId);
-
-    if (ideeIndex !== -1) {
-        ideen[ideeIndex].erledigt = !(ideen[ideeIndex].erledigt || false);
-        localStorage.setItem("ideen", JSON.stringify(ideen));
-        zeigeIdeen(); // Liste neu rendern (Filter beachten!)
-        istGespeichert = false; // Statusänderung = ungespeichert
-    }
-}
-
-// Geändert: Nimmt Idee-ID entgegen
-function bearbeiteIdee(ideeId){
-    const ideen = JSON.parse(localStorage.getItem("ideen")||"[]");
-    const idee = ideen.find(item => item.id === ideeId); // Finde Idee anhand ID
-
-    if (!idee) {
-        zeigeWarnung("Fehler: Idee zum Bearbeiten nicht gefunden (ID: " + ideeId + ").");
-        return;
-    }
-
-    document.getElementById("ideeText").value = idee.text;
-    document.getElementById("ideeDetails").value = idee.details || "";
-    document.getElementById("kategorie").value = idee.kategorie;
-    document.getElementById("mandantennummer").value = idee.mandantennummer || "";
-    document.getElementById("firmenname").value = idee.firmenname || "";
-    prioritaet = idee.prioritaet; // Setze die globale prioritaet Variable
-    setzePrioritaet(idee.prioritaet); // Aktualisiere UI basierend auf der globalen Variable
-
-    bearbeiteId = ideeId; // Speichere die ID der bearbeiteten Idee
-
-    // Dateivorschau beim Bearbeiten anzeigen (URLs für lokale Dateien neu generieren)
-    const dateiVorschauDiv = document.getElementById("dateiVorschau");
-    dateiVorschauDiv.innerHTML = ""; // Leeren
-     if (idee.dateien) {
-         idee.dateien.forEach(file => {
-             const fileUrl = file.link || file.data; // Nutze Link oder lokale URL
-             if (fileUrl) {
-                 dateiVorschauDiv.innerHTML += `<a class="datei-link" href="<span class="math-inline">\{fileUrl\}" target\="\_blank"\></span>{file.link ? '🌐' : '📎'} <span class="math-inline">\{file\.name\}</a\></span>{file.link?'<div class="datei-info">OneDrive-Link</div>':`<div class="datei-info">Pfad: <i>${file.pfad||file.name}</i></div>`}${file.type?.startsWith("image/")?`<img src="${file.link||file.data}" style="max-width:150px;">`:""}${file.type==="application/pdf"?`<iframe src="${file.link||file.data}" style="width:150px;height:100px;"></iframe>`:""}`;
-             }
-         });
-     }
-
-    document.getElementById("speichernBtn").textContent = "💾 Aktualisieren";
-    document.getElementById("abbrechenBtn").style.display = "";
-    istGespeichert = false;
-}
-
-function abbrechenBearbeiten(){
-    bearbeiteId = null; // Bearbeitungs-ID zurücksetzen
-    document.getElementById("ideeText").value = "";
-    document.getElementById("ideeDetails").value = "";
-    document.getElementById("mandantennummer").value = "";
-    document.getElementById("firmenname").value = "";
-    document.getElementById("dateien").value = ""; // Dateifeld leeren
-    document.getElementById("dateiVorschau").innerHTML = ""; // Dateivorschau leeren
-    document.getElementById("speichernBtn").textContent = "💾 Speichern";
-    document.getElementById("abbrechenBtn").style.display = "none";
-    setzePrioritaet(""); // Priorität zurücksetzen (setzt globale Var und UI)
-    istGespeichert = true;
-}
-
-// Geändert: Nimmt Idee-ID entgegen
-function verschiebeIdee(ideeId, richtung){
-    let fullIdeen = JSON.parse(localStorage.getItem("ideen")||"[]");
-    // Finde die aktuell gefilterte und sortierte Liste, um die Position zu bestimmen
-    const filterKategorie = document.getElementById("filterKategorie").value;
-    const filterMandantValue = document.getElementById("filterMandant").value.trim();
-    const filterArchivValue = document.getElementById("filterArchiv").value;
-    const sortierung = document.getElementById("sortierung").value;
-
-    let currentViewIdeen = [...fullIdeen]; // Kopie für Filterung/Sortierung der Ansicht
-
-    if(filterKategorie) currentViewIdeen = currentViewIdeen.filter(i => i.kategorie === filterKategorie);
-    if(filterMandantValue) currentViewIdeen = currentViewIdeen.filter(i => (i.mandantennummer||"").toLowerCase() === filterMandantValue.toLowerCase());
-     if (filterArchivValue === "nicht_erledigt") {
-         currentViewIdeen = currentViewIdeen.filter(i => !(i.erledigt || false));
-     } else if (filterArchivValue === "erledigt") {
-         currentViewIdeen = currentViewIdeen.filter(i => (i.erledigt || false));
-     }
-    currentViewIdeen.sort((a,b)=>{
-        if(sortierung==="prio"){
-            const p={"Hoch":3,"Mittel":2,"Niedrig":1};
-            return (p[b.prioritaet]||0) - (p[a.prioritaet]||0);
-        }
-        if(sortierung==="neu"){
-            return new Date(b.timestamp) - new Date(a.timestamp);
-        }
-        // sortierung === "alt"
-        return new Date(a.timestamp) - new Date(b.timestamp); // *** Diese Zeile ist jetzt vollständig ***
-    });
-
-    const ideenListeDiv = document.getElementById("ideenListe");
-    ideenListeDiv.innerHTML = filteredIdeen.map(idee => {
-        // Verwende die Idee.id für alle Aktionen und die Auswahl
-        const ideeId = idee.id; // Die eindeutige ID der Idee
-
-        const erledigt = idee.erledigt || false;
-        const anzeigeDatum = new Date(idee.timestamp).toLocaleString("de-DE");
-
-        // Verwende ideeId für Action button calls und Checkbox
-        return`<div class="idee${
+initialisiereKategorien();
+ensureIdeasHaveIds(); // Sicherstellen, dass alle Ideen IDs haben und Datenformat konsistent ist
+zeigeIdeen();
+pruefeLoginHinweis();
+
+</script>
+</body>
+</html>
