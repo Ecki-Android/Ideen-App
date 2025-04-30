@@ -20,7 +20,8 @@ button{padding:10px 18px;font-size:1em;margin-top:10px;margin-right:8px;border-r
 .idee-content h3,.idee-content p,.idee-content small{max-width:100%;overflow-wrap:break-word;word-break:break-word;font-size:1em;}
 .idee.erledigt .idee-content h3,.idee.erledigt .idee-content p,.idee.erledigt .idee-content small{text-decoration:line-through;color:#888;}
 .beschreibung-historie{margin:8px 0 12px 0;}
-.beschreibung-item{margin:4px 0 4px 0;padding:6px 8px;background:#f8f8f8;border-left:3px solid #bbb;font-size:0.98em;}
+.beschreibung-item{margin:4px 0 4px 0;padding:6px 8px;background:#f8f8f8;border-left:3px solid #bbb;font-size:0.98em; display: flex; justify-content: space-between; align-items: center;} /* Flexbox für Button daneben */
+.beschreibung-text-zeit { flex-grow: 1; margin-right: 10px;} /* Text nimmt Platz ein */
 .beschreibung-zeit{color:#666;font-size:0.9em;margin-bottom:2px;display:block;}
 .beschreibung-eingabe{margin:10px 0;background:#f9f9f9;border-left:3px solid #bbb;padding:8px;}
 .idee-checkbox{margin-left:10px;margin-top:5px;min-width:28px;min-height:28px;}
@@ -38,6 +39,22 @@ button{padding:10px 18px;font-size:1em;margin-top:10px;margin-right:8px;border-r
 .katLoeschBtn{background:#eee;border:1px solid #c00;color:#c00;}
 #preview img{max-width:300px;max-height:200px;display:block;margin-top:8px;border:1px solid #888;}
 #preview iframe{width:300px;height:200px;border:1px solid #888;margin-top:8px;display:block;}
+
+/* CSS für den kleinen Bearbeiten-Button neben der Beschreibung */
+.beschreibung-item .edit-beschreibung-btn {
+    padding: 3px 6px; /* Kleineres Padding */
+    font-size: 0.8em; /* Kleinere Schrift */
+    margin-top: 0; /* Kein Top-Margin */
+    min-width: auto; /* Keine Mindestbreite */
+    width: auto;
+    height: 24px; /* Feste Höhe */
+    line-height: 1; /* Zeilenhöhe anpassen */
+    display: flex; /* Flexbox zum Zentrieren des Symbols */
+    align-items: center; /* Vertikal zentrieren */
+    justify-content: center; /* Horizontal zentrieren */
+}
+
+
 @media (max-width:600px){
 input,select,textarea,button{width:100vw;min-width:0;max-width:100vw;}
 .buttons,.top-actions,.filter-bar{flex-direction:column;gap:0;}
@@ -45,6 +62,10 @@ input,select,textarea,button{width:100vw;min-width:0;max-width:100vw;}
 .idee{flex-direction:column;}
 .idee-checkbox{margin-left:0;margin-top:10px;}
 .idee-content,.idee-actions,.datei-link,.datei-info,.datei-vorschau,.idee-checkbox{max-width:100vw;}
+/* Anpassung für Beschreibungseinträge auf kleinen Bildschirmen */
+.beschreibung-item { flex-direction: column; align-items: flex-start; }
+.beschreibung-text-zeit { margin-right: 0; margin-bottom: 5px; width: 100%; }
+.beschreibung-item .edit-beschreibung-btn { margin-top: 5px; }
 }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -114,9 +135,11 @@ input,select,textarea,button{width:100vw;min-width:0;max-width:100vw;}
 </div>
 <script>
 const msalConfig={auth:{clientId:"ddf69193-7eab-4847-a995-b6c08f0df9ae",authority:"https://login.microsoftonline.com/683748a6-faf7-45ef-9da3-10e903da0b00",knownAuthorities:["login.microsoftonline.com"],redirectUri:"https://ecki-android.github.io"}};
-// bearbeiteIndex speichert nun die ID der bearbeiteten Idee oder null
-// ausgewaehlt speichert nun ein Array von IDs
-let accessToken = null, msalInstance = null, prioritaet = "", bearbeiteId = null, ausgewaehlt = [], fileHandle = null, beschreibungFuerId = null, istGespeichert = true, filterMandantValue = "", standardKategorien = ["Aufgaben","Projekte","Privat","Arbeit","Später"];
+// bearbeiteId speichert die ID der bearbeiteten Idee oder null
+// ausgewaehlt speichert ein Array von IDs
+// beschreibungFuerId speichert die ID der Idee, deren Beschreibung hinzugefügt/bearbeitet wird
+// beschreibungZuBearbeitenderTimestamp speichert den Timestamp der Beschreibung, die bearbeitet wird (oder null beim Hinzufügen)
+let accessToken = null, msalInstance = null, prioritaet = "", bearbeiteId = null, ausgewaehlt = [], fileHandle = null, beschreibungFuerId = null, beschreibungZuBearbeitenderTimestamp = null, istGespeichert = true, filterMandantValue = "", standardKategorien = ["Aufgaben","Projekte","Privat","Arbeit","Später"];
 
 // Funktion zur Generierung einer einfachen UUID v4
 function generateUUID() {
@@ -320,7 +343,7 @@ function zeigeIdeen(){
         const anzeigeDatum = new Date(idee.timestamp).toLocaleString("de-DE");
 
         // Verwende ideeId für Action button calls und Checkbox
-        return`<div class="idee${erledigt?' erledigt':''}"><div class="idee-content"><h3>${idee.text}</h3><p>${idee.details||""}</p>${idee.mandantennummer?`<div>Mandantennummer: <b>${idee.mandantennummer}</b></div>`:""}${idee.firmenname?`<div>Firmenname: <b>${idee.firmenname}</b></div>`:""}${idee.beschreibungen&&idee.beschreibungen.length?`<div class="beschreibung-historie"><b>Weitere Beschreibungen:</b>${idee.beschreibungen.map(b=>`<div class="beschreibung-item"><span class="beschreibung-zeit">${b.timestamp}</span>${b.text}</div>`).join("")}</div>`:""}<small>${idee.kategorie} | ${idee.prioritaet||"Keine"} | ${anzeigeDatum}</small>${idee.dateien?.map(file=>`<a class="datei-link" href="${file.link||file.data}" target="_blank">${file.link?'🌐':'📎'} ${file.name}</a>${file.link?'<div class="datei-info">OneDrive-Link</div>':`<div class="datei-info">Pfad: <i>${file.pfad||file.name}</i></div>`}${file.type?.startsWith("image/")?`<img src="${file.link||file.data}" style="max-width:150px;">`:""}${file.type==="application/pdf"?`<iframe src="${file.link||file.data}" style="width:150px;height:100px;"></iframe>`:""}`).join("")}<div class="idee-actions"><button onclick="verschiebeIdee('${ideeId}',-1)">⬆️</button><button onclick="verschiebeIdee('${ideeId}',1)">⬇️</button><button onclick="bearbeiteIdee('${ideeId}')">✏️</button><button onclick="toggleErledigt('${ideeId}')">${erledigt?"↩️":"✔️"}</button><button onclick="loescheIdee('${ideeId}')">🗑️</button><button onclick="zeigeBeschreibungDialog('${ideeId}')">+ Beschreibung</button></div></div><input type="checkbox" class="idee-checkbox" onchange="toggleAuswahl('${ideeId}',this)" ${ausgewaehlt.includes(ideeId)?"checked":""}></div>`;
+        return`<div class="idee${erledigt?' erledigt':''}"><div class="idee-content"><h3>${idee.text}</h3><p>${idee.details||""}</p>${idee.mandantennummer?`<div>Mandantennummer: <b>${idee.mandantennummer}</b></div>`:""}${idee.firmenname?`<div>Firmenname: <b>${idee.firmenname}</b></div>`:""}${idee.beschreibungen&&idee.beschreibungen.length?`<div class="beschreibung-historie"><b>Weitere Beschreibungen:</b>${idee.beschreibungen.map(b=>`<div class="beschreibung-item"><div class="beschreibung-text-zeit"><span class="beschreibung-zeit">${b.timestamp}</span>${b.text}</div><button class="edit-beschreibung-btn" onclick="bearbeiteEinzelneBeschreibung('${ideeId}', '${b.timestamp}')">✏️</button></div>`).join("")}</div>`:""}<small>${idee.kategorie} | ${idee.prioritaet||"Keine"} | ${anzeigeDatum}</small>${idee.dateien?.map(file=>`<a class="datei-link" href="${file.link||file.data}" target="_blank">${file.link?'🌐':'📎'} ${file.name}</a>${file.link?'<div class="datei-info">OneDrive-Link</div>':`<div class="datei-info">Pfad: <i>${file.pfad||file.name}</i></div>`}${file.type?.startsWith("image/")?`<img src="${file.link||file.data}" style="max-width:150px;">`:""}${file.type==="application/pdf"?`<iframe src="${file.link||file.data}" style="width:150px;height:100px;"></iframe>`:""}`).join("")}<div class="idee-actions"><button onclick="verschiebeIdee('${ideeId}',-1)">⬆️</button><button onclick="verschiebeIdee('${ideeId}',1)">⬇️</button><button onclick="bearbeiteIdee('${ideeId}')">✏️</button><button onclick="toggleErledigt('${ideeId}')">${erledigt?"↩️":"✔️"}</button><button onclick="loescheIdee('${ideeId}')">🗑️</button><button onclick="zeigeBeschreibungDialog('${ideeId}')">+ Beschreibung</button></div></div><input type="checkbox" class="idee-checkbox" onchange="toggleAuswahl('${ideeId}',this)" ${ausgewaehlt.includes(ideeId)?"checked":""}></div>`;
     }).join("");
 
     // Das Bearbeitungsformular schließen, wenn die bearbeitete Idee durch Filter unsichtbar wird
@@ -330,45 +353,97 @@ function zeigeIdeen(){
             abbrechenBearbeiten(); // Bricht ab, wenn bearbeitete Idee nicht mehr in gefilterter Liste ist
         }
     }
+    // Das Beschreibungs-Dialog schließen, wenn die Idee durch Filter unsichtbar wird
+    if (beschreibungFuerId !== null) {
+         const ideeFuerBeschreibungIstNochSichtbar = filteredIdeen.some(idee => idee.id === beschreibungFuerId);
+         if (!ideeFuerBeschreibungIstNochSichtbar) {
+              beschreibungAbbrechen(); // Bricht ab, wenn Idee nicht mehr in gefilterter Liste ist
+         }
+    }
 }
 
-// Geändert: Nimmt Idee-ID entgegen
-function zeigeBeschreibungDialog(ideeId){
+// Geändert: Kann nun auch zum Bearbeiten verwendet werden (mit optionalem descTimestamp)
+function zeigeBeschreibungDialog(ideeId, descTimestamp = null){
     beschreibungFuerId = ideeId; // Speichern der Idee-ID
+    beschreibungZuBearbeitenderTimestamp = descTimestamp; // Speichern des Timestamps (null beim Hinzufügen)
+
+    const beschreibungTextarea = document.getElementById("beschreibungText");
+    const dialogTitel = document.getElementById("beschreibungDialogTitel"); // Füge diesen Titel im HTML hinzu, falls gewünscht
+
+    if (descTimestamp !== null) {
+         // Bearbeiten einer vorhandenen Beschreibung
+         const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+         const idee = ideen.find(item => item.id === ideeId);
+         const beschreibung = idee?.beschreibungen.find(b => b.timestamp === descTimestamp);
+
+         if (beschreibung) {
+              beschreibungTextarea.value = beschreibung.text;
+              // if (dialogTitel) dialogTitel.textContent = "Beschreibung bearbeiten";
+         } else {
+              zeigeWarnung("Fehler: Beschreibung zum Bearbeiten nicht gefunden.");
+              beschreibungAbbrechen();
+              return;
+         }
+    } else {
+         // Hinzufügen einer neuen Beschreibung
+         beschreibungTextarea.value = "";
+         // if (dialogTitel) dialogTitel.textContent = "Weitere Beschreibung hinzufügen";
+    }
+
+
     document.getElementById("beschreibungDialog").style.display = "block";
-    document.getElementById("beschreibungText").value = "";
-    document.getElementById("beschreibungText").focus();
+    beschreibungTextarea.focus();
     istGespeichert = false;
 }
 
 function beschreibungAbbrechen(){
     document.getElementById("beschreibungDialog").style.display = "none";
     beschreibungFuerId = null;
+    beschreibungZuBearbeitenderTimestamp = null; // Zurücksetzen
     document.getElementById("beschreibungText").value = "";
 }
 
-// Geändert: Verwendet beschreibungFuerId
+// Geändert: Behandelt nun Hinzufügen und Bearbeiten
 function beschreibungSpeichern(){
     const t = document.getElementById("beschreibungText").value.trim();
     if(!t) return;
-    const timestamp = new Date().toLocaleString("de-DE");
     let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
 
     // Finde die Idee anhand der gespeicherten ID
     const ideeIndex = ideen.findIndex(item => item.id === beschreibungFuerId);
 
     if (ideeIndex !== -1) {
-         if(!ideen[ideeIndex].beschreibungen) ideen[ideeIndex].beschreibungen = [];
-         ideen[ideeIndex].beschreibungen.push({ text: t, timestamp: timestamp });
+         if (beschreibungZuBearbeitenderTimestamp !== null) {
+              // Bearbeiten einer vorhandenen Beschreibung
+              const beschreibungIndex = ideen[ideeIndex].beschreibungen.findIndex(b => b.timestamp === beschreibungZuBearbeitenderTimestamp);
+              if (beschreibungIndex !== -1) {
+                   ideen[ideeIndex].beschreibungen[beschreibungIndex].text = t; // Text aktualisieren
+                   // Timestamp wird hier nicht geändert, könnte man aber
+              } else {
+                   zeigeWarnung("Fehler: Beschreibungseintrag zum Bearbeiten nicht gefunden.");
+              }
+         } else {
+              // Hinzufügen einer neuen Beschreibung
+              const timestamp = new Date().toLocaleString("de-DE"); // Neuer Timestamp
+              if(!ideen[ideeIndex].beschreibungen) ideen[ideeIndex].beschreibungen = [];
+              ideen[ideeIndex].beschreibungen.push({ text: t, timestamp: timestamp });
+         }
+
          localStorage.setItem("ideen", JSON.stringify(ideen));
          zeigeIdeen(); // Liste neu rendern
     } else {
          zeigeWarnung("Fehler: Idee für Beschreibung nicht gefunden (ID: " + beschreibungFuerId + ").");
     }
 
-    beschreibungAbbrechen();
+    beschreibungAbbrechen(); // Dialog schließen und Hilfsvariablen zurücksetzen
     istGespeichert = true;
 }
+
+// Neue Funktion zum Aufruf durch den einzelnen Bearbeiten-Button
+function bearbeiteEinzelneBeschreibung(ideeId, descTimestamp) {
+    zeigeBeschreibungDialog(ideeId, descTimestamp); // Ruft den Dialog im Bearbeitungsmodus auf
+}
+
 
 // Geändert: Nimmt Idee-ID entgegen
 function toggleErledigt(ideeId){
@@ -410,7 +485,7 @@ function bearbeiteIdee(ideeId){
          idee.dateien.forEach(file => {
              const fileUrl = file.link || file.data; // Nutze Link oder lokale URL
              if (fileUrl) {
-                 dateiVorschauDiv.innerHTML += `<a class="datei-link" href="${fileUrl}" target="_blank">${file.link ? '🌐' : '📎'} ${file.name}</a>${file.link ? '<div class="datei-info">OneDrive-Link</div>' : (file.pfad ? `<div class="datei-info">Pfad: <i>${file.pfad}</i></div>` : '')}${file.type?.startsWith("image/") ? `<img src="${fileUrl}" style="max-width:150px;">`:""}${file.type==="application/pdf"?`<iframe src="${fileUrl}" style="width:150px;height:100px;"></iframe>`:""}`;
+                 dateiVorschauDiv.innerHTML += `<a class="datei-link" href="${fileUrl}" target="_blank">${file.link ? '🌐' : '📎'} ${file.name}</a>${file.link ? '<div class="datei-info">OneDrive-Link</div>' : (file.pfad ? `<div class="datei-info">Pfad: <i>${file.pfad}</i></div>` : '')}${file.type?.startsWith("image/") ? `<img src="${file.link||file.data}" style="max-width:150px;">`:""}${file.type==="application/pdf"?`<iframe src="${file.link||file.data}" style="width:150px;height:100px;"></iframe>`:""}`;
              }
          });
      }
@@ -454,7 +529,7 @@ function verschiebeIdee(ideeId, richtung){
      }
     currentViewIdeen.sort((a,b)=>{
         if(sortierung==="prio"){const p={"Hoch":3,"Mittel":2,"Niedrig":1};return (p[b.prioritaet]||0) - (p[a.prioritaet]||0);}
-        if(sortierung==="neu"){return new Date(b.timestamp) - new Date(a.timestamp);}
+        if(sortierung==="neu"){return new Date(b.timestamp) - new Date(a.timestamp); }
         return new Date(a.timestamp) - new Date(b.timestamp);
     });
 
@@ -497,6 +572,9 @@ function loescheIdee(ideeId){
         if (bearbeiteId === ideeId) { // Prüfe, ob die gelöschte Idee gerade bearbeitet wird
              abbrechenBearbeiten(); // Bearbeitungsformular leeren/schließen
         }
+        if (beschreibungFuerId === ideeId) { // Prüfe, ob die gelöschte Idee gerade Beschreibungen bearbeitet/hinzufügt
+            beschreibungAbbrechen(); // Beschreibungs-Dialog schließen
+        }
         zeigeIdeen(); // Liste neu rendern
         istGespeichert = true;
     } else {
@@ -535,6 +613,11 @@ function ausgewaehlteNotizenLoeschen(){
     if (bearbeiteId !== null && ausgewaehlt.includes(bearbeiteId)) {
         abbrechenBearbeiten();
     }
+     // Prüfe, ob die Idee, deren Beschreibung bearbeitet wird, gelöscht wurde
+     if (beschreibungFuerId !== null && ausgewaehlt.includes(beschreibungFuerId)) {
+          beschreibungAbbrechen();
+     }
+
 
     ausgewaehlt = []; // Auswahl leeren
     zeigeIdeen(); // Liste neu rendern
@@ -547,6 +630,7 @@ function alleIdeenLoeschen(){
     ausgewaehlt=[]; // Auswahl leeren
     bearbeiteId = null; // Bearbeitungsmodus beenden
     beschreibungFuerId = null; // Beschreibungseingabe beenden
+    beschreibungZuBearbeitenderTimestamp = null; // Bearbeitungsstatus Beschreibung zurücksetzen
     zeigeIdeen(); // Liste neu rendern
     abbrechenBearbeiten(); // Stellt sicher, dass das Formular geleert wird
     istGespeichert=true;
