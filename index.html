@@ -921,6 +921,45 @@ async function loadFromOneDrive(){
          zeigeWarnung("Fehler beim Laden von OneDrive: " + e.message); // Bleibt warning
      }
 }
+
+// uploadToOneDrive braucht KEINE Anpassung, da es Anhänge sind, nicht die Hauptdatei.
+
+// FUNCTIONS FOR LOCAL FILE SAVE/LOAD (should be below the OneDrive functions in Block 7)
+async function speichereIdeenAlsDatei(){try{const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");if(window.showSaveFilePicker){fileHandle=await window.showSaveFilePicker({suggestedName:"ideen.json",types:[{description:"JSON-Dateien",accept:{"application/json":[".json"]}}]});const writable=await fileHandle.createWritable();await writable.write(JSON.stringify(ideen,null,2));await writable.close();zeigeWarnung("Datei erfolgreich lokal gespeichert!", 'success');istGespeichert=true;}else{const blob=new Blob([JSON.stringify(ideen)],{type:"application/json"});const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download="ideen.json";link.click();zeigeWarnung("Datei erfolgreich lokal gespeichert!", 'success');istGespeichert=true;}}catch(e){if(e.name!=="AbortError")zeigeWarnung("Fehler beim lokalen Speichern: "+e.message);}} // Angepasste Meldungen
+async function ladeIdeenAusDatei(){try{let file;if(window.showOpenFilePicker){[fileHandle]=await window.showOpenFilePicker({types:[{description:"JSON-Dateien",accept:{"application/json":[".json"]}}]});file=await fileHandle.getFile();}else{const input=document.createElement('input');input.type='file';input.accept='.json';input.onchange=e=>file=e.target.files[0];input.click();await new Promise(resolve=>input.onchange=resolve);}const content=await file.text();const ideen=JSON.parse(content);
+        // Optional: Prüfen, ob IDs existieren und ggf. generieren für alte Einträge ohne ID nach dem Laden
+         let changed = false; // Variable hinzugefügt
+         if (Array.isArray(ideen)) {
+              ideen.forEach(idee => {
+                   if (!idee.id) {
+                        idee.id = generateUUID(); // Füge IDs für alte Einträge hinzu
+                        changed = true;
+                   }
+                   // Optional: Beschreibungen von Array zu Array von Objekten konvertieren, falls alte Daten nur Strings waren
+                   if (Array.isArray(idee.beschreibungen) && idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
+                        idee.beschreibungen = idee.beschreibungen.map(text => ({text: text, timestamp: 'Unbekannt'})); // Oder aktuellen Timestamp
+                        changed = true;
+                   } else if (!Array.isArray(idee.beschreibungen)) {
+                        idee.beschreibungen = []; // Sicherstellen, dass beschreibungen ein Array ist
+                        changed = true;
+                   }
+              });
+              ausgewaehlt = []; // Auswahl leeren nach Laden aus Datei, da Indizes/IDs sich ändern könnten
+         } else {
+             throw new Error("Ungültiges Dateiformat");
+         }
+         // Speichere geänderte Ideen zurück, falls Migration/IDs hinzugefügt wurden
+         if (changed) {
+              localStorage.setItem("ideen", JSON.stringify(ideen)); // Speichern der migrierten Daten
+         } else {
+            // Wenn keine Änderungen durch Migration, einfach nur die neuen Daten setzen (wird unten gemacht)
+            // localStorage.setItem("ideen", JSON.stringify(ideen)); // Nicht nötig hier, wird unten gemacht
+         }
+
+         localStorage.setItem("ideen", JSON.stringify(ideen)); // Daten immer in localStorage speichern
+         zeigeIdeen(); // Ideen anzeigen
+         zeigeWarnung("Datei erfolgreich lokal geladen!", 'success'); // Erfolgsmeldung
+         istGespeichert=true;}catch(e){if(e.name!=="AbortError")zeigeWarnung("Fehler beim lokalen Laden: "+e.message);}} // Angepasste Meldungen
 document.getElementById("ideeText").addEventListener("input",()=>{istGespeichert=false;});
 document.getElementById("ideeDetails").addEventListener("input",()=>{istGespeichert=false;});
 document.getElementById("mandantennummer").addEventListener("input",()=>{istGespeichert=false;});
