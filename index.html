@@ -122,12 +122,14 @@ input,select,textarea,button{width:100vw;min-width:0;max-width:100vw;}
 <textarea id="ideeDetails" placeholder="Beschreibung" rows="3"></textarea>
 <input type="text" id="mandantennummer" placeholder="Mandantennummer (optional)" />
 <input type="text" id="firmenname" placeholder="Firmenname (optional)" />
+
 <select id="kategorie"></select>
 <input type="text" id="neueKategorie" placeholder="Neue Kategorie" />
 <button onclick="neueKategorieHinzufuegen()">+ Kategorie</button>
 <button class="katLoeschBtn" onclick="kategorieLoeschen()">Kategorie löschen</button>
 <span id="katHinweis" class="katHinweis" style="display:none;"></span>
-<div class="buttons">
+
+<select id="benutzer"></select> <input type="text" id="neuerBenutzer" placeholder="Neuer Benutzer" /> <button onclick="neuenBenutzerHinzufuegen()">+ Benutzer</button> <button class="benutzerLoeschBtn" onclick="benutzerLoeschen()">Benutzer löschen</button> <span id="benutzerHinweis" class="benutzerHinweis" style="display:none;"></span> <div class="buttons">
 <button id="prioHoch" class="prio-btn" onclick="setzePrioritaet('Hoch')">🔴 Hoch</button>
 <button id="prioMittel" class="prio-btn" onclick="setzePrioritaet('Mittel')">🟠 Mittel</button>
 <button id="prioNiedrig" class="prio-btn" onclick="setzePrioritaet('Niedrig')">🟢 Niedrig</button>
@@ -137,6 +139,7 @@ input,select,textarea,button{width:100vw;min-width:0;max-width:100vw;}
 <div id="preview"></div>
 <button id="speichernBtn" onclick="speichereIdee()">💾 Speichern</button>
 <button id="abbrechenBtn" onclick="abbrechenBearbeiten()" style="display:none;">Abbrechen</button>
+
 <div class="filter-bar">
 <label>Filter:</label>
 <select id="filterKategorie" onchange="zeigeIdeen()">
@@ -148,9 +151,12 @@ input,select,textarea,button{width:100vw;min-width:0;max-width:100vw;}
 <option value="erledigt">Nur erledigt</option>
 <option value="alle">Alle anzeigen</option>
 </select>
+<label>Benutzer:</label>
+<select id="filterBenutzer" onchange="filterNachBenutzer()">
+    </select>
 <label>Sortierung:</label>
 <select id="sortierung" onchange="zeigeIdeen()">
-<option value="neu">Neueste zuerst</option>
+<option value="standard">Standard</option> <option value="neu">Neueste zuerst</option>
 <option value="alt">Älteste zuerst</option>
 <option value="prio">Nach Priorität</option>
 </select>
@@ -158,6 +164,7 @@ input,select,textarea,button{width:100vw;min-width:0;max-width:100vw;}
 <button onclick="filterNachMandant()">Nach Mandant filtern</button>
 <button onclick="filterMandantZuruecksetzen()">Mandantenfilter zurücksetzen</button>
 </div>
+
 <div class="top-actions">
 <button onclick="exportiereAlsPDF()">📝 PDF</button>
 <button onclick="exportiereAlsText()">📄 Text</button>
@@ -173,12 +180,15 @@ input,select,textarea,button{width:100vw;min-width:0;max-width:100vw;}
 <button onclick="handleLogin()" style="background:#e6f4ff;border-color:#0067b8;color:#0067b8;">🔑 Mit Microsoft anmelden</button>
 <button onclick="handleLogout()" style="background:#ffe0e0;border-color:#c00;color:#c00;">🔒 Abmelden</button>
 </div>
+
 <div id="ideenListe"></div>
+
 <div id="beschreibungDialog" style="display:none;" class="beschreibung-eingabe">
 <textarea id="beschreibungText" placeholder="Weitere Beschreibung" rows="2"></textarea>
 <button onclick="beschreibungSpeichern()">💾 Speichern</button>
 <button onclick="beschreibungAbbrechen()">❌ Abbrechen</button>
 </div>
+
 <script>
 const msalConfig={auth:{clientId:"ddf69193-7eab-4847-a995-b6c08f0df9ae",authority:"https://login.microsoftonline.com/683748a6-faf7-45ef-9da3-10e903da0b00",knownAuthorities:["login.microsoftonline.com"],redirectUri:"https://ecki-android.github.io"}};
 // bearbeiteId speichert die ID der bearbeiteten Idee oder null
@@ -223,30 +233,65 @@ function zeigeWarnung(msg, type = 'warning'){
     setTimeout(()=>w.style.display="none",6000); // Alle Meldungen verschwinden nach 6 Sekunden
 }
 
-// Angepasste Initialisierung für Kategorien (wird später in Block 8 aufgerufen)
-function initialisiereKategorien(){const k=JSON.parse(localStorage.getItem("kategorien"))||standardKategorien;const s=document.getElementById("kategorie");s.innerHTML=k.map(n=>`<option>${n}</option>`).join("");const f=document.getElementById("filterKategorie");f.innerHTML='<option value="" class="filter-option-alle">🎯 Alle Ideen</option>';k.forEach(n=>f.add(new Option(n,n)));}
+// Funktion zum Initialisieren der Kategorienliste und Dropdowns
+function initialisiereKategorien(){
+    const k=JSON.parse(localStorage.getItem("kategorien"))||standardKategorien;
+    // Sicherstellen, dass die Kategorienliste immer ein Array ist
+    if (!Array.isArray(k)) {
+        kategorien = standardKategorien;
+        localStorage.setItem("kategorien", JSON.stringify(kategorien));
+    } else {
+        kategorien = k; // Globale Variable (falls benötigt) aktualisieren
+    }
 
-// >>> PLATZHALTER FÜR initialisiereBenutzer - WIRD SPÄTER IMPLEMENTIERT <<<
-function initialisiereBenutzer() {
-    // Dieser Code wird später hinzugefügt, um die Benutzerliste zu laden und Dropdowns zu füllen
+
+    const s=document.getElementById("kategorie"); // Das Dropdown im Eingabeformular
+    s.innerHTML='<option value="">-- Kategorie auswählen --</option>'; // Standardoption hinzugefügt
+    kategorien.forEach(n=>s.add(new Option(n,n)));
+
+    const f=document.getElementById("filterKategorie"); // Das Dropdown im Filterbereich
+    f.innerHTML='<option value="" class="filter-option-alle">🎯 Alle Ideen</option>'; // Standardfilteroption
+    kategorien.forEach(n=>f.add(new Option(n,n)));
 }
-// >>> ENDE PLATZHALTER <<<
+
+// Funktion zum Initialisieren der Benutzerliste und Dropdowns
+function initialisiereBenutzer() {
+    benutzerliste = JSON.parse(localStorage.getItem("benutzerliste") || "[]");
+    // Stellen Sie sicher, dass die Benutzerliste immer ein Array ist
+    if (!Array.isArray(benutzerliste)) {
+         benutzerliste = [];
+         localStorage.setItem("benutzerliste", "[]");
+    }
+
+     // Füge eine leere Option für den Benutzer-Select hinzu
+    const benutzerSelect = document.getElementById("benutzer"); // Das Dropdown im Eingabeformular
+    benutzerSelect.innerHTML = '<option value="">-- Benutzer auswählen --</option>'; // Standardoption
+    benutzerliste.forEach(benutzer => {
+        benutzerSelect.add(new Option(benutzer, benutzer));
+    });
+
+     // Füge eine leere Option für den Benutzer-Filter-Select hinzu
+     const filterBenutzerSelect = document.getElementById("filterBenutzer"); // Das Dropdown im Filterbereich
+     filterBenutzerSelect.innerHTML = '<option value="">👤 Alle Benutzer</option>'; // Standardfilteroption
+     benutzerliste.forEach(benutzer => {
+          filterBenutzerSelect.add(new Option(benutzer, benutzer));
+     });
+}
+
 
 function setzePrioritaet(p){prioritaet=p;["prioHoch","prioMittel","prioNiedrig"].forEach(id=>document.getElementById(id).classList.remove("selected"));if(p)document.getElementById(`prio${p}`).classList.add("selected");istGespeichert=false;}
 function filterNachMandant(){filterMandantValue=document.getElementById("filterMandant").value.trim();zeigeIdeen();}
 function filterMandantZuruecksetzen(){filterMandantValue="";document.getElementById("filterMandant").value="";zeigeIdeen();}
 
-// >>> PLATZHALTER FÜR Benutzer-Filter-Funktionen - WERDEN SPÄTER IMPLEMENTIERT <<<
+// Benutzer-Filterfunktionen (Implementierung hier)
 function filterNachBenutzer(){
-    // Dieser Code wird später hinzugefügt, um nach Benutzer zu filtern
-    filterBenutzerValue = document.getElementById("filterBenutzer").value; // Lese Wert aus neuem Filter-Dropdown
+    filterBenutzerValue = document.getElementById("filterBenutzer").value;
     zeigeIdeen();
 }
 function filterBenutzerZuruecksetzen(){
-    // Dieser Code wird später hinzugefügt
-     filterBenutzerValue = "";
-     document.getElementById("filterBenutzer").value = "";
-     zeigeIdeen();
+    filterBenutzerValue = "";
+    document.getElementById("filterBenutzer").value = "";
+    zeigeIdeen();
 }
 function speichereIdee(){
     const text = document.getElementById("ideeText").value.trim();
@@ -430,17 +475,22 @@ function zeigeIdeen(){
 
     // Apply sorting
     const sortierung = document.getElementById("sortierung").value;
-    filteredIdeen.sort((a,b)=>{
-        if(sortierung==="prio"){
-            const p={"Hoch":3,"Mittel":2,"Niedrig":1};
-            return (p[b.prioritaet]||0) - (p[a.prioritaet]||0);
-        }
-        if(sortierung==="neu"){
-            return new Date(b.timestamp) - new Date(a.timestamp);
-        }
-        // sortierung === "alt"
-        return new Date(a.timestamp) - new Date(b.timestamp); // *** Diese Zeile ist jetzt vollständig und korrekt ***
-    });
+    // >>> STANDARDSORTIERUNG HINZUGEFÜGT START <<<
+    if (sortierung !== "standard") { // Nur sortieren, wenn nicht "standard" ausgewählt ist
+    // >>> STANDARDSORTIERUNG HINZUGEFÜGT ENDE <<<
+        filteredIdeen.sort((a,b)=>{
+            if(sortierung==="prio"){
+                const p={"Hoch":3,"Mittel":2,"Niedrig":1};
+                return (p[b.prioritaet]||0) - (p[a.prioritaet]||0);
+            }
+            if(sortierung==="neu"){
+                return new Date(b.timestamp) - new Date(a.timestamp);
+            }
+            // sortierung === "alt"
+            return new Date(a.timestamp) - new Date(b.timestamp);
+        });
+    } // Wenn sortierung === "standard", bleibt die Reihenfolge, wie sie aus localStorage kam (oder nach Filtern)
+
 
     const ideenListeDiv = document.getElementById("ideenListe");
     ideenListeDiv.innerHTML = filteredIdeen.map(idee => {
@@ -542,7 +592,7 @@ function abbrechenBearbeiten(){
     istGespeichert = true;
 }
 
-// Geändert: Nimmt Idee-ID entgegen
+// Geändert: Nimmt Idee-ID entgegen und verwendet Benutzerfilter beim Verschieben
 function verschiebeIdee(ideeId, richtung){
     let fullIdeen = JSON.parse(localStorage.getItem("ideen")||"[]");
     // Finde die aktuell gefilterte und sortierte Liste, um die Position zu bestimmen
@@ -561,21 +611,25 @@ function verschiebeIdee(ideeId, richtung){
      } else if (filterArchivValue === "erledigt") {
          currentViewIdeen = currentViewIdeen.filter(i => (i.erledigt || false));
      }
-    // >>> NEUER BENUTZERFILTER BEIM VERSCHIEBEN <<<
+    // >>> NEUER BENUTZERFILTER BEIM VERSCHIEBEN START <<<
     if(filterBenutzerValue) currentViewIdeen = currentViewIdeen.filter(i => (i.benutzer||"").toLowerCase() === filterBenutzerValue.toLowerCase());
-    // >>> ENDE NEUER BENUTZERFILTER <<<
+    // >>> NEUER BENUTZERFILTER BEIM VERSCHIEBEN ENDE <<<
 
-    currentViewIdeen.sort((a,b)=>{
-        if(sortierung==="prio"){
-            const p={"Hoch":3,"Mittel":2,"Niedrig":1};
-            return (p[b.prioritaet]||0) - (p[a.prioritaet]||0);
-        }
-        if(sortierung==="neu"){
-            return new Date(b.timestamp) - new Date(a.timestamp);
-        }
-        // sortierung === "alt"
-        return new Date(a.timestamp) - new Date(b.timestamp);
-    });
+    // Apply sorting (Logic from zeigeIdeen)
+     if (sortierung !== "standard") { // Nur sortieren, wenn nicht "standard" ausgewählt ist
+        currentViewIdeen.sort((a,b)=>{
+            if(sortierung==="prio"){
+                const p={"Hoch":3,"Mittel":2,"Niedrig":1};
+                return (p[b.prioritaet]||0) - (p[a.prioritaet]||0);
+            }
+            if(sortierung==="neu"){
+                return new Date(b.timestamp) - new Date(a.timestamp);
+            }
+            // sortierung === "alt"
+            return new Date(a.timestamp) - new Date(b.timestamp);
+        });
+    }
+
 
     const currentViewPos = currentViewIdeen.findIndex(item => item.id === ideeId);
     if (currentViewPos === -1) return;
@@ -589,13 +643,17 @@ function verschiebeIdee(ideeId, richtung){
         const originalTargetIdx = fullIdeen.findIndex(item => item.id === targetIdeeId);
 
         if (originalSourceIdx !== -1 && originalTargetIdx !== -1) {
+            // Tausche die Elemente im Original-Array
             [fullIdeen[originalSourceIdx], fullIdeen[originalTargetIdx]] = [fullIdeen[originalTargetIdx], fullIdeen[originalSourceIdx]];
             localStorage.setItem("ideen", JSON.stringify(fullIdeen));
-            zeigeIdeen();
+            zeigeIdeen(); // Liste neu rendern basierend auf der geänderten Sortierung/Reihenfolge
             istGespeichert = false;
         } else {
              zeigeWarnung("Fehler beim Verschieben: Idee(n) im Original nicht gefunden.");
         }
+    } else {
+        // Idee kann nicht weiter verschoben werden
+         // zeigeWarnung("Idee kann nicht weiter in diese Richtung verschoben werden."); // Optional
     }
 }
 
@@ -753,6 +811,9 @@ function ausgewaehlteNotizenLoeschen(){
 function alleIdeenLoeschen(){
     if(!confirm("Wirklich ALLE Ideen löschen?"))return;
     localStorage.setItem("ideen","[]");
+    // Optional: Benutzerliste auch leeren? Standard ist jetzt NEIN.
+    // localStorage.setItem("benutzerliste", "[]");
+
     ausgewaehlt=[]; // Auswahl leeren
     bearbeiteId = null; // Bearbeitungsmodus beenden
     beschreibungFuerId = null; // Beschreibungseingabe beenden
@@ -767,20 +828,27 @@ function alleIdeenLoeschen(){
 
 // Funktion zum Hinzufügen eines neuen Benutzers
 function neuenBenutzerHinzufuegen(){
-    const neuerBenutzerInput = document.getElementById("neuerBenutzer"); // Neues Input-Feld
+    const neuerBenutzerInput = document.getElementById("neuerBenutzer"); // Input-Feld für neuen Benutzer
     const neuerBenutzerName = neuerBenutzerInput.value.trim();
     if (!neuerBenutzerName) {
         zeigeWarnung("Bitte geben Sie einen Benutzernamen ein.");
         return;
     }
 
+    // Lade aktuelle Liste, füge neuen Benutzer hinzu, speichere
     benutzerliste = JSON.parse(localStorage.getItem("benutzerliste") || "[]");
+     // Stelle sicher, dass die Benutzerliste immer ein Array ist
+    if (!Array.isArray(benutzerliste)) {
+         benutzerliste = [];
+    }
+
     if (benutzerliste.includes(neuerBenutzerName)) {
-        zeigeWarnung("Dieser Benutzer existiert bereits!");
+        zeigeWarnung(`Benutzer "${neuerBenutzerName}" existiert bereits!`);
         return;
     }
 
     benutzerliste.push(neuerBenutzerName);
+    benutzerliste.sort(); // Optional: Liste alphabetisch sortieren
     localStorage.setItem("benutzerliste", JSON.stringify(benutzerliste));
 
     // Dropdown-Listen aktualisieren
@@ -795,20 +863,31 @@ function neuenBenutzerHinzufuegen(){
 
 // Funktion zum Löschen eines Benutzers
 function benutzerLoeschen(){
-    const benutzerSelect = document.getElementById("benutzer"); // Dropdown mit den Benutzern
+    const benutzerSelect = document.getElementById("benutzer"); // Dropdown im Eingabeformular
     const benutzernameZuLoeschen = benutzerSelect.value;
 
-    if (!benutzernameZuLoeschen) {
+    if (!benutzernameZuLoeschen || benutzernameZuLoeschen === "") {
         zeigeWarnung("Bitte wählen Sie zuerst einen Benutzer zum Löschen aus.");
         return;
     }
 
-    if (!confirm(`Soll der Benutzer "${benutzernameZuLoeschen}" WIRKLICH gelöscht werden? Alle Notizen, die diesem Benutzer zugeordnet sind, werden ebenfalls gelöscht!`)) {
+    benutzerliste = JSON.parse(localStorage.getItem("benutzerliste") || "[]");
+     // Stelle sicher, dass die Benutzerliste immer ein Array ist
+    if (!Array.isArray(benutzerliste)) {
+         benutzerliste = [];
+    }
+
+    if (!benutzerliste.includes(benutzernameZuLoeschen)) {
+         zeigeWarnung(`Benutzer "${benutzernameZuLoeschen}" nicht in der Liste gefunden.`);
+         return;
+    }
+
+
+    if (!confirm(`Soll der Benutzer "${benutzernameZuLoeschen}" WIRKLICH gelöscht werden? ALLE Notizen, die diesem Benutzer zugeordnet sind, werden ebenfalls gelöscht!`)) {
         return; // Abbruch, falls nicht bestätigt
     }
 
     // Benutzer aus der Liste entfernen
-    benutzerliste = JSON.parse(localStorage.getItem("benutzerliste") || "[]");
     const index = benutzerliste.indexOf(benutzernameZuLoeschen);
     if (index > -1) {
         benutzerliste.splice(index, 1);
@@ -817,7 +896,7 @@ function benutzerLoeschen(){
         // Notizen löschen, die diesem Benutzer zugeordnet sind
         let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
         const ursprungsLaenge = ideen.length;
-        // Filtere alle Ideen heraus, deren 'benutzer'-Feld dem zu löschenden Benutzernamen entspricht
+        // Filtere alle Ideen heraus, deren 'benutzer'-Feld NICHT dem zu löschenden Benutzernamen entspricht
         ideen = ideen.filter(idee => idee.benutzer !== benutzernameZuLoeschen);
         localStorage.setItem("ideen", JSON.stringify(ideen));
         const anzahlGeloeschterNotizen = ursprungsLaenge - ideen.length;
@@ -827,48 +906,43 @@ function benutzerLoeschen(){
         aktualisiereBenutzerDropdowns();
          // Filter zurücksetzen, falls der gelöschte Benutzer gerade gefiltert war
         if (filterBenutzerValue === benutzernameZuLoeschen) {
-             filterBenutzerValue = "";
+             filterBenutzerValue = ""; // Setze globalen Filterwert zurück
+             // Setze auch das Filter-Dropdown zurück, damit die Anzeige konsistent ist
+             document.getElementById("filterBenutzer").value = "";
         }
+
+        // Bearbeitungsmodus abbrechen, falls die bearbeitete Idee gelöscht wurde
+        if (bearbeiteId !== null) {
+             const ideeInBearbeitungIstNochVorhanden = ideen.some(idee => idee.id === bearbeiteId);
+             if (!ideeInBearbeitungIstNochVorhanden) {
+                  abbrechenBearbeiten();
+             }
+        }
+         // Beschreibungsdialog abbrechen, falls die Idee gelöscht wurde
+         if (beschreibungFuerId !== null) {
+              const ideeFuerBeschreibungIstNochVorhanden = ideen.some(idee => idee.id === beschreibungFuerId);
+              if (!ideeFuerBeschreibungIstNochVorhanden) {
+                   beschreibungAbbrechen();
+              }
+         }
 
 
         zeigeWarnung(`Benutzer "${benutzernameZuLoeschen}" und ${anzahlGeloeschterNotizen} zugeordnete Notiz(en) erfolgreich gelöscht.`, 'success'); // Erfolgsmeldung mit Anzahl Notizen
         zeigeIdeen(); // Liste neu rendern
         istGespeichert = true; // Änderung der Benutzerliste und Ideen
     } else {
-        zeigeWarnung(`Benutzer "${benutzernameZuLoeschen}" nicht gefunden.`);
+        // Dies sollte durch die includes Prüfung oben eigentlich nicht erreicht werden
+        zeigeWarnung(`Ein interner Fehler ist aufgetreten: Benutzer "${benutzernameZuLoeschen}" konnte nicht gefunden und gelöscht werden.`);
     }
 }
 
-// Funktion zum Aktualisieren der Benutzer-Dropdowns (Benutzerfeld und Filter)
-function aktualisiereBenutzerDropdowns() {
-    benutzerliste = JSON.parse(localStorage.getItem("benutzerliste") || "[]");
-    const benutzerSelect = document.getElementById("benutzer"); // Das Dropdown im Eingabeformular
-    const filterBenutzerSelect = document.getElementById("filterBenutzer"); // Das Dropdown im Filterbereich
+// Funktion zum Aktualisieren der Benutzer-Dropdowns (wird nach Hinzufügen/Löschen aufgerufen)
+// Diese Funktion wurde bereits in Block 4 deklariert und hier implementiert.
+// function aktualisiereBenutzerDropdowns() { ... }
 
-    // Benutzerfeld im Eingabeformular füllen
-    benutzerSelect.innerHTML = '<option value="">-- Benutzer auswählen --</option>'; // Standardoption
-    benutzerliste.forEach(benutzer => {
-        benutzerSelect.add(new Option(benutzer, benutzer));
-    });
-
-     // Benutzerfilter-Dropdown füllen
-     filterBenutzerSelect.innerHTML = '<option value="">👤 Alle Benutzer</option>'; // Standardfilteroption
-     benutzerliste.forEach(benutzer => {
-          filterBenutzerSelect.add(new Option(benutzer, benutzer));
-     });
-}
-
-// Benutzer-Filterfunktionen (bereits als Platzhalter in Block 4 deklariert)
-// Sie rufen jetzt einfach zeigeIdeen() auf, das die Filterlogik enthält.
-// function filterNachBenutzer(){
-//     filterBenutzerValue = document.getElementById("filterBenutzer").value;
-//     zeigeIdeen();
-// }
-// function filterBenutzerZuruecksetzen(){
-//     filterBenutzerValue = "";
-//     document.getElementById("filterBenutzer").value = "";
-//     zeigeIdeen();
-// }
+// Benutzer-Filterfunktionen (Implementierung bereits in Block 4)
+// function filterNachBenutzer(){ ... }
+// function filterBenutzerZuruecksetzen(){ ... }
 
 
 // >>> ENDE NEUE FUNKTIONEN BENUTZERVERWALTUNG <<<
@@ -916,15 +990,14 @@ function ausgewaehlteNotizenLoeschen(){
 function alleIdeenLoeschen(){
     if(!confirm("Wirklich ALLE Ideen löschen?"))return;
     localStorage.setItem("ideen","[]");
-    // >>> BEIM LÖSCHEN ALLER NOTIZEN WIRD AUCH DIE BENUTZERLISTE GELEERT, falls gewünscht <<<
-    // localStorage.setItem("benutzerliste", "[]"); // Optional: Benutzerliste auch leeren
-    // >>> ENDE OPTIONAL <<<
+    // Optional: Benutzerliste auch leeren? Standard ist jetzt NEIN.
+    // localStorage.setItem("benutzerliste", "[]");
 
     ausgewaehlt=[]; // Auswahl leeren
     bearbeiteId = null; // Bearbeitungsmodus beenden
     beschreibungFuerId = null; // Beschreibungseingabe beenden
     beschreibungZuBearbeitenderTimestamp = null; // Bearbeitungsstatus Beschreibung zurücksetzen
-    zeigeIdeen(); // Liste neu rendern
+    zeigeIdeen(); // Liste neu rendern (zeigt dann eine leere Liste)
     abbrechenBearbeiten(); // Stellt sicher, dass das Formular geleert wird
     istGespeichert=true;
 }
@@ -958,16 +1031,20 @@ function getExportIdeen(){
     }
 
 
-    exportIdeen.sort((a,b)=>{
-        if(sortierung==="prio"){
-            const p={"Hoch":3,"Mittel":2,"Niedrig":1};
-            return (p[b.prioritaet]||0) - (p[a.prioritaet]||0);
-        }
-        if(sortierung==="neu"){
-            return new Date(b.timestamp) - new Date(a.timestamp);
-        }
-        return new Date(a.timestamp) - new Date(b.timestamp);
-    });
+    // Apply sorting (Logic from zeigeIdeen, simplified for export function)
+     if (sortierung !== "standard") { // Nur sortieren, wenn nicht "standard" ausgewählt ist
+        exportIdeen.sort((a,b)=>{
+            if(sortierung==="prio"){
+                const p={"Hoch":3,"Mittel":2,"Niedrig":1};
+                return (p[b.prioritaet]||0) - (p[a.prioritaet]||0);
+            }
+            if(sortierung==="neu"){
+                return new Date(b.timestamp) - new Date(a.timestamp);
+            }
+            return new Date(a.timestamp) - new Date(b.timestamp);
+        });
+    }
+
 
     return exportIdeen;
 }
@@ -977,13 +1054,60 @@ function exportiereAlsPDF(){const{jsPDF}=window.jspdf;const doc=new jsPDF();cons
     // >>> BENUTZER ZUM TITEL HINZUFÜGEN (Optional, kann auch als eigenes Feld) <<<
     const titel=`Idee ${idx+1}: ${idee.text}${idee.benutzer ? ` (Zuständig: ${idee.benutzer})` : ''}`;
     // >>> ENDE BENUTZER ZUM TITEL <<<
-    const titelLines=doc.splitTextToSize(titel,180);titelLines.forEach(line=>{if(y+10>pageHeight-margin){doc.addPage();y=margin;}doc.text(line,margin,y);y+=10;});
+    const titelLines=doc.splitTextToSize(titel,180);doc.setFontSize(12); titelLines.forEach(line=>{if(y+7>pageHeight-margin){doc.addPage();y=margin;}doc.text(line,margin,y);y+=7;}); // Verringere Zeilenhöhe für Titel
     // >>> BENUTZER ZU METADATEN HINZUFÜGEN <<<
-    const meta=[`Kategorie: ${idee.kategorie}`,`Priorität: ${idee.prioritaet||"Keine"}`,`Datum: ${new Date(idee.timestamp).toLocaleString("de-DE")}`];
-    if(idee.benutzer)meta.splice(1, 0, `Zuständig: ${idee.benutzer}`); // Füge Benutzer nach Kategorie ein
-    if(idee.mandantennummer)meta.push(`Mandantennummer: ${idee.mandantennummer}`);if(idee.firmenname)meta.push(`Firmenname: ${idee.firmenname}`);meta.forEach(text=>{if(y+10>pageHeight-margin){doc.addPage();y=margin;}doc.text(text,margin,y);y+=10;});
-    // >>> ENDE BENUTZER ZU METADATEN <<<
-    if(idee.details){const detailLines=doc.splitTextToSize(idee.details,180);detailLines.forEach(line=>{if(y+10>pageHeight-margin){doc.addPage();y=margin;}doc.text(line,margin,y);y+=10;});}if(idee.beschreibungen&&idee.beschreibungen.length){doc.text("Weitere Beschreibungen:",margin,y);y+=10;idee.beschreibungen.forEach(b=>{const beschr=`[${b.timestamp}] ${b.text}`;const lines=doc.splitTextToSize(beschr,180);lines.forEach(line=>{if(y+10>pageHeight-margin){doc.addPage();y=margin;}doc.text(line,margin,y);y+=10;});});}idee.dateien?.forEach(file=>{if(y+10>pageHeight-margin){doc.addPage();y=margin;}doc.setTextColor(0,0,255);if(doc.textWithLink){doc.textWithLink(`🌐 ${file.name}`,margin,y,{url:file.link||file.data});}else{doc.text(`🌐 ${file.name}`,margin,y);}doc.setTextColor(0,0,0);y+=10;});y+=15;if(y>pageHeight-margin){doc.addPage();y=margin;}});doc.save("ideen-export.pdf");}
+    const metaLines = [];
+    metaLines.push(`Kategorie: ${idee.kategorie}`);
+    if(idee.benutzer) metaLines.push(`Zuständig: ${idee.benutzer}`); // Füge Benutzer hinzu, wenn vorhanden
+    metaLines.push(`Priorität: ${idee.prioritaet||"Keine"}`);
+    metaLines.push(`Datum: ${new Date(idee.timestamp).toLocaleString("de-DE")}`);
+
+    if(idee.mandantennummer) metaLines.push(`Mandantennummer: ${idee.mandantennummer}`);
+    if(idee.firmenname) metaLines.push(`Firmenname: ${idee.firmenname}`);
+
+    doc.setFontSize(10); // Kleinere Schrift für Metadaten
+    metaLines.forEach(text=>{if(y+6>pageHeight-margin){doc.addPage();y=margin;}doc.text(text,margin,y);y+=6;}); // Verringere Zeilenhöhe für Metadaten
+
+    if(idee.details){
+        doc.setFontSize(10); // Kleinere Schrift für Details
+        const detailLines=doc.splitTextToSize(idee.details,180);
+        detailLines.forEach(line=>{if(y+6>pageHeight-margin){doc.addPage();y=margin;}doc.text(line,margin,y);y+=6;});
+    }
+
+    if(idee.beschreibungen&&idee.beschreibungen.length){
+        doc.setFontSize(10); // Kleinere Schrift für Beschreibungen
+        doc.text("Weitere Beschreibungen:",margin,y);
+        y+=6; // Abstand
+        idee.beschreibungen.forEach(b=>{
+            const beschr=`[${new Date(b.timestamp).toLocaleString("de-DE")}] ${b.text}`; // Formatierung Zeitstempel Beschreibung
+            const lines=doc.splitTextToSize(beschr,180);
+            lines.forEach(line=>{if(y+6>pageHeight-margin){doc.addPage();y=margin;}doc.text(line,margin,y);y+=6;});
+        });
+    }
+
+    if(idee.dateien?.length > 0){
+        doc.setFontSize(10); // Kleinere Schrift für Anhänge
+        doc.text("Anhänge:", margin, y);
+         y += 6;
+        idee.dateien.forEach(file=>{
+            if(y+6>pageHeight-margin){doc.addPage();y=margin; doc.setFontSize(10); doc.text("Anhänge:", margin, y); y+=6;} // Neuen Header auf neuer Seite
+            doc.setTextColor(0,0,255); // Blau für Links
+            const linkText = `🌐 ${file.name}`;
+             // Check if textWithLink is available
+             if (doc.textWithLink) {
+                 doc.textWithLink(linkText, margin, y, { url: file.link || file.data });
+             } else {
+                 // Fallback if textWithLink is not available
+                 doc.text(linkText, margin, y);
+             }
+            doc.setTextColor(0,0,0); // Zurücksetzen auf Schwarz
+            y+=6;
+        });
+    }
+
+
+    y+=10; // Abstand zwischen Ideen
+    if(y>pageHeight-margin){doc.addPage();y=margin;}});doc.save("ideen-export.pdf");}
 
 function exportiereAlsText(){const ideen=getExportIdeen();const text=ideen.map(idee=>
     // >>> BENUTZER ZUM TEXTEXPORT HINZUFÜGEN <<<
@@ -994,9 +1118,9 @@ function exportiereAlsText(){const ideen=getExportIdeen();const text=ideen.map(i
     `Datum: ${new Date(idee.timestamp).toLocaleString("de-DE")}\n` +
     `${idee.mandantennummer?"Mandantennummer: "+idee.mandantennummer+"\n":""}` +
     `${idee.firmenname?"Firmenname: "+idee.firmenname+"\n":""}` +
-    `${idee.beschreibungen&&idee.beschreibungen.length?"Weitere Beschreibungen:\n"+idee.beschreibungen.map(b=>`[${b.timestamp}] ${b.text}`).join("\n"):""}` +
-    `${idee.details?`Beschreibung: ${idee.details}\n`:""}` +
-    `\nAnhänge: ${idee.dateien?.map(f=>f.name).join(", ")||"Keine"}\n`
+    `${idee.details?`Beschreibung: ${idee.details}\n`:""}` + // Details nur einfügen, wenn vorhanden
+    `${idee.beschreibungen&&idee.beschreibungen.length?`Weitere Beschreibungen:\n${idee.beschreibungen.map(b=>`  - [${new Date(b.timestamp).toLocaleString("de-DE")}] ${b.text}`).join("\n")}\n`:""}` + // Beschreibungen einfügen und Zeitstempel formatieren
+    `Anhänge: ${idee.dateien?.map(f=>f.name).join(", ")||"Keine"}\n`
     // >>> ENDE BENUTZER ZUM TEXTEXPORT <<<
 ).join("\n\n");const blob=new Blob([text],{type:"text/plain"});const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download="ideen-export.txt";link.click();;}
 
@@ -1009,11 +1133,11 @@ function teilePerEmail(){const ideen=getExportIdeen();const text=ideen.map(idee=
     `Datum: ${new Date(idee.timestamp).toLocaleString("de-DE")}\n` +
     `${idee.mandantennummer?"Mandantennummer: "+idee.mandantennummer+"\n":""}` +
     `${idee.firmenname?"Firmenname: "+idee.firmenname+"\n":""}` +
-    `${idee.beschreibungen&&idee.beschreibungen.length?"Weitere Beschreibungen:\n"+idee.beschreibungen.map(b=>`[${b.timestamp}] ${b.text}`).join("\n"):""}` +
-    `${idee.details?`Beschreibung: ${idee.details}\n`:""}` +
-    `\nAnhänge: ${idee.dateien?.map(f=>`${f.name} (${f.link||f.data})`).join(", ")||"Keine"}\n` // Fügt Link/URL hinzu
+    `${idee.details?`Beschreibung: ${idee.details}\n`:""}` + // Details nur einfügen, wenn vorhanden
+    `${idee.beschreibungen&&idee.beschreibungen.length?`Weitere Beschreibungen:\n${idee.beschreibungen.map(b=>`  - [${new Date(b.timestamp).toLocaleString("de-DE")}] ${b.text}`).join("\n")}\n`:""}` + // Beschreibungen einfügen und Zeitstempel formatieren
+    `\nAnhänge: ${idee.dateien?.map(f=>`${f.name} (${f.link||f.data||'Kein Link'})`).join(", ")||"Keine"}\n` // Fügt Link/URL hinzu, Fallback für fehlende Links
     // >>> ENDE BENUTZER ZUM EMAIL-EXPORT <<<
-).join("\n\n")+"\n\n[Bitte Anhänge manuell hinzufügen]";window.location.href=`mailto:?subject=Ideen-Export&body=${encodeURIComponent(text)}`;}
+).join("\n\n")+"\n\n[Bitte Anhänge manuell hinzufügen]";window.location.href=`mailto:?subject=Ideen-Export&body=${encodeURIComponent(text)}`;} // *** ÄNDERUNG HIER: Fügt Link/URL hinzu ***
 
 function teilePerWhatsApp(){
     const ideen = getExportIdeen();
@@ -1027,8 +1151,8 @@ function teilePerWhatsApp(){
         `${idee.details?`📝 ${idee.details}\n`:""}` + // Details nur einfügen, wenn vorhanden
         `${idee.mandantennummer?`Mandantennummer: ${idee.mandantennummer}\n`:""}` + // Mandant nur einfügen, wenn vorhanden
         `${idee.firmenname?`Firmenname: ${idee.firmenname}\n`:""}` + // Firmenname nur einfügen, wenn vorhanden
-        `${idee.beschreibungen&&idee.beschreibungen.length?`Weitere Beschreibungen:\n${idee.beschreibungen.map(b=>`  - [${b.timestamp}] ${b.text}`).join("\n")}\n`:""}` + // Beschreibungen einfügen, wenn vorhanden
-        `📎 Anhänge: ${idee.dateien?.map(f=>`${f.name} (${f.link||f.data})`).join(", ")||"Keine"}\n` // Fügt Link/URL hinzu
+        `${idee.beschreibungen&&idee.beschreibungen.length?`Weitere Beschreibungen:\n${idee.beschreibungen.map(b=>`  - [${new Date(b.timestamp).toLocaleString("de-DE")}] ${b.text}`).join("\n")}\n`:""}` + // Beschreibungen einfügen und Zeitstempel formatieren
+        `📎 Anhänge: ${idee.dateien?.map(f=>`${f.name} (${f.link||f.data||'Kein Link'})`).join(", ")||"Keine"}\n` // Fügt Link/URL hinzu, Fallback
     // >>> ENDE BENUTZER ZUM WHATSAPP-EXPORT <<<
     ).join("\n\n");
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,"_blank");
@@ -1152,12 +1276,12 @@ async function loadFromOneDrive(){
                                      idee.beschreibungen = []; // Sicherstellen, dass beschreibungen ein Array ist
                                      changed = true;
                                 }
-                                // >>> SICHERSTELLEN, DASS BENUTZERFELD VORHANDEN IST (für ältere Daten) <<<
+                                // >>> SICHERSTELLEN, DASS BENUTZERFELD VORHANDEN IST (für ältere Daten) START <<<
                                 if (idee.benutzer === undefined) {
                                      idee.benutzer = ""; // Leerer String als Standard, falls Feld fehlt
                                      changed = true;
                                 }
-                                // >>> ENDE SICHERSTELLEN BENUTZERFELD <<<
+                                // >>> SICHERSTELLEN, DASS BENUTZERFELD VORHANDEN IST (für ältere Daten) ENDE <<<
 
                           });
                            ausgewaehlt = []; // Auswahl leeren nach Laden
@@ -1216,12 +1340,12 @@ async function ladeIdeenAusDatei(){try{let file;if(window.showOpenFilePicker){[f
                         idee.beschreibungen = []; // Sicherstellen, dass beschreibungen ein Array ist
                         changed = true;
                    }
-                    // >>> SICHERSTELLEN, DASS BENUTZERFELD VORHANDEN IST (für ältere Daten) <<<
+                    // >>> SICHERSTELLEN, DASS BENUTZERFELD VORHANDEN IST (für ältere Daten) START <<<
                    if (idee.benutzer === undefined) {
                         idee.benutzer = ""; // Leerer String als Standard, falls Feld fehlt
                          changed = true;
                    }
-                    // >>> ENDE SICHERSTELLEN BENUTZERFELD <<<
+                    // >>> SICHERSTELLEN, DASS BENUTZERFELD VORHANDEN IST (für ältere Daten) ENDE <<<
               });
               ausgewaehlt = []; // Auswahl leeren nach Laden aus Datei, da Indizes/IDs sich ändern könnten
          } else {
@@ -1240,15 +1364,16 @@ document.getElementById("ideeText").addEventListener("input",()=>{istGespeichert
 document.getElementById("ideeDetails").addEventListener("input",()=>{istGespeichert=false;});
 document.getElementById("mandantennummer").addEventListener("input",()=>{istGespeichert=false;});
 document.getElementById("firmenname").addEventListener("input",()=>{istGespeichert=false;});
-// >>> NEUER EVENT LISTENER FÜR BENUTZER-INPUT <<<
+// >>> NEUER EVENT LISTENER FÜR BENUTZER-INPUTS START <<<
 document.getElementById("benutzer").addEventListener("change",()=>{istGespeichert=false;}); // Bei Auswahl eines Benutzers
 document.getElementById("neuerBenutzer").addEventListener("input",()=>{istGespeichert=false;}); // Beim Tippen eines neuen Benutzers
-// >>> ENDE NEUER EVENT LISTENER <<<
+// >>> NEUER EVENT LISTENER FÜR BENUTZER-INPUTS ENDE <<<
 
 document.getElementById("dateien").addEventListener("change",function(e){const v=document.getElementById("dateiVorschau");v.innerHTML="";Array.from(e.target.files).forEach(file=>{const url=URL.createObjectURL(file);v.innerHTML+=`<a class="datei-link" href="${url}" target="_blank">📄 ${file.name}</a><div class="datei-info">Pfad: <i>${file.webkitRelativePath||file.name}</i></div>${file.type.startsWith("image/")?`<img src="${url}" style="max-width:150px;">`:""}${file.type==="application/pdf"?`<iframe src="${url}" style="width:150px;height:100px;"></iframe>`:""}`;});istGespeichert=false;});
 window.addEventListener("beforeunload",function(e){if(!istGespeichert){const msg="Sie haben ungespeicherte Änderungen. Möchten Sie die Seite wirklich verlassen?";e.preventDefault();e.returnValue=msg;return msg;}});
 
 // Beim Initialisieren oder Laden aus Datei sicherstellen, dass alle Ideen eine ID haben und Datenformat konsistent ist
+// >>> ANGEPASST FÜR BENUTZERFELD <<<
 function ensureIdeasHaveIds() {
     let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
     let changed = false;
@@ -1265,12 +1390,12 @@ function ensureIdeasHaveIds() {
              idee.beschreibungen = []; // Sicherstellen, dass beschreibungen ein Array ist
              changed = true; // Markiere als geändert, falls Array neu erstellt wurde
         }
-         // >>> SICHERSTELLEN, DASS BENUTZERFELD VORHANDEN IST (für ältere Daten) <<<
+         // >>> SICHERSTELLEN, DASS BENUTZERFELD VORHANDEN IST (für ältere Daten) START <<<
         if (idee.benutzer === undefined) {
              idee.benutzer = ""; // Leerer String als Standard, falls Feld fehlt
               changed = true;
         }
-         // >>> ENDE SICHERSTELLEN BENUTZERFELD <<<
+         // >>> SICHERSTELLEN, DASS BENUTZERFELD VORHANDEN IST (für ältere Daten) ENDE <<<
     });
     if (changed) {
         localStorage.setItem("ideen", JSON.stringify(ideen));
@@ -1279,38 +1404,15 @@ function ensureIdeasHaveIds() {
     ausgewaehlt = [];
 }
 
-// >>> INITIALISIERUNG DER BENUTZERLISTE UND DROPDOWNS <<<
-function initialisiereBenutzer() {
-    benutzerliste = JSON.parse(localStorage.getItem("benutzerliste") || "[]");
-    // Stellen Sie sicher, dass die Benutzerliste immer ein Array ist
-    if (!Array.isArray(benutzerliste)) {
-         benutzerliste = [];
-         localStorage.setItem("benutzerliste", "[]");
-    }
-     // Füge eine leere Option für den Benutzer-Select hinzu
-    const benutzerSelect = document.getElementById("benutzer");
-    benutzerSelect.innerHTML = '<option value="">-- Benutzer auswählen --</option>';
-    benutzerliste.forEach(benutzer => {
-        benutzerSelect.add(new Option(benutzer, benutzer));
-    });
 
-     // Füge eine leere Option für den Benutzer-Filter-Select hinzu
-     const filterBenutzerSelect = document.getElementById("filterBenutzer");
-     filterBenutzerSelect.innerHTML = '<option value="">👤 Alle Benutzer</option>';
-     benutzerliste.forEach(benutzer => {
-          filterBenutzerSelect.add(new Option(benutzer, benutzer));
-     });
-}
-// >>> ENDE INITIALISIERUNG BENUTZER <<<
+// >>> INITIALISIERUNG DER KATEGORIENLISTE UND DROPDOWNS (IMPLEMENTIERT IN BLOCK 4) <<<
+// function initialisiereKategorien() { ... }
+
+// >>> INITIALISIERUNG DER BENUTZERLISTE UND DROPDOWNS (IMPLEMENTIERT IN BLOCK 4) <<<
+// function initialisiereBenutzer() { ... }
 
 
-initialisiereKategorien();
-initialisiereBenutzer(); // <<< NEUER AUFRUF HIER <<<
-ensureIdeasHaveIds(); // Sicherstellen, dass alle Ideen IDs haben und Datenformat konsistent ist
-zeigeIdeen();
-pruefeLoginHinweis();
-
-// >>> BENUTZER-FILTER-FUNKTIONEN WIE IN BLOCK 4 DEKLARIERT <<<
+// >>> BENUTZER-FILTER-FUNKTIONEN WIE IN BLOCK 4 DEKLARIERT UND HIER IMPLEMENTIERT <<<
 function filterNachBenutzer(){
     filterBenutzerValue = document.getElementById("filterBenutzer").value;
     zeigeIdeen();
@@ -1321,6 +1423,15 @@ function filterBenutzerZuruecksetzen(){
     zeigeIdeen();
 }
 // >>> ENDE BENUTZER-FILTER-FUNKTIONEN <<<
+
+
+// >>> AUFRUFE DER INITIALISIERUNGSFUNKTIONEN START <<<
+initialisiereKategorien();
+initialisiereBenutzer(); // <<< AUFRUF HIER <<<
+ensureIdeasHaveIds(); // Sicherstellen, dass alle Ideen IDs haben und Datenformat konsistent ist (angepasst für Benutzer)
+zeigeIdeen(); // Zeigt die Ideen beim Laden der Seite
+pruebeLoginHinweis(); // Prüft den Login Status beim Laden der Seite
+// >>> AUFRUFE DER INITIALISIERUNGSFUNKTIONEN ENDE <<<
 
 
 </script>
