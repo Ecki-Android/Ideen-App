@@ -6,7 +6,7 @@
 <title>Ideen-App Pro</title>
 <style>
 /* Hier beginnt der CSS-Code im nächsten Block */
-/* /* --- START BLOCK 2: CSS Styles --- */ */
+/* --- START BLOCK 2: CSS Styles --- */
 html,body{box-sizing:border-box;margin:0;padding:0;background:#f4f4f4;width:100vw;max-width:100vw;overflow-x:hidden;}
 body{font-family:Arial,sans-serif;margin:0 0 20px 0;}
 input,select,textarea{margin-top:10px;padding:10px;font-size:1em;width:400px;max-width:100vw;box-sizing:border-box;display:block;}
@@ -112,7 +112,7 @@ input,select,textarea,button{width:100vw;min-width:0;max-width:100vw;}
 }
 
 }
-/* /* --- END BLOCK 2: CSS Styles --- */ */
+/* --- END BLOCK 2: CSS Styles --- */
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://alcdn.msauth.net/browser/2.24.0/js/msal-browser.min.js"></script>
@@ -188,7 +188,7 @@ input,select,textarea,button{width:100vw;min-width:0;max-width:100vw;}
 </div>
 
 <script>
-/* /* --- START BLOCK 4: Script Start, Variables & Initializers --- */ */
+/* --- START BLOCK 4: Script Start, Variables & Initializers --- */
 
 const msalConfig={auth:{clientId:"ddf69193-7eab-4847-a995-b6c08f0df9ae",authority:"https://login.microsoftonline.com/683748a6-faf7-45ef-9da3-10e903da0b00",knownAuthorities:["login.microsoftonline.com"],redirectUri:"https://ecki-android.github.io"}};
 // bearbeiteId speichert die ID der bearbeiteten Idee oder null
@@ -343,8 +343,8 @@ function filterBenutzerZuruecksetzen(){
 
 function setzePrioritaet(p){prioritaet=p;["prioHoch","prioMittel","prioNiedrig"].forEach(id=>document.getElementById(id).classList.remove("selected"));if(p)document.getElementById(`prio${p}`).classList.add("selected");istGespeichert=false;}
 
-/* /* --- END BLOCK 4: Script Start, Variables & Initializers --- */ */
-/* /* --- START BLOCK 5a: Save Idea Functions --- */ */
+/* --- END BLOCK 4: Script Start, Variables & Initializers --- */
+/* --- START BLOCK 5a: Save Idea Functions --- */
 
 function speichereIdee(){
     const text = document.getElementById("ideeText").value.trim();
@@ -371,7 +371,7 @@ function speichereIdee(){
                       const ideeInBearbeitung = originalIdeen.find(item => item.id === bearbeiteId);
                       if (ideeInBearbeitung && ideeInBearbeitung.dateien) {
                            // Füge alte Dateien hinzu, die einen Link haben (OneDrive-Links behalten)
-                           dateien = dateien.concat(ideeInBearbeitung.dateien.filter(oldFile => oldFile.link)); // Nur alte Dateien mit Link behalten
+                           dateien = dateien.concat(ideeInarbeitung.dateien.filter(oldFile => oldFile.link)); // Nur alte Dateien mit Link behalten
                             // Optional: Logik zum Umgang mit lokalen (blob:) URLs beim Bearbeiten überdenken
                             // Aktuell werden neue lokale Dateien hinzugefügt, alte lokale Dateien verworfen.
                             // Das ist konsistent, da lokale URLs nach Neuladen nicht mehr gültig sind.
@@ -499,8 +499,8 @@ function saveIdeeObjekt(text, dateien){
     istGespeichert = true;
 }
 
-/* /* --- END BLOCK 5a: Save Idea Functions --- */ */
-/* /* --- START BLOCK 5b: Display Ideas Function --- */ */
+/* --- END BLOCK 5a: Save Idea Functions --- */
+/* --- START BLOCK 5b: Display Ideas Function --- */
 
 function zeigeIdeen(){
     const fullIdeen = JSON.parse(localStorage.getItem("ideen") || "[]");
@@ -578,8 +578,8 @@ function zeigeIdeen(){
     }
 }
 
-/* /* --- END BLOCK 5b: Display Ideas Function --- */ */
-/* /* --- START BLOCK 5c: Individual Idea Actions --- */ */
+/* --- END BLOCK 5b: Display Ideas Function --- */
+/* --- START BLOCK 5c: Individual Idea Actions --- */
 
 // Geändert: Nimmt Idee-ID entgegen
 function toggleErledigt(ideeId){
@@ -728,7 +728,7 @@ function loescheIdee(ideeId){
     if (ideeIndex !== -1) {
         const deletedIdee = ideen[ideeIndex]; // Idee vor dem Löschen speichern
         ideen.splice(ideeIndex, 1);
-        localStorage.setItem("ideen", JSON.stringify(ideen)); // Korrigiert: JSON.stringify
+        localStorage.setItem("ideen", JSON.stringify(ideen)); // KORRIGIERT: JSON.stringify
 
         // Prüfen, ob eine Mandantennummer oder ein Benutzer gelöscht wurde, die/der nur in dieser Idee vorkam
         const mandantExistsElsewhere = ideen.some(i => (i.mandantennummer || "").toLowerCase() === (deletedIdee.mandantennummer || "").toLowerCase());
@@ -757,8 +757,8 @@ function loescheIdee(ideeId){
     }
 }
 
-/* /* --- END BLOCK 5c: Individual Idea Actions --- */ */
-/* /* --- START BLOCK 5d: Descriptions, Selection & User Management --- */ */
+/* --- END BLOCK 5c: Individual Idea Actions --- */
+/* --- START BLOCK 5d: Descriptions, Selection & User Management --- */
 
 // Geändert: Kann nun auch zum Bearbeiten verwendet werden (mit optionalem descTimestamp)
 function zeigeBeschreibungDialog(ideeId, descTimestamp = null){
@@ -1082,8 +1082,8 @@ function benutzerLoeschen(){
 // function filterBenutzerZuruecksetzen(){ ... }
 
 
-/* /* --- END BLOCK 5d: Descriptions, Selection & User Management --- */ */
-/* /* --- START BLOCK 6: Export Functions --- */ */
+/* --- END BLOCK 5d: Descriptions, Selection & User Management --- */
+/* --- START BLOCK 6: Export Functions --- */
 
 function getExportIdeen(){
     let ideen = JSON.parse(localStorage.getItem("ideen")||"[]");
@@ -1247,8 +1247,8 @@ function teilePerWhatsApp(){
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,"_blank");
 }
 
-/* /* --- END BLOCK 6: Export Functions --- */ */
-/* /* --- START BLOCK 7: OneDrive & Local File Functions --- */ */
+/* --- END BLOCK 6: Export Functions --- */
+/* --- START BLOCK 7: OneDrive & Local File Functions --- */
 
 async function uploadToOneDrive(f){if(!accessToken){zeigeWarnung("Bitte zuerst mit Microsoft anmelden!");return null;}try{const n=`ideenapp/${Date.now()}_${f.name}`;const u=await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${n}:/content`,{method:"PUT",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":f.type},body:f});const d=await u.json();const s=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${d.id}/createLink`,{method:"POST",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":"application/json"},body:JSON.stringify({type:"view",scope:"anonymous"})});const j=await s.json();return j.link.webUrl;}catch(e){zeigeWarnung("OneDrive-Fehler beim Upload: "+e.message);return null;}} // Angepasste Fehlermeldung
 
@@ -1366,7 +1366,7 @@ async function loadFromOneDrive(){
                                }
                                // Optional: Beschreibungen von Array zu Array von Objekten konvertieren, falls alte Daten nur Strings waren
                                if (Array.isArray(idee.beschreibungen) && idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
-                                     idee.beschreibungen = idee.beschreibungen.map(text => ({text: text, timestamp: 'Unbekannt'})); // Oder aktuellen Timestamp
+                                     idee.beschreibungen = ideen.beschreibungen.map(text => ({text: text, timestamp: 'Unbekannt'})); // Oder aktuellen Timestamp
                                      changed = true;
                                 } else if (!Array.isArray(idee.beschreibungen)) {
                                      idee.beschreibungen = []; // Sicherstellen, dass beschreibungen ein Array ist
@@ -1386,7 +1386,7 @@ async function loadFromOneDrive(){
                                      idee.firmenname = ""; // Leerer String als Standard
                                      changed = true;
                                  }
-                                // >>> SICHERSTELLEN, DASS BENUTZERFELD VORHANDEN IST (für ältere Daten) ENDE <<<
+                                // >>> SICHERSTELLEN, DASS MANDANTENFELDER VORHANDEN SIND (für ältere Daten) ENDE <<<
 
                           });
                            ausgewaehlt = []; // Auswahl leeren nach Laden
@@ -1446,7 +1446,7 @@ async function ladeIdeenAusDatei(){try{let file;if(window.showOpenFilePicker){[f
                    }
                    // Optional: Beschreibungen von Array zu Array von Objekten konvertieren, falls alte Daten nur Strings waren
                    if (Array.isArray(idee.beschreibungen) && idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
-                        idee.beschreibungen = idee.beschreibungen.map(text => ({text: text, timestamp: 'Unbekannt'})); // Oder aktuellen Timestamp
+                        idee.beschreibungen = ideen.beschreibungen.map(text => ({text: text, timestamp: 'Unbekannt'})); // Oder aktuellen Timestamp
                         changed = true;
                    } else if (!Array.isArray(idee.beschreibungen)) {
                         idee.beschreibungen = []; // Sicherstellen, dass beschreibungen ein Array ist
@@ -1466,7 +1466,7 @@ async function ladeIdeenAusDatei(){try{let file;if(window.showOpenFilePicker){[f
                         idee.firmenname = ""; // Leerer String als Standard
                          changed = true;
                    }
-                   // >>> SICHERSTELLEN, DASS BENUTZERFELD VORHANDEN IST (für ältere Daten) ENDE <<<
+                   // >>> SICHERSTELLEN, DASS MANDANTENFELDER VORHANDEN SIND (für ältere Daten) ENDE <<<
               });
               ausgewaehlt = []; // Auswahl leeren nach Laden aus Datei, da Indizes/IDs sich ändern könnten
          } else {
@@ -1490,8 +1490,8 @@ async function ladeIdeenAusDatei(){try{let file;if(window.showOpenFilePicker){[f
          zeigeWarnung("Datei erfolgreich lokal geladen!", 'success'); // Erfolgsmeldung
          istGespeichert=true;}catch(e){if(e.name!=="AbortError")zeigeWarnung("Fehler beim lokalen Laden: "+e.message);}} // Angepasste Meldungen
 
-/* /* --- END BLOCK 7: OneDrive & Local File Functions --- */ */
-/* /* --- START BLOCK 8: Event Listeners & Initialization --- */ */
+/* --- END BLOCK 7: OneDrive & Local File Functions --- */
+/* --- START BLOCK 8: Event Listeners & Initialization --- */
 
 document.getElementById("ideeText").addEventListener("input",()=>{istGespeichert=false;});
 document.getElementById("ideeDetails").addEventListener("input",()=>{istGespeichert=false;});
@@ -1525,7 +1525,7 @@ function ensureIdeasHaveIds() {
         }
         // Optional: Beschreibungen von Array zu Array von Objekten konvertieren, falls alte Daten nur Strings waren
         if (Array.isArray(idee.beschreibungen) && idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
-             idee.beschreibungen = idee.beschreibungen.map(text => ({text: text, timestamp: 'Unbekannt'})); // Oder aktuellen Timestamp
+             idee.beschreibungen = ideen.beschreibungen.map(text => ({text: text, timestamp: 'Unbekannt'})); // Oder aktuellen Timestamp
              changed = true; // Markiere als geändert, falls Konvertierung nötig war
         } else if (!Array.isArray(idee.beschreibungen)) {
              idee.beschreibungen = []; // Sicherstellen, dass beschreibungen ein Array ist
@@ -1569,8 +1569,8 @@ function ensureIdeasHaveIds() {
 
 
 // >>> AUFRUFE DER INITIALISIERUNGSFUNKTIONEN BEIM LADEN DER SEITE START <<<
-initialisiereKategorien(); // Muss vor ensureIdeasHaveIds() aufgerufen werden, wenn Standardkategorien gesetzt werden sollen
-initialisiereBenutzer();   // Muss vor ensureIdeasHaveIds() aufgerufen werden
+initialisiereKategorien(); // Muss vor ensureIdeenHaveIds() aufgerufen werden, wenn Standardkategorien gesetzt werden sollen
+initialisiereBenutzer();   // Muss vor ensureIdeenHaveIds() aufgerufen werden
 ensureIdeasHaveIds(); // Prüft/Migriert Ideen und setzt IDs/Standardfelder (Benutzer/Mandant)
 // !!! WICHTIG: aktualisiereMandantenFilterDropdown MUSS NACH ensureIdeasHaveIds aufgerufen werden,
 // da ensureIdeasHaveIds möglicherweise Mandantennummern zu älteren Ideen hinzufügt.
@@ -1580,8 +1580,7 @@ pruebeLoginHinweis(); // Prüft den Login Status
 // >>> AUFRUFE DER INITIALISIERUNGSFUNKTIONEN BEIM LADEN DER SEITE ENDE <<<
 
 
-/* /* --- END BLOCK 8: Event Listeners & Initialization --- */ */
+/* --- END BLOCK 8: Event Listeners & Initialization --- */
 </script>
 </body>
 </html>
-
