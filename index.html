@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Ideen-App Pro</title>
 <style>
+/* Hier beginnt der CSS-Code im nächsten Block */
+/* /* --- START BLOCK 2: CSS Styles --- */ */
 html,body{box-sizing:border-box;margin:0;padding:0;background:#f4f4f4;width:100vw;max-width:100vw;overflow-x:hidden;}
 body{font-family:Arial,sans-serif;margin:0 0 20px 0;}
 input,select,textarea{margin-top:10px;padding:10px;font-size:1em;width:400px;max-width:100vw;box-sizing:border-box;display:block;}
@@ -110,6 +112,7 @@ input,select,textarea,button{width:100vw;min-width:0;max-width:100vw;}
 }
 
 }
+/* /* --- END BLOCK 2: CSS Styles --- */ */
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://alcdn.msauth.net/browser/2.24.0/js/msal-browser.min.js"></script>
@@ -185,6 +188,8 @@ input,select,textarea,button{width:100vw;min-width:0;max-width:100vw;}
 </div>
 
 <script>
+/* /* --- START BLOCK 4: Script Start, Variables & Initializers --- */ */
+
 const msalConfig={auth:{clientId:"ddf69193-7eab-4847-a995-b6c08f0df9ae",authority:"https://login.microsoftonline.com/683748a6-faf7-45ef-9da3-10e903da0b00",knownAuthorities:["login.microsoftonline.com"],redirectUri:"https://ecki-android.github.io"}};
 // bearbeiteId speichert die ID der bearbeiteten Idee oder null
 // ausgewaehlt speichert ein Array von IDs
@@ -203,10 +208,13 @@ function generateUUID() {
     });
 }
 
+// Funktion zum Prüfen und Anzeigen/Verbergen des Login-Hinweises
+function pruebeLoginHinweis(){if(!accessToken){document.getElementById("loginHinweis").style.display="block";}else{document.getElementById("loginHinweis").style.display="none";}}
+
 
 async function handleLogin(){try{msalInstance=new msal.PublicClientApplication(msalConfig);const l=await msalInstance.loginPopup({scopes:["Files.ReadWrite","offline_access"]});const t=await msalInstance.acquireTokenSilent({scopes:["Files.ReadWrite"],account:l.account});accessToken=t.accessToken;zeigeWarnung("Erfolgreich bei Microsoft angemeldet!", 'success');pruebeLoginHinweis();return true;}catch(e){zeigeWarnung("Login fehlgeschlagen: "+e.message);return false;}} // Typ 'success' hinzugefügt
-async function handleLogout(){if(!istGespeichert){if(!confirm("Bitte speichern Sie Ihre Änderungen, bevor Sie sich abmelden! Trotzdem abmelden!"))return;}try{if(msalInstance){const a=msalInstance.getAllAccounts()[0];if(a){await msalInstance.logoutPopup({account:a,postLogoutRedirectUri:"https://ecki-android.github.io"});}}accessToken=null;pruefeLoginHinweis();zeigeWarnung("Sie wurden erfolgreich abgemeldet.", 'success');}catch(e){zeigeWarnung("Abmeldung fehlgeschlagen: "+e.message);}} // Typ 'success' hinzugefügt
-function pruefeLoginHinweis(){if(!accessToken){document.getElementById("loginHinweis").style.display="block";}else{document.getElementById("loginHinweis").style.display="none";}}
+async function handleLogout(){if(!istGespeichert){if(!confirm("Bitte speichern Sie Ihre Änderungen, bevor Sie sich abmelden! Trotzdem abmelden!"))return;}try{if(msalInstance){const a=msalInstance.getAllAccounts()[0];if(a){await msalInstance.logoutPopup({account:a,postLogoutRedirectUri:"https://ecki-android.github.io"});}}accessToken=null;pruebeLoginHinweis();zeigeWarnung("Sie wurden erfolgreich abgemeldet.", 'success');}catch(e){zeigeWarnung("Abmeldung fehlgeschlagen: "+e.message);}} // Typ 'success' hinzugefügt
+
 
 // Geänderte zeigeWarnung Funktion mit Typ (warning/success/info)
 function zeigeWarnung(msg, type = 'warning'){
@@ -241,7 +249,7 @@ function initialisiereKategorien(){
 
 
     const s=document.getElementById("kategorie"); // Das Dropdown im Eingabeformular
-    s.innerHTML='<option value="">-- Kategorie auswählen --</option>'; // Standardoption
+    s.innerHTML='<option value="">-- Kategorie auswählen --</option>'; // Standardoption hinzugefügt
     kategorien.forEach(n=>s.add(new Option(n,n)));
 
     const f=document.getElementById("filterKategorie"); // Das Dropdown im Filterbereich
@@ -273,7 +281,7 @@ function initialisiereBenutzer() {
      });
 }
 
-// >>> NEUE FUNKTION ZUM AKTUALISIEREN DES MANDANTEN-FILTER-DROPDOWNS <<<
+// Funktion zum Aktualisieren des Mandanten-Filter-Dropdowns
 function aktualisiereMandantenFilterDropdown() {
     const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
     // Sammle alle einzigartigen, nicht leeren Mandantennummern
@@ -301,28 +309,32 @@ function aktualisiereMandantenFilterDropdown() {
     }
 
      // Trigger die Anzeige neu, falls der Filterwert sich geändert hat
-     if (filterMandantValue !== aktuellerFilterValue) {
-         zeigeIdeen(); // Zeige Ideen mit neuem Filter
-     }
+     // Dies wird von zeigeIdeen() übernommen, das nach der Initialisierung und nach Aktionen aufgerufen wird.
+     // Die onchange Listener der Dropdowns rufen direkt filterNachX auf, die wiederum zeigeIdeen aufrufen.
+     // Daher ist ein expliziter Aufruf hier nicht nötig, wenn die aktualisierteMandantenFilterDropdown
+     // nach dem Laden/Speichern aufgerufen wird, da zeigeIdeen danach kommt.
 }
 
 
 // Filterfunktionen - Lesen den Wert jetzt direkt aus den Dropdowns
+// Diese Funktionen aktualisieren nur die globale Variable und rufen zeigeIdeen auf
 function filterNachMandant(){
     filterMandantValue = document.getElementById("filterMandant").value; // Lese Wert aus Dropdown
     zeigeIdeen(); // zeigeIdeen() wendet den Filter an
 }
 function filterMandantZuruecksetzen(){
+    // Diese Funktion wird nicht mehr direkt vom HTML Button aufgerufen, aber hier zur Vollständigkeit
     filterMandantValue = "";
     document.getElementById("filterMandant").value = ""; // Setze Dropdown zurück
     zeigeIdeen();
 }
-// Benutzer-Filterfunktionen (wie in Block 5d deklariert und in Block 8 implementiert)
+// Benutzer-Filterfunktionen (Implementierung hier)
 function filterNachBenutzer(){
     filterBenutzerValue = document.getElementById("filterBenutzer").value;
     zeigeIdeen();
 }
 function filterBenutzerZuruecksetzen(){
+     // Diese Funktion wird nicht mehr direkt vom HTML Button aufgerufen
     filterBenutzerValue = "";
     document.getElementById("filterBenutzer").value = "";
     zeigeIdeen();
@@ -330,6 +342,10 @@ function filterBenutzerZuruecksetzen(){
 
 
 function setzePrioritaet(p){prioritaet=p;["prioHoch","prioMittel","prioNiedrig"].forEach(id=>document.getElementById(id).classList.remove("selected"));if(p)document.getElementById(`prio${p}`).classList.add("selected");istGespeichert=false;}
+
+/* /* --- END BLOCK 4: Script Start, Variables & Initializers --- */ */
+/* /* --- START BLOCK 5a: Save Idea Functions --- */ */
+
 function speichereIdee(){
     const text = document.getElementById("ideeText").value.trim();
     if(!text) return zeigeWarnung("Titel ist erforderlich!");
@@ -408,9 +424,8 @@ function saveIdeeObjekt(text, dateien){
     const kategorie = document.getElementById("kategorie").value;
     const mandantennummer = document.getElementById("mandantennummer").value.trim();
     const firmenname = document.getElementById("firmenname").value.trim();
-    // >>> NEUES FELD: Benutzer lesen <<<
-    const benutzer = document.getElementById("benutzer").value; // Lese den ausgewählten Benutzer
-    // >>> ENDE NEUES FELD <<<
+    // Lese den ausgewählten Benutzer
+    const benutzer = document.getElementById("benutzer").value;
     // Beim Aktualisieren wird der ursprüngliche Timestamp beibehalten, bei neuer Idee aktueller Timestamp
     const timestamp = bearbeiteId !== null ? ideen.find(item => item.id === bearbeiteId)?.timestamp || new Date().toISOString() : new Date().toISOString();
 
@@ -430,9 +445,7 @@ function saveIdeeObjekt(text, dateien){
                  prioritaet, // Globale Variable wird hier verwendet
                  mandantennummer,
                  firmenname,
-                 // >>> NEUES FELD: Benutzer speichern <<<
                  benutzer, // Speichere den Benutzer
-                 // >>> ENDE NEUES FELD <<<
                  dateien, // Neue und übernommene Dateien
                  timestamp: existingIdee.timestamp, // Ursprünglichen Timestamp beibehalten für Sortierung 'alt'
                  erledigt: existingIdee.erledigt || false,
@@ -457,9 +470,7 @@ function saveIdeeObjekt(text, dateien){
             prioritaet, // Globale Variable wird hier verwendet
             mandantennummer,
             firmenname,
-            // >>> NEUES FELD: Benutzer speichern <<<
             benutzer, // Speichere den Benutzer
-            // >>> ENDE NEUES FELD <<<
             dateien,
             timestamp, // Timestamp der Erstellung
             erledigt: false,
@@ -487,6 +498,10 @@ function saveIdeeObjekt(text, dateien){
     // >>> ENDE ZURÜCKSETZEN <<<
     istGespeichert = true;
 }
+
+/* /* --- END BLOCK 5a: Save Idea Functions --- */ */
+/* /* --- START BLOCK 5b: Display Ideas Function --- */ */
+
 function zeigeIdeen(){
     const fullIdeen = JSON.parse(localStorage.getItem("ideen") || "[]");
     let filteredIdeen = [...fullIdeen]; // Kopie für Filterung
@@ -495,24 +510,20 @@ function zeigeIdeen(){
     const filterKategorie = document.getElementById("filterKategorie").value;
     if(filterKategorie) filteredIdeen = filteredIdeen.filter(i => i.kategorie === filterKategorie);
 
-    // >>> ANGEPASSTER MANDANT FILTER START <<<
     // Apply mandant filter - reads from the select dropdown now
     filterMandantValue = document.getElementById("filterMandant").value; // Lese den aktuell ausgewählten Filterwert
     if(filterMandantValue) { // Filter nur anwenden, wenn nicht die Standardoption ("") gewählt ist
         filteredIdeen = filteredIdeen.filter(i => (i.mandantennummer||"").toLowerCase() === filterMandantValue.toLowerCase());
     }
-    // >>> ANGEPASSTER MANDANT FILTER ENDE <<<
 
-    // >>> NEUER BENUTZERFILTER START <<<
     // Apply benutzer filter
     filterBenutzerValue = document.getElementById("filterBenutzer").value; // Lese den aktuell ausgewählten Filterwert
     if(filterBenutzerValue) { // Filter nur anwenden, wenn nicht die Standardoption ("") gewählt ist
         filteredIdeen = filteredIdeen.filter(i => (i.benutzer||"").toLowerCase() === filterBenutzerValue.toLowerCase());
     }
-    // >>> NEUER BENUTZERFILTER ENDE <<<
 
 
-    // >>> ARCHIVE FILTER START <<<
+    // Apply archive filter
     const filterArchivValue = document.getElementById("filterArchiv").value;
     if (filterArchivValue === "nicht_erledigt") {
         filteredIdeen = filteredIdeen.filter(i => !(i.erledigt || false)); // Filter out completed items
@@ -520,13 +531,10 @@ function zeigeIdeen(){
         filteredIdeen = filteredIdeen.filter(i => (i.erledigt || false)); // Filter for completed items
     }
     // If filterArchivValue is "alle", no filtering based on erledigt is applied here.
-    // >>> ARCHIVE FILTER ENDE <<<
 
     // Apply sorting
     const sortierung = document.getElementById("sortierung").value;
-    // >>> STANDARDSORTIERUNG HINZUGEFÜGT START <<<
     if (sortierung !== "standard") { // Nur sortieren, wenn nicht "standard" ausgewählt ist
-    // >>> STANDARDSORTIERUNG HINZUGEFÜGT ENDE <<<
         filteredIdeen.sort((a,b)=>{
             if(sortierung==="prio"){
                 const p={"Hoch":3,"Mittel":2,"Niedrig":1};
@@ -550,9 +558,7 @@ function zeigeIdeen(){
         const anzeigeDatum = new Date(idee.timestamp).toLocaleString("de-DE");
 
         // Verwende ideeId für Action button calls und Checkbox
-        // >>> ANZEIGE DES BENUTZER-FELDES HINZUGEFÜGT <<<
         return`<div class="idee${erledigt?' erledigt':''}"><div class="idee-content"><h3>${idee.text}</h3><p>${idee.details||""}</p>${idee.benutzer?`<div>Zuständig: <b>${idee.benutzer}</b></div>`:""}${idee.mandantennummer?`<div>Mandantennummer: <b>${idee.mandantennummer}</b></div>`:""}${idee.firmenname?`<div>Firmenname: <b>${idee.firmenname}</b></div>`:""}${idee.beschreibungen&&idee.beschreibungen.length?`<div class="beschreibung-historie"><b>Weitere Beschreibungen:</b>${idee.beschreibungen.map(b=>`<div class="beschreibung-item"><div class="beschreibung-text-zeit"><span class="beschreibung-zeit">${b.timestamp}</span>${b.text}</div><button class="edit-beschreibung-btn" onclick="bearbeiteEinzelneBeschreibung('${ideeId}', '${b.timestamp}')">✏️</button></div>`).join("")}</div>`:""}<small>${idee.kategorie} | ${idee.prioritaet||"Keine"} | ${anzeigeDatum}</small>${idee.dateien?.map(file=>`<a class="datei-link" href="${file.link||file.data}" target="_blank">${file.link?'🌐':'📎'} ${file.name}</a>${file.link?'<div class="datei-info">OneDrive-Link</div>':`<div class="datei-info">Pfad: <i>${file.pfad||file.name}</i></div>`}${file.type?.startsWith("image/")?`<img src="${file.link||file.data}" style="max-width:150px;">`:""}${file.type==="application/pdf"?`<iframe src="${file.link||file.data}" style="width:150px;height:100px;"></iframe>`:""}`).join("")}<div class="idee-actions"><button onclick="verschiebeIdee('${ideeId}',-1)">⬆️</button><button onclick="verschiebeIdee('${ideeId}',1)">⬇️</button><button onclick="bearbeiteIdee('${ideeId}')">✏️</button><button onclick="toggleErledigt('${ideeId}')">${erledigt?"↩️":"✔️"}</button><button onclick="loescheIdee('${ideeId}')">🗑️</button><button onclick="zeigeBeschreibungDialog('${ideeId}')">+ Beschreibung</button></div></div><input type="checkbox" class="idee-checkbox" onchange="toggleAuswahl('${ideeId}',this)" ${ausgewaehlt.includes(ideeId)?"checked":""}></div>`;
-        // >>> ENDE ANZEIGE BENUTZER-FELDES <<<
     }).join("");
 
     // Das Bearbeitungsformular schließen, wenn die bearbeitete Idee durch Filter unsichtbar wird
@@ -571,6 +577,10 @@ function zeigeIdeen(){
          }
     }
 }
+
+/* /* --- END BLOCK 5b: Display Ideas Function --- */ */
+/* /* --- START BLOCK 5c: Individual Idea Actions --- */ */
+
 // Geändert: Nimmt Idee-ID entgegen
 function toggleErledigt(ideeId){
     let ideen = JSON.parse(localStorage.getItem("ideen")||"[]");
@@ -599,9 +609,8 @@ function bearbeiteIdee(ideeId){
     document.getElementById("kategorie").value = idee.kategorie;
     document.getElementById("mandantennummer").value = idee.mandantennummer || "";
     document.getElementById("firmenname").value = idee.firmenname || "";
-    // >>> NEUES FELD: Benutzer beim Bearbeiten setzen <<<
-    document.getElementById("benutzer").value = idee.benutzer || ""; // Setze den Benutzer
-    // >>> ENDE NEUES FELD <<<
+    // Setzt das Benutzerfeld beim Bearbeiten
+    document.getElementById("benutzer").value = idee.benutzer || "";
     prioritaet = idee.prioritaet; // Setze die globale prioritaet Variable
     setzePrioritaet(idee.prioritaet); // Aktualisiere UI basierend auf der globalen Variable
 
@@ -635,9 +644,8 @@ function abbrechenBearbeiten(){
     document.getElementById("speichernBtn").textContent = "💾 Speichern";
     document.getElementById("abbrechenBtn").style.display = "none";
     setzePrioritaet(""); // Priorität zurücksetzen (setzt globale Var und UI)
-    // >>> ZURÜCKSETZEN DES BENUTZERFELDES <<<
-    document.getElementById("benutzer").value = ""; // Setze Benutzerfeld zurück
-    // >>> ENDE ZURÜCKSETZEN <<<
+    // Setzt das Benutzerfeld zurück
+    document.getElementById("benutzer").value = "";
     istGespeichert = true;
 }
 
@@ -645,13 +653,12 @@ function abbrechenBearbeiten(){
 function verschiebeIdee(ideeId, richtung){
     let fullIdeen = JSON.parse(localStorage.getItem("ideen")||"[]");
     // Finde die aktuell gefilterte und sortierte Liste, um die Position zu bestimmen
-    // >>> Lese Filter- und Sortierwerte direkt aus den Dropdowns <<<
+    // Lese Filter- und Sortierwerte direkt aus den Dropdowns
     const filterKategorieValue = document.getElementById("filterKategorie").value;
     const filterMandantValue = document.getElementById("filterMandant").value; // Lese Wert aus Select
     const filterBenutzerValue = document.getElementById("filterBenutzer").value; // Lese Wert aus Select
     const filterArchivValue = document.getElementById("filterArchiv").value;
     const sortierung = document.getElementById("sortierung").value;
-    // >>> Ende Lesen <<<
 
     let currentViewIdeen = [...fullIdeen]; // Kopie für Filterung/Sortierung der Ansicht
 
@@ -666,7 +673,7 @@ function verschiebeIdee(ideeId, richtung){
     }
 
     // Sortierung anwenden (entspricht Logik in zeigeIdeen)
-     if (sortierung !== "standard") {
+     if (sortierung !== "standard") { // Nur sortieren, wenn nicht "standard" ausgewählt ist
         currentViewIdeen.sort((a,b)=>{
             if(sortierung==="prio"){
                 const p={"Hoch":3,"Mittel":2,"Niedrig":1};
@@ -721,7 +728,7 @@ function loescheIdee(ideeId){
     if (ideeIndex !== -1) {
         const deletedIdee = ideen[ideeIndex]; // Idee vor dem Löschen speichern
         ideen.splice(ideeIndex, 1);
-        localStorage.setItem("ideen", JSON(ideen));
+        localStorage.setItem("ideen", JSON.stringify(ideen)); // Korrigiert: JSON.stringify
 
         // Prüfen, ob eine Mandantennummer oder ein Benutzer gelöscht wurde, die/der nur in dieser Idee vorkam
         const mandantExistsElsewhere = ideen.some(i => (i.mandantennummer || "").toLowerCase() === (deletedIdee.mandantennummer || "").toLowerCase());
@@ -749,6 +756,10 @@ function loescheIdee(ideeId){
          zeigeWarnung("Fehler: Idee zum Löschen nicht gefunden (ID: " + ideeId + ").");
     }
 }
+
+/* /* --- END BLOCK 5c: Individual Idea Actions --- */ */
+/* /* --- START BLOCK 5d: Descriptions, Selection & User Management --- */ */
+
 // Geändert: Kann nun auch zum Bearbeiten verwendet werden (mit optionalem descTimestamp)
 function zeigeBeschreibungDialog(ideeId, descTimestamp = null){
     beschreibungFuerId = ideeId; // Speichern der Idee-ID
@@ -844,7 +855,7 @@ function toggleAuswahl(ideeId,box){
     if(box.checked){
         if(!ausgewaehlt.includes(ideeId)) ausgewaehlt.push(ideeId);
     } else {
-        ausgewaehlt = ausgewaehlt.filter(id => id !== ideeId);
+        ausgewaehlt = ausgewaehlte.filter(id => id !== ideeId);
     }
     // Console.log zur Überprüfung
     // console.log("Ausgewählt IDs:", ausgewaehlt);
@@ -855,7 +866,7 @@ function ausgewaehlteNotizenLoeschen(){
         zeigeWarnung("Keine Notizen ausgewählt.");
         return;
     }
-    if(!confirm(`Wirklich ${ausgewaehlte.length} ausgewählte Notiz(en) löschen?`)) return;
+    if(!confirm(`Wirklich ${ausgewaehlt.length} ausgewählte Notiz(en) löschen?`)) return;
 
     let ideen = JSON.parse(localStorage.getItem("ideen")||"[]");
     // Sammle Mandanten und Benutzer der zu löschenden Ideen, um später zu prüfen, ob sie noch anderswo vorkommen
@@ -872,7 +883,7 @@ function ausgewaehlteNotizenLoeschen(){
 
     localStorage.setItem("ideen", JSON.stringify(neueIdeenListe));
 
-    // Prüfe, ob durch das Löschen Mandanten oder Benutzer verschwunden sind
+    // Prüfe, ob durch das Löschen Mandanten oder Benutzer verschwunden sind (nur die, die nur in den gelöschten Notizen vorkamen)
     const remainingMandanten = new Set(neueIdeenListe.map(i => (i.mandantennummer || "").toLowerCase()).filter(m => m !== ""));
     const remainingBenutzer = new Set(neueIdeenListe.map(i => (i.benutzer || "").toLowerCase()).filter(b => b !== ""));
 
@@ -896,7 +907,7 @@ function ausgewaehlteNotizenLoeschen(){
         abbrechenBearbeiten();
     }
      // Prüfe, ob die Idee, deren Beschreibung bearbeitet wird, gelöscht wurde
-     if (beschreibungFuerId !== null && ausgewaehlt.includes(beschreibungFuerId)) {
+     if (beschreibungFuerId !== null && ausgewaehlte.includes(beschreibungFuerId)) {
           beschreibungAbbrechen();
      }
 
@@ -912,8 +923,8 @@ function alleIdeenLoeschen(){
     // >>> NACH DEM LÖSCHEN ALLER IDEEN: Mandanten- und Benutzer-Dropdowns aktualisieren <<<
     aktualisiereMandantenFilterDropdown(); // Leert das Mandanten-Dropdown bis auf Standardoption
      // Optional: Benutzerliste auch leeren? Standard ist jetzt NEIN.
-     // localStorage.setItem("benutzerliste", "[]");
-     aktualisiereBenutzerDropdowns(); // Leert das Benutzer-Dropdown bis auf Standardoption (basierend auf leerem localStorage)
+     // localStorage.setItem("benutzerliste", "[]"); // Wenn diese Zeile aktiv ist, wird die Benutzerliste auch geleert
+     aktualisiereBenutzerDropdowns(); // Leert das Benutzer-Dropdown bis auf Standardoption (basierend auf leerem localStorage für Ideen, aber Benutzerliste bleibt bestehen, falls nicht optional gelöscht)
     // >>> ENDE UPDATE DROPDOWNS <<<
 
     ausgewaehlt=[]; // Auswahl leeren
@@ -926,7 +937,7 @@ function alleIdeenLoeschen(){
 }
 
 
-// >>> NEUE FUNKTIONEN ZUR BENUTZERVERWALTUNG START <<<
+// >>> FUNKTIONEN ZUR BENUTZERVERWALTUNG START <<<
 
 // Funktion zum Hinzufügen eines neuen Benutzers
 function neuenBenutzerHinzufuegen(){
@@ -1007,11 +1018,19 @@ function benutzerLoeschen(){
          // Sammle Mandanten aus den verbleibenden Ideen
          const remainingMandanten = new Set(ideen.map(i => (i.mandantennummer || "").toLowerCase()).filter(m => m !== ""));
          // Sammle Mandanten aus den GELÖSCHTEN Ideen (die dem Benutzer zugeordnet waren)
-         const deletedMandanten = new Set(JSON.parse(localStorage.getItem("ideen") || "[]").filter(i => i.benutzer === benutzernameZuLoeschen).map(i => (i.mandantennummer || "").toLowerCase()).filter(m => m !== ""));
-         // Prüfe, ob einer der gelöschten Mandanten nun nicht mehr existiert
+         // Annahme: Die zu löschenden Ideen sind die, die NICHT im neuen ideen Array sind.
+         // Eine sicherere Methode wäre, die ursprünglichen Ideen vor dem Filtern zu verwenden,
+         // aber da wir nur einen Benutzer löschen, können wir auch die IDs der entfernten Ideen nutzen,
+         // oder, einfacher, prüfen welche Mandanten in den ALTEN Ideen mit diesem Benutzer waren
+         // und prüfen ob sie in den neuen Ideen noch vorhanden sind.
+         // Die Logik hier prüft, ob *irgendwelche* Mandanten (die vor dem Löschen da waren)
+         // nun nicht mehr existieren. Das sollte ausreichen.
+         const remainingMandantenAfterFilter = new Set(ideen.map(i => (i.mandantennummer || "").toLowerCase()).filter(m => m !== ""));
+         const allOriginalMandanten = new Set(JSON.parse(localStorage.getItem("ideen") || "[]").map(i => (i.mandantennummer || "").toLowerCase()).filter(m => m !== ""));
+
          let updateMandantenDropdown = false;
-         deletedMandanten.forEach(mandant => {
-             if (!remainingMandanten.has(mandant)) updateMandantenDropdown = true;
+         allOriginalMandanten.forEach(mandant => {
+             if (!remainingMandantenAfterFilter.has(mandant)) updateMandantenDropdown = true;
          });
          if (updateMandantenDropdown) aktualisiereMandantenFilterDropdown();
          // >>> ENDE PRÜFEN MANDANTEN-DROPDOWN <<<
@@ -1052,105 +1071,20 @@ function benutzerLoeschen(){
 }
 
 // Funktion zum Aktualisieren der Benutzer-Dropdowns (wird nach Hinzufügen/Löschen aufgerufen)
-// Diese Funktion wurde bereits in Block 4 deklariert und hier implementiert.
+// Diese Funktion wurde bereits in Block 4 deklariert und implementiert.
 // function aktualisiereBenutzerDropdowns() { ... }
 
 
 // Filterfunktionen (Implementierung bereits in Block 4)
-// function filterNachMandant(){ ... }
-// function filterMandantZuruecksetzen(){ ... } // Diese Funktion wird nicht mehr direkt vom HTML Button aufgerufen
-// function filterNachBenutzer(){ ... }
+// function filterNachMandant(){ ... } // Wird vom onchange des Dropdowns aufgerufen
+// function filterMandantZuruecksetzen(){ ... } // Wird nicht mehr vom HTML Button aufgerufen
+// function filterNachBenutzer(){ ... } // Wird vom onchange des Dropdowns aufgerufen
 // function filterBenutzerZuruecksetzen(){ ... }
 
 
-// >>> ENDE NEUE FUNKTIONEN BENUTZERVERWALTUNG <<<
+/* /* --- END BLOCK 5d: Descriptions, Selection & User Management --- */ */
+/* /* --- START BLOCK 6: Export Functions --- */ */
 
-
-// Geändert: Nimmt Idee-ID entgegen und arbeitet mit Array von IDs
-function toggleAuswahl(ideeId,box){
-    if(box.checked){
-        if(!ausgewaehlt.includes(ideeId)) ausgewaehlt.push(ideeId);
-    } else {
-        ausgewaehlt = ausgewaehlt.filter(id => id !== ideeId);
-    }
-    // Console.log zur Überprüfung
-    // console.log("Ausgewählt IDs:", ausgewaehlt);
-}
-
-function ausgewaehlteNotizenLoeschen(){
-    if(ausgewaehlt.length === 0) {
-        zeigeWarnung("Keine Notizen ausgewählt.");
-        return;
-    }
-    if(!confirm(`Wirklich ${ausgewaehlte.length} ausgewählte Notiz(en) löschen?`)) return;
-
-    let ideen = JSON.parse(localStorage.getItem("ideen")||"[]");
-    // Sammle Mandanten und Benutzer der zu löschenden Ideen, um später zu prüfen, ob sie noch anderswo vorkommen
-     const deletedMandanten = new Set();
-     const deletedBenutzer = new Set();
-     ideen.filter(item => ausgewaehlt.includes(item.id)).forEach(item => {
-         if (item.mandantennummer) deletedMandanten.add((item.mandantennummer).toLowerCase());
-         if (item.benutzer) deletedBenutzer.add((item.benutzer).toLowerCase());
-     });
-
-
-    // Erstelle ein neues Array, das nur die nicht ausgewählten Ideen enthält
-    const neueIdeenListe = ideen.filter(item => !ausgewaehlt.includes(item.id));
-
-    localStorage.setItem("ideen", JSON.stringify(neueIdeenListe));
-
-    // Prüfe, ob durch das Löschen Mandanten oder Benutzer verschwunden sind (nur die, die nur in den gelöschten Notizen vorkamen)
-    const remainingMandanten = new Set(neueIdeenListe.map(i => (i.mandantennummer || "").toLowerCase()).filter(m => m !== ""));
-    const remainingBenutzer = new Set(neueIdeenListe.map(i => (i.benutzer || "").toLowerCase()).filter(b => b !== ""));
-
-    let updateMandantenDropdown = false;
-    deletedMandanten.forEach(mandant => {
-        if (!remainingMandanten.has(mandant)) updateMandantenDropdown = true;
-    });
-
-     let updateBenutzerDropdowns = false;
-     deletedBenutzer.forEach(benutzer => {
-         if (!remainingBenutzer.has(benutzer)) updateBenutzerDropdowns = true;
-     });
-
-
-    if (updateMandantenDropdown) aktualisiereMandantenFilterDropdown();
-     if (updateBenutzerDropdowns) aktualisiereBenutzerDropdowns();
-
-
-    // Prüfe, ob die gerade bearbeitete Idee gelöscht wurde
-    if (bearbeiteId !== null && ausgewaehlt.includes(bearbeiteId)) {
-        abbrechenBearbeiten();
-    }
-     // Prüfe, ob die Idee, deren Beschreibung bearbeitet wird, gelöscht wurde
-     if (beschreibungFuerId !== null && ausgewaehlt.includes(beschreibungFuerId)) {
-          beschreibungAbbrechen();
-     }
-
-
-    ausgewaehlt = []; // Auswahl leeren
-    zeigeIdeen(); // Liste neu rendern
-    istGespeichert = true;
-}
-
-function alleIdeenLoeschen(){
-    if(!confirm("Wirklich ALLE Ideen löschen?"))return;
-    localStorage.setItem("ideen","[]");
-    // >>> NACH DEM LÖSCHEN ALLER IDEEN: Mandanten- und Benutzer-Dropdowns aktualisieren <<<
-    aktualisiereMandantenFilterDropdown(); // Leert das Mandanten-Dropdown bis auf Standardoption
-     // Optional: Benutzerliste auch leeren? Standard ist jetzt NEIN.
-     // localStorage.setItem("benutzerliste", "[]"); // Wenn diese Zeile aktiv ist, wird die Benutzerliste auch geleert
-     aktualisiereBenutzerDropdowns(); // Leert das Benutzer-Dropdown bis auf Standardoption (basierend auf leerem localStorage für Ideen, aber Benutzerliste bleibt bestehen, falls nicht optional gelöscht)
-    // >>> ENDE UPDATE DROPDOWNS <<<
-
-    ausgewaehlt=[]; // Auswahl leeren
-    bearbeiteId = null; // Bearbeitungsmodus beenden
-    beschreibungFuerId = null; // Beschreibungseingabe beenden
-    beschreibungZuBearbeitenderTimestamp = null; // Bearbeitungsstatus Beschreibung zurücksetzen
-    zeigeIdeen(); // Liste neu rendern (zeigt dann eine leere Liste)
-    abbrechenBearbeiten(); // Stellt sicher, dass das Formular geleert wird
-    istGespeichert=true;
-}
 function getExportIdeen(){
     let ideen = JSON.parse(localStorage.getItem("ideen")||"[]");
 
@@ -1205,11 +1139,11 @@ function getExportIdeen(){
 
 
 function exportiereAlsPDF(){const{jsPDF}=window.jspdf;const doc=new jsPDF();const margin=15;const pageHeight=doc.internal.pageSize.getHeight();let y=margin;const ideen=getExportIdeen();ideen.forEach((idee,idx)=>{
-    // >>> BENUTZER ZUM TITEL HINZUFÜGEN (Optional, kann auch als eigenes Feld) <<<
+    // >>> BENUTZER ZUM TITEL HINZUFÜGEN (Optional, kann auch als eigenes Feld) START <<<
     const titel=`Idee ${idx+1}: ${idee.text}${idee.benutzer ? ` (Zuständig: ${idee.benutzer})` : ''}`;
-    // >>> ENDE BENUTZER ZUM TITEL <<<
+    // >>> BENUTZER ZUM TITEL HINZUFÜGEN (Optional, kann auch als eigenes Feld) ENDE <<<
     const titelLines=doc.splitTextToSize(titel,180);doc.setFontSize(12); titelLines.forEach(line=>{if(y+7>pageHeight-margin){doc.addPage();y=margin;}doc.text(line,margin,y);y+=7;}); // Verringere Zeilenhöhe für Titel
-    // >>> BENUTZER ZU METADATEN HINZUFÜGEN <<<
+    // >>> BENUTZER ZU METADATEN HINZUFÜGEN START <<<
     const metaLines = [];
     metaLines.push(`Kategorie: ${idee.kategorie}`);
     if(idee.benutzer) metaLines.push(`Zuständig: ${idee.benutzer}`); // Füge Benutzer hinzu, wenn vorhanden
@@ -1221,6 +1155,7 @@ function exportiereAlsPDF(){const{jsPDF}=window.jspdf;const doc=new jsPDF();cons
 
     doc.setFontSize(10); // Kleinere Schrift für Metadaten
     metaLines.forEach(text=>{if(y+6>pageHeight-margin){doc.addPage();y=margin;}doc.text(text,margin,y);y+=6;}); // Verringere Zeilenhöhe für Metadaten
+    // >>> BENUTZER ZU METADATEN HINZUFÜGEN ENDE <<<
 
     if(idee.details){
         doc.setFontSize(10); // Kleinere Schrift für Details
@@ -1264,7 +1199,7 @@ function exportiereAlsPDF(){const{jsPDF}=window.jspdf;const doc=new jsPDF();cons
     if(y>pageHeight-margin){doc.addPage();y=margin;}});doc.save("ideen-export.pdf");}
 
 function exportiereAlsText(){const ideen=getExportIdeen();const text=ideen.map(idee=>
-    // >>> BENUTZER ZUM TEXTEXPORT HINZUFÜGEN <<<
+    // >>> BENUTZER ZUM TEXTEXPORT HINZUFÜGEN START <<<
     `=== ${idee.text} ===\n` +
     `Kategorie: ${idee.kategorie}\n` +
     `${idee.benutzer?`Zuständig: ${idee.benutzer}\n`:""}` + // Füge Benutzer hinzu, wenn vorhanden
@@ -1275,11 +1210,11 @@ function exportiereAlsText(){const ideen=getExportIdeen();const text=ideen.map(i
     `${idee.details?`Beschreibung: ${idee.details}\n`:""}` + // Details nur einfügen, wenn vorhanden
     `${idee.beschreibungen&&idee.beschreibungen.length?`Weitere Beschreibungen:\n${idee.beschreibungen.map(b=>`  - [${new Date(b.timestamp).toLocaleString("de-DE")}] ${b.text}`).join("\n")}\n`:""}` + // Beschreibungen einfügen und Zeitstempel formatieren
     `Anhänge: ${idee.dateien?.map(f=>f.name).join(", ")||"Keine"}\n`
-    // >>> ENDE BENUTZER ZUM TEXTEXPORT <<<
+    // >>> BENUTZER ZUM TEXTEXPORT HINZUFÜGEN ENDE <<<
 ).join("\n\n");const blob=new Blob([text],{type:"text/plain"});const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download="ideen-export.txt";link.click();;}
 
 function teilePerEmail(){const ideen=getExportIdeen();const text=ideen.map(idee=>
-    // >>> BENUTZER ZUM EMAIL-EXPORT HINZUFÜGEN <<<
+    // >>> BENUTZER ZUM EMAIL-EXPORT HINZUFÜGEN START <<<
     `*${idee.text}*\n` +
     `Kategorie: ${idee.kategorie}\n` +
     `${idee.benutzer?`Zuständig: ${idee.benutzer}\n`:""}` + // Füge Benutzer hinzu, wenn vorhanden
@@ -1290,13 +1225,13 @@ function teilePerEmail(){const ideen=getExportIdeen();const text=ideen.map(idee=
     `${idee.details?`Beschreibung: ${idee.details}\n`:""}` + // Details nur einfügen, wenn vorhanden
     `${idee.beschreibungen&&idee.beschreibungen.length?`Weitere Beschreibungen:\n${idee.beschreibungen.map(b=>`  - [${new Date(b.timestamp).toLocaleString("de-DE")}] ${b.text}`).join("\n")}\n`:""}` + // Beschreibungen einfügen und Zeitstempel formatieren
     `\nAnhänge: ${idee.dateien?.map(f=>`${f.name} (${f.link||f.data||'Kein Link'})`).join(", ")||"Keine"}\n` // Fügt Link/URL hinzu, Fallback für fehlende Links
-    // >>> ENDE BENUTZER ZUM EMAIL-EXPORT <<<
+    // >>> BENUTZER ZUM EMAIL-EXPORT HINZUFÜGEN ENDE <<<
 ).join("\n\n")+"\n\n[Bitte Anhänge manuell hinzufügen]";window.location.href=`mailto:?subject=Ideen-Export&body=${encodeURIComponent(text)}`;} // *** ÄNDERUNG HIER: Fügt Link/URL hinzu ***
 
 function teilePerWhatsApp(){
     const ideen = getExportIdeen();
     const text = ideen.map(idee =>
-    // >>> BENUTZER ZUM WHATSAPP-EXPORT HINZUFÜGEN <<<
+    // >>> BENUTZER ZUM WHATSAPP-EXPORT HINZUFÜGEN START <<<
         `*${idee.text}*\n` +
         `📁 Kategorie: ${idee.kategorie}\n` +
         `${idee.benutzer?`🧑‍💻 Zuständig: ${idee.benutzer}\n`:""}` + // Füge Benutzer hinzu, wenn vorhanden (mit optionalem Emoji)
@@ -1307,10 +1242,14 @@ function teilePerWhatsApp(){
         `${idee.firmenname?`Firmenname: ${idee.firmenname}\n`:""}` + // Firmenname nur einfügen, wenn vorhanden
         `${idee.beschreibungen&&idee.beschreibungen.length?`Weitere Beschreibungen:\n${idee.beschreibungen.map(b=>`  - [${new Date(b.timestamp).toLocaleString("de-DE")}] ${b.text}`).join("\n")}\n`:""}` + // Beschreibungen einfügen und Zeitstempel formatieren
         `📎 Anhänge: ${idee.dateien?.map(f=>`${f.name} (${f.link||f.data||'Kein Link'})`).join(", ")||"Keine"}\n` // Fügt Link/URL hinzu, Fallback
-    // >>> ENDE BENUTZER ZUM WHATSAPP-EXPORT <<<
+    // >>> BENUTZER ZUM WHATSAPP-EXPORT HINZUFÜGEN ENDE <<<
     ).join("\n\n");
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,"_blank");
 }
+
+/* /* --- END BLOCK 6: Export Functions --- */ */
+/* /* --- START BLOCK 7: OneDrive & Local File Functions --- */ */
+
 async function uploadToOneDrive(f){if(!accessToken){zeigeWarnung("Bitte zuerst mit Microsoft anmelden!");return null;}try{const n=`ideenapp/${Date.now()}_${f.name}`;const u=await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${n}:/content`,{method:"PUT",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":f.type},body:f});const d=await u.json();const s=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${d.id}/createLink`,{method:"POST",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":"application/json"},body:JSON.stringify({type:"view",scope:"anonymous"})});const j=await s.json();return j.link.webUrl;}catch(e){zeigeWarnung("OneDrive-Fehler beim Upload: "+e.message);return null;}} // Angepasste Fehlermeldung
 
 // FUNKTION: Speichern der Ideen auf OneDrive (angepasst für wählbaren Pfad)
@@ -1458,11 +1397,11 @@ async function loadFromOneDrive(){
                      // Daten in localStorage speichern
                      localStorage.setItem("ideen", JSON.stringify(ideen)); // Speichern der geladenen/migrierten Daten
 
-                     // >>> DROPDOWNS NACH DEM LADEN AKTUALISIEREN <<<
+                     // >>> DROPDOWNS NACH DEM LADEN AKTUALISIEREN START<<<
                      initialisiereKategorien(); // Kategorien neu laden
                      initialisiereBenutzer(); // Benutzer neu laden
                      aktualisiereMandantenFilterDropdown(); // Mandanten neu laden
-                     // >>> ENDE DROPDOWNS AKTUALISIEREN <<<
+                     // >>> DROPDOWNS NACH DEM LADEN AKTUALISIEREN ENDE<<<
 
 
                      zeigeIdeen(); // Ideen anzeigen
@@ -1495,7 +1434,7 @@ async function loadFromOneDrive(){
 // uploadToOneDrive braucht KEINE Anpassung, da es Anhänge sind, nicht die Hauptdatei.
 
 // FUNCTIONS FOR LOCAL FILE SAVE/LOAD
-async function speichereIdeenAlsDatei(){try{const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");if(window.showSaveFilePicker){fileHandle=await window.showSaveFilePicker({suggestedName:"ideen.json",types:[{description:"JSON-Dateien",accept:{"application/json":[".json"]}}]});const writable=await fileHandle.createWritable();await writable.write(JSON.stringify(ideen,null,2));await writable.close();zeigeWarnung("Datei erfolgreich lokal gespeichert!", 'success');istGespeichert=true;}else{const blob=new Blob([JSON.stringify(ideen)],{type:"application/json"});const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download="ideen.json";link.click();zeigeWarnung("Datei erfolgreich lokal gespeichert!", 'success');istGespeichert=true;}}catch(e){if(e.name!=="AbortError")zeigeWarnung("Fehler beim lokalen Speichern: "+e.message);}} // Angepasste Meldungen
+async function speichereIdeenAlsDatei(){try{const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");if(window.showSaveFilePicker){fileHandle=await window.showSaveFilePicker({suggestedName:"ideen.json",types:[{description:"JSON-Dateien",accept:{"application/json":[".json"]}}]});const writable=await fileHandle.createWritable();await writable.write(JSON.stringify(ideen,null,2));await writable.close();zeigeWarnung("Datei erfolgreich lokal gespeichert!", 'success');istGespeichert=true;}}catch(e){if(e.name!=="AbortError")zeigeWarnung("Fehler beim lokalen Speichern: "+e.message);}} // Angepasste Meldungen
 async function ladeIdeenAusDatei(){try{let file;if(window.showOpenFilePicker){[fileHandle]=await window.showOpenFilePicker({types:[{description:"JSON-Dateien",accept:{"application/json":[".json"]}}]});file=await fileHandle.getFile();}else{const input=document.createElement('input');input.type='file';input.accept='.json';input.onchange=e=>file=e.target.files[0];input.click();await new Promise(resolve=>input.onchange=resolve);}const content=await file.text();const ideen=JSON.parse(content);
         // Optional: Prüfen, ob IDs existieren und ggf. generieren für alte Einträge ohne ID nach dem Laden
          let changed = false; // Variable hinzugefügt
@@ -1540,16 +1479,20 @@ async function ladeIdeenAusDatei(){try{let file;if(window.showOpenFilePicker){[f
 
          localStorage.setItem("ideen", JSON.stringify(ideen)); // Daten immer in localStorage speichern
 
-         // >>> DROPDOWNS NACH DEM LADEN AKTUALISIEREN <<<
+         // >>> DROPDOWNS NACH DEM LADEN AKTUALISIEREN START <<<
          initialisiereKategorien(); // Kategorien neu laden
          initialisiereBenutzer(); // Benutzer neu laden
          aktualisiereMandantenFilterDropdown(); // Mandanten neu laden
-         // >>> ENDE DROPDOWNS AKTUALISIEREN <<<
+         // >>> DROPDOWNS NACH DEM LADEN AKTUALISIEREN ENDE <<<
 
 
          zeigeIdeen(); // Ideen anzeigen
          zeigeWarnung("Datei erfolgreich lokal geladen!", 'success'); // Erfolgsmeldung
          istGespeichert=true;}catch(e){if(e.name!=="AbortError")zeigeWarnung("Fehler beim lokalen Laden: "+e.message);}} // Angepasste Meldungen
+
+/* /* --- END BLOCK 7: OneDrive & Local File Functions --- */ */
+/* /* --- START BLOCK 8: Event Listeners & Initialization --- */ */
+
 document.getElementById("ideeText").addEventListener("input",()=>{istGespeichert=false;});
 document.getElementById("ideeDetails").addEventListener("input",()=>{istGespeichert=false;});
 document.getElementById("mandantennummer").addEventListener("input",()=>{istGespeichert=false;});
@@ -1637,6 +1580,8 @@ pruebeLoginHinweis(); // Prüft den Login Status
 // >>> AUFRUFE DER INITIALISIERUNGSFUNKTIONEN BEIM LADEN DER SEITE ENDE <<<
 
 
+/* /* --- END BLOCK 8: Event Listeners & Initialization --- */ */
 </script>
 </body>
 </html>
+
