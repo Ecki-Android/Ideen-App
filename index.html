@@ -185,7 +185,10 @@ const msalConfig={auth:{clientId:"ddf69193-7eab-4847-a995-b6c08f0df9ae",authorit
 // ausgewaehlt speichert ein Array von IDs
 // beschreibungFuerId speichert die ID der Idee, deren Beschreibung hinzugefügt/bearbeitet wird
 // beschreibungZuBearbeitenderTimestamp speichert den Timestamp der Beschreibung, die bearbeitet wird (oder null beim Hinzufügen)
-let accessToken = null, msalInstance = null, prioritaet = "", bearbeiteId = null, ausgewaehlt = [], fileHandle = null, beschreibungFuerId = null, beschreibungZuBearbeitenderTimestamp = null, istGespeichert = true, filterMandantValue = "", standardKategorien = ["Aufgaben","Projekte","Privat","Arbeit","Später"];
+// >>> NEUE VARIABLEN FÜR BENUTZERLISTE UND FILTER <<<
+let accessToken = null, msalInstance = null, prioritaet = "", bearbeiteId = null, ausgewaehlt = [], fileHandle = null, beschreibungFuerId = null, beschreibungZuBearbeitenderTimestamp = null, istGespeichert = true, filterMandantValue = "", standardKategorien = ["Aufgaben","Projekte","Privat","Arbeit","Später"], benutzerliste = [], filterBenutzerValue = ""; // Neue Variablen
+// >>> ENDE NEUE VARIABLEN <<<
+
 
 // Funktion zur Generierung einer einfachen UUID v4
 function generateUUID() {
@@ -220,11 +223,31 @@ function zeigeWarnung(msg, type = 'warning'){
     setTimeout(()=>w.style.display="none",6000); // Alle Meldungen verschwinden nach 6 Sekunden
 }
 
-
+// Angepasste Initialisierung für Kategorien (wird später in Block 8 aufgerufen)
 function initialisiereKategorien(){const k=JSON.parse(localStorage.getItem("kategorien"))||standardKategorien;const s=document.getElementById("kategorie");s.innerHTML=k.map(n=>`<option>${n}</option>`).join("");const f=document.getElementById("filterKategorie");f.innerHTML='<option value="" class="filter-option-alle">🎯 Alle Ideen</option>';k.forEach(n=>f.add(new Option(n,n)));}
+
+// >>> PLATZHALTER FÜR initialisiereBenutzer - WIRD SPÄTER IMPLEMENTIERT <<<
+function initialisiereBenutzer() {
+    // Dieser Code wird später hinzugefügt, um die Benutzerliste zu laden und Dropdowns zu füllen
+}
+// >>> ENDE PLATZHALTER <<<
+
 function setzePrioritaet(p){prioritaet=p;["prioHoch","prioMittel","prioNiedrig"].forEach(id=>document.getElementById(id).classList.remove("selected"));if(p)document.getElementById(`prio${p}`).classList.add("selected");istGespeichert=false;}
 function filterNachMandant(){filterMandantValue=document.getElementById("filterMandant").value.trim();zeigeIdeen();}
 function filterMandantZuruecksetzen(){filterMandantValue="";document.getElementById("filterMandant").value="";zeigeIdeen();}
+
+// >>> PLATZHALTER FÜR Benutzer-Filter-Funktionen - WERDEN SPÄTER IMPLEMENTIERT <<<
+function filterNachBenutzer(){
+    // Dieser Code wird später hinzugefügt, um nach Benutzer zu filtern
+    filterBenutzerValue = document.getElementById("filterBenutzer").value; // Lese Wert aus neuem Filter-Dropdown
+    zeigeIdeen();
+}
+function filterBenutzerZuruecksetzen(){
+    // Dieser Code wird später hinzugefügt
+     filterBenutzerValue = "";
+     document.getElementById("filterBenutzer").value = "";
+     zeigeIdeen();
+}
 function speichereIdee(){
     const text = document.getElementById("ideeText").value.trim();
     if(!text) return zeigeWarnung("Titel ist erforderlich!");
@@ -303,6 +326,9 @@ function saveIdeeObjekt(text, dateien){
     const kategorie = document.getElementById("kategorie").value;
     const mandantennummer = document.getElementById("mandantennummer").value.trim();
     const firmenname = document.getElementById("firmenname").value.trim();
+    // >>> NEUES FELD: Benutzer lesen <<<
+    const benutzer = document.getElementById("benutzer").value; // Lese den ausgewählten Benutzer
+    // >>> ENDE NEUES FELD <<<
     // Beim Aktualisieren wird der ursprüngliche Timestamp beibehalten, bei neuer Idee aktueller Timestamp
     const timestamp = bearbeiteId !== null ? ideen.find(item => item.id === bearbeiteId)?.timestamp || new Date().toISOString() : new Date().toISOString();
 
@@ -322,6 +348,9 @@ function saveIdeeObjekt(text, dateien){
                  prioritaet, // Globale Variable wird hier verwendet
                  mandantennummer,
                  firmenname,
+                 // >>> NEUES FELD: Benutzer speichern <<<
+                 benutzer, // Speichere den Benutzer
+                 // >>> ENDE NEUES FELD <<<
                  dateien, // Neue und übernommene Dateien
                  timestamp: existingIdee.timestamp, // Ursprünglichen Timestamp beibehalten für Sortierung 'alt'
                  erledigt: existingIdee.erledigt || false,
@@ -346,6 +375,9 @@ function saveIdeeObjekt(text, dateien){
             prioritaet, // Globale Variable wird hier verwendet
             mandantennummer,
             firmenname,
+            // >>> NEUES FELD: Benutzer speichern <<<
+            benutzer, // Speichere den Benutzer
+            // >>> ENDE NEUES FELD <<<
             dateien,
             timestamp, // Timestamp der Erstellung
             erledigt: false,
@@ -364,6 +396,9 @@ function saveIdeeObjekt(text, dateien){
     document.getElementById("dateien").value = "";
     document.getElementById("dateiVorschau").innerHTML = ""; // Dateivorschau leeren
     setzePrioritaet(""); // Priorität zurücksetzen
+    // >>> ZURÜCKSETZEN DES BENUTZERFELDES <<<
+    document.getElementById("benutzer").value = ""; // Setze Benutzerfeld zurück
+    // >>> ENDE ZURÜCKSETZEN <<<
     istGespeichert = true;
 }
 function zeigeIdeen(){
@@ -376,6 +411,12 @@ function zeigeIdeen(){
 
     // Apply mandant filter
     if(filterMandantValue) filteredIdeen = filteredIdeen.filter(i => (i.mandantennummer||"").toLowerCase() === filterMandantValue.toLowerCase());
+
+    // >>> NEUER BENUTZERFILTER START <<<
+    // Apply benutzer filter
+    if(filterBenutzerValue) filteredIdeen = filteredIdeen.filter(i => (i.benutzer||"").toLowerCase() === filterBenutzerValue.toLowerCase());
+    // >>> NEUER BENUTZERFILTER ENDE <<<
+
 
     // >>> ARCHIVE FILTER START <<<
     const filterArchivValue = document.getElementById("filterArchiv").value;
@@ -410,7 +451,9 @@ function zeigeIdeen(){
         const anzeigeDatum = new Date(idee.timestamp).toLocaleString("de-DE");
 
         // Verwende ideeId für Action button calls und Checkbox
-        return`<div class="idee${erledigt?' erledigt':''}"><div class="idee-content"><h3>${idee.text}</h3><p>${idee.details||""}</p>${idee.mandantennummer?`<div>Mandantennummer: <b>${idee.mandantennummer}</b></div>`:""}${idee.firmenname?`<div>Firmenname: <b>${idee.firmenname}</b></div>`:""}${idee.beschreibungen&&idee.beschreibungen.length?`<div class="beschreibung-historie"><b>Weitere Beschreibungen:</b>${idee.beschreibungen.map(b=>`<div class="beschreibung-item"><div class="beschreibung-text-zeit"><span class="beschreibung-zeit">${b.timestamp}</span>${b.text}</div><button class="edit-beschreibung-btn" onclick="bearbeiteEinzelneBeschreibung('${ideeId}', '${b.timestamp}')">✏️</button></div>`).join("")}</div>`:""}<small>${idee.kategorie} | ${idee.prioritaet||"Keine"} | ${anzeigeDatum}</small>${idee.dateien?.map(file=>`<a class="datei-link" href="${file.link||file.data}" target="_blank">${file.link?'🌐':'📎'} ${file.name}</a>${file.link?'<div class="datei-info">OneDrive-Link</div>':`<div class="datei-info">Pfad: <i>${file.pfad||file.name}</i></div>`}${file.type?.startsWith("image/")?`<img src="${file.link||file.data}" style="max-width:150px;">`:""}${file.type==="application/pdf"?`<iframe src="${file.link||file.data}" style="width:150px;height:100px;"></iframe>`:""}`).join("")}<div class="idee-actions"><button onclick="verschiebeIdee('${ideeId}',-1)">⬆️</button><button onclick="verschiebeIdee('${ideeId}',1)">⬇️</button><button onclick="bearbeiteIdee('${ideeId}')">✏️</button><button onclick="toggleErledigt('${ideeId}')">${erledigt?"↩️":"✔️"}</button><button onclick="loescheIdee('${ideeId}')">🗑️</button><button onclick="zeigeBeschreibungDialog('${ideeId}')">+ Beschreibung</button></div></div><input type="checkbox" class="idee-checkbox" onchange="toggleAuswahl('${ideeId}',this)" ${ausgewaehlt.includes(ideeId)?"checked":""}></div>`;
+        // >>> ANZEIGE DES BENUTZER-FELDES HINZUGEFÜGT <<<
+        return`<div class="idee${erledigt?' erledigt':''}"><div class="idee-content"><h3>${idee.text}</h3><p>${idee.details||""}</p>${idee.benutzer?`<div>Zuständig: <b>${idee.benutzer}</b></div>`:""}${idee.mandantennummer?`<div>Mandantennummer: <b>${idee.mandantennummer}</b></div>`:""}${idee.firmenname?`<div>Firmenname: <b>${idee.firmenname}</b></div>`:""}${idee.beschreibungen&&idee.beschreibungen.length?`<div class="beschreibung-historie"><b>Weitere Beschreibungen:</b>${idee.beschreibungen.map(b=>`<div class="beschreibung-item"><div class="beschreibung-text-zeit"><span class="beschreibung-zeit">${b.timestamp}</span>${b.text}</div><button class="edit-beschreibung-btn" onclick="bearbeiteEinzelneBeschreibung('${ideeId}', '${b.timestamp}')">✏️</button></div>`).join("")}</div>`:""}<small>${idee.kategorie} | ${idee.prioritaet||"Keine"} | ${anzeigeDatum}</small>${idee.dateien?.map(file=>`<a class="datei-link" href="${file.link||file.data}" target="_blank">${file.link?'🌐':'📎'} ${file.name}</a>${file.link?'<div class="datei-info">OneDrive-Link</div>':`<div class="datei-info">Pfad: <i>${file.pfad||file.name}</i></div>`}${file.type?.startsWith("image/")?`<img src="${file.link||file.data}" style="max-width:150px;">`:""}${file.type==="application/pdf"?`<iframe src="${file.link||file.data}" style="width:150px;height:100px;"></iframe>`:""}`).join("")}<div class="idee-actions"><button onclick="verschiebeIdee('${ideeId}',-1)">⬆️</button><button onclick="verschiebeIdee('${ideeId}',1)">⬇️</button><button onclick="bearbeiteIdee('${ideeId}')">✏️</button><button onclick="toggleErledigt('${ideeId}')">${erledigt?"↩️":"✔️"}</button><button onclick="loescheIdee('${ideeId}')">🗑️</button><button onclick="zeigeBeschreibungDialog('${ideeId}')">+ Beschreibung</button></div></div><input type="checkbox" class="idee-checkbox" onchange="toggleAuswahl('${ideeId}',this)" ${ausgewaehlt.includes(ideeId)?"checked":""}></div>`;
+        // >>> ENDE ANZEIGE BENUTZER-FELDES <<<
     }).join("");
 
     // Das Bearbeitungsformular schließen, wenn die bearbeitete Idee durch Filter unsichtbar wird
@@ -442,7 +485,7 @@ function toggleErledigt(ideeId){
     }
 }
 
-// Geändert: Nimmt Idee-ID entgegen
+// Geändert: Nimmt Idee-ID entgegen und setzt Benutzerfeld beim Bearbeiten
 function bearbeiteIdee(ideeId){
     const ideen = JSON.parse(localStorage.getItem("ideen")||"[]");
     const idee = ideen.find(item => item.id === ideeId); // Finde Idee anhand ID
@@ -457,6 +500,9 @@ function bearbeiteIdee(ideeId){
     document.getElementById("kategorie").value = idee.kategorie;
     document.getElementById("mandantennummer").value = idee.mandantennummer || "";
     document.getElementById("firmenname").value = idee.firmenname || "";
+    // >>> NEUES FELD: Benutzer beim Bearbeiten setzen <<<
+    document.getElementById("benutzer").value = idee.benutzer || ""; // Setze den Benutzer
+    // >>> ENDE NEUES FELD <<<
     prioritaet = idee.prioritaet; // Setze die globale prioritaet Variable
     setzePrioritaet(idee.prioritaet); // Aktualisiere UI basierend auf der globalen Variable
 
@@ -490,6 +536,9 @@ function abbrechenBearbeiten(){
     document.getElementById("speichernBtn").textContent = "💾 Speichern";
     document.getElementById("abbrechenBtn").style.display = "none";
     setzePrioritaet(""); // Priorität zurücksetzen (setzt globale Var und UI)
+    // >>> ZURÜCKSETZEN DES BENUTZERFELDES <<<
+    document.getElementById("benutzer").value = ""; // Setze Benutzerfeld zurück
+    // >>> ENDE ZURÜCKSETZEN <<<
     istGespeichert = true;
 }
 
@@ -500,6 +549,7 @@ function verschiebeIdee(ideeId, richtung){
     const filterKategorie = document.getElementById("filterKategorie").value;
     const filterMandantValue = document.getElementById("filterMandant").value.trim();
     const filterArchivValue = document.getElementById("filterArchiv").value;
+     const filterBenutzerValue = document.getElementById("filterBenutzer").value; // Lese Benutzerfilter
     const sortierung = document.getElementById("sortierung").value;
 
     let currentViewIdeen = [...fullIdeen]; // Kopie für Filterung/Sortierung der Ansicht
@@ -511,6 +561,10 @@ function verschiebeIdee(ideeId, richtung){
      } else if (filterArchivValue === "erledigt") {
          currentViewIdeen = currentViewIdeen.filter(i => (i.erledigt || false));
      }
+    // >>> NEUER BENUTZERFILTER BEIM VERSCHIEBEN <<<
+    if(filterBenutzerValue) currentViewIdeen = currentViewIdeen.filter(i => (i.benutzer||"").toLowerCase() === filterBenutzerValue.toLowerCase());
+    // >>> ENDE NEUER BENUTZERFILTER <<<
+
     currentViewIdeen.sort((a,b)=>{
         if(sortierung==="prio"){
             const p={"Hoch":3,"Mittel":2,"Niedrig":1};
@@ -707,6 +761,173 @@ function alleIdeenLoeschen(){
     abbrechenBearbeiten(); // Stellt sicher, dass das Formular geleert wird
     istGespeichert=true;
 }
+
+
+// >>> NEUE FUNKTIONEN ZUR BENUTZERVERWALTUNG START <<<
+
+// Funktion zum Hinzufügen eines neuen Benutzers
+function neuenBenutzerHinzufuegen(){
+    const neuerBenutzerInput = document.getElementById("neuerBenutzer"); // Neues Input-Feld
+    const neuerBenutzerName = neuerBenutzerInput.value.trim();
+    if (!neuerBenutzerName) {
+        zeigeWarnung("Bitte geben Sie einen Benutzernamen ein.");
+        return;
+    }
+
+    benutzerliste = JSON.parse(localStorage.getItem("benutzerliste") || "[]");
+    if (benutzerliste.includes(neuerBenutzerName)) {
+        zeigeWarnung("Dieser Benutzer existiert bereits!");
+        return;
+    }
+
+    benutzerliste.push(neuerBenutzerName);
+    localStorage.setItem("benutzerliste", JSON.stringify(benutzerliste));
+
+    // Dropdown-Listen aktualisieren
+    aktualisiereBenutzerDropdowns();
+
+    // Input-Feld leeren und Fokus zurücksetzen
+    neuerBenutzerInput.value = "";
+    neuerBenutzerInput.focus();
+    zeigeWarnung(`Benutzer "${neuerBenutzerName}" hinzugefügt.`, 'success'); // Erfolgsmeldung
+    istGespeichert = false; // Änderung der Benutzerliste
+}
+
+// Funktion zum Löschen eines Benutzers
+function benutzerLoeschen(){
+    const benutzerSelect = document.getElementById("benutzer"); // Dropdown mit den Benutzern
+    const benutzernameZuLoeschen = benutzerSelect.value;
+
+    if (!benutzernameZuLoeschen) {
+        zeigeWarnung("Bitte wählen Sie zuerst einen Benutzer zum Löschen aus.");
+        return;
+    }
+
+    if (!confirm(`Soll der Benutzer "${benutzernameZuLoeschen}" WIRKLICH gelöscht werden? Alle Notizen, die diesem Benutzer zugeordnet sind, werden ebenfalls gelöscht!`)) {
+        return; // Abbruch, falls nicht bestätigt
+    }
+
+    // Benutzer aus der Liste entfernen
+    benutzerliste = JSON.parse(localStorage.getItem("benutzerliste") || "[]");
+    const index = benutzerliste.indexOf(benutzernameZuLoeschen);
+    if (index > -1) {
+        benutzerliste.splice(index, 1);
+        localStorage.setItem("benutzerliste", JSON.stringify(benutzerliste));
+
+        // Notizen löschen, die diesem Benutzer zugeordnet sind
+        let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+        const ursprungsLaenge = ideen.length;
+        // Filtere alle Ideen heraus, deren 'benutzer'-Feld dem zu löschenden Benutzernamen entspricht
+        ideen = ideen.filter(idee => idee.benutzer !== benutzernameZuLoeschen);
+        localStorage.setItem("ideen", JSON.stringify(ideen));
+        const anzahlGeloeschterNotizen = ursprungsLaenge - ideen.length;
+
+
+        // Dropdown-Listen aktualisieren
+        aktualisiereBenutzerDropdowns();
+         // Filter zurücksetzen, falls der gelöschte Benutzer gerade gefiltert war
+        if (filterBenutzerValue === benutzernameZuLoeschen) {
+             filterBenutzerValue = "";
+        }
+
+
+        zeigeWarnung(`Benutzer "${benutzernameZuLoeschen}" und ${anzahlGeloeschterNotizen} zugeordnete Notiz(en) erfolgreich gelöscht.`, 'success'); // Erfolgsmeldung mit Anzahl Notizen
+        zeigeIdeen(); // Liste neu rendern
+        istGespeichert = true; // Änderung der Benutzerliste und Ideen
+    } else {
+        zeigeWarnung(`Benutzer "${benutzernameZuLoeschen}" nicht gefunden.`);
+    }
+}
+
+// Funktion zum Aktualisieren der Benutzer-Dropdowns (Benutzerfeld und Filter)
+function aktualisiereBenutzerDropdowns() {
+    benutzerliste = JSON.parse(localStorage.getItem("benutzerliste") || "[]");
+    const benutzerSelect = document.getElementById("benutzer"); // Das Dropdown im Eingabeformular
+    const filterBenutzerSelect = document.getElementById("filterBenutzer"); // Das Dropdown im Filterbereich
+
+    // Benutzerfeld im Eingabeformular füllen
+    benutzerSelect.innerHTML = '<option value="">-- Benutzer auswählen --</option>'; // Standardoption
+    benutzerliste.forEach(benutzer => {
+        benutzerSelect.add(new Option(benutzer, benutzer));
+    });
+
+     // Benutzerfilter-Dropdown füllen
+     filterBenutzerSelect.innerHTML = '<option value="">👤 Alle Benutzer</option>'; // Standardfilteroption
+     benutzerliste.forEach(benutzer => {
+          filterBenutzerSelect.add(new Option(benutzer, benutzer));
+     });
+}
+
+// Benutzer-Filterfunktionen (bereits als Platzhalter in Block 4 deklariert)
+// Sie rufen jetzt einfach zeigeIdeen() auf, das die Filterlogik enthält.
+// function filterNachBenutzer(){
+//     filterBenutzerValue = document.getElementById("filterBenutzer").value;
+//     zeigeIdeen();
+// }
+// function filterBenutzerZuruecksetzen(){
+//     filterBenutzerValue = "";
+//     document.getElementById("filterBenutzer").value = "";
+//     zeigeIdeen();
+// }
+
+
+// >>> ENDE NEUE FUNKTIONEN BENUTZERVERWALTUNG <<<
+
+
+// Geändert: Nimmt Idee-ID entgegen und arbeitet mit Array von IDs
+function toggleAuswahl(ideeId,box){
+    if(box.checked){
+        if(!ausgewaehlt.includes(ideeId)) ausgewaehlt.push(ideeId);
+    } else {
+        ausgewaehlt = ausgewaehlt.filter(id => id !== ideeId);
+    }
+    // Console.log zur Überprüfung
+    // console.log("Ausgewählt IDs:", ausgewaehlt);
+}
+
+function ausgewaehlteNotizenLoeschen(){
+    if(ausgewaehlt.length === 0) {
+        zeigeWarnung("Keine Notizen ausgewählt.");
+        return;
+    }
+    if(!confirm(`Wirklich ${ausgewaehlt.length} ausgewählte Notiz(en) löschen?`)) return;
+
+    let ideen = JSON.parse(localStorage.getItem("ideen")||"[]");
+    // Erstelle ein neues Array, das nur die nicht ausgewählten Ideen enthält
+    const neueIdeenListe = ideen.filter(item => !ausgewaehlt.includes(item.id));
+
+    localStorage.setItem("ideen", JSON.stringify(neueIdeenListe));
+
+    // Prüfe, ob die gerade bearbeitete Idee gelöscht wurde
+    if (bearbeiteId !== null && ausgewaehlt.includes(bearbeiteId)) {
+        abbrechenBearbeiten();
+    }
+     // Prüfe, ob die Idee, deren Beschreibung bearbeitet wird, gelöscht wurde
+     if (beschreibungFuerId !== null && ausgewaehlt.includes(beschreibungFuerId)) {
+          beschreibungAbbrechen();
+     }
+
+
+    ausgewaehlt = []; // Auswahl leeren
+    zeigeIdeen(); // Liste neu rendern
+    istGespeichert = true;
+}
+
+function alleIdeenLoeschen(){
+    if(!confirm("Wirklich ALLE Ideen löschen?"))return;
+    localStorage.setItem("ideen","[]");
+    // >>> BEIM LÖSCHEN ALLER NOTIZEN WIRD AUCH DIE BENUTZERLISTE GELEERT, falls gewünscht <<<
+    // localStorage.setItem("benutzerliste", "[]"); // Optional: Benutzerliste auch leeren
+    // >>> ENDE OPTIONAL <<<
+
+    ausgewaehlt=[]; // Auswahl leeren
+    bearbeiteId = null; // Bearbeitungsmodus beenden
+    beschreibungFuerId = null; // Beschreibungseingabe beenden
+    beschreibungZuBearbeitenderTimestamp = null; // Bearbeitungsstatus Beschreibung zurücksetzen
+    zeigeIdeen(); // Liste neu rendern
+    abbrechenBearbeiten(); // Stellt sicher, dass das Formular geleert wird
+    istGespeichert=true;
+}
 function getExportIdeen(){
     let ideen = JSON.parse(localStorage.getItem("ideen")||"[]");
 
@@ -719,6 +940,7 @@ function getExportIdeen(){
     // Dies erfordert das erneute Anwenden der Filter und Sortierung.
     const filterKategorie = document.getElementById("filterKategorie").value;
     const filterMandantValue = document.getElementById("filterMandant").value.trim(); // Muss hier neu gelesen werden
+     const filterBenutzerValue = document.getElementById("filterBenutzer").value; // Lese Benutzerfilter
     const filterArchivValue = document.getElementById("filterArchiv").value; // Archiv-Filter für Export
     const sortierung = document.getElementById("sortierung").value; // Sortierung für Export
 
@@ -726,11 +948,15 @@ function getExportIdeen(){
 
     if(filterKategorie) exportIdeen = exportIdeen.filter(i => i.kategorie === filterKategorie);
     if(filterMandantValue) exportIdeen = exportIdeen.filter(i => (i.mandantennummer||"").toLowerCase() === filterMandantValue.toLowerCase());
+     // >>> BENUTZERFILTER FÜR EXPORT START <<<
+     if(filterBenutzerValue) exportIdeen = exportIdeen.filter(i => (i.benutzer||"").toLowerCase() === filterBenutzerValue.toLowerCase());
+     // >>> BENUTZERFILTER FÜR EXPORT ENDE <<<
     if (filterArchivValue === "nicht_erledigt") {
         exportIdeen = exportIdeen.filter(i => !(i.erledigt || false));
     } else if (filterArchivValue === "erledigt") {
         exportIdeen = exportIdeen.filter(i => (i.erledigt || false));
     }
+
 
     exportIdeen.sort((a,b)=>{
         if(sortierung==="prio"){
@@ -747,16 +973,55 @@ function getExportIdeen(){
 }
 
 
-function exportiereAlsPDF(){const{jsPDF}=window.jspdf;const doc=new jsPDF();const margin=15;const pageHeight=doc.internal.pageSize.getHeight();let y=margin;const ideen=getExportIdeen();ideen.forEach((idee,idx)=>{const titel=`Idee ${idx+1}: ${idee.text}`;const titelLines=doc.splitTextToSize(titel,180);titelLines.forEach(line=>{if(y+10>pageHeight-margin){doc.addPage();y=margin;}doc.text(line,margin,y);y+=10;});const meta=[`Kategorie: ${idee.kategorie}`,`Priorität: ${idee.prioritaet||"Keine"}`,`Datum: ${new Date(idee.timestamp).toLocaleString("de-DE")}`];if(idee.mandantennummer)meta.push(`Mandantennummer: ${idee.mandantennummer}`);if(idee.firmenname)meta.push(`Firmenname: ${idee.firmenname}`);meta.forEach(text=>{if(y+10>pageHeight-margin){doc.addPage();y=margin;}doc.text(text,margin,y);y+=10;});if(idee.details){const detailLines=doc.splitTextToSize(idee.details,180);detailLines.forEach(line=>{if(y+10>pageHeight-margin){doc.addPage();y=margin;}doc.text(line,margin,y);y+=10;});}if(idee.beschreibungen&&idee.beschreibungen.length){doc.text("Weitere Beschreibungen:",margin,y);y+=10;idee.beschreibungen.forEach(b=>{const beschr=`[${b.timestamp}] ${b.text}`;const lines=doc.splitTextToSize(beschr,180);lines.forEach(line=>{if(y+10>pageHeight-margin){doc.addPage();y=margin;}doc.text(line,margin,y);y+=10;});});}idee.dateien?.forEach(file=>{if(y+10>pageHeight-margin){doc.addPage();y=margin;}doc.setTextColor(0,0,255);if(doc.textWithLink){doc.textWithLink(`🌐 ${file.name}`,margin,y,{url:file.link||file.data});}else{doc.text(`🌐 ${file.name}`,margin,y);}doc.setTextColor(0,0,0);y+=10;});y+=15;if(y>pageHeight-margin){doc.addPage();y=margin;}});doc.save("ideen-export.pdf");}
-function exportiereAlsText(){const ideen=getExportIdeen();const text=ideen.map(idee=>`=== ${idee.text} ===\nKategorie: ${idee.kategorie}\nPriorität: ${idee.prioritaet||"Keine"}\nDatum: ${new Date(idee.timestamp).toLocaleString("de-DE")}\n${idee.mandantennummer?"Mandantennummer: "+idee.mandantennummer+"\n":""}${idee.firmenname?"Firmenname: "+idee.firmenname+"\n":""}${idee.beschreibungen&&idee.beschreibungen.length?"Weitere Beschreibungen:\n"+idee.beschreibungen.map(b=>`[${b.timestamp}] ${b.text}`).join("\n"):""}${idee.details?`Beschreibung: ${idee.details}\n`:""}\nAnhänge: ${idee.dateien?.map(f=>f.name).join(", ")||"Keine"}\n`).join("\n\n");const blob=new Blob([text],{type:"text/plain"});const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download="ideen-export.txt";link.click();;}
+function exportiereAlsPDF(){const{jsPDF}=window.jspdf;const doc=new jsPDF();const margin=15;const pageHeight=doc.internal.pageSize.getHeight();let y=margin;const ideen=getExportIdeen();ideen.forEach((idee,idx)=>{
+    // >>> BENUTZER ZUM TITEL HINZUFÜGEN (Optional, kann auch als eigenes Feld) <<<
+    const titel=`Idee ${idx+1}: ${idee.text}${idee.benutzer ? ` (Zuständig: ${idee.benutzer})` : ''}`;
+    // >>> ENDE BENUTZER ZUM TITEL <<<
+    const titelLines=doc.splitTextToSize(titel,180);titelLines.forEach(line=>{if(y+10>pageHeight-margin){doc.addPage();y=margin;}doc.text(line,margin,y);y+=10;});
+    // >>> BENUTZER ZU METADATEN HINZUFÜGEN <<<
+    const meta=[`Kategorie: ${idee.kategorie}`,`Priorität: ${idee.prioritaet||"Keine"}`,`Datum: ${new Date(idee.timestamp).toLocaleString("de-DE")}`];
+    if(idee.benutzer)meta.splice(1, 0, `Zuständig: ${idee.benutzer}`); // Füge Benutzer nach Kategorie ein
+    if(idee.mandantennummer)meta.push(`Mandantennummer: ${idee.mandantennummer}`);if(idee.firmenname)meta.push(`Firmenname: ${idee.firmenname}`);meta.forEach(text=>{if(y+10>pageHeight-margin){doc.addPage();y=margin;}doc.text(text,margin,y);y+=10;});
+    // >>> ENDE BENUTZER ZU METADATEN <<<
+    if(idee.details){const detailLines=doc.splitTextToSize(idee.details,180);detailLines.forEach(line=>{if(y+10>pageHeight-margin){doc.addPage();y=margin;}doc.text(line,margin,y);y+=10;});}if(idee.beschreibungen&&idee.beschreibungen.length){doc.text("Weitere Beschreibungen:",margin,y);y+=10;idee.beschreibungen.forEach(b=>{const beschr=`[${b.timestamp}] ${b.text}`;const lines=doc.splitTextToSize(beschr,180);lines.forEach(line=>{if(y+10>pageHeight-margin){doc.addPage();y=margin;}doc.text(line,margin,y);y+=10;});});}idee.dateien?.forEach(file=>{if(y+10>pageHeight-margin){doc.addPage();y=margin;}doc.setTextColor(0,0,255);if(doc.textWithLink){doc.textWithLink(`🌐 ${file.name}`,margin,y,{url:file.link||file.data});}else{doc.text(`🌐 ${file.name}`,margin,y);}doc.setTextColor(0,0,0);y+=10;});y+=15;if(y>pageHeight-margin){doc.addPage();y=margin;}});doc.save("ideen-export.pdf");}
 
-function teilePerEmail(){const ideen=getExportIdeen();const text=ideen.map(idee=>`*${idee.text}*\nKategorie: ${idee.kategorie}\nPriorität: ${idee.prioritaet||"Keine"}\nDatum: ${new Date(idee.timestamp).toLocaleString("de-DE")}\n${idee.mandantennummer?"Mandantennummer: "+idee.mandantennummer+"\n":""}${idee.firmenname?"Firmenname: "+idee.firmenname+"\n":""}${idee.beschreibungen&&idee.beschreibungen.length?"Weitere Beschreibungen:\n"+idee.beschreibungen.map(b=>`[${b.timestamp}] ${b.text}`).join("\n"):""}${idee.details?`Beschreibung: ${idee.details}\n`:""}\nAnhänge: ${idee.dateien?.map(f=>`${f.name} (${f.link||f.data})`).join(", ")||"Keine"}\n`).join("\n\n")+"\n\n[Bitte Anhänge manuell hinzufügen]";window.location.href=`mailto:?subject=Ideen-Export&body=${encodeURIComponent(text)}`;} // *** ÄNDERUNG HIER: Fügt Link/URL hinzu ***
+function exportiereAlsText(){const ideen=getExportIdeen();const text=ideen.map(idee=>
+    // >>> BENUTZER ZUM TEXTEXPORT HINZUFÜGEN <<<
+    `=== ${idee.text} ===\n` +
+    `Kategorie: ${idee.kategorie}\n` +
+    `${idee.benutzer?`Zuständig: ${idee.benutzer}\n`:""}` + // Füge Benutzer hinzu, wenn vorhanden
+    `Priorität: ${idee.prioritaet||"Keine"}\n` +
+    `Datum: ${new Date(idee.timestamp).toLocaleString("de-DE")}\n` +
+    `${idee.mandantennummer?"Mandantennummer: "+idee.mandantennummer+"\n":""}` +
+    `${idee.firmenname?"Firmenname: "+idee.firmenname+"\n":""}` +
+    `${idee.beschreibungen&&idee.beschreibungen.length?"Weitere Beschreibungen:\n"+idee.beschreibungen.map(b=>`[${b.timestamp}] ${b.text}`).join("\n"):""}` +
+    `${idee.details?`Beschreibung: ${idee.details}\n`:""}` +
+    `\nAnhänge: ${idee.dateien?.map(f=>f.name).join(", ")||"Keine"}\n`
+    // >>> ENDE BENUTZER ZUM TEXTEXPORT <<<
+).join("\n\n");const blob=new Blob([text],{type:"text/plain"});const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download="ideen-export.txt";link.click();;}
+
+function teilePerEmail(){const ideen=getExportIdeen();const text=ideen.map(idee=>
+    // >>> BENUTZER ZUM EMAIL-EXPORT HINZUFÜGEN <<<
+    `*${idee.text}*\n` +
+    `Kategorie: ${idee.kategorie}\n` +
+    `${idee.benutzer?`Zuständig: ${idee.benutzer}\n`:""}` + // Füge Benutzer hinzu, wenn vorhanden
+    `Priorität: ${idee.prioritaet||"Keine"}\n` +
+    `Datum: ${new Date(idee.timestamp).toLocaleString("de-DE")}\n` +
+    `${idee.mandantennummer?"Mandantennummer: "+idee.mandantennummer+"\n":""}` +
+    `${idee.firmenname?"Firmenname: "+idee.firmenname+"\n":""}` +
+    `${idee.beschreibungen&&idee.beschreibungen.length?"Weitere Beschreibungen:\n"+idee.beschreibungen.map(b=>`[${b.timestamp}] ${b.text}`).join("\n"):""}` +
+    `${idee.details?`Beschreibung: ${idee.details}\n`:""}` +
+    `\nAnhänge: ${idee.dateien?.map(f=>`${f.name} (${f.link||f.data})`).join(", ")||"Keine"}\n` // Fügt Link/URL hinzu
+    // >>> ENDE BENUTZER ZUM EMAIL-EXPORT <<<
+).join("\n\n")+"\n\n[Bitte Anhänge manuell hinzufügen]";window.location.href=`mailto:?subject=Ideen-Export&body=${encodeURIComponent(text)}`;}
 
 function teilePerWhatsApp(){
     const ideen = getExportIdeen();
     const text = ideen.map(idee =>
+    // >>> BENUTZER ZUM WHATSAPP-EXPORT HINZUFÜGEN <<<
         `*${idee.text}*\n` +
         `📁 Kategorie: ${idee.kategorie}\n` +
+        `${idee.benutzer?`🧑‍💻 Zuständig: ${idee.benutzer}\n`:""}` + // Füge Benutzer hinzu, wenn vorhanden (mit optionalem Emoji)
         `🔖 Priorität: ${idee.prioritaet||"Keine"}\n` +
         `📅 ${new Date(idee.timestamp).toLocaleString("de-DE")}\n` +
         `${idee.details?`📝 ${idee.details}\n`:""}` + // Details nur einfügen, wenn vorhanden
@@ -764,6 +1029,7 @@ function teilePerWhatsApp(){
         `${idee.firmenname?`Firmenname: ${idee.firmenname}\n`:""}` + // Firmenname nur einfügen, wenn vorhanden
         `${idee.beschreibungen&&idee.beschreibungen.length?`Weitere Beschreibungen:\n${idee.beschreibungen.map(b=>`  - [${b.timestamp}] ${b.text}`).join("\n")}\n`:""}` + // Beschreibungen einfügen, wenn vorhanden
         `📎 Anhänge: ${idee.dateien?.map(f=>`${f.name} (${f.link||f.data})`).join(", ")||"Keine"}\n` // Fügt Link/URL hinzu
+    // >>> ENDE BENUTZER ZUM WHATSAPP-EXPORT <<<
     ).join("\n\n");
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,"_blank");
 }
@@ -886,6 +1152,13 @@ async function loadFromOneDrive(){
                                      idee.beschreibungen = []; // Sicherstellen, dass beschreibungen ein Array ist
                                      changed = true;
                                 }
+                                // >>> SICHERSTELLEN, DASS BENUTZERFELD VORHANDEN IST (für ältere Daten) <<<
+                                if (idee.benutzer === undefined) {
+                                     idee.benutzer = ""; // Leerer String als Standard, falls Feld fehlt
+                                     changed = true;
+                                }
+                                // >>> ENDE SICHERSTELLEN BENUTZERFELD <<<
+
                           });
                            ausgewaehlt = []; // Auswahl leeren nach Laden
                      } else {
@@ -924,7 +1197,7 @@ async function loadFromOneDrive(){
 
 // uploadToOneDrive braucht KEINE Anpassung, da es Anhänge sind, nicht die Hauptdatei.
 
-// FUNCTIONS FOR LOCAL FILE SAVE/LOAD (should be below the OneDrive functions in Block 7)
+// FUNCTIONS FOR LOCAL FILE SAVE/LOAD
 async function speichereIdeenAlsDatei(){try{const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");if(window.showSaveFilePicker){fileHandle=await window.showSaveFilePicker({suggestedName:"ideen.json",types:[{description:"JSON-Dateien",accept:{"application/json":[".json"]}}]});const writable=await fileHandle.createWritable();await writable.write(JSON.stringify(ideen,null,2));await writable.close();zeigeWarnung("Datei erfolgreich lokal gespeichert!", 'success');istGespeichert=true;}else{const blob=new Blob([JSON.stringify(ideen)],{type:"application/json"});const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download="ideen.json";link.click();zeigeWarnung("Datei erfolgreich lokal gespeichert!", 'success');istGespeichert=true;}}catch(e){if(e.name!=="AbortError")zeigeWarnung("Fehler beim lokalen Speichern: "+e.message);}} // Angepasste Meldungen
 async function ladeIdeenAusDatei(){try{let file;if(window.showOpenFilePicker){[fileHandle]=await window.showOpenFilePicker({types:[{description:"JSON-Dateien",accept:{"application/json":[".json"]}}]});file=await fileHandle.getFile();}else{const input=document.createElement('input');input.type='file';input.accept='.json';input.onchange=e=>file=e.target.files[0];input.click();await new Promise(resolve=>input.onchange=resolve);}const content=await file.text();const ideen=JSON.parse(content);
         // Optional: Prüfen, ob IDs existieren und ggf. generieren für alte Einträge ohne ID nach dem Laden
@@ -943,6 +1216,12 @@ async function ladeIdeenAusDatei(){try{let file;if(window.showOpenFilePicker){[f
                         idee.beschreibungen = []; // Sicherstellen, dass beschreibungen ein Array ist
                         changed = true;
                    }
+                    // >>> SICHERSTELLEN, DASS BENUTZERFELD VORHANDEN IST (für ältere Daten) <<<
+                   if (idee.benutzer === undefined) {
+                        idee.benutzer = ""; // Leerer String als Standard, falls Feld fehlt
+                         changed = true;
+                   }
+                    // >>> ENDE SICHERSTELLEN BENUTZERFELD <<<
               });
               ausgewaehlt = []; // Auswahl leeren nach Laden aus Datei, da Indizes/IDs sich ändern könnten
          } else {
@@ -951,10 +1230,7 @@ async function ladeIdeenAusDatei(){try{let file;if(window.showOpenFilePicker){[f
          // Speichere geänderte Ideen zurück, falls Migration/IDs hinzugefügt wurden
          if (changed) {
               localStorage.setItem("ideen", JSON.stringify(ideen)); // Speichern der migrierten Daten
-         } else {
-            // Wenn keine Änderungen durch Migration, einfach nur die neuen Daten setzen (wird unten gemacht)
-            // localStorage.setItem("ideen", JSON.stringify(ideen)); // Nicht nötig hier, wird unten gemacht
-         }
+         } // else { Wenn keine Änderungen durch Migration, einfach nur die neuen Daten setzen (wird unten gemacht) }
 
          localStorage.setItem("ideen", JSON.stringify(ideen)); // Daten immer in localStorage speichern
          zeigeIdeen(); // Ideen anzeigen
@@ -964,10 +1240,15 @@ document.getElementById("ideeText").addEventListener("input",()=>{istGespeichert
 document.getElementById("ideeDetails").addEventListener("input",()=>{istGespeichert=false;});
 document.getElementById("mandantennummer").addEventListener("input",()=>{istGespeichert=false;});
 document.getElementById("firmenname").addEventListener("input",()=>{istGespeichert=false;});
+// >>> NEUER EVENT LISTENER FÜR BENUTZER-INPUT <<<
+document.getElementById("benutzer").addEventListener("change",()=>{istGespeichert=false;}); // Bei Auswahl eines Benutzers
+document.getElementById("neuerBenutzer").addEventListener("input",()=>{istGespeichert=false;}); // Beim Tippen eines neuen Benutzers
+// >>> ENDE NEUER EVENT LISTENER <<<
+
 document.getElementById("dateien").addEventListener("change",function(e){const v=document.getElementById("dateiVorschau");v.innerHTML="";Array.from(e.target.files).forEach(file=>{const url=URL.createObjectURL(file);v.innerHTML+=`<a class="datei-link" href="${url}" target="_blank">📄 ${file.name}</a><div class="datei-info">Pfad: <i>${file.webkitRelativePath||file.name}</i></div>${file.type.startsWith("image/")?`<img src="${url}" style="max-width:150px;">`:""}${file.type==="application/pdf"?`<iframe src="${url}" style="width:150px;height:100px;"></iframe>`:""}`;});istGespeichert=false;});
 window.addEventListener("beforeunload",function(e){if(!istGespeichert){const msg="Sie haben ungespeicherte Änderungen. Möchten Sie die Seite wirklich verlassen?";e.preventDefault();e.returnValue=msg;return msg;}});
 
-// Beim Initialisieren oder Laden aus Datei sicherstellen, dass alle Ideen eine ID haben
+// Beim Initialisieren oder Laden aus Datei sicherstellen, dass alle Ideen eine ID haben und Datenformat konsistent ist
 function ensureIdeasHaveIds() {
     let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
     let changed = false;
@@ -984,6 +1265,12 @@ function ensureIdeasHaveIds() {
              idee.beschreibungen = []; // Sicherstellen, dass beschreibungen ein Array ist
              changed = true; // Markiere als geändert, falls Array neu erstellt wurde
         }
+         // >>> SICHERSTELLEN, DASS BENUTZERFELD VORHANDEN IST (für ältere Daten) <<<
+        if (idee.benutzer === undefined) {
+             idee.benutzer = ""; // Leerer String als Standard, falls Feld fehlt
+              changed = true;
+        }
+         // >>> ENDE SICHERSTELLEN BENUTZERFELD <<<
     });
     if (changed) {
         localStorage.setItem("ideen", JSON.stringify(ideen));
@@ -992,11 +1279,49 @@ function ensureIdeasHaveIds() {
     ausgewaehlt = [];
 }
 
+// >>> INITIALISIERUNG DER BENUTZERLISTE UND DROPDOWNS <<<
+function initialisiereBenutzer() {
+    benutzerliste = JSON.parse(localStorage.getItem("benutzerliste") || "[]");
+    // Stellen Sie sicher, dass die Benutzerliste immer ein Array ist
+    if (!Array.isArray(benutzerliste)) {
+         benutzerliste = [];
+         localStorage.setItem("benutzerliste", "[]");
+    }
+     // Füge eine leere Option für den Benutzer-Select hinzu
+    const benutzerSelect = document.getElementById("benutzer");
+    benutzerSelect.innerHTML = '<option value="">-- Benutzer auswählen --</option>';
+    benutzerliste.forEach(benutzer => {
+        benutzerSelect.add(new Option(benutzer, benutzer));
+    });
+
+     // Füge eine leere Option für den Benutzer-Filter-Select hinzu
+     const filterBenutzerSelect = document.getElementById("filterBenutzer");
+     filterBenutzerSelect.innerHTML = '<option value="">👤 Alle Benutzer</option>';
+     benutzerliste.forEach(benutzer => {
+          filterBenutzerSelect.add(new Option(benutzer, benutzer));
+     });
+}
+// >>> ENDE INITIALISIERUNG BENUTZER <<<
+
 
 initialisiereKategorien();
+initialisiereBenutzer(); // <<< NEUER AUFRUF HIER <<<
 ensureIdeasHaveIds(); // Sicherstellen, dass alle Ideen IDs haben und Datenformat konsistent ist
 zeigeIdeen();
-pruebeLoginHinweis();
+pruefeLoginHinweis();
+
+// >>> BENUTZER-FILTER-FUNKTIONEN WIE IN BLOCK 4 DEKLARIERT <<<
+function filterNachBenutzer(){
+    filterBenutzerValue = document.getElementById("filterBenutzer").value;
+    zeigeIdeen();
+}
+function filterBenutzerZuruecksetzen(){
+    filterBenutzerValue = "";
+    document.getElementById("filterBenutzer").value = "";
+    zeigeIdeen();
+}
+// >>> ENDE BENUTZER-FILTER-FUNKTIONEN <<<
+
 
 </script>
 </body>
