@@ -371,7 +371,7 @@ function speichereIdee(){
                       const ideeInBearbeitung = originalIdeen.find(item => item.id === bearbeiteId);
                       if (ideeInBearbeitung && ideeInBearbeitung.dateien) {
                            // Füge alte Dateien hinzu, die einen Link haben (OneDrive-Links behalten)
-                           dateien = dateien.concat(ideeInarbeitung.dateien.filter(oldFile => oldFile.link)); // Nur alte Dateien mit Link behalten
+                           dateien = dateien.concat(ideeInBearbeitung.dateien.filter(oldFile => oldFile.link)); // Nur alte Dateien mit Link behalten
                             // Optional: Logik zum Umgang mit lokalen (blob:) URLs beim Bearbeiten überdenken
                             // Aktuell werden neue lokale Dateien hinzugefügt, alte lokale Dateien verworfen.
                             // Das ist konsistent, da lokale URLs nach Neuladen nicht mehr gültig sind.
@@ -866,7 +866,7 @@ function ausgewaehlteNotizenLoeschen(){
         zeigeWarnung("Keine Notizen ausgewählt.");
         return;
     }
-    if(!confirm(`Wirklich ${ausgewaehlt.length} ausgewählte Notiz(en) löschen?`)) return;
+    if(!confirm(`Wirklich ${ausgewaehlte.length} ausgewählte Notiz(en) löschen?`)) return;
 
     let ideen = JSON.parse(localStorage.getItem("ideen")||"[]");
     // Sammle Mandanten und Benutzer der zu löschenden Ideen, um später zu prüfen, ob sie noch anderswo vorkommen
@@ -1262,7 +1262,19 @@ async function saveToOneDrive(){
         }
     }
 
-    const ideenData = JSON.stringify(JSON.parse(localStorage.getItem("ideen")||"[]"), null, 2); // Ideen holen & formatieren
+    // Get both ideen and benutzerliste
+    const ideenData = JSON.parse(localStorage.getItem("ideen")||"[]");
+    const benutzerData = JSON.parse(localStorage.getItem("benutzerliste")||"[]"); // Get benutzerliste
+
+    // Create an object containing both
+    const combinedData = {
+        ideen: ideenData,
+        benutzerliste: benutzerData // Include benutzerliste
+    };
+
+    const dataToSave = JSON.stringify(combinedData, null, 2); // Stringify the combined object
+
+
     // >>> HIER WIRD DER PFAD VOM BENUTZER GELESEN <<<
     const customFilePath = document.getElementById("onedrivePath").value.trim();
     // Verwende den benutzerdefinierten Pfad, wenn er nicht leer ist, sonst den Standardpfad
@@ -1278,7 +1290,7 @@ async function saveToOneDrive(){
 
 
     // Initialmeldung "Speichere..." - jetzt mit Typ 'info'
-    zeigeWarnung(`Speichere Ideen auf OneDrive unter ${finalFilePath}...`, 'info'); // Meldung zeigt den Pfad
+    zeigeWarnung(`Speichere Ideen und Benutzerliste auf OneDrive unter ${finalFilePath}...`, 'info'); // Update message
 
     try{
         // URL für den PUT (Speichern) Request
@@ -1290,11 +1302,11 @@ async function saveToOneDrive(){
                 "Authorization": `Bearer ${accessToken}`,
                 "Content-Type": "application/json"
             },
-            body: ideenData
+            body: dataToSave // Save the combined data
         });
 
         if(response.ok){
-            zeigeWarnung(`Ideen erfolgreich auf OneDrive gespeichert unter ${finalFilePath}!`, 'success'); // Grüner Erfolg zeigt Pfad
+            zeigeWarnung(`Ideen und Benutzerliste erfolgreich auf OneDrive gespeichert unter ${finalFilePath}!`, 'success'); // Update message
             istGespeichert = true;
              // >>> Mandanten-Dropdown nach Speichern aktualisieren, da neue Mandanten hinzugefügt werden könnten <<<
             aktualisiereMandantenFilterDropdown();
@@ -1337,14 +1349,14 @@ async function loadFromOneDrive(){
     const finalFilePath = filePath.startsWith('/') ? filePath : '/' + filePath;
 
 
-     zeigeWarnung(`Lade Ideen von OneDrive von ${finalFilePath}...`, 'info'); // Meldung zeigt den Pfad
+     zeigeWarnung(`Lade Ideen und Benutzerliste von OneDrive von ${finalFilePath}...`, 'info'); // Update message
 
      try{
           // URL für den GET (Laden) Request
           const downloadUrl = `https://graph.microsoft.com/v1.0/me/drive/root:${finalFilePath}:/content`;
 
           const response = await fetch(downloadUrl, {
-               method: "GET", // Methode ist GET zum Herunterladen
+               method: "GET",
                headers: {
                     "Authorization": `Bearer ${accessToken}`
                     // Content-Type ist hier oft nicht nötig, da wir beliebigen Dateiinhalt erwarten
@@ -1354,141 +1366,185 @@ async function loadFromOneDrive(){
           if(response.ok){
                try {
                     const content = await response.text(); // Inhalt als Text lesen
-                    const ideen = JSON.parse(content); // Text als JSON parsen
+                    const loadedData = JSON.parse(content); // Text als JSON parsen
 
-                     // Optional: Prüfen, ob IDs existieren und ggf. generieren für alte Einträge ohne ID nach dem Laden
-                     let changed = false; // Variable hinzugefügt
-                     if (Array.isArray(ideen)) {
-                          ideen.forEach(idee => {
-                               if (!idee.id) {
-                                    idee.id = generateUUID(); // Füge IDs für alte Einträge hinzu
-                                    changed = true;
-                               }
-                               // Optional: Beschreibungen von Array zu Array von Objekten konvertieren, falls alte Daten nur Strings waren
-                               if (Array.isArray(idee.beschreibungen) && idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
-                                     idee.beschreibungen = ideen.beschreibungen.map(text => ({text: text, timestamp: 'Unbekannt'})); // Oder aktuellen Timestamp
+                    let ideen = [];
+                    let benutzerliste = [];
+                    let changed = false; // Track if migration/changes were needed
+
+                    // Check if loadedData is the new combined format or old ideen array
+                    if (loadedData && typeof loadedData === 'object' && Array.isArray(loadedData.ideen) && Array.isArray(loadedData.benutzerliste)) {
+                         // New format: contains both ideen and benutzerliste
+                         ideen = loadedData.ideen;
+                         benutzerliste = loadedData.benutzerliste;
+                         // Migration/ID check still needed for ideen array consistency
+                         ideen.forEach(idee => {
+                             if (!idee.id) { idee.id = generateUUID(); changed = true; }
+                             // ... check/migrate beschreibungen ...
+                             if (!Array.isArray(idee.beschreibungen)) { idee.beschreibungen = []; changed = true; }
+                             // ... check/migrate benutzer/mandantennummer/firmenname ...
+                             if (idee.benutzer === undefined) { idee.benutzer = ""; changed = true; }
+                             if (idee.mandantennummer === undefined) { idee.mandantennummer = ""; changed = true; }
+                             if (idee.firmenname === undefined) { idee.firmenname = ""; changed = true; }
+                         });
+                          // Ensure benutzerliste is consistent (e.g., unique, sorted - though not critical for functionality)
+                         // For now, just take the list as is from the loaded data.
+
+                    } else if (Array.isArray(loadedData)) {
+                         // Old format: only contains the ideen array
+                         ideen = loadedData;
+                         benutzerliste = []; // Initialize benutzerliste as empty for old data
+                         changed = true; // Data structure changed, mark for potential re-save
+                         // Apply all migration/ID checks to the old ideen array
+                         ideen.forEach(idee => {
+                             if (!idee.id) { idee.id = generateUUID(); changed = true; }
+                             // ... check/migrate beschreibungen ...
+                              if (Array.isArray(idee.beschreibungen) && idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
+                                     idee.beschreibungen = idee.beschreibungen.map(text => ({text: text, timestamp: 'Unbekannt'}));
                                      changed = true;
                                 } else if (!Array.isArray(idee.beschreibungen)) {
-                                     idee.beschreibungen = []; // Sicherstellen, dass beschreibungen ein Array ist
+                                     idee.beschreibungen = [];
                                      changed = true;
                                 }
-                                // >>> SICHERSTELLEN, DASS BENUTZERFELD VORHANDEN IST (für ältere Daten) START <<<
-                                if (idee.benutzer === undefined) {
-                                     idee.benutzer = ""; // Leerer String als Standard, falls Feld fehlt
-                                     changed = true;
-                                }
-                                // >>> SICHERSTELLEN, DASS MANDANTENFELDER VORHANDEN SIND (für ältere Daten) START <<<
-                                if (idee.mandantennummer === undefined) {
-                                     idee.mandantennummer = ""; // Leerer String als Standard
-                                     changed = true;
-                                }
-                                 if (idee.firmenname === undefined) {
-                                     idee.firmenname = ""; // Leerer String als Standard
-                                     changed = true;
-                                 }
-                                // >>> SICHERSTELLEN, DASS MANDANTENFELDER VORHANDEN SIND (für ältere Daten) ENDE <<<
+                             // Ensure benutzer/mandantennummer/firmenname exist for old data
+                             if (idee.benutzer === undefined) { idee.benutzer = ""; changed = true; }
+                             if (idee.mandantennummer === undefined) { idee.mandantennummer = ""; changed = true; }
+                             if (idee.firmenname === undefined) { idee.firmenname = ""; changed = true; }
+                         });
 
-                          });
-                           ausgewaehlt = []; // Auswahl leeren nach Laden
-                     } else {
-                         throw new Error("Ungültiges Dateiformat"); // Daten waren kein Array
-                     }
+                    } else {
+                         throw new Error("Ungültiges Dateiformat"); // Data was neither the new object nor the old array
+                    }
 
-                     // Daten in localStorage speichern
-                     localStorage.setItem("ideen", JSON.stringify(ideen)); // Speichern der geladenen/migrierten Daten
+                    // Always save the potentially migrated/combined data back to localStorage
+                    localStorage.setItem("ideen", JSON.stringify(ideen));
+                    localStorage.setItem("benutzerliste", JSON.stringify(benutzerliste)); // Save the loaded/initialized benutzerliste
 
-                     // >>> DROPDOWNS NACH DEM LADEN AKTUALISIEREN START<<<
-                     initialisiereKategorien(); // Kategorien neu laden
-                     initialisiereBenutzer(); // Benutzer neu laden
-                     aktualisiereMandantenFilterDropdown(); // Mandanten neu laden
-                     // >>> DROPDOWNS NACH DEM LADEN AKTUALISIEREN ENDE<<<
+                    ausgewaehlt = []; // Clear selection after loading from file, as IDs might be new/different
+
+                    // >>> DROPDOWNS NACH DEM LADEN AKTUALISIEREN START<<<
+                    initialisiereKategorien(); // Still needed
+                    initialisiereBenutzer(); // This will now populate from the loaded benutzerliste
+                    aktualisiereMandantenFilterDropdown(); // Still needed
+                    // >>> DROPDOWNS NACH DEM LADEN AKTUALISIEREN ENDE<<<
 
 
-                     zeigeIdeen(); // Ideen anzeigen
-                     zeigeWarnung(`Ideen erfolgreich von OneDrive geladen von ${finalFilePath}!`, 'success'); // Erfolgsmeldung zeigt Pfad
-                     istGespeichert = true; // Nach dem Laden sind die lokalen Daten aktuell
+                    zeigeIdeen(); // Ideen anzeigen
+                    zeigeWarnung(`Ideen und Benutzerliste erfolgreich von OneDrive geladen von ${finalFilePath}!`, 'success'); // Update message
+                    istGespeichert = true;
+
+                     // If data structure was migrated from old format, might be good to resave?
+                     // No, loading successfully is enough, saving happens on user action.
+
+
                } catch (parseError) {
                     // Fehler beim Parsen oder Migrieren der Daten
                     console.error('Error parsing or migrating loaded data:', parseError);
-                    zeigeWarnung(`Fehler beim Verarbeiten der geladenen Daten von ${finalFilePath}. Stelle sicher, dass es sich um eine gültige Ideen-JSON-Datei handelt.`, 'warning'); // Bleibt warning
+                    zeigeWarnung(`Fehler beim Verarbeiten der geladenen Daten von ${finalFilePath}. Stelle sicher, dass es sich um eine gültige Ideen-JSON-Datei handelt.`, 'warning');
                }
 
-          } else if (response.status === 404) {
-               // Datei nicht gefunden Fehler
-               zeigeWarnung(`Datei nicht gefunden auf OneDrive unter ${finalFilePath}.`, 'warning'); // Bleibt warning
+          } // ... existing 404 and other error handling ...
+          else if (response.status === 404) {
+               zeigeWarnung(`Datei nicht gefunden auf OneDrive unter ${finalFilePath}.`, 'warning');
           }
            else {
-               // Anderer API-Fehler
                const error = await response.json().catch(() => null);
                const errorMessage = error?.error?.message || response.statusText || 'Unbekannter Fehler';
-               zeigeWarnung(`Fehler (${response.status}) beim Laden von OneDrive von ${finalFilePath}: ${errorMessage}`, 'warning'); // Bleibt warning
+               zeigeWarnung(`Fehler (${response.status}) beim Laden von OneDrive von ${finalFilePath}: ${errorMessage}`, 'warning');
           }
 
      } catch(e){
-         // Catch bei Netzwerk- oder anderen Fehlern
          console.error('Exception during OneDrive load:', e);
-         zeigeWarnung("Fehler beim Laden von OneDrive: " + e.message); // Bleibt warning
+         zeigeWarnung("Fehler beim Laden von OneDrive: " + e.message);
      }
 }
 
 // uploadToOneDrive braucht KEINE Anpassung, da es Anhänge sind, nicht die Hauptdatei.
 
 // FUNCTIONS FOR LOCAL FILE SAVE/LOAD
-async function speichereIdeenAlsDatei(){try{const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");if(window.showSaveFilePicker){fileHandle=await window.showSaveFilePicker({suggestedName:"ideen.json",types:[{description:"JSON-Dateien",accept:{"application/json":[".json"]}}]});const writable=await fileHandle.createWritable();await writable.write(JSON.stringify(ideen,null,2));await writable.close();zeigeWarnung("Datei erfolgreich lokal gespeichert!", 'success');istGespeichert=true;}}catch(e){if(e.name!=="AbortError")zeigeWarnung("Fehler beim lokalen Speichern: "+e.message);}} // Angepasste Meldungen
-async function ladeIdeenAusDatei(){try{let file;if(window.showOpenFilePicker){[fileHandle]=await window.showOpenFilePicker({types:[{description:"JSON-Dateien",accept:{"application/json":[".json"]}}]});file=await fileHandle.getFile();}else{const input=document.createElement('input');input.type='file';input.accept='.json';input.onchange=e=>file=e.target.files[0];input.click();await new Promise(resolve=>input.onchange=resolve);}const content=await file.text();const ideen=JSON.parse(content);
-        // Optional: Prüfen, ob IDs existieren und ggf. generieren für alte Einträge ohne ID nach dem Laden
-         let changed = false; // Variable hinzugefügt
-         if (Array.isArray(ideen)) {
-              ideen.forEach(idee => {
-                   if (!idee.id) {
-                        idee.id = generateUUID(); // Füge IDs für alte Einträge hinzu
-                        changed = true;
-                   }
-                   // Optional: Beschreibungen von Array zu Array von Objekten konvertieren, falls alte Daten nur Strings waren
-                   if (Array.isArray(idee.beschreibungen) && idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
-                        idee.beschreibungen = ideen.beschreibungen.map(text => ({text: text, timestamp: 'Unbekannt'})); // Oder aktuellen Timestamp
-                        changed = true;
-                   } else if (!Array.isArray(idee.beschreibungen)) {
-                        idee.beschreibungen = []; // Sicherstellen, dass beschreibungen ein Array ist
-                        changed = true;
-                   }
-                    // >>> SICHERSTELLEN, DASS BENUTZERFELD VORHANDEN IST (für ältere Daten) START <<<
-                   if (idee.benutzer === undefined) {
-                        idee.benutzer = ""; // Leerer String als Standard, falls Feld fehlt
-                         changed = true;
-                   }
-                   // >>> SICHERSTELLEN, DASS MANDANTENFELDER VORHANDEN SIND (für ältere Daten) START <<<
-                   if (idee.mandantennummer === undefined) {
-                        idee.mandantennummer = ""; // Leerer String als Standard
-                         changed = true;
-                   }
-                    if (idee.firmenname === undefined) {
-                        idee.firmenname = ""; // Leerer String als Standard
-                         changed = true;
-                   }
-                   // >>> SICHERSTELLEN, DASS MANDANTENFELDER VORHANDEN SIND (für ältere Daten) ENDE <<<
-              });
-              ausgewaehlt = []; // Auswahl leeren nach Laden aus Datei, da Indizes/IDs sich ändern könnten
-         } else {
-             throw new Error("Ungültiges Dateiformat");
-         }
-         // Speichere geänderte Ideen zurück, falls Migration/IDs hinzugefügt wurden
-         if (changed) {
-              localStorage.setItem("ideen", JSON.stringify(ideen)); // Speichern der migrierten Daten
-         } // else { Wenn keine Änderungen durch Migration, einfach nur die neuen Daten setzen (wird unten gemacht) }
+async function speichereIdeenAlsDatei(){try{const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");
+    const benutzerData = JSON.parse(localStorage.getItem("benutzerliste")||"[]"); // Get benutzerliste
 
-         localStorage.setItem("ideen", JSON.stringify(ideen)); // Daten immer in localStorage speichern
+    // Create an object containing both
+    const combinedData = {
+        ideen: ideen,
+        benutzerliste: benutzerData // Include benutzerliste
+    };
 
-         // >>> DROPDOWNS NACH DEM LADEN AKTUALISIEREN START <<<
-         initialisiereKategorien(); // Kategorien neu laden
-         initialisiereBenutzer(); // Benutzer neu laden
-         aktualisiereMandantenFilterDropdown(); // Mandanten neu laden
-         // >>> DROPDOWNS NACH DEM LADEN AKTUALISIEREN ENDE <<<
+    const dataToSave = JSON.stringify(combinedData, null, 2); // Stringify the combined object
+
+    if(window.showSaveFilePicker){fileHandle=await window.showSaveFilePicker({suggestedName:"ideen.json",types:[{description:"JSON-Dateien",accept:{"application/json":[".json"]}}]});const writable=await fileHandle.createWritable();await writable.write(dataToSave);await writable.close();zeigeWarnung("Datei erfolgreich lokal gespeichert!", 'success');istGespeichert=true;}else{const blob=new Blob([dataToSave],{type:"application/json"});const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download="ideen.json";link.click();zeigeWarnung("Datei erfolgreich lokal gespeichert!", 'success');istGespeichert=true;}}catch(e){if(e.name!=="AbortError")zeigeWarnung("Fehler beim lokalen Speichern: "+e.message);}} // Angepasste Meldungen
+async function ladeIdeenAusDatei(){try{let file;if(window.showOpenFilePicker){[fileHandle]=await window.showOpenFilePicker({types:[{description:"JSON-Dateien",accept:{"application/json":[".json"]}}]});file=await fileHandle.getFile();}else{const input=document.createElement('input');input.type='file';input.accept='.json';input.onchange=e=>file=e.target.files[0];input.click();await new Promise(resolve=>input.onchange=resolve);}const content=await file.text();
+    const loadedData = JSON.parse(content); // Parse loaded content
+
+    let ideen = [];
+    let benutzerliste = [];
+    let changed = false; // Track if migration/changes were needed
+
+     // Check if loadedData is the new combined format or old ideen array
+    if (loadedData && typeof loadedData === 'object' && Array.isArray(loadedData.ideen) && Array.isArray(loadedData.benutzerliste)) {
+         // New format: contains both ideen and benutzerliste
+         ideen = loadedData.ideen;
+         benutzerliste = loadedData.benutzerliste;
+         // Migration/ID check still needed for ideen array consistency
+         ideen.forEach(idee => {
+             if (!idee.id) { idee.id = generateUUID(); changed = true; }
+             // ... check/migrate beschreibungen ...
+              if (!Array.isArray(idee.beschreibungen)) { idee.beschreibungen = []; changed = true; }
+             // ... check/migrate benutzer/mandantennummer/firmenname ...
+             if (idee.benutzer === undefined) { idee.benutzer = ""; changed = true; }
+             if (idee.mandantennummer === undefined) { idee.mandantennummer = ""; changed = true; }
+             if (idee.firmenname === undefined) { idee.firmenname = ""; changed = true; }
+         });
+          // No specific migration needed for benutzerliste itself unless format changes later.
+
+    } else if (Array.isArray(loadedData)) {
+         // Old format: only contains the ideen array
+         ideen = loadedData;
+         benutzerliste = []; // Initialize benutzerliste as empty for old data
+         changed = true; // Data structure changed, mark for potential re-save
+         // Apply all migration/ID checks to the old ideen array
+         ideen.forEach(idee => {
+             if (!idee.id) { idee.id = generateUUID(); changed = true; }
+             // ... check/migrate beschreibungen ...
+              if (Array.isArray(idee.beschreibungen) && idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
+                                 idee.beschreibungen = idee.beschreibungen.map(text => ({text: text, timestamp: 'Unbekannt'}));
+                                 changed = true;
+                            } else if (!Array.isArray(idee.beschreibungen)) {
+                                 idee.beschreibungen = [];
+                                 changed = true;
+                            }
+             // Ensure benutzer/mandantennummer/firmenname exist for old data
+             if (idee.benutzer === undefined) { idee.benutzer = ""; changed = true; }
+             if (idee.mandantennummer === undefined) { idee.mandantennummer = ""; changed = true; }
+             if (idee.firmenname === undefined) { idee.firmenname = ""; changed = true; }
+         });
+
+    } else {
+         throw new Error("Ungültiges Dateiformat"); // Data was neither the new object nor the old array
+    }
 
 
-         zeigeIdeen(); // Ideen anzeigen
-         zeigeWarnung("Datei erfolgreich lokal geladen!", 'success'); // Erfolgsmeldung
-         istGespeichert=true;}catch(e){if(e.name!=="AbortError")zeigeWarnung("Fehler beim lokalen Laden: "+e.message);}} // Angepasste Meldungen
+     // Always save the potentially migrated/combined data back to localStorage
+     localStorage.setItem("ideen", JSON.stringify(ideen));
+     localStorage.setItem("benutzerliste", JSON.stringify(benutzerliste)); // Save the loaded/initialized benutzerliste
+
+     ausgewaehlt = []; // Clear selection after loading from file, as IDs might be new/different
+
+     // >>> DROPDOWNS NACH DEM LADEN AKTUALISIEREN START <<<
+     initialisiereKategorien(); // Still needed
+     initialisiereBenutzer(); // This will now populate from the loaded benutzerliste
+     aktualisiereMandantenFilterDropdown(); // Still needed
+     // >>> DROPDOWNS NACH DEM LADEN AKTUALISIEREN ENDE <<<
+
+
+     zeigeIdeen(); // Ideen anzeigen
+     zeigeWarnung("Datei erfolgreich lokal geladen!", 'success');
+     istGespeichert=true;
+    }catch(e){
+        if(e.name!=="AbortError")zeigeWarnung("Fehler beim lokalen Laden: "+e.message);
+    }
+}
 
 /* --- END BLOCK 7: OneDrive & Local File Functions --- */
 /* --- START BLOCK 8: Event Listeners & Initialization --- */
@@ -1525,7 +1581,7 @@ function ensureIdeasHaveIds() {
         }
         // Optional: Beschreibungen von Array zu Array von Objekten konvertieren, falls alte Daten nur Strings waren
         if (Array.isArray(idee.beschreibungen) && idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
-             idee.beschreibungen = ideen.beschreibungen.map(text => ({text: text, timestamp: 'Unbekannt'})); // Oder aktuellen Timestamp
+             idee.beschreibungen = idee.beschreibungen.map(text => ({text: text, timestamp: 'Unbekannt'})); // Oder aktuellen Timestamp
              changed = true; // Markiere als geändert, falls Konvertierung nötig war
         } else if (!Array.isArray(idee.beschreibungen)) {
              idee.beschreibungen = []; // Sicherstellen, dass beschreibungen ein Array ist
@@ -1536,7 +1592,6 @@ function ensureIdeasHaveIds() {
              idee.benutzer = ""; // Leerer String als Standard, falls Feld fehlt
               changed = true;
         }
-         // >>> SICHERSTELLEN, DASS BENUTZERFELD VORHANDEN IST (für ältere Daten) ENDE <<<
          // >>> SICHERSTELLEN, DASS MANDANTENFELDER VORHANDEN SIND (für ältere Daten) START <<<
          if (idee.mandantennummer === undefined) {
               idee.mandantennummer = ""; // Leerer String als Standard
