@@ -278,6 +278,124 @@ function initialisiereKategorien(){
     }
 }
 
+// Funktion zum Hinzufügen einer neuen Kategorie
+function neueKategorieHinzufuegen(){
+    // >>> KORRIGIERT: Hier greifen wir jetzt auf das Feld 'neueKategorie' zu <<<
+    const neueKategorieInput = document.getElementById("neueKategorie");
+    const neueKategorieName = neueKategorieInput.value.trim(); // <-- Verwendet den korrekten Namen
+    if (!neueKategorieName) { // <-- Prüft auf leeren Kategorie-Namen
+        zeigeWarnung("Bitte geben Sie einen Kategorienamen ein.");
+        return;
+    }
+
+    // Lade aktuelle Liste, füge neue Kategorie hinzu, speichere
+    kategorien = JSON.parse(localStorage.getItem("kategorien") || "[]");
+     // Stelle sicher, dass die Kategorienliste immer ein Array ist
+    if (!Array.isArray(kategorien)) {
+         kategorien = []; // Initialisiere als leeres Array, falls localStorage korrupt ist
+    }
+
+
+    if (kategorien.includes(neueKategorieName)) { // <-- Prüft, ob Kategorie bereits existiert
+        zeigeWarnung(`Kategorie "${neueKategorieName}" existiert bereits!`);
+        return;
+    }
+
+    kategorien.push(neueKategorieName); // <-- Fügt die neue Kategorie hinzu
+    kategorien.sort(); // Optional: Liste alphabetisch sortieren
+    localStorage.setItem("kategorien", JSON.stringify(kategorien)); // <-- Speichert die aktualisierte Liste
+
+
+    // Dropdown-Listen aktualisieren
+    initialisiereKategorien(); // <-- Aktualisiert das Dropdown
+
+
+    // Input-Feld leeren und Fokus zurücksetzen
+    neueKategorieInput.value = ""; // <-- Leert das korrekte Input-Feld
+    neueKategorieInput.focus();
+    zeigeWarnung(`Kategorie "${neueKategorieName}" hinzugefügt.`, 'success'); // Erfolgsmeldung
+    istGespeichert = false; // Änderung der Kategorienliste
+}
+
+// Funktion zum Löschen einer Kategorie
+function kategorieLoeschen(){
+    const kategorieSelect = document.getElementById("kategorie"); // Dropdown im Eingabeformular
+    const kategorienameZuLoeschen = kategorieSelect.value;
+
+    // Standardkategorien, die nicht gelöscht werden sollen
+    const nichtLoeschbareKategorien = ["Aufgaben", "Projekte", "Privat", "Arbeit", "Später"];
+
+    if (!kategorienameZuLoeschen || kategorienameZuLoeschen === "") {
+        zeigeWarnung("Bitte wählen Sie zuerst eine Kategorie zum Löschen aus.");
+        return;
+    }
+
+     if (nichtLoeschbareKategorien.includes(kategorienameZuLoeschen)) {
+         zeigeWarnung(`Die Standardkategorie "${kategorienameZuLoeschen}" kann nicht gelöscht werden.`);
+         return;
+     }
+
+
+    kategorien = JSON.parse(localStorage.getItem("kategorien") || "[]");
+     // Stelle sicher, dass die Kategorienliste immer ein Array ist
+    if (!Array.isArray(kategorien)) {
+         kategorien = [];
+    }
+
+     if (!kategorien.includes(kategorienameZuLoeschen)) {
+         zeigeWarnung(`Kategorie "${kategorienameZuLoeschen}" nicht in der Liste gefunden.`);
+         return;
+     }
+
+
+    // Zählen, wie viele Ideen die zu löschende Kategorie verwenden
+    const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+    const anzahlIdeenMitKategorie = ideen.filter(idee => idee.kategorie === kategorienameZuLoeschen).length;
+
+    let confirmMessage = `Soll die Kategorie "${kategorienameZuLoeschen}" WIRKLICH gelöscht werden?`;
+    if (anzahlIdeenMitKategorie > 0) {
+        confirmMessage += ` ${anzahlIdeenMitKategorie} Notiz(en) sind dieser Kategorie zugeordnet und werden dann *keiner Kategorie* mehr zugeordnet sein.`;
+    }
+
+    if (!confirm(confirmMessage)) {
+        return; // Abbruch, falls nicht bestätigt
+    }
+
+    // Kategorie aus der Liste entfernen
+    const index = kategorien.indexOf(kategorienameZuLoeschen);
+    if (index > -1) {
+        kategorien.splice(index, 1);
+        localStorage.setItem("kategorien", JSON.stringify(kategorien));
+
+        // Notizen, die dieser Kategorie zugeordnet sind, auf keine Kategorie setzen
+        ideen.forEach(idee => {
+            if (idee.kategorie === kategorienameZuLoeschen) {
+                idee.kategorie = ""; // Kategorie entfernen
+            }
+        });
+        localStorage.setItem("ideen", JSON.stringify(ideen));
+
+
+        // Dropdown-Listen aktualisieren (Kategorien)
+        initialisiereKategorien();
+         // Filter zurücksetzen, falls die gelöschte Kategorie gerade gefiltert war
+        const filterKategorieSelect = document.getElementById("filterKategorie");
+        if (filterKategorieSelect.value === kategorienameZuLoeschen) {
+             filterKategorieSelect.value = ""; // Setze das Filter-Dropdown zurück
+             // Das zeigeIdeen() unten aktualisiert die Anzeige mit dem leeren Filterwert
+        }
+
+
+        zeigeWarnung(`Kategorie "${kategorienameZuLoeschen}" erfolgreich gelöscht.`, 'success'); // Erfolgsmeldung
+        zeigeIdeen(); // Liste neu rendern (damit Ideen ohne Kategorie angezeigt werden)
+        istGespeichert = true; // Änderung der Kategorienliste und Ideen
+    } else {
+        // Dies sollte durch die includes Prüfung oben eigentlich nicht erreicht werden
+        zeigeWarnung(`Ein interner Fehler ist aufgetreten: Kategorie "${kategorienameZuLoeschen}" konnte nicht gefunden und gelöscht werden.`);
+    }
+}
+
+
 // Funktion zum Initialisieren der Benutzerliste und Dropdowns
 function initialisiereBenutzer() {
     benutzerliste = JSON.parse(localStorage.getItem("benutzerliste") || "[]");
@@ -392,7 +510,7 @@ function speichereIdee(){
                       const ideeInBearbeitung = originalIdeen.find(item => item.id === bearbeiteId);
                       if (ideeInBearbeitung && ideeInBearbeitung.dateien) {
                            // Füge alte Dateien hinzu, die einen Link haben (OneDrive-Links behalten)
-                           dateien = dateien.concat(ideeInBearbeitung.dateien.filter(oldFile => oldFile.link)); // Nur alte Dateien mit Link behalten
+                           dateien = dateien.concat(ideeInbearbeitung.dateien.filter(oldFile => oldFile.link)); // Nur alte Dateien mit Link behalten
                             // Optional: Logik zum Umgang mit lokalen (blob:) URLs beim Bearbeiten überdenken
                             // Aktuell werden neue lokale Dateien hinzugefügt, alte lokale Dateien verworfen.
                             // Das ist konsistent, da lokale URLs nach Neuladen nicht mehr gültig sind.
@@ -479,7 +597,7 @@ function saveIdeeObjekt(text, dateien){
         }
 
         bearbeiteId = null; // Bearbeitungsmodus beenden
-        document.getElementById("speichernBtn").textContent = "💾 Speichern";
+        document.getElementById("speichernBtn").textContent = "💾 Aktualisieren";
         document.getElementById("abbrechenBtn").style.display = "none";
     } else {
         // Neue Idee hinzufügen
@@ -934,7 +1052,7 @@ function ausgewaehlteNotizenLoeschen(){
         abbrechenBearbeiten();
     }
      // Prüfe, ob die Idee, deren Beschreibung bearbeitet wird, gelöscht wurde
-     if (beschreibungFuerId !== null && ausgewaehlte.includes(beschreibungFuerId)) {
+     if (beschreibungFuerId !== null && ausgewaehlt.includes(beschreibungFuerId)) {
           beschreibungAbbrechen();
      }
 
@@ -1105,9 +1223,9 @@ function aktualisiereBenutzerDropdowns() {
 }
 
 
-// Filterfunktionen (Implementierung bereits in Block 4)
+// Filterfunktionen (Implementierung hier)
 // function filterNachMandant(){ ... } // Wird vom onchange des Dropdowns aufgerufen
-// function filterMandantZuruecksetzen(){ ... } // Wird nicht mehr vom HTML Button aufgerufen
+// function filterMandantZuruecksetzen(){ ... } // Wird nicht mehr vom Button aufgerufen
 // function filterNachBenutzer(){ ... } // Wird vom onchange des Dropdowns aufgerufen
 // function filterBenutzerZuruecksetzen(){ ... } // Wird nicht mehr vom Button aufgerufen
 
@@ -1666,7 +1784,7 @@ async function ladeIdeenAusDatei(){try{let file;if(window.showOpenFilePicker){[f
                             } else {
                                 const descDate = new Date(b.timestamp);
                                 if (isNaN(descDate.getTime())) {
-                                     console.warn("Invalid timestamp loaded from file for description in idea:", idee, "Description:", b);
+                                     console.warn("Invalid timestamp loaded from file (old format) for description in idea:", idee, "Description:", b);
                                      b.timestamp = new Date().toISOString();
                                      changed = true;
                                 }
@@ -1848,7 +1966,7 @@ function ensureIdeasHaveIds() {
                        } else {
                            const descDate = new Date(b.timestamp);
                            if (isNaN(descDate.getTime())) { // Check if description timestamp is 'Invalid Date'
-                                console.warn("Invalid timestamp found for description in idea:", idee, "Description:", b); // Log warning
+                                console.warn("Invalid timestamp found for description in idea:", idee, "Entry:", b); // Log warning
                                 b.timestamp = new Date().toISOString();
                                 changed = true;
                            }
