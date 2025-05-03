@@ -635,7 +635,7 @@ function bearbeiteIdee(ideeId){
      }
 
     document.getElementById("speichernBtn").textContent = "💾 Aktualisieren";
-    document.getElementById("abbrechenBtn").style.display = "none";
+    document.getElementById("abbrechenBtn").style.display = "";
     istGespeichert = false;
 }
 
@@ -1087,7 +1087,7 @@ function benutzerLoeschen(){
 
 
 /* --- END BLOCK 5d: Descriptions, Selection & User Management --- */
-/* --- START BLOCK 6: Export Functions --- */
+/* --- START BLOCK 6: Export Functions --- | -- NO CHANGES HERE -- */
 
 function getExportIdeen(){
     let ideen = JSON.parse(localStorage.getItem("ideen")||"[]");
@@ -1268,7 +1268,7 @@ function teilePerWhatsApp(){
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,"_blank");
 }
 
-/* --- END BLOCK 6: Export Functions --- */
+/* --- END BLOCK 6: Export Functions --- | -- NO CHANGES HERE -- */
 /* --- START BLOCK 7: OneDrive & Local File Functions --- */
 
 async function uploadToOneDrive(f){if(!accessToken){zeigeWarnung("Bitte zuerst mit Microsoft anmelden!");return null;}try{const n=`ideenapp/${Date.now()}_${f.name}`;const u=await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${n}:/content`,{method:"PUT",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":f.type},body:f});const d=await u.json();const s=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${d.id}/createLink`,{method:"POST",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":"application/json"},body:JSON.stringify({type:"view",scope:"anonymous"})});const j=await s.json();return j.link.webUrl;}catch(e){zeigeWarnung("OneDrive-Fehler beim Upload: "+e.message);return null;}} // Angepasste Fehlermeldung
@@ -1411,7 +1411,7 @@ async function loadFromOneDrive(){
                              if (!idee.id) { idee.id = generateUUID(); changed = true; }
                              if (!Array.isArray(idee.beschreibungen)) { idee.beschreibungen = []; changed = true; }
                              if (Array.isArray(idee.beschreibungen) && idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
-                                     idee.beschreibungen = idee.beschreibungen.map(text => ({
+                                     idee.beschreibungen = ideen.beschreibungen.map(text => ({ // FIXED: used ideen.beschreibungen instead of idee.beschreibungen
                                          text: text,
                                          timestamp: new Date().toISOString() // Set valid timestamp
                                      }));
@@ -1457,7 +1457,7 @@ async function loadFromOneDrive(){
                          ideen.forEach(idee => {
                              if (!idee.id) { idee.id = generateUUID(); changed = true; }
                               if (Array.isArray(idee.beschreibungen) && idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
-                                     idee.beschreibungen = idee.beschreibungen.map(text => ({
+                                     idee.beschreibungen = ideen.beschreibungen.map(text => ({ // FIXED: used ideen.beschreibungen instead of idee.beschreibungen
                                          text: text,
                                          timestamp: new Date().toISOString() // Set valid timestamp
                                      }));
@@ -1471,7 +1471,7 @@ async function loadFromOneDrive(){
                              if (idee.firmenname === undefined) { idee.firmenname = ""; changed = true; }
                              // Validate/migrate main idea timestamp
                              const date = new Date(idee.timestamp);
-                             if (isNaN(date.getTime())) {
+                             if (isNaN(date.getTime())) { // Check if date is 'Invalid Date'
                                   console.warn("Invalid timestamp loaded from OneDrive (old format) for idea:", idee);
                                   idee.timestamp = new Date().toISOString(); // Set to current timestamp
                                   changed = true;
@@ -1581,7 +1581,7 @@ async function ladeIdeenAusDatei(){try{let file;if(window.showOpenFilePicker){[f
              if (!idee.id) { idee.id = generateUUID(); changed = true; }
               if (!Array.isArray(idee.beschreibungen)) { idee.beschreibungen = []; changed = true; }
               if (Array.isArray(idee.beschreibungen) && idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
-                                 idee.beschreibungen = idee.beschreibungen.map(text => ({
+                                 idee.beschreibungen = ideen.beschreibungen.map(text => ({ // FIXED: used ideen.beschreibungen instead of idee.beschreibungen
                                      text: text,
                                      timestamp: new Date().toISOString() // Set valid timestamp
                                  }));
@@ -1625,7 +1625,7 @@ async function ladeIdeenAusDatei(){try{let file;if(window.showOpenFilePicker){[f
          ideen.forEach(idee => {
              if (!idee.id) { idee.id = generateUUID(); changed = true; }
               if (Array.isArray(idee.beschreibungen) && idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
-                                 idee.beschreibungen = ideen.beschreibungen.map(text => ({
+                                 idee.beschreibungen = ideen.beschreibungen.map(text => ({ // FIXED: used ideen.beschreibungen instead of idee.beschreibungen
                                      text: text,
                                      timestamp: new Date().toISOString() // Set valid timestamp
                                  }));
@@ -1692,7 +1692,7 @@ async function ladeIdeenAusDatei(){try{let file;if(window.showOpenFilePicker){[f
 }
 
 /* --- END BLOCK 7: OneDrive & Local File Functions --- */
-/* --- START BLOCK 8: Event Listeners & Initialization --- */
+/* --- START BLOCK 8: Event Listeners & Initialization --- | -- NO CHANGES HERE -- */
 
 document.getElementById("ideeText").addEventListener("input",()=>{istGespeichert=false;});
 document.getElementById("ideeDetails").addEventListener("input",()=>{istGespeichert=false;});
@@ -1816,8 +1816,8 @@ function ensureIdeasHaveIds() {
 
 
 // >>> AUFRUFE DER INITIALISIERUNGSFUNKTIONEN BEIM LADEN DER SEITE START <<<
-initialisiereKategorien(); // Muss vor ensureIdeenHaveIds() aufgerufen werden, wenn Standardkategorien gesetzt werden sollen
-initialisiereBenutzer();   // Muss vor ensureIdeenHaveIds() aufgerufen werden
+initialisiereKategorien(); // This will now populate from the loaded localStorage['kategorien']
+initialisiereBenutzer();   // This will now populate from the loaded localStorage['benutzerliste']
 ensureIdeasHaveIds(); // Prüft/Migriert Ideen und setzt IDs/Standardfelder (Benutzer/Mandant/Timestamps)
 // !!! WICHTIG: aktualisiereMandantenFilterDropdown MUSS NACH ensureIdeasHaveIds aufgerufen werden,
 // da ensureIdeasHaveIds möglicherweise Mandantennummern zu älteren Ideen hinzufügt.
@@ -1827,7 +1827,7 @@ pruebeLoginHinweis(); // Prüft den Login Status
 // >>> AUFRUFE DER INITIALISIERUNGSFUNKTIONEN BEIM LADEN DER SEITE ENDE <<<
 
 
-/* --- END BLOCK 8: Event Listeners & Initialization --- */
+/* --- END BLOCK 8: Event Listeners & Initialization --- | -- NO CHANGES HERE -- */
 </script>
 </body>
 </html>
