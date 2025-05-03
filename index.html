@@ -635,7 +635,7 @@ function bearbeiteIdee(ideeId){
      }
 
     document.getElementById("speichernBtn").textContent = "💾 Aktualisieren";
-    document.getElementById("abbrechenBtn").style.display = "";
+    document.getElementById("abbrechenBtn").style.display = "none";
     istGespeichert = false;
 }
 
@@ -1086,7 +1086,7 @@ function benutzerLoeschen(){
 // function filterBenutzerZuruecksetzen(){ ... } // Wird nicht mehr vom Button aufgerufen
 
 
-/* --- END BLOCK 5d: Descriptions, Selection & User Management --- */
+/* --- END BLOCK 5d: Descriptions, Selection & User Management --- | -- NO CHANGES HERE -- */
 /* --- START BLOCK 6: Export Functions --- | -- NO CHANGES HERE -- */
 
 function getExportIdeen(){
@@ -1817,7 +1817,7 @@ function ensureIdeasHaveIds() {
 
 // >>> AUFRUFE DER INITIALISIERUNGSFUNKTIONEN BEIM LADEN DER SEITE START <<<
 initialisiereKategorien(); // This will now populate from the loaded localStorage['kategorien']
-initialisiereBenutzer();   // This will now populate from the loaded localStorage['benutzerliste']
+initialisiereBenutzer(); // This will now populate from the loaded localStorage['benutzerliste']
 ensureIdeasHaveIds(); // Prüft/Migriert Ideen und setzt IDs/Standardfelder (Benutzer/Mandant/Timestamps)
 // !!! WICHTIG: aktualisiereMandantenFilterDropdown MUSS NACH ensureIdeasHaveIds aufgerufen werden,
 // da ensureIdeasHaveIds möglicherweise Mandantennummern zu älteren Ideen hinzufügt.
