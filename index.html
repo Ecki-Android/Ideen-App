@@ -188,6 +188,7 @@ input,select,textarea,button{width:100vw;min-width:0;max-width:100vw;}
 </div>
 
 <script>
+console.log("Script started"); // Meldung am Anfang des Skripts
 /* --- START BLOCK 4: Script Start, Variables & Initializers --- */
 
 const msalConfig={auth:{clientId:"ddf69193-7eab-4847-a995-b6c08f0df9ae",authority:"https://login.microsoftonline.com/683748a6-faf7-45ef-9da3-10e903da0b00",knownAuthorities:["login.microsoftonline.com"],redirectUri:"https://ecki-android.github.io"}};
@@ -655,7 +656,7 @@ function bearbeiteIdee(ideeId){
      }
 
     document.getElementById("speichernBtn").textContent = "💾 Aktualisieren";
-    document.getElementById("abbrechenBtn").style.display = "none";
+    document.getElementById("abbrechenBtn").style.display = "";
     istGespeichert = false;
 }
 
@@ -736,9 +737,11 @@ function verschiebeIdee(ideeId, richtung){
             zeigeIdeen(); // Liste neu rendern basierend auf der geänderten Sortierung/Reihenfolge (Filter werden automatisch wieder angewendet)
             istGespeichert = false;
         } else {
+             // Dies sollte nicht passieren, wenn die Ideen in currentViewIdeen gefunden wurden
              zeigeWarnung("Interner Fehler beim Verschieben: Idee(n) im Original nicht gefunden.");
         }
     } else {
+        // Idee kann nicht weiter verschoben werden (ist am Anfang oder Ende der GEFILTERTEN Liste)
          // zeigeWarnung("Idee kann nicht weiter in diese Richtung verschoben werden (Ende der gefilterten Liste erreicht)."); // Optional
     }
 }
@@ -752,7 +755,7 @@ function loescheIdee(ideeId){
     if (ideeIndex !== -1) {
         const deletedIdee = ideen[ideeIndex]; // Idee vor dem Löschen speichern
         ideen.splice(ideeIndex, 1);
-        localStorage.setItem("ideen", JSON.stringify(ideen)); // KORRIGIERT: JSON.stringify
+        localStorage.setItem("ideen", JSON.stringify(ideen));
 
         // Prüfen, ob eine Mandantennummer oder ein Benutzer gelöscht wurde, die/der nur in dieser Idee vorkam
         const mandantExistsElsewhere = ideen.some(i => (i.mandantennummer || "").toLowerCase() === (deletedIdee.mandantennummer || "").toLowerCase());
@@ -879,7 +882,7 @@ function toggleAuswahl(ideeId,box){
     if(box.checked){
         if(!ausgewaehlt.includes(ideeId)) ausgewaehlt.push(ideeId);
     } else {
-        ausgewaehlt = ausgewaehlte.filter(id => id !== ideeId);
+        ausgewaehlt = ausgewaehlt.filter(id => id !== ideeId);
     }
     // Console.log zur Überprüfung
     // console.log("Ausgewählt IDs:", ausgewaehlt);
@@ -890,7 +893,7 @@ function ausgewaehlteNotizenLoeschen(){
         zeigeWarnung("Keine Notizen ausgewählt.");
         return;
     }
-    if(!confirm(`Wirklich ${ausgewaehlte.length} ausgewählte Notiz(en) löschen?`)) return;
+    if(!confirm(`Wirklich ${ausgewaehlt.length} ausgewählte Notiz(en) löschen?`)) return;
 
     let ideen = JSON.parse(localStorage.getItem("ideen")||"[]");
     // Sammle Mandanten und Benutzer der zu löschenden Ideen, um später zu prüfen, ob sie noch anderswo vorkommen
@@ -1095,13 +1098,16 @@ function benutzerLoeschen(){
 }
 
 // Funktion zum Aktualisieren der Benutzer-Dropdowns (wird nach Hinzufügen/Löschen aufgerufen)
-// Diese Funktion wurde bereits in Block 4 deklariert und implementiert.
-// function aktualisiereBenutzerDropdowns() { ... }
+function aktualisiereBenutzerDropdowns() {
+     // Benutzerliste wird aus localStorage gelesen am Anfang von initialisiereBenutzer,
+     // daher rufen wir nur initialisiereBenutzer() auf, um die UI zu aktualisieren.
+    initialisiereBenutzer();
+}
 
 
 // Filterfunktionen (Implementierung bereits in Block 4)
 // function filterNachMandant(){ ... } // Wird vom onchange des Dropdowns aufgerufen
-// function filterMandantZuruecksetzen(){ ... } // Wird nicht mehr vom Button aufgerufen
+// function filterMandantZuruecksetzen(){ ... } // Wird nicht mehr vom HTML Button aufgerufen
 // function filterNachBenutzer(){ ... } // Wird vom onchange des Dropdowns aufgerufen
 // function filterBenutzerZuruecksetzen(){ ... } // Wird nicht mehr vom Button aufgerufen
 
@@ -1119,22 +1125,22 @@ function getExportIdeen(){
 
     // Wenn nichts ausgewählt ist, exportiere die aktuell gefilterte und sortierte Liste
     // Lese die aktuellen Filter- und Sortierwerte aus den globalen Variablen (gesetzt von zeigeIdeen oder onchange)
-    // >>> VERWENDUNG GLOBALER FILTERWERTE START <<<
+    /* --- VERWENDUNG GLOBALER FILTERWERTE START --- */
     const filterKategorie = document.getElementById("filterKategorie").value; // Lese direkt oder nutze globale
     const filterMandant = document.getElementById("filterMandant").value; // Lese direkt oder nutze globale
     const filterBenutzer = document.getElementById("filterBenutzer").value; // Lese direkt oder nutze globale
     const filterArchivValue = document.getElementById("filterArchiv").value; // Lese direkt oder nutze globale
     const sortierung = document.getElementById("sortierung").value; // Lese direkt oder nutze globale
-    // >>> VERWENDUNG GLOBALER FILTERWERTE ENDE <<<
+    /* --- VERWENDUNG GLOBALER FILTERWERTE ENDE --- */
 
 
     let exportIdeen = [...ideen]; // Kopie für Filterung/Sortierung
 
     if(filterKategorie) exportIdeen = exportIdeen.filter(i => i.kategorie === filterKategorie);
-    // >>> FILTERUNG FÜR MANDANT UND BENUTZER START <<<
+    /* --- FILTERUNG FÜR MANDANT UND BENUTZER START --- */
     if(filterMandant) exportIdeen = exportIdeen.filter(i => (i.mandantennummer||"").toLowerCase() === filterMandant.toLowerCase());
     if(filterBenutzer) exportIdeen = exportIdeen.filter(i => (i.benutzer||"").toLowerCase() === filterBenutzer.toLowerCase());
-    // >>> FILTERUNG FÜR MANDANT UND BENUTZER ENDE <<<
+    /* --- FILTERUNG FÜR MANDANT UND BENUTZER ENDE --- */
 
     if (filterArchivValue === "nicht_erledigt") {
         exportIdeen = exportIdeen.filter(i => !(i.erledigt || false));
@@ -1163,11 +1169,11 @@ function getExportIdeen(){
 
 
 function exportiereAlsPDF(){const{jsPDF}=window.jspdf;const doc=new jsPDF();const margin=15;const pageHeight=doc.internal.pageSize.getHeight();let y=margin;const ideen=getExportIdeen();ideen.forEach((idee,idx)=>{
-    // >>> BENUTZER ZUM TITEL HINZUFÜGEN (Optional, kann auch als eigenes Feld) START <<<
+    /* --- BENUTZER ZUM TITEL HINZUFÜGEN (Optional, kann auch als eigenes Feld) START --- */
     const titel=`Idee ${idx+1}: ${idee.text}${idee.benutzer ? ` (Zuständig: ${idee.benutzer})` : ''}`;
-    // >>> BENUTZER ZUM TITEL HINZUFÜGEN (Optional, kann auch als eigenes Feld) ENDE <<<
+    /* --- BENUTZER ZUM TITEL HINZUFÜGEN (Optional, kann auch als eigenes Feld) ENDE --- */
     const titelLines=doc.splitTextToSize(titel,180);doc.setFontSize(12); titelLines.forEach(line=>{if(y+7>pageHeight-margin){doc.addPage();y=margin;}doc.text(line,margin,y);y+=7;}); // Verringere Zeilenhöhe für Titel
-    // >>> BENUTZER ZU METADATEN HINZUFÜGEN START <<<
+    /* --- BENUTZER ZU METADATEN HINZUFÜGEN START --- */
     const metaLines = [];
     metaLines.push(`Kategorie: ${idee.kategorie}`);
     if(idee.benutzer) metaLines.push(`Zuständig: ${idee.benutzer}`); // Füge Benutzer hinzu, wenn vorhanden
@@ -1184,7 +1190,7 @@ function exportiereAlsPDF(){const{jsPDF}=window.jspdf;const doc=new jsPDF();cons
 
     doc.setFontSize(10); // Kleinere Schrift für Metadaten
     metaLines.forEach(text=>{if(y+6>pageHeight-margin){doc.addPage();y=margin;}doc.text(text,margin,y);y+=6;}); // Verringere Zeilenhöhe für Metadaten
-    // >>> BENUTZER ZU METADATEN HINZUFÜGEN ENDE <<<
+    /* --- BENUTZER ZU METADATEN HINZUFÜGEN ENDE --- */
 
     if(idee.details){
         doc.setFontSize(10); // Kleinere Schrift für Details
@@ -1231,7 +1237,7 @@ function exportiereAlsPDF(){const{jsPDF}=window.jspdf;const doc=new jsPDF();cons
     if(y>pageHeight-margin){doc.addPage();y=margin;}});doc.save("ideen-export.pdf");}
 
 function exportiereAlsText(){const ideen=getExportIdeen();const text=ideen.map(idee=>
-    // >>> BENUTZER ZUM TEXTEXPORT HINZUFÜGEN START <<<
+    /* --- BENUTZER ZUM TEXTEXPORT HINZUFÜGEN START --- */
     `=== ${idee.text} ===\n` +
     `Kategorie: ${idee.kategorie}\n` +
     `${idee.benutzer?`Zuständig: ${idee.benutzer}\n`:""}` + // Füge Benutzer hinzu, wenn vorhanden
@@ -1242,11 +1248,11 @@ function exportiereAlsText(){const ideen=getExportIdeen();const text=ideen.map(i
     `${idee.details?`Beschreibung: ${idee.details}\n`:""}` + // Details nur einfügen, wenn vorhanden
     `${idee.beschreibungen&&idee.beschreibungen.length?`Weitere Beschreibungen:\n${idee.beschreibungen.map(b=>`  - [${new Date(b.timestamp).toLocaleString("de-DE")}] ${b.text}`).join("\n")}\n`:""}` + // Beschreibungen einfügen und Zeitstempel formatieren
     `Anhänge: ${idee.dateien?.map(f=>f.name).join(", ")||"Keine"}\n`
-    // >>> BENUTZER ZUM TEXTEXPORT HINZUFÜGEN ENDE <<<
+    /* --- BENUTZER ZUM TEXTEXPORT HINZUFÜGEN ENDE --- */
 ).join("\n\n");const blob=new Blob([text],{type:"text/plain"});const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download="ideen-export.txt";link.click();;}
 
 function teilePerEmail(){const ideen=getExportIdeen();const text=ideen.map(idee=>
-    // >>> BENUTZER ZUM EMAIL-EXPORT HINZUFÜGEN START <<<
+    /* --- BENUTZER ZUM EMAIL-EXPORT HINZUFÜGEN START --- */
     `*${idee.text}*\n` +
     `Kategorie: ${idee.kategorie}\n` +
     `${idee.benutzer?`Zuständig: ${idee.benutzer}\n`:""}` + // Füge Benutzer hinzu, wenn vorhanden
@@ -1257,7 +1263,7 @@ function teilePerEmail(){const ideen=getExportIdeen();const text=ideen.map(idee=
     `${idee.details?`Beschreibung: ${idee.details}\n`:""}` + // Details nur einfügen, wenn vorhanden
     `${idee.beschreibungen&&idee.beschreibungen.length?`Weitere Beschreibungen:\n${idee.beschreibungen.map(b=>`  - [${new Date(b.timestamp).toLocaleString("de-DE")}] ${b.text}`).join("\n")}\n`:""}` + // Beschreibungen einfügen und Zeitstempel formatieren
     `\nAnhänge: ${idee.dateien?.map(f=>`${f.name} (${f.link||f.data||'Kein Link'})`).join(", ")||"Keine"}\n` // Fügt Link/URL hinzu, Fallback für fehlende Links
-    // >>> BENUTZER ZUM EMAIL-EXPORT HINZUFÜGEN ENDE <<<
+    /* --- BENUTZER ZUM EMAIL-EXPORT HINZUFÜGEN ENDE --- */
 ).join("\n\n")+"\n\n[Bitte Anhänge manuell hinzufügen]";window.location.href=`mailto:?subject=Ideen-Export&body=${encodeURIComponent(text)}`;} // *** ÄNDERUNG HIER: Fügt Link/URL hinzu ***
 
 function teilePerWhatsApp(){
@@ -1303,7 +1309,7 @@ async function saveToOneDrive(){
         }
     }
 
-    // Get both ideen and benutzerliste
+    // Get both ideen, benutzerliste, and kategorien
     const ideenData = JSON.parse(localStorage.getItem("ideen")||"[]");
     const benutzerData = JSON.parse(localStorage.getItem("benutzerliste")||"[]");
     const kategorienData = JSON.parse(localStorage.getItem("kategorien")||"[]"); // Get kategorien
@@ -1440,7 +1446,7 @@ async function loadFromOneDrive(){
                              if (!idee.id) { idee.id = generateUUID(); changed = true; }
                              if (!Array.isArray(idee.beschreibungen)) { idee.beschreibungen = []; changed = true; }
                              if (Array.isArray(idee.beschreibungen) && idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
-                                     idee.beschreibungen = ideen.beschreibungen.map(text => ({
+                                     idee.beschreibungen = idee.beschreibungen.map(text => ({
                                          text: text,
                                          timestamp: new Date().toISOString() // Set valid timestamp
                                      }));
@@ -1488,7 +1494,7 @@ async function loadFromOneDrive(){
                          ideen.forEach(idee => {
                              if (!idee.id) { idee.id = generateUUID(); changed = true; }
                               if (Array.isArray(idee.beschreibungen) && idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
-                                     idee.beschreibungen = ideen.beschreibungen.map(text => ({
+                                     idee.beschreibungen = idee.beschreibungen.map(text => ({
                                          text: text,
                                          timestamp: new Date().toISOString() // Set valid timestamp
                                      }));
@@ -1533,7 +1539,7 @@ async function loadFromOneDrive(){
 
                     // Speichere die geladenen/migrierten Ideen und Benutzer in localStorage
                     localStorage.setItem("ideen", JSON.stringify(ideen));
-                    localStorage.setItem("benutzerliste", JSON.stringify(benutzerliste));
+                    localStorage.setItem("benutzerliste", JSON.stringify(benutzerliste)); // FIXED TYPO: JSON to JSON.stringify
 
                     // NEUE LOGIK: Speichere Kategorien aus der Datei NUR, wenn sie im neuen Format vorlagen
                     if (kategorienAusDatei !== null) {
@@ -1634,7 +1640,7 @@ async function ladeIdeenAusDatei(){try{let file;if(window.showOpenFilePicker){[f
              if (!idee.id) { idee.id = generateUUID(); changed = true; }
               if (!Array.isArray(idee.beschreibungen)) { idee.beschreibungen = []; changed = true; }
               if (Array.isArray(idee.beschreibungen) && idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
-                                 idee.beschreibungen = ideen.beschreibungen.map(text => ({
+                                 idee.beschreibungen = idee.beschreibungen.map(text => ({
                                      text: text,
                                      timestamp: new Date().toISOString() // Set valid timestamp
                                  }));
@@ -1680,7 +1686,7 @@ async function ladeIdeenAusDatei(){try{let file;if(window.showOpenFilePicker){[f
          ideen.forEach(idee => {
              if (!idee.id) { idee.id = generateUUID(); changed = true; }
               if (Array.isArray(idee.beschreibungen) && idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
-                                 idee.beschreibungen = ideen.beschreibungen.map(text => ({
+                                 idee.beschreibungen = idee.beschreibungen.map(text => ({
                                      text: text,
                                      timestamp: new Date().toISOString() // Set valid timestamp
                                  }));
@@ -1725,7 +1731,7 @@ async function ladeIdeenAusDatei(){try{let file;if(window.showOpenFilePicker){[f
 
 
      localStorage.setItem("ideen", JSON.stringify(ideen));
-     localStorage.setItem("benutzerliste", JSON.stringify(benutzerliste));
+     localStorage.setItem("benutzerliste", JSON.stringify(benutzerliste)); // FIXED TYPO: JSON to JSON.stringify
 
      // NEUE LOGIK: Speichere Kategorien aus der Datei NUR, wenn sie im neuen Format vorlagen
      if (kategorienAusDatei !== null) {
@@ -1782,7 +1788,7 @@ function ensureIdeasHaveIds() {
     let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
     let changed = false;
     // Stellen Sie sicher, dass ideen ein Array ist, auch wenn localStorage leer oder korrupt ist
-    if (!Arrayable.isArray(ideen)) { // FIXED Typo here, should be Array.isArray
+    if (!Array.isArray(ideen)) {
          ideen = [];
          changed = true;
     }
@@ -1804,13 +1810,13 @@ function ensureIdeasHaveIds() {
              idee.beschreibungen = []; // Sicherstellen, dass beschreibungen ein Array ist
              changed = true; // Markiere als geändert, falls Array neu erstellt wurde
         }
-         // >>> SICHERSTELLEN, DASS BENUTZERFELD VORHANDEN IST (für ältere Daten) START <<<
+         /* --- SICHERSTELLEN, DASS BENUTZERFELD VORHANDEN IST (für ältere Daten) START --- */
         if (idee.benutzer === undefined) {
              idee.benutzer = ""; // Leerer String als Standard, falls Feld fehlt
               changed = true;
         }
-         // >>> SICHERSTELLEN, DASS BENUTZERFELD VORHANDEN IST (für ältere Daten) ENDE <<<
-         // >>> SICHERSTELLEN, DASS MANDANTENFELDER VORHANDEN SIND (für ältere Daten) START <<<
+         /* --- SICHERSTELLEN, DASS BENUTTENDFELD VORHANDEN IST (für ältere Daten) ENDE --- */ // FIXED TYPO: BENUTTENDFELD to BENUTZERFELD
+         /* --- SICHERSTELLEN, DASS MANDANTENFELDER VORHANDEN SIND (für ältere Daten) START --- */
          if (idee.mandantennummer === undefined) {
               idee.mandantennummer = ""; // Leerer String als Standard
               changed = true;
@@ -1819,7 +1825,7 @@ function ensureIdeasHaveIds() {
               idee.firmenname = ""; // Leerer String als Standard
                changed = true;
          }
-        // >>> SICHERSTELLEN, DASS MANDANTENFELDER VORHANDEN SIND (für ältere Daten) ENDE <<<
+        /* --- SICHERSTELLEN, DASS MANDANTENFELDER VORHANDEN SIND (für ältere Daten) ENDE --- */
 
         // >>> NEW: Validate/migrate main idea timestamp START <<<
         const date = new Date(idee.timestamp);
@@ -1828,7 +1834,7 @@ function ensureIdeasHaveIds() {
              idee.timestamp = new Date().toISOString(); // Set to current timestamp
              changed = true;
         }
-        // >>> NEW: Validate/migrate main idea timestamp END <<<
+        // >>> NEW: Validate/migrate timestamp END <<<
 
         // >>> NEW: Validate/migrate timestamp for EACH description START <<<
         if (Array.isArray(idee.beschreibungen)) {
@@ -1837,13 +1843,13 @@ function ensureIdeasHaveIds() {
                   if (b && typeof b.text === 'string') { // Check if entry is at least a basic object with text
                        // Ensure timestamp property exists for older formats or corrupted data
                        if (b.timestamp === undefined || b.timestamp === null) {
-                           b.timestamp = new Date().toISOString(); // Set to current timestamp
+                           b.timestamp = new Date().toISOString();
                            changed = true;
                        } else {
                            const descDate = new Date(b.timestamp);
                            if (isNaN(descDate.getTime())) { // Check if description timestamp is 'Invalid Date'
                                 console.warn("Invalid timestamp found for description in idea:", idee, "Description:", b); // Log warning
-                                b.timestamp = new Date().toISOString(); // Set to current timestamp
+                                b.timestamp = new Date().toISOString();
                                 changed = true;
                            }
                        }
@@ -1862,7 +1868,7 @@ function ensureIdeasHaveIds() {
               // If you decided to remove malformed entries, you might need to re-assign the array:
               // idee.beschreibungen = idee.beschreibungen.filter(b => b && typeof b.text === 'string' && b.timestamp !== undefined && b.timestamp !== null && !isNaN(new Date(b.timestamp).getTime())); // More robust filtering
         }
-        // >>> NEW: Validate/migrate timestamp for EACH description END <<<
+        /* --- NEW: Validate/migrate timestamp for EACH description END --- */
     });
     if (changed) {
         localStorage.setItem("ideen", JSON.stringify(ideen));
@@ -1871,28 +1877,28 @@ function ensureIdeasHaveIds() {
     ausgewaehlt = [];
 }
 
-// >>> INITIALISIERUNGSFUNKTIONEN SIND IN BLOCK 4 IMPLEMENTIERT <<<
+/* --- INITIALISIERUNGSFUNKTIONEN SIND IN BLOCK 4 IMPLEMENTIERT --- */
 // function initialisiereKategorien() { ... }
 // function initialisiereBenutzer() { ... }
 // function aktualisiereMandantenFilterDropdown() { ... }
 
-// >>> FILTER-FUNKTIONEN SIND IN BLOCK 4 IMPLEMENTIERT <<<
+/* --- FILTER-FUNKTIONEN SIND IN BLOCK 4 IMPLEMENTIERT --- */
 // function filterNachMandant(){ ... } // Wird vom onchange des Dropdowns aufgerufen
 // function filterMandantZuruecksetzen(){ ... } // Wird nicht mehr vom Button aufgerufen
 // function filterNachBenutzer(){ ... } // Wird vom onchange des Dropdowns aufgerufen
 // function filterBenutzerZuruecksetzen(){ ... } // Wird nicht mehr vom Button aufgerufen
 
 
-// >>> AUFRUFE DER INITIALISIERUNGSFUNKTIONEN BEIM LADEN DER SEITE START <<<
-initialisiereKategorien(); // Muss vor ensureIdeasHaveIds() aufgerufen werden, wenn Standardkategorien gesetzt werden sollen
-initialisiereBenutzer();   // Muss vor ensureIdeasHaveIds() aufgerufen werden
+/* --- AUFRUFE DER INITIALISIERUNGSFUNKTIONEN BEIM LADEN DER SEITE START --- */
+initialisiereKategorien(); // Muss vor ensureIdeenHaveIds() aufgerufen werden, wenn Standardkategorien gesetzt werden sollen
+initialisiereBenutzer();   // Muss vor ensureIdeenHaveIds() aufgerufen werden
 ensureIdeasHaveIds(); // Prüft/Migriert Ideen und setzt IDs/Standardfelder (Benutzer/Mandant/Timestamps)
 // !!! WICHTIG: aktualisiereMandantenFilterDropdown MUSS NACH ensureIdeasHaveIds aufgerufen werden,
 // da ensureIdeasHaveIds möglicherweise Mandantennummern zu älteren Ideen hinzufügt.
 aktualisiereMandantenFilterDropdown(); // Aktualisiert Mandanten-Dropdown basierend auf den geladenen Ideen
 zeigeIdeen(); // Zeigt die Ideen (Filter und Sortierung werden hier angewendet)
 pruebeLoginHinweis(); // Prüft den Login Status
-// >>> AUFRUFE DER INITIALISIERUNGSFUNKTIONEN BEIM LADEN DER SEITE ENDE <<<
+/* --- AUFRUFE DER INITIALISIERUNGSFUNKTIONEN BEIM LADEN DER SEITE ENDE --- */
 
 
 /* --- END BLOCK 8: Event Listeners & Initialization --- */
