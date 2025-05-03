@@ -238,23 +238,43 @@ function zeigeWarnung(msg, type = 'warning'){
 
 // Funktion zum Initialisieren der Kategorienliste und Dropdowns
 function initialisiereKategorien(){
-    const k=JSON.parse(localStorage.getItem("kategorien"))||standardKategorien;
-    // Sicherstellen, dass die Kategorienliste immer ein Array ist
-    if (!Array.isArray(k)) {
-        kategorien = standardKategorien; // Verwende Standard, wenn Daten korrupt
-        localStorage.setItem("kategorien", JSON.stringify(kategorien));
+    // Lade Kategorien von localStorage. Wenn null oder nicht parsbare JSON, wird 'null' zugewiesen.
+    let loadedKategorien = JSON.parse(localStorage.getItem("kategorien"));
+    let changed = false; // Flag, um zu sehen, ob localStorage aktualisiert werden muss
+
+    // Prüfe, ob die geladenen Daten ein gültiges Array sind.
+    // Wenn nicht (null, undefined, String, Zahl, Objekt aber kein Array, etc.),
+    // setze auf standardKategorien und markiere als geändert.
+    if (!Array.isArray(loadedKategorien)) {
+        kategorien = standardKategorien; // Verwende Standard, wenn Daten korrupt/nicht vorhanden
+        changed = true;
     } else {
-        kategorien = k; // Aktualisiere globale Variable
+        // Wenn die geladenen Daten ein Array SIND, verwende sie.
+        kategorien = loadedKategorien;
+         // Optional: Wenn das geladene Array leer ist, vielleicht auch standard Kategorien hinzufügen?
+         // Entscheidung: Nein, eine leere Liste kann beabsichtigt sein.
+    }
+
+    // Wenn die Kategorienliste aufgrund ungültiger Daten auf Standard gesetzt wurde, speichere das.
+    if (changed) {
+        localStorage.setItem("kategorien", JSON.stringify(kategorien));
     }
 
 
     const s=document.getElementById("kategorie"); // Das Dropdown im Eingabeformular
     s.innerHTML='<option value="">-- Kategorie auswählen --</option>'; // Standardoption hinzugefügt
-    kategorien.forEach(n=>s.add(new Option(n,n)));
+    // Stelle sicher, dass `kategorien` jetzt wirklich ein Array ist, bevor forEach aufgerufen wird
+    if (Array.isArray(kategorien)) {
+        kategorien.forEach(n=>s.add(new Option(n,n)));
+    }
+
 
     const f=document.getElementById("filterKategorie"); // Das Dropdown im Filterbereich
     f.innerHTML='<option value="" class="filter-option-alle">🎯 Alle Ideen</option>'; // Standardfilteroption
-    kategorien.forEach(n=>f.add(new Option(n,n)));
+     // Stelle sicher, dass `kategorien` jetzt wirklich ein Array ist, bevor forEach aufgerufen wird
+    if (Array.isArray(kategorien)) {
+        kategorien.forEach(n=>f.add(new Option(n,n)));
+    }
 }
 
 // Funktion zum Initialisieren der Benutzerliste und Dropdowns
@@ -1086,8 +1106,8 @@ function benutzerLoeschen(){
 // function filterBenutzerZuruecksetzen(){ ... } // Wird nicht mehr vom Button aufgerufen
 
 
-/* --- END BLOCK 5d: Descriptions, Selection & User Management --- | -- NO CHANGES HERE -- */
-/* --- START BLOCK 6: Export Functions --- | -- NO CHANGES HERE -- */
+/* --- END BLOCK 5d: Descriptions, Selection & User Management --- */
+/* --- START BLOCK 6: Export Functions --- */
 
 function getExportIdeen(){
     let ideen = JSON.parse(localStorage.getItem("ideen")||"[]");
@@ -1268,7 +1288,7 @@ function teilePerWhatsApp(){
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,"_blank");
 }
 
-/* --- END BLOCK 6: Export Functions --- | -- NO CHANGES HERE -- */
+/* --- END BLOCK 6: Export Functions --- */
 /* --- START BLOCK 7: OneDrive & Local File Functions --- */
 
 async function uploadToOneDrive(f){if(!accessToken){zeigeWarnung("Bitte zuerst mit Microsoft anmelden!");return null;}try{const n=`ideenapp/${Date.now()}_${f.name}`;const u=await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${n}:/content`,{method:"PUT",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":f.type},body:f});const d=await u.json();const s=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${d.id}/createLink`,{method:"POST",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":"application/json"},body:JSON.stringify({type:"view",scope:"anonymous"})});const j=await s.json();return j.link.webUrl;}catch(e){zeigeWarnung("OneDrive-Fehler beim Upload: "+e.message);return null;}} // Angepasste Fehlermeldung
@@ -1393,7 +1413,11 @@ async function loadFromOneDrive(){
 
                     let ideen = [];
                     let benutzerliste = [];
-                    let kategorien = []; // Initialize kategorien
+                    // Kategorien werden NICHT initialisiert oder von standardKategorien zugewiesen,
+                    // wenn das alte Format geladen wird. Sie bleiben, was sie lokal in localStorage waren.
+                    // Die initialisiereKategorien() Funktion am Ende wird von localStorage lesen.
+                    let kategorienAusDatei = null; // Variable, um Kategorien aus der Datei zu speichern, falls vorhanden
+
                     let changed = false; // Track if migration/changes were needed
 
 
@@ -1402,8 +1426,13 @@ async function loadFromOneDrive(){
                          // New format: contains ideen, benutzerliste, and kategorien
                          ideen = loadedData.ideen;
                          benutzerliste = loadedData.benutzerliste;
-                         kategorien = loadedData.kategorien || standardKategorien; // Load kategorien, use default if missing
-                         if (!Array.isArray(kategorien)) kategorien = standardKategorien; // Ensure it's an array
+                         // Lade Kategorien aus der Datei, wenn sie im neuen Format sind
+                         kategorienAusDatei = loadedData.kategorien;
+
+                         // Sicherstellen, dass kategorienAusDatei ein Array ist, fallback zu null
+                         if (!Array.isArray(kategorienAusDatei)) {
+                             kategorienAusDatei = null; // Ungültige Daten in Datei -> ignoriere Kategorien aus Datei
+                         }
 
 
                          // Migration/ID check still needed for ideen array consistency
@@ -1411,7 +1440,7 @@ async function loadFromOneDrive(){
                              if (!idee.id) { idee.id = generateUUID(); changed = true; }
                              if (!Array.isArray(idee.beschreibungen)) { idee.beschreibungen = []; changed = true; }
                              if (Array.isArray(idee.beschreibungen) && idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
-                                     idee.beschreibungen = ideen.beschreibungen.map(text => ({ // FIXED: used ideen.beschreibungen instead of idee.beschreibungen
+                                     idee.beschreibungen = ideen.beschreibungen.map(text => ({
                                          text: text,
                                          timestamp: new Date().toISOString() // Set valid timestamp
                                      }));
@@ -1451,13 +1480,15 @@ async function loadFromOneDrive(){
                          // Old format: only contains the ideen array
                          ideen = loadedData;
                          benutzerliste = []; // Initialize benutzerliste as empty for old data
-                         kategorien = standardKategorien; // Initialize kategorien with default for old data
+                         // Kategorien werden hier NICHT verändert, bleiben lokal.
+                         kategorienAusDatei = null; // Keine Kategorien im alten Format
+
                          changed = true; // Data structure changed, mark for potential re-save
                          // Apply all migration/ID checks to the old ideen array
                          ideen.forEach(idee => {
                              if (!idee.id) { idee.id = generateUUID(); changed = true; }
                               if (Array.isArray(idee.beschreibungen) && idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
-                                     idee.beschreibungen = ideen.beschreibungen.map(text => ({ // FIXED: used ideen.beschreibungen instead of idee.beschreibungen
+                                     idee.beschreibungen = ideen.beschreibungen.map(text => ({
                                          text: text,
                                          timestamp: new Date().toISOString() // Set valid timestamp
                                      }));
@@ -1500,23 +1531,36 @@ async function loadFromOneDrive(){
                          throw new Error("Ungültiges Dateiformat"); // Data was neither the new object nor the old array
                     }
 
-                    // Always save the potentially migrated/combined data back to localStorage
+                    // Speichere die geladenen/migrierten Ideen und Benutzer in localStorage
                     localStorage.setItem("ideen", JSON.stringify(ideen));
                     localStorage.setItem("benutzerliste", JSON.stringify(benutzerliste));
-                    localStorage.setItem("kategorien", JSON.stringify(kategorien)); // Save loaded/migrated kategorien
+
+                    // NEUE LOGIK: Speichere Kategorien aus der Datei NUR, wenn sie im neuen Format vorlagen
+                    if (kategorienAusDatei !== null) {
+                         localStorage.setItem("kategorien", JSON.stringify(kategorienAusDatei));
+                         console.log("Kategorien aus Datei geladen und gespeichert.");
+                    } else {
+                         // Wenn keine Kategorien in der Datei waren (altes Format oder defekt),
+                         // behalte die lokalen Kategorien bei und mache nichts hier.
+                         console.log("Keine Kategorien im neuen Format in der Datei gefunden. Lokale Kategorien bleiben erhalten.");
+                    }
 
 
                     ausgewaehlt = []; // Clear selection after loading from file, as IDs might be new/different
 
                     // >>> DROPDOWNS NACH DEM LADEN AKTUALISIEREN START<<<
-                    initialisiereKategorien(); // This will now populate from the loaded localStorage['kategorien']
+                    // initialisiereKategorien lädt jetzt immer von localStorage,
+                    // was entweder die aus der Datei geladenen (neues Format) oder die beibehaltenen lokalen Kategorien (altes Format) sind.
+                    initialisiereKategorien();
                     initialisiereBenutzer(); // This will now populate from the loaded localStorage['benutzerliste']
-                    aktualisiereMandantenFilterDropdown(); // Still needed
+                    // aktualisiereMandantenFilterDropdown() muss nach dem Laden der Ideen aufgerufen werden
+                    aktualisiereMandantenFilterDropdown();
                     // >>> DROPDOWNS NACH DEM LADEN AKTUALISIEREN ENDE<<<
 
 
                     zeigeIdeen(); // Ideen anzeigen
-                    zeigeWarnung(`Ideen, Benutzerliste und Kategorien erfolgreich von OneDrive geladen von ${finalFilePath}!`, 'success'); // Update message
+                    zeigeWarnung(`Ideen und Benutzerliste erfolgreich von OneDrive geladen von ${finalFilePath}!${kategorienAusDatei !== null ? ' Kategorien wurden ebenfalls geladen.' : ' Lokale Kategorien wurden beibehalten.'}`, 'success'); // Update message
+
                     istGespeichert = true;
 
                      // If data structure was migrated from old format, might be good to resave?
@@ -1567,21 +1611,30 @@ async function ladeIdeenAusDatei(){try{let file;if(window.showOpenFilePicker){[f
 
     let ideen = [];
     let benutzerliste = [];
-    let kategorien = []; // Initialize kategorien
+    // Kategorien werden NICHT initialisiert oder von standardKategorien zugewiesen,
+    // wenn das alte Format geladen wird. Sie bleiben, was sie lokal in localStorage waren.
+    // Die initialisiereKategorien() Funktion am Ende wird von localStorage lesen.
+    let kategorienAusDatei = null; // Variable, um Kategorien aus der Datei zu speichern, falls vorhanden
+
     let changed = false; // Track if migration/changes were needed
 
      if (loadedData && typeof loadedData === 'object' && Array.isArray(loadedData.ideen) && Array.isArray(loadedData.benutzerliste)) {
          ideen = loadedData.ideen;
          benutzerliste = loadedData.benutzerliste;
-         kategorien = loadedData.kategorien || standardKategorien; // Load kategorien, use default if missing
-         if (!Array.isArray(kategorien)) kategorien = standardKategorien; // Ensure it's an array
+         // Lade Kategorien aus der Datei, wenn sie im neuen Format sind
+         kategorienAusDatei = loadedData.kategorien;
+
+         // Sicherstellen, dass kategorienAusDatei ein Array ist, fallback zu null
+         if (!Array.isArray(kategorienAusDatei)) {
+             kategorienAusDatei = null; // Ungültige Daten in Datei -> ignoriere Kategorien aus Datei
+         }
 
 
          ideen.forEach(idee => {
              if (!idee.id) { idee.id = generateUUID(); changed = true; }
               if (!Array.isArray(idee.beschreibungen)) { idee.beschreibungen = []; changed = true; }
               if (Array.isArray(idee.beschreibungen) && idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
-                                 idee.beschreibungen = ideen.beschreibungen.map(text => ({ // FIXED: used ideen.beschreibungen instead of idee.beschreibungen
+                                 idee.beschreibungen = ideen.beschreibungen.map(text => ({
                                      text: text,
                                      timestamp: new Date().toISOString() // Set valid timestamp
                                  }));
@@ -1620,12 +1673,14 @@ async function ladeIdeenAusDatei(){try{let file;if(window.showOpenFilePicker){[f
     } else if (Array.isArray(loadedData)) {
          ideen = loadedData;
          benutzerliste = [];
-         kategorien = standardKategorien; // Initialize kategorien with default for old data
+         // Kategorien werden hier NICHT verändert, bleiben lokal.
+         kategorienAusDatei = null; // Keine Kategorien im alten Format
+
          changed = true; // Data structure changed, mark for potential re-save
          ideen.forEach(idee => {
              if (!idee.id) { idee.id = generateUUID(); changed = true; }
               if (Array.isArray(idee.beschreibungen) && idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
-                                 idee.beschreibungen = ideen.beschreibungen.map(text => ({ // FIXED: used ideen.beschreibungen instead of idee.beschreibungen
+                                 idee.beschreibungen = ideen.beschreibungen.map(text => ({
                                      text: text,
                                      timestamp: new Date().toISOString() // Set valid timestamp
                                  }));
@@ -1671,20 +1726,33 @@ async function ladeIdeenAusDatei(){try{let file;if(window.showOpenFilePicker){[f
 
      localStorage.setItem("ideen", JSON.stringify(ideen));
      localStorage.setItem("benutzerliste", JSON.stringify(benutzerliste));
-     localStorage.setItem("kategorien", JSON.stringify(kategorien)); // Save loaded/migrated kategorien
+
+     // NEUE LOGIK: Speichere Kategorien aus der Datei NUR, wenn sie im neuen Format vorlagen
+     if (kategorienAusDatei !== null) {
+          localStorage.setItem("kategorien", JSON.stringify(kategorienAusDatei));
+          console.log("Kategorien aus Datei geladen und gespeichert.");
+     } else {
+          // Wenn keine Kategorien in der Datei waren (altes Format oder defekt),
+          // behalte die lokalen Kategorien bei und mache nichts hier.
+          console.log("Keine Kategorien im neuen Format in der Datei gefunden. Lokale Kategorien bleiben erhalten.");
+     }
 
 
      ausgewaehlt = []; // Clear selection after loading from file, as IDs might be new/different
 
      // >>> DROPDOWNS NACH DEM LADEN AKTUALISIEREN START<<<
-     initialisiereKategorien(); // This will now populate from the loaded localStorage['kategorien']
+     // initialisiereKategorien lädt jetzt immer von localStorage,
+     // was entweder die aus der Datei geladenen (neues Format) oder die beibehaltenen lokalen Kategorien (altes Format) sind.
+     initialisiereKategorien();
      initialisiereBenutzer(); // This will now populate from the loaded localStorage['benutzerliste']
-     aktualisiereMandantenFilterDropdown(); // Still needed
+     // aktualisiereMandantenFilterDropdown() muss nach dem Laden der Ideen aufgerufen werden
+     aktualisiereMandantenFilterDropdown();
      // >>> DROPDOWNS NACH DEM LADEN AKTUALISIEREN ENDE<<<
 
 
      zeigeIdeen(); // Ideen anzeigen
-     zeigeWarnung("Datei erfolgreich lokal geladen!", 'success');
+     zeigeWarnung(`Ideen und Benutzerliste erfolgreich lokal geladen!${kategorienAusDatei !== null ? ' Kategorien wurden ebenfalls geladen.' : ' Lokale Kategorien wurden beibehalten.'}`, 'success');
+
      istGespeichert=true;
     }catch(e){
         if(e.name!=="AbortError")zeigeWarnung("Fehler beim lokalen Laden: "+e.message);
@@ -1692,7 +1760,7 @@ async function ladeIdeenAusDatei(){try{let file;if(window.showOpenFilePicker){[f
 }
 
 /* --- END BLOCK 7: OneDrive & Local File Functions --- */
-/* --- START BLOCK 8: Event Listeners & Initialization --- | -- NO CHANGES HERE -- */
+/* --- START BLOCK 8: Event Listeners & Initialization --- */
 
 document.getElementById("ideeText").addEventListener("input",()=>{istGespeichert=false;});
 document.getElementById("ideeDetails").addEventListener("input",()=>{istGespeichert=false;});
@@ -1714,7 +1782,7 @@ function ensureIdeasHaveIds() {
     let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
     let changed = false;
     // Stellen Sie sicher, dass ideen ein Array ist, auch wenn localStorage leer oder korrupt ist
-    if (!Array.isArray(ideen)) {
+    if (!Arrayable.isArray(ideen)) { // FIXED Typo here, should be Array.isArray
          ideen = [];
          changed = true;
     }
@@ -1816,8 +1884,8 @@ function ensureIdeasHaveIds() {
 
 
 // >>> AUFRUFE DER INITIALISIERUNGSFUNKTIONEN BEIM LADEN DER SEITE START <<<
-initialisiereKategorien(); // This will now populate from the loaded localStorage['kategorien']
-initialisiereBenutzer(); // This will now populate from the loaded localStorage['benutzerliste']
+initialisiereKategorien(); // Muss vor ensureIdeasHaveIds() aufgerufen werden, wenn Standardkategorien gesetzt werden sollen
+initialisiereBenutzer();   // Muss vor ensureIdeasHaveIds() aufgerufen werden
 ensureIdeasHaveIds(); // Prüft/Migriert Ideen und setzt IDs/Standardfelder (Benutzer/Mandant/Timestamps)
 // !!! WICHTIG: aktualisiereMandantenFilterDropdown MUSS NACH ensureIdeasHaveIds aufgerufen werden,
 // da ensureIdeasHaveIds möglicherweise Mandantennummern zu älteren Ideen hinzufügt.
@@ -1827,7 +1895,7 @@ pruebeLoginHinweis(); // Prüft den Login Status
 // >>> AUFRUFE DER INITIALISIERUNGSFUNKTIONEN BEIM LADEN DER SEITE ENDE <<<
 
 
-/* --- END BLOCK 8: Event Listeners & Initialization --- | -- NO CHANGES HERE -- */
+/* --- END BLOCK 8: Event Listeners & Initialization --- */
 </script>
 </body>
 </html>
