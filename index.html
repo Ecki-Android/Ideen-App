@@ -22,10 +22,10 @@ button{padding:10px 18px;font-size:1em;margin-top:10px;margin-right:8px;border-r
 .idee-content h3,.idee-content p,.idee-content small{max-width:100%;overflow-wrap:break-word;word-break:break-word;font-size:1em;}
 .idee.erledigt .idee-content h3,.idee.erledigt .idee-content p,.idee.erledigt .idee-content small{text-decoration:line-through;color:#888;}
 .beschreibung-historie{margin:8px 0 12px 0;}
-.beschreibung-item{margin:4px 0 4px 0;padding:6px 8px;background:#f8f8f8;border-left:3px solid #bbb;font-size:0.98em; display: flex; justify-content: space-between; align-items: center;} /* Flexbox für Button daneben */
+.beschreibung-item{margin:4px 0 4px 0;padding:6px 8px;background:#f8f8f8;border-left:3pt solid #bbb;font-size:0.98em; display: flex; justify-content: space-between; align-items: center;} /* Flexbox für Button daneben */
 .beschreibung-text-zeit { flex-grow: 1; margin-right: 10px;} /* Text nimmt Platz ein */
 .beschreibung-zeit{color:#666;font-size:0.9em;margin-bottom:2px;display:block;}
-.beschreibung-eingabe{margin:10px 0;background:#f9f9f9;border-left:3px solid #bbb;padding:8px;}
+.beschreibung-eingabe{margin:10px 0;background:#f9f9f9;border-left:3pt solid #bbb;padding:8px;}
 .idee-checkbox{margin-left:10px;margin-top:5px;min-width:28px;min-height:28px;}
 .idee-actions{margin-top:10px;display:flex;gap:5px;flex-wrap:wrap;}
 .idee-actions button{width:auto;min-width:44px;padding:6px 10px;font-size:0.95em;}
@@ -51,21 +51,21 @@ button{padding:10px 18px;font-size:1em;margin-top:10px;margin-right:8px;border-r
 /* CSS für Warnmeldungen (rot) */
 #warnung.warnung{
     color:#d32f2f; /* Red */
-    border: 1px solid #d32f2f;
+    border: 1pt solid #d32f2f;
     background-color: #ffe0e0; /* Light red background */
 }
 
 /* CSS für Erfolgsmeldungen (grün) */
 #warnung.success-message {
     color: #388e3c; /* Green */
-    border: 1px solid #388e3c;
+    border: 1pt solid #388e3c;
     background-color: #e8f5e9; /* Light green background */
 }
 
 /* CSS für Info/Progress Meldungen (blau/grau) */
 #warnung.info-message {
     color: #1a73e8; /* Neutral Blue */
-    border: 1px solid #1a73e8;
+    border: 1pt solid #1a73e8;
     background-color: #e8f0fe; /* Light neutral background */
 }
 
@@ -510,7 +510,7 @@ function speichereIdee(){
                       const ideeInBearbeitung = originalIdeen.find(item => item.id === bearbeiteId);
                       if (ideeInBearbeitung && ideeInBearbeitung.dateien) {
                            // Füge alte Dateien hinzu, die einen Link haben (OneDrive-Links behalten)
-                           dateien = dateien.concat(ideeInbearbeitung.dateien.filter(oldFile => oldFile.link)); // Nur alte Dateien mit Link behalten
+                           dateien = dateien.concat(ideeInBearbeitung.dateien.filter(oldFile => oldFile.link)); // Nur alte Dateien mit Link behalten
                             // Optional: Logik zum Umgang mit lokalen (blob:) URLs beim Bearbeiten überdenken
                             // Aktuell werden neue lokale Dateien hinzugefügt, alte lokale Dateien verworfen.
                             // Das ist konsistent, da lokale URLs nach Neuladen nicht mehr gültig sind.
@@ -855,7 +855,6 @@ function verschiebeIdee(ideeId, richtung){
             zeigeIdeen(); // Liste neu rendern basierend auf der geänderten Sortierung/Reihenfolge (Filter werden automatisch wieder angewendet)
             istGespeichert = false;
         } else {
-             // Dies sollte nicht passieren, wenn die Ideen in currentViewIdeen gefunden wurden
              zeigeWarnung("Interner Fehler beim Verschieben: Idee(n) im Original nicht gefunden.");
         }
     } else {
@@ -1223,7 +1222,7 @@ function aktualisiereBenutzerDropdowns() {
 }
 
 
-// Filterfunktionen (Implementierung hier)
+// Filterfunktionen (Implementierung bereits in Block 4)
 // function filterNachMandant(){ ... } // Wird vom onchange des Dropdowns aufgerufen
 // function filterMandantZuruecksetzen(){ ... } // Wird nicht mehr vom Button aufgerufen
 // function filterNachBenutzer(){ ... } // Wird vom onchange des Dropdowns aufgerufen
@@ -1286,73 +1285,237 @@ function getExportIdeen(){
 }
 
 
-function exportiereAlsPDF(){const{jsPDF}=window.jspdf;const doc=new jsPDF();const margin=15;const pageHeight=doc.internal.pageSize.getHeight();let y=margin;const ideen=getExportIdeen();ideen.forEach((idee,idx)=>{
-    /* --- BENUTZER ZUM TITEL HINZUFÜGEN (Optional, kann auch als eigenes Feld) START --- */
-    const titel=`Idee ${idx+1}: ${idee.text}${idee.benutzer ? ` (Zuständig: ${idee.benutzer})` : ''}`;
-    /* --- BENUTZER ZUM TITEL HINZUFÜGEN (Optional, kann auch als eigenes Feld) ENDE --- */
-    const titelLines=doc.splitTextToSize(titel,180);doc.setFontSize(12); titelLines.forEach(line=>{if(y+7>pageHeight-margin){doc.addPage();y=margin;}doc.text(line,margin,y);y+=7;}); // Verringere Zeilenhöhe für Titel
-    /* --- BENUTZER ZU METADATEN HINZUFÜGEN START --- */
-    const metaLines = [];
-    metaLines.push(`Kategorie: ${idee.kategorie}`);
-    if(idee.benutzer) metaLines.push(`Zuständig: ${idee.benutzer}`); // Füge Benutzer hinzu, wenn vorhanden
-    metaLines.push(`Priorität: ${idee.prioritaet||"Keine"}`);
-    const anzeigeDatum = new Date(idee.timestamp);
-     if (!isNaN(anzeigeDatum.getTime())) { // Prüfen, ob Datum gültig ist
-        metaLines.push(`Datum: ${anzeigeDatum.toLocaleString("de-DE")}`);
-     } else {
-        metaLines.push(`Datum: Ungültiges Datum`); // Oder eine Fehlermeldung
-     }
+// Funktion für den PDF Export - Angepasst für WhatsApp-ähnliche Darstellung mit Symbolen
+function exportiereAlsPDF(){
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const margin = 15; // Seitenrand
+    const pageWidth = doc.internal.pageSize.getWidth(); // Seitenbreite
+    const pageHeight = doc.internal.pageSize.getHeight(); // Seitenhöhe
+    let y = margin; // Aktuelle Y-Position auf der Seite
+    const lineHeight = 6; // Standard Zeilenhöhe
+    const headingLineHeight = 7; // Zeilenhöhe für Überschriften
+    const smallLineHeight = 5; // Kleinere Zeilenhöhe für Metadaten etc.
+    const textWidth = pageWidth - 2 * margin; // Verfügbare Textbreite
 
-    if(idee.mandantennummer) metaLines.push(`Mandantennummer: ${idee.mandantennummer}`);
-    if(idee.firmenname) metaLines.push(`Firmenname: ${idee.firmenname}`);
 
-    doc.setFontSize(10); // Kleinere Schrift für Metadaten
-    metaLines.forEach(text=>{if(y+6>pageHeight-margin){doc.addPage();y=margin;}doc.text(text,margin,y);y+=6;}); // Verringere Zeilenhöhe für Metadaten
-    /* --- BENUTZER ZU METADATEN HINZUFÜGEN ENDE --- */
+    const ideen = getExportIdeen(); // Ideen abrufen (gefiltert/sortiert)
 
-    if(idee.details){
-        doc.setFontSize(10); // Kleinere Schrift für Details
-        const detailLines=doc.splitTextToSize(idee.details,180);
-        detailLines.forEach(line=>{if(y+6>pageHeight-margin){doc.addPage();y=margin;}doc.text(line,margin,y);y+=6;});
-    }
+    doc.setFontSize(10); // Standard Schriftgröße
 
-    if(idee.beschreibungen&&idee.beschreibungen.length){
-        doc.setFontSize(10); // Kleinere Schrift für Beschreibungen
-        doc.text("Weitere Beschreibungen:",margin,y);
-        y+=6; // Abstand
-        idee.beschreibungen.forEach(b=>{
-            const beschrDatum = new Date(b.timestamp);
-            const beschrTimestampText = !isNaN(beschrDatum.getTime()) ? beschrDatum.toLocaleString("de-DE") : "Ungültiges Datum";
-            const beschr=`[${beschrTimestampText}] ${b.text}`; // Formatierung Zeitstempel Beschreibung
+    ideen.forEach((idee, idx) => {
+        // Abstand vor jeder neuen Idee (außer der ersten)
+        if (idx > 0) {
+            y += 15; // Größerer Abstand zwischen Ideen
+        }
 
-            const lines=doc.splitTextToSize(beschr,180);
-            lines.forEach(line=>{if(y+6>pageHeight-margin){doc.addPage();y=margin;}doc.text(line,margin,y);y+=6;});
+        // Prüfen, ob genug Platz für den Titel ist, sonst neue Seite
+        if (y + headingLineHeight > pageHeight - margin) {
+            doc.addPage();
+            y = margin;
+        }
+
+        // Titel (fett, größer)
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold'); // Text fett machen
+        const titelLines = doc.splitTextToSize(idee.text, textWidth); // Titel auf Breite umbrechen
+        titelLines.forEach(line => {
+             if (y + headingLineHeight > pageHeight - margin) {
+                doc.addPage();
+                y = margin;
+            }
+            doc.text(line, margin, y);
+            y += headingLineHeight;
         });
-    }
+        doc.setFont(undefined, 'normal'); // Schrift wieder normal setzen
+        doc.setFontSize(10); // Schriftgröße zurücksetzen
 
-    if(idee.dateien?.length > 0){
-        doc.setFontSize(10); // Kleinere Schrift für Anhänge
-        doc.text("Anhänge:", margin, y);
-         y += 6;
-        idee.dateien.forEach(file=>{
-            if(y+6>pageHeight-margin){doc.addPage();y=margin; doc.setFontSize(10); doc.text("Anhänge:", margin, y); y+=6;} // Neuen Header auf neuer Seite
+        y += 3; // Kleiner Abstand nach Titel
+
+        // Metadaten mit Labels und Symbolen (WhatsApp-ähnlich)
+        // Kategorie
+        if (idee.kategorie) {
+             const katText = `📁 Kategorie: ${idee.kategorie}`;
+             const katLines = doc.splitTextToSize(katText, textWidth);
+             katLines.forEach(line => {
+                 if (y + smallLineHeight > pageHeight - margin) { doc.addPage(); y = margin; }
+                 doc.text(line, margin, y); y += smallLineHeight;
+             });
+        }
+
+        // Zuständig
+        if (idee.benutzer) {
+             const benutzerText = `🧑‍💻 Zuständig: ${idee.benutzer}`; // WhatsApp Symbol für Benutzer
+             const benutzerLines = doc.splitTextToSize(benutzerText, textWidth);
+             benutzerLines.forEach(line => {
+                 if (y + smallLineHeight > pageHeight - margin) { doc.addPage(); y = margin; }
+                 doc.text(line, margin, y); y += smallLineHeight;
+             });
+        }
+
+        // Priorität
+        if (idee.prioritaet) {
+             let prioSymbol = '🔖'; // Standard Lesezeichen Symbol
+             if (idee.prioritaet === 'Hoch') prioSymbol = '🔴'; // Roter Kreis
+             if (idee.prioritaet === 'Mittel') prioSymbol = '🟠'; // Oranger Kreis
+             if (idee.prioritaet === 'Niedrig') prioSymbol = '🟢'; // Grüner Kreis
+
+             const prioText = `${prioSymbol} Priorität: ${idee.prioritaet}`;
+              const prioLines = doc.splitTextToSize(prioText, textWidth);
+             prioLines.forEach(line => {
+                 if (y + smallLineHeight > pageHeight - margin) { doc.addPage(); y = margin; }
+                 doc.text(line, margin, y); y += smallLineHeight;
+             });
+        }
+
+        // Datum
+        const anzeigeDatum = new Date(idee.timestamp);
+        const datumText = !isNaN(anzeigeDatum.getTime()) ? anzeigeDatum.toLocaleString("de-DE") : "Ungültiges Datum";
+        const datumLine = `📅 ${datumText}`; // Kalender Symbol
+         const datumLines = doc.splitTextToSize(datumLine, textWidth);
+         datumLines.forEach(line => {
+             if (y + smallLineHeight > pageHeight - margin) { doc.addPage(); y = margin; }
+             doc.text(line, margin, y); y += smallLineHeight;
+         });
+
+
+        // Mandantennummer (ohne Symbol im WhatsApp Beispiel, aber hier hinzufügen?)
+        if (idee.mandantennummer) {
+             const mandantText = `Mandantennummer: ${idee.mandantennummer}`; // Kein Symbol
+             const mandantLines = doc.splitTextToSize(mandantText, textWidth);
+             mandantLines.forEach(line => {
+                 if (y + smallLineHeight > pageHeight - margin) { doc.addPage(); y = margin; }
+                 doc.text(line, margin, y); y += smallLineHeight;
+             });
+        }
+
+        // Firmenname (ohne Symbol)
+        if (idee.firmenname) {
+             const firmaText = `Firmenname: ${idee.firmenname}`; // Kein Symbol
+             const firmaLines = doc.splitTextToSize(firmaText, textWidth);
+             firmaLines.forEach(line => {
+                 if (y + smallLineHeight > pageHeight - margin) { doc.addPage(); y = margin; }
+                 doc.text(line, margin, y); y += smallLineHeight;
+             });
+        }
+
+        y += 5; // Abstand nach Metadaten
+
+
+        // Details (Beschreibung)
+        if(idee.details){
+            if (y + lineHeight > pageHeight - margin) { doc.addPage(); y = margin; }
+             doc.setFont(undefined, 'bold'); // Label fett
+            doc.text("📝 Details:", margin, y); // Stift Symbol + Label
+            doc.setFont(undefined, 'normal'); // Schrift wieder normal
+            y += lineHeight; // Abstand nach Label
+
+            const detailLines=doc.splitTextToSize(idee.details, textWidth); // Details auf Breite umbrechen
+            detailLines.forEach(line=>{
+                if(y+lineHeight > pageHeight-margin){doc.addPage();y=margin;}
+                doc.text(line,margin,y);
+                y+=lineHeight;
+            });
+             y += 5; // Abstand nach Details
+        }
+
+        // Weitere Beschreibungen (Historie)
+        if(idee.beschreibungen && idee.beschreibungen.length > 0){
+             if (y + lineHeight > pageHeight - margin) { doc.addPage(); y = margin; }
+             doc.setFont(undefined, 'bold'); // Label fett
+            doc.text("✍️ Weitere Beschreibungen:", margin, y); // Schreibendes Hand Symbol + Label
+             doc.setFont(undefined, 'normal'); // Schrift wieder normal
+            y += lineHeight; // Abstand nach Label
+
+            idee.beschreibungen.forEach(b=>{
+                const beschrDatum = new Date(b.timestamp);
+                const beschrTimestampText = !isNaN(beschrDatum.getTime()) ? beschrDatum.toLocaleString("de-DE") : "Ungültiges Datum";
+                // Formatierung wie im WhatsApp Export: - [Datum] Text
+                const beschr=`- [${beschrTimestampText}] ${b.text}`;
+
+                const lines=doc.splitTextToSize(beschr, textWidth); // Beschreibung auf Breite umbrechen
+                lines.forEach(line=>{
+                    if(y+lineHeight > pageHeight-margin){doc.addPage();y=margin;}
+                    doc.text(line,margin,y);
+                    y+=lineHeight;
+                });
+            });
+             y += 5; // Abstand nach Beschreibungen
+        }
+
+
+        // Anhänge
+        if(idee.dateien?.length > 0){
+            if (y + lineHeight > pageHeight - margin) { doc.addPage(); y = margin; }
+            doc.setFont(undefined, 'bold'); // Label fett
+            doc.text("📎 Anhänge:", margin, y); // Büroklammer Symbol + Label
+            doc.setFont(undefined, 'normal'); // Schrift wieder normal
+             y += lineHeight; // Abstand nach Label
+
+            doc.setFontSize(10); // Kleinere Schrift für Anhänge
             doc.setTextColor(0,0,255); // Blau für Links
-            const linkText = `🌐 ${file.name}`;
-             // Check if textWithLink is available
-             if (doc.textWithLink) {
-                 doc.textWithLink(linkText, margin, y, { url: file.link || file.data });
-             } else {
-                 // Fallback if textWithLink is not available
-                 doc.text(linkText, margin, y);
-             }
-            doc.setTextColor(0,0,0); // Zurücksetzen auf Schwarz
-            y+=6;
-        });
-    }
+
+            idee.dateien.forEach(file=>{
+                if(y+lineHeight > pageHeight-margin){
+                    doc.addPage();
+                    y=margin;
+                    // Neuen Header und Farbe auf neuer Seite (optional, kann auch weggelassen werden)
+                     doc.setFont(undefined, 'bold'); doc.text("Anhänge (fortgesetzt):", margin, y); doc.setFont(undefined, 'normal'); y+=lineHeight;
+                     doc.setFontSize(10); doc.setTextColor(0,0,255);
+                }
+
+                const linkText = `📄 ${file.name}`; // Blatt Symbol + Dateiname
+                 const fileUrl = file.link || file.data; // Nutze Link oder lokale URL
+
+                 // jsPDF textWithLink ist besser für URLs, fallback zu normalem Text
+                if (doc.textWithLink && fileUrl) {
+                    doc.textWithLink(linkText, margin, y, { url: fileUrl });
+                } else {
+                    doc.text(linkText, margin, y); // Fallback oder wenn kein Link
+                }
+
+                doc.setTextColor(0,0,0); // Farbe zurücksetzen für die nächste Zeile
+                 y += smallLineHeight; // Kleinere Zeilenhöhe nach jedem Anhang
+                 // Optional: Dateipfad oder Info hinzufügen
+                 if (file.link) {
+                      if(y+smallLineHeight > pageHeight-margin){doc.addPage();y=margin;doc.setFontSize(10);doc.setTextColor(0,0,0);}
+                       doc.setFontSize(8); // Noch kleiner für Info
+                       doc.setTextColor(128,128,128); // Grau
+                       doc.text(`(OneDrive-Link)`, margin + 5, y); // Etwas eingerückt
+                       doc.setTextColor(0,0,0); // Zurücksetzen
+                       doc.setFontSize(10);
+                       y += smallLineHeight - 2; // Kleinerer Sprung nach Info
+                 } else if (file.pfad) {
+                      if(y+smallLineHeight > pageHeight-margin){doc.addPage();y=margin;doc.setFontSize(10);doc.setTextColor(0,0,0);}
+                      doc.setFontSize(8); // Noch kleiner für Info
+                       doc.setTextColor(128,128,128); // Grau
+                      doc.text(`(Pfad: ${file.pfad})`, margin + 5, y); // Etwas eingerückt
+                       doc.setTextColor(0,0,0); // Zurücksetzen
+                      doc.setFontSize(10);
+                       y += smallLineHeight - 2; // Kleinerer Sprung nach Info
+                 }
+                 y+=2; // Kleiner Abstand nach Anhang/Info
+
+            });
+             // y += 5; // Abstand nach Anhängen (wird durch den Abstand vor der nächsten Idee geregelt)
+        }
+
+        // Optional: Erledigt-Status anzeigen? Im WhatsApp Export ist es ein Häkchen unten rechts, im PDF vielleicht eine Zeile?
+         if (idee.erledigt) {
+             if (y + smallLineHeight > pageHeight - margin) { doc.addPage(); y = margin; }
+             doc.setFont(undefined, 'bold');
+             doc.text("Status: Erledigt ✔️", margin, y);
+             doc.setFont(undefined, 'normal');
+              y += smallLineHeight + 5; // Abstand nach Status
+         }
 
 
-    y+=10; // Abstand zwischen Ideen
-    if(y>pageHeight-margin){doc.addPage();y=margin;}});doc.save("ideen-export.pdf");}
+        // Abstand zur nächsten Idee wird am Anfang der Schleife behandelt
+    });
+
+    doc.save("ideen-export.pdf");
+}
+
 
 function exportiereAlsText(){const ideen=getExportIdeen();const text=ideen.map(idee=>
     /* --- BENUTZER ZUM TEXTEXPORT HINZUFÜGEN START --- */
