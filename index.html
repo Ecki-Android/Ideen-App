@@ -1546,43 +1546,37 @@ function exportiereAlsText(){const ideen=getExportIdeen();const text=ideen.map(i
     /* --- BENUTZER ZUM TEXTEXPORT HINZUFÜGEN ENDE --- */
 ).join("\n\n");const blob=new Blob([text],{type:"text/plain"});const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download="ideen-export.txt";link.click();;}
 
-
-// --- KORRIGIERTE FUNKTION TEILE PER EMAIL ---
-// Funktion zum Teilen per E-Mail - Korrigierte Version
+// Funktion zum Teilen per E-Mail - Angepasst für automatische Beschreibung bei Weiterleitung und verbesserte Prompts
 async function teilePerEmail(){ // Funktion ist jetzt async wegen await beim Speichern
     if(ausgewaehlt.length === 0) {
         zeigeWarnung("Bitte wählen Sie Notizen für den Export aus.");
         return;
     }
 
-    // Prompt für den Empfänger
+    // >>> VERBESSERTE PROMPT LOGIK START <<<
     const recipientInput = prompt("An wen soll exportiert werden? Geben Sie eine E-Mail-Adresse ein oder wählen Sie eine Option: 'ich', 'mandant', 'support', oder 'andere (variable Eingabe)'");
-    let recipientDescription = recipientInput ? recipientInput.trim() : ""; // Beschreibung für den Verlaufseintrag
+    let recipientInfo = recipientInput ? recipientInput.trim().toLowerCase() : ""; // Kleinbuchstaben für Vergleich
 
-    if (!recipientDescription) {
+    if (!recipientInfo) {
         zeigeWarnung("Export abgebrochen: Kein Empfänger angegeben.");
         return;
     }
 
-    const lowerCaseInput = recipientDescription.toLowerCase();
-
-    // Verfeinere die Beschreibung für den Verlaufseintrag bei Optionen
-    if (lowerCaseInput === "ich" || lowerCaseInput === "mandant" || lowerCaseInput === "support") {
-         recipientDescription = `Option: ${recipientDescription}`;
-    } else if (lowerCaseInput === "andere") {
+    // Prüfe auf vordefinierte Optionen
+    if (!["ich", "mandant", "support"].includes(recipientInfo) && recipientInfo !== "andere" && !recipientInfo.startsWith("andere:")) {
+         // Wenn es keine vordefinierte Option ist und nicht explizit "andere", behandle es als direkte Eingabe
+         recipientInfo = `Direkte Eingabe: ${recipientInput.trim()}`;
+    } else if (recipientInfo === "andere") {
+         // Wenn "andere" gewählt wurde, frage explizit nach der variablen Eingabe
          const otherRecipient = prompt("Bitte geben Sie die genaue Adresse/Information für 'andere (variable Eingabe)' an:");
          if (!otherRecipient || otherRecipient.trim() === "") {
              zeigeWarnung("Export abgebrochen: Keine variable Eingabe für 'andere' angegeben.");
              return;
          }
-         recipientDescription = `Andere: ${otherRecipient.trim()}`;
-    } else if (recipientDescription.includes('@')) {
-         // Wenn es eine E-Mail-Adresse ist, verwenden wir sie direkt als Beschreibung
-         recipientDescription = `E-Mail: ${recipientDescription}`;
-    } else {
-         // Fallback für andere direkte Eingaben
-         recipientDescription = `Direkte Eingabe: ${recipientDescription}`;
+         recipientInfo = `Andere: ${otherRecipient.trim()}`;
     }
+    // Wenn "ich", "mandant", "support" oder eine Eingabe mit "andere:" gewählt wurde, wird recipientInfo bereits korrekt gesetzt.
+    // >>> VERBESSERTE PROMPT LOGIK ENDE <<<
 
 
     let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
@@ -1591,7 +1585,7 @@ async function teilePerEmail(){ // Funktion ist jetzt async wegen await beim Spe
     // Füge Beschreibung zu jeder ausgewählten Idee hinzu
     ideen.forEach(idee => {
         if (ausgewaehlt.includes(idee.id)) {
-            const newDescriptionText = `Weitergeleitet via E-Mail an: ${recipientDescription} am ${new Date().toLocaleString("de-DE")}`;
+            const newDescriptionText = `Weitergeleitet via E-Mail an: ${recipientInfo} am ${new Date().toLocaleString("de-DE")}`;
             if (!idee.beschreibungen) {
                 idee.beschreibungen = [];
             }
@@ -1602,16 +1596,17 @@ async function teilePerEmail(){ // Funktion ist jetzt async wegen await beim Spe
         }
     });
 
-    // Speichere die Änderungen in localStorage, falls Beschreibungen hinzugefügt wurden
+    // Speichere die Änderungen in localStorage
     if (changed) {
         localStorage.setItem("ideen", JSON.stringify(ideen));
         zeigeIdeen(); // Liste neu rendern, um die neuen Beschreibungen anzuzeigen
         istGespeichert = false; // Änderung der Ideenliste
-        // Automatisch auf OneDrive speichern nach Hinzufügen der Beschreibung (wegen Export)
-        saveToOneDrive(); // Stelle sicher, dass diese Funktion wie oben definiert existiert
+         // *** NEU: Automatisch auf OneDrive speichern nach Hinzufügen der Beschreibung (wegen Export) ***
+        saveToOneDrive();
+        // *** ENDE NEU ***
     }
 
-    // Hole die Ideen erneut (oder verwende direkt die geänderten), um die hinzugefügten Beschreibungen im Export zu haben
+    // Hole die Ideen erneut, um die hinzugefügten Beschreibungen im Export zu haben
     const ideenToExport = getExportIdeen(); // Diese Funktion nutzt localStorage, also die aktualisierten Ideen
 
     const text = ideenToExport.map(idee => {
@@ -1623,39 +1618,35 @@ async function teilePerEmail(){ // Funktion ist jetzt async wegen await beim Spe
             `Kategorie: ${idee.kategorie}\n` +
             `${idee.benutzer?`Zuständig: ${idee.benutzer}\n`:""}` +
             `Priorität: ${idee.prioritaet||"Keine"}\n` +
-            `Datum: ${datumText}\n` +
+            `Datum: ${datumText}\n` + // Verwendet den geprüften Datumstext
             `${idee.mandantennummer?"Mandantennummer: "+idee.mandantennummer+"\n":""}` +
             `${idee.firmenname?"Firmenname: "+idee.firmenname+"\n":""}` +
             `${idee.details?`Beschreibung: ${idee.details}\n`:""}` +
             `${idee.beschreibungen&&idee.beschreibungen.length?`Weitere Beschreibungen:\n${idee.beschreibungen.map(b=>`  - [${new Date(b.timestamp).toLocaleString("de-DE")}] ${b.text}`).join("\n")}\n`:""}` +
-            `\nAnhänge: ${idee.dateien?.map(f=>`${f.name} (${f.link||f.data||'Kein Link'})`).join(", ")||"Keine"}\n`
+            `\nAnhänge: ${idee.dateien?.map(f=>`${f.name} (${f.link||f.data||'Kein Link'})`).join(", ")||"Keine"}\n` // Fügt Link/URL hinzu, Fallback
         );
     }).join("\n\n")+"\n\n[Bitte Anhänge manuell hinzufügen]";
 
-    // --- KORRIGIERTE LOGIK FÜR mailto: ---
-    let mailtoRecipient = '';
-    // Nur wenn die Originaleingabe KEINE der Optionen war UND ein '@' enthält,
-    // wird sie als E-Mail-Adresse für das "An"-Feld interpretiert.
-    if (!["ich", "mandant", "support", "andere"].includes(lowerCaseInput) && recipientInput.includes('@')) {
-        mailtoRecipient = encodeURIComponent(recipientInput.trim());
-    }
-
+    // Betreff und Body müssen korrekt URL-kodiert sein.
     const emailSubject = encodeURIComponent("Ideen-Export");
     const emailBody = encodeURIComponent(text);
-
-    // Erstelle den mailto Link (mailtoRecipient kann leer sein)
-    const mailtoLink = `mailto:${mailtoRecipient}?subject=${emailSubject}&body=${emailBody}`;
-
-    // Öffne den E-Mail-Client
-    window.location.href = mailtoLink;
-    // --- ENDE KORRIGIERTE LOGIK ---
+    // >>> KORRIGIERTE ZEILE FÜR EMAIL EXPORT START <<<
+    // Füge recipientInfo in den "to" Teil des mailto-Links ein, wenn es eine direkte Eingabe ist.
+    // Bei vordefinierten Optionen wird kein Empfänger im Link gesetzt.
+    // Geändert: Verwende jetzt den originalen recipientInput für den "to"-Teil, da dieser die E-Mail-Adresse enthalten kann.
+    const mailtoLink = `mailto:${recipientInput.startsWith('Direkte Eingabe:') ? encodeURIComponent(recipientInput.substring('Direkte Eingabe:'.length).trim()) : ''}?subject=${emailSubject}&body=${emailBody}`;
+     // Wenn die Eingabe eine E-Mail-Adresse war, nutzen wir diese im "to"-Feld.
+    // Wenn eine Option gewählt wurde ("ich", "mandant", "support", "andere"), bleibt das "to"-Feld leer,
+    // da wir keine E-Mail-Adressen für diese Optionen haben.
+    const finalRecipientForMailto = recipientInput.includes('@') ? encodeURIComponent(recipientInput.trim()) : ''; // Prüfe einfach auf '@' als Indikator für eine E-Mail-Adresse
+    const mailtoLinkCorrected = `mailto:${finalRecipientForMailto}?subject=${emailSubject}&body=${emailBody}`;
+    window.location.href = mailtoLinkCorrected;
+    // >>> KORRIGIERTE ZEILE FÜR EMAIL EXPORT ENDE <<<
 
 
     ausgewaehlt = []; // Auswahl nach Export leeren
-    zeigeIdeen(); // Liste neu rendern, um die Checkboxen zu deaktivieren
+     zeigeIdeen(); // Liste neu rendern, um die Checkboxen zu deaktivieren
 }
-// --- ENDE KORRIGIERTE FUNKTION ---
-
 
 // Funktion zum Teilen per WhatsApp - Angepasst für automatische Beschreibung bei Weiterleitung und verbesserte Prompts
 async function teilePerWhatsApp(){ // Funktion ist jetzt async wegen await beim Speichern
