@@ -305,6 +305,10 @@ function neueKategorieHinzufuegen(){
     kategorien.sort(); // Optional: Liste alphabetisch sortieren
     localStorage.setItem("kategorien", JSON.stringify(kategorien)); // <-- Speichert die aktualisierte Liste
 
+    // *** NEU: Automatisch auf OneDrive speichern nach Änderung der Kategorien ***
+    saveToOneDrive();
+    // *** ENDE NEU ***
+
 
     // Dropdown-Listen aktualisieren
     initialisiereKategorien(); // <-- Aktualisiert das Dropdown
@@ -366,6 +370,10 @@ function kategorieLoeschen(){
     if (index > -1) {
         kategorien.splice(index, 1);
         localStorage.setItem("kategorien", JSON.stringify(kategorien));
+        // *** NEU: Automatisch auf OneDrive speichern nach Änderung der Kategorien ***
+        saveToOneDrive();
+        // *** ENDE NEU ***
+
 
         // Notizen, die dieser Kategorie zugeordnet sind, auf keine Kategorie setzen
         ideen.forEach(idee => {
@@ -374,6 +382,9 @@ function kategorieLoeschen(){
             }
         });
         localStorage.setItem("ideen", JSON.stringify(ideen));
+         // *** NEU: Automatisch auf OneDrive speichern nach Änderung der Ideen (durch Kategorielöschung) ***
+        saveToOneDrive();
+        // *** ENDE NEU ***
 
 
         // Dropdown-Listen aktualisieren (Kategorien)
@@ -420,7 +431,157 @@ function initialisiereBenutzer() {
      });
 }
 
-// Funktion zum Aktualisieren der Mandanten-Filter-Dropdowns
+// Funktion zum Hinzufügen eines neuen Benutzers
+function neuenBenutzerHinzufuegen(){
+    const neuerBenutzerInput = document.getElementById("neuerBenutzer"); // Input-Feld für neuen Benutzer
+    const neuerBenutzerName = neuerBenutzerInput.value.trim();
+    if (!neuerBenutzerName) {
+        zeigeWarnung("Bitte geben Sie einen Benutzernamen ein.");
+        return;
+    }
+
+    // Lade aktuelle Liste, füge neuen Benutzer hinzu, speichere
+    benutzerliste = JSON.parse(localStorage.getItem("benutzerliste") || "[]");
+     // Stelle sicher, dass die Benutzerliste immer ein Array ist
+    if (!Array.isArray(benutzerliste)) {
+         benutzerliste = [];
+    }
+
+    if (benutzerliste.includes(neuerBenutzerName)) {
+        zeigeWarnung(`Benutzer "${neuerBenutzerName}" existiert bereits!`);
+        return;
+    }
+
+    benutzerliste.push(neuerBenutzerName);
+    benutzerliste.sort(); // Optional: Liste alphabetisch sortieren
+    localStorage.setItem("benutzerliste", JSON.stringify(benutzerliste));
+     // *** NEU: Automatisch auf OneDrive speichern nach Änderung der Benutzerliste ***
+    saveToOneDrive();
+    // *** ENDE NEU ***
+
+
+    // Dropdown-Listen aktualisieren
+    aktualisiereBenutzerDropdowns();
+
+    // Input-Feld leeren und Fokus zurücksetzen
+    neuerBenutzerInput.value = "";
+    neuerBenutzerInput.focus();
+    zeigeWarnung(`Benutzer "${neuerBenutzerName}" hinzugefügt.`, 'success'); // Erfolgsmeldung
+    istGespeichert = false; // Änderung der Benutzerliste
+}
+
+// Funktion zum Löschen eines Benutzers
+function benutzerLoeschen(){
+    const benutzerSelect = document.getElementById("benutzer"); // Dropdown im Eingabeformular
+    const benutzernameZuLoeschen = benutzerSelect.value;
+
+    if (!benutzernameZuLoeschen || benutzernameZuLoeschen === "") {
+        zeigeWarnung("Bitte wählen Sie zuerst einen Benutzer zum Löschen aus.");
+        return;
+    }
+
+    benutzerliste = JSON.parse(localStorage.getItem("benutzerliste") || "[]");
+     // Stelle sicher, dass die Benutzerliste immer ein Array ist
+    if (!Array.isArray(benutzerliste)) {
+         benutzerliste = [];
+    }
+
+    if (!benutzerliste.includes(benutzernameZuLoeschen)) {
+         zeigeWarnung(`Benutzer "${benutzernameZuLoeschen}" nicht in der Liste gefunden.`);
+         return;
+    }
+
+
+    if (!confirm(`Soll der Benutzer "${benutzernameZuLoeschen}" WIRKLICH gelöscht werden? ALLE Notizen, die diesem Benutzer zugeordnet sind, werden ebenfalls gelöscht!`)) {
+        return; // Abbruch, falls nicht bestätigt
+    }
+
+    // Benutzer aus der Liste entfernen
+    const index = benutzerliste.indexOf(benutzernameZuLoeschen);
+    if (index > -1) {
+        benutzerliste.splice(index, 1);
+        localStorage.setItem("benutzerliste", JSON.stringify(benutzerliste));
+        // *** NEU: Automatisch auf OneDrive speichern nach Änderung der Benutzerliste ***
+        saveToOneDrive();
+        // *** ENDE NEU ***
+
+
+        // Notizen löschen, die diesem Benutzer zugeordnet sind
+        let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+        const ursprungsLaenge = ideen.length;
+        // Filtere alle Ideen heraus, deren 'benutzer'-Feld NICHT dem zu löschenden Benutzernamen entspricht
+        ideen = ideen.filter(idee => idee.benutzer !== benutzernameZuLoeschen);
+        localStorage.setItem("ideen", JSON.stringify(ideen));
+        const anzahlGeloeschterNotizen = ursprungsLaenge - ideen.length;
+
+         // >>> PRÜFEN UND MANDANTEN-DROPDOWN AKTUALISIEREN <<<
+         // Sammle Mandanten aus den verbleibenden Ideen
+         const remainingMandanten = new Set(ideen.map(i => (i.mandantennummer || "").toLowerCase()).filter(m => m !== ""));
+         // Sammle Mandanten aus den GELÖSCHTEN Ideen (die dem Benutzer zugeordnet waren)
+         // Annahme: Die zu löschenden Ideen sind die, die NICHT im neuen ideen Array sind.
+         // Eine sicherere Methode wäre, die ursprünglichen Ideen vor dem Filtern zu verwenden,
+         // aber da wir nur einen Benutzer löschen, können wir auch die IDs der entfernten Ideen nutzen,
+         // oder, einfacher, prüfen welche Mandanten in den ALTEN Ideen mit diesem Benutzer waren
+         // und prüfen ob sie in den neuen Ideen noch vorhanden sind.
+         // Die Logik hier prüft, ob *irgendwelche* Mandanten (die vor dem Löschen da waren)
+         // nun nicht mehr existieren. Das sollte ausreichen.
+         const remainingMandantenAfterFilter = new Set(ideen.map(i => (i.mandantennummer || "").toLowerCase()).filter(m => m !== ""));
+         const allOriginalMandanten = new Set(JSON.parse(localStorage.getItem("ideen") || "[]").map(i => (i.mandantennummer || "").toLowerCase()).filter(m => m !== ""));
+
+         let updateMandantenDropdown = false;
+         allOriginalMandanten.forEach(mandant => {
+             if (!remainingMandantenAfterFilter.has(mandant)) updateMandantenDropdown = true;
+         });
+         if (updateMandantenDropdown) aktualisiereMandantenFilterDropdown();
+         // >>> ENDE PRÜFEN MANDANTEN-DROPDOWN <<<
+
+
+        // Dropdown-Listen aktualisieren (Benutzer)
+        aktualisiereBenutzerDropdowns();
+         // Filter zurücksetzen, falls der gelöschte Benutzer gerade gefiltert war
+        if (filterBenutzerValue === benutzernameZuLoeschen) {
+             filterBenutzerValue = ""; // Setze globalen Filterwert zurück
+             // Setze auch das Filter-Dropdown zurück, damit die Anzeige konsistent ist
+             document.getElementById("filterBenutzer").value = "";
+        }
+
+        // Bearbeitungsmodus abbrechen, falls die bearbeitete Idee gelöscht wurde
+        if (bearbeiteId !== null) {
+             const ideeInBearbeitungIstNochVorhanden = ideen.some(idee => idee.id === bearbeiteId);
+             if (!ideeInBearbeitungIstNochVorhanden) {
+                  abbrechenBearbeiten();
+             }
+        }
+         // Beschreibungsdialog abbrechen, falls die Idee gelöscht wurde
+         if (beschreibungFuerId !== null) {
+              const ideeFuerBeschreibungIstNochVorhanden = ideen.some(idee => idee.id === beschreibungFuerId);
+              if (!ideeFuerBeschreibungIstNochVorhanden) {
+                   beschreibungAbbrechen();
+              }
+         }
+
+         // *** NEU: Automatisch auf OneDrive speichern nach Änderung der Ideen (durch Benutzerlöschung) ***
+        saveToOneDrive();
+        // *** ENDE NEU ***
+
+
+        zeigeWarnung(`Benutzer "${benutzernameZuLoeschen}" und ${anzahlGeloeschterNotizen} zugeordnete Notiz(en) erfolgreich gelöscht.`, 'success'); // Erfolgsmeldung mit Anzahl Notizen
+        zeigeIdeen(); // Liste neu rendern
+        istGespeichert = true; // Änderung der Benutzerliste und Ideen
+    } else {
+        // Dies sollte durch die includes Prüfung oben eigentlich nicht erreicht werden
+        zeigeWarnung(`Ein interner Fehler ist aufgetreten: Benutzer "${benutzernameZuLoeschen}" konnte nicht gefunden und gelöscht werden.`);
+    }
+}
+
+// Funktion zum Aktualisieren der Benutzer-Dropdowns (wird nach Hinzufügen/Löschen aufgerufen)
+function aktualisiereBenutzerDropdowns() {
+     // Benutzerliste wird aus localStorage gelesen am Anfang von initialisiereBenutzer,
+     // daher rufen wir nur initialisiereBenutzer() auf, um die UI zu aktualisieren.
+    initialisiereBenutzer();
+}
+
+// Funktion zum Aktualisieren der Mandanten-Filter-Dropdowns - HIER DEFINIERT
 function aktualisiereMandantenFilterDropdown() {
     const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
     // Sammle alle einzigartigen, nicht leeren Mandantennummern
@@ -446,14 +607,7 @@ function aktualisiereMandantenFilterDropdown() {
         filterMandantSelect.value = "";
         filterMandantValue = "";
     }
-
-     // Trigger die Anzeige neu, falls der Filterwert sich geändert hat
-     // Dies wird von zeigeIdeen() übernommen, das nach der Initialisierung und nach Aktionen aufgerufen wird.
-     // Die onchange Listener der Dropdowns rufen direkt filterNachX auf, die wiederum zeigeIdeen aufrufen.
-     // Daher ist ein expliziter Aufruf hier nicht nötig, wenn die aktualisierteMandantenFilterDropdown
-     // nach dem Laden/Speichern aufgerufen wird, da zeigeIdeen danach kommt.
 }
-
 
 // Filterfunktionen - Lesen den Wert jetzt direkt aus den Dropdowns
 // Diese Funktionen aktualisieren nur die globale Variable und rufen zeigeIdeen auf
@@ -636,6 +790,9 @@ function saveIdeeObjekt(text, dateien){
     document.getElementById("benutzer").value = ""; // Setze Benutzerfeld zurück
     // >>> ENDE ZURÜCKSETZEN <<<
     istGespeichert = true;
+    // *** NEU: Automatisch auf OneDrive speichern nach Speichern/Aktualisieren einer Idee ***
+    saveToOneDrive();
+    // *** ENDE NEU ***
 }
 
 /* --- END BLOCK 5a: Save Idea Functions --- */
@@ -736,6 +893,9 @@ function toggleErledigt(ideeId){
         localStorage.setItem("ideen", JSON.stringify(ideen));
         zeigeIdeen(); // Liste neu rendern (Filter beachten!)
         istGespeichert = false; // Statusänderung = ungespeichert
+        // *** NEU: Automatisch auf OneDrive speichern nach Änderung des Erledigt-Status ***
+        saveToOneDrive();
+        // *** ENDE NEU ***
     }
 }
 
@@ -854,6 +1014,9 @@ function verschiebeIdee(ideeId, richtung){
             localStorage.setItem("ideen", JSON.stringify(fullIdeen));
             zeigeIdeen(); // Liste neu rendern basierend auf der geänderten Sortierung/Reihenfolge (Filter werden automatisch wieder angewendet)
             istGespeichert = false;
+             // *** NEU: Automatisch auf OneDrive speichern nach Verschieben einer Idee ***
+            saveToOneDrive();
+            // *** ENDE NEU ***
         } else {
              zeigeWarnung("Interner Fehler beim Verschieben: Idee(n) im Original nicht gefunden.");
         }
@@ -896,6 +1059,9 @@ function loescheIdee(ideeId){
         }
         zeigeIdeen();
         istGespeichert = true;
+        // *** NEU: Automatisch auf OneDrive speichern nach Löschen einer Idee ***
+        saveToOneDrive();
+        // *** ENDE NEU ***
     } else {
          zeigeWarnung("Fehler: Idee zum Löschen nicht gefunden (ID: " + ideeId + ").");
     }
@@ -980,6 +1146,9 @@ function beschreibungSpeichern(){
 
     beschreibungAbbrechen(); // Dialog schließen und Hilfsvariablen zurücksetzen
     istGespeichert = true;
+    // *** NEU: Automatisch auf OneDrive speichern nach Hinzufügen/Bearbeiten einer Beschreibung ***
+    saveToOneDrive();
+    // *** ENDE NEU ***
 }
 
 // Neue Funktion zum Aufruf durch den einzelnen Bearbeiten-Button
@@ -1010,7 +1179,7 @@ function ausgewaehlteNotizenLoeschen(){
         zeigeWarnung("Keine Notizen ausgewählt.");
         return;
     }
-    if(!confirm(`Wirklich ${ausgewaehlte.length} ausgewählte Notiz(en) löschen?`)) return;
+    if(!confirm(`Wirklich ${ausgewaehlt.length} ausgewählte Notiz(en) löschen?`)) return;
 
     let ideen = JSON.parse(localStorage.getItem("ideen")||"[]");
     // Sammle Mandanten und Benutzer der zu löschenden Ideen, um später zu prüfen, ob sie noch anderswo vorkommen
@@ -1059,6 +1228,9 @@ function ausgewaehlteNotizenLoeschen(){
     ausgewaehlt = []; // Auswahl leeren
     zeigeIdeen(); // Liste neu rendern
     istGespeichert = true;
+    // *** NEU: Automatisch auf OneDrive speichern nach Löschen ausgewählter Ideen ***
+    saveToOneDrive();
+    // *** ENDE NEU ***
 }
 
 function alleIdeenLoeschen(){
@@ -1078,6 +1250,9 @@ function alleIdeenLoeschen(){
     zeigeIdeen(); // Liste neu rendern (zeigt dann eine leere Liste)
     abbrechenBearbeiten(); // Stellt sicher, dass das Formular geleert wird
     istGespeichert=true;
+    // *** NEU: Automatisch auf OneDrive speichern nach Löschen aller Ideen ***
+    saveToOneDrive();
+    // *** ENDE NEU ***
 }
 
 
@@ -1107,6 +1282,10 @@ function neuenBenutzerHinzufuegen(){
     benutzerliste.push(neuerBenutzerName);
     benutzerliste.sort(); // Optional: Liste alphabetisch sortieren
     localStorage.setItem("benutzerliste", JSON.stringify(benutzerliste));
+     // *** NEU: Automatisch auf OneDrive speichern nach Änderung der Benutzerliste ***
+    saveToOneDrive();
+    // *** ENDE NEU ***
+
 
     // Dropdown-Listen aktualisieren
     aktualisiereBenutzerDropdowns();
@@ -1149,6 +1328,10 @@ function benutzerLoeschen(){
     if (index > -1) {
         benutzerliste.splice(index, 1);
         localStorage.setItem("benutzerliste", JSON.stringify(benutzerliste));
+        // *** NEU: Automatisch auf OneDrive speichern nach Änderung der Benutzerliste ***
+        saveToOneDrive();
+        // *** ENDE NEU ***
+
 
         // Notizen löschen, die diesem Benutzer zugeordnet sind
         let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
@@ -1203,6 +1386,10 @@ function benutzerLoeschen(){
                    beschreibungAbbrechen();
               }
          }
+
+         // *** NEU: Automatisch auf OneDrive speichern nach Änderung der Ideen (durch Benutzerlöschung) ***
+        saveToOneDrive();
+        // *** ENDE NEU ***
 
 
         zeigeWarnung(`Benutzer "${benutzernameZuLoeschen}" und ${anzahlGeloeschterNotizen} zugeordnete Notiz(en) erfolgreich gelöscht.`, 'success'); // Erfolgsmeldung mit Anzahl Notizen
@@ -1542,14 +1729,14 @@ async function teilePerEmail(){ // Funktion ist jetzt async wegen await beim Spe
     const recipientType = prompt("An wen soll exportiert werden? (ich, mandant, support, andere)");
     let recipientInfo = recipientType;
 
-    if (recipientType === "andere") {
+    if (recipientType && recipientType.toLowerCase() === "andere") {
         const otherRecipient = prompt("Bitte geben Sie die Adresse/Information für 'andere' an:");
         if (!otherRecipient) {
             zeigeWarnung("Export abgebrochen: Keine Adresse für 'andere' angegeben.");
             return; // Export abbrechen wenn keine Adresse angegeben
         }
         recipientInfo += `: ${otherRecipient}`;
-    } else if (!["ich", "mandant", "support", null, ""].includes(recipientType ? recipientType.toLowerCase() : "")) {
+    } else if (recipientType !== null && recipientType.trim() !== "" && !["ich", "mandant", "support"].includes(recipientType.toLowerCase())) {
         // Abfangen ungültiger Eingaben, falls nicht 'ich', 'mandant', 'support', null oder leer
          const otherRecipient = prompt(`Ungültiger Empfängertyp "${recipientType}". Bitte geben Sie die korrekte Adresse/Information an oder wählen Sie 'ich', 'mandant' oder 'support':`);
          if (!otherRecipient) {
@@ -1586,6 +1773,9 @@ async function teilePerEmail(){ // Funktion ist jetzt async wegen await beim Spe
         localStorage.setItem("ideen", JSON.stringify(ideen));
         zeigeIdeen(); // Liste neu rendern, um die neuen Beschreibungen anzuzeigen
         istGespeichert = false; // Änderung der Ideenliste
+         // *** NEU: Automatisch auf OneDrive speichern nach Hinzufügen der Beschreibung (wegen Export) ***
+        saveToOneDrive();
+        // *** ENDE NEU ***
     }
 
     // Hole die Ideen erneut, um die hinzugefügten Beschreibungen im Export zu haben
@@ -1624,14 +1814,14 @@ async function teilePerWhatsApp(){ // Funktion ist jetzt async wegen await beim 
     const recipientType = prompt("An wen soll exportiert werden? (ich, mandant, support, andere)");
     let recipientInfo = recipientType;
 
-    if (recipientType === "andere") {
+    if (recipientType && recipientType.toLowerCase() === "andere") {
         const otherRecipient = prompt("Bitte geben Sie die Adresse/Information für 'andere' an:");
          if (!otherRecipient) {
              zeigeWarnung("Export abgebrochen: Keine Adresse für 'andere' angegeben.");
              return; // Export abbrechen
          }
         recipientInfo += `: ${otherRecipient}`;
-    } else if (!["ich", "mandant", "support", null, ""].includes(recipientType ? recipientType.toLowerCase() : "")) {
+    } else if (recipientType !== null && recipientType.trim() !== "" && !["ich", "mandant", "support"].includes(recipientType.toLowerCase())) {
         // Abfangen ungültiger Eingaben
          const otherRecipient = prompt(`Ungültiger Empfängertyp "${recipientType}". Bitte geben Sie die korrekte Adresse/Information an oder wählen Sie 'ich', 'mandant' oder 'support':`);
          if (!otherRecipient) {
@@ -1668,6 +1858,9 @@ async function teilePerWhatsApp(){ // Funktion ist jetzt async wegen await beim 
         localStorage.setItem("ideen", JSON.stringify(ideen));
         zeigeIdeen(); // Liste neu rendern, um die neuen Beschreibungen anzuzeigen
         istGespeichert = false; // Änderung der Ideenliste
+         // *** NEU: Automatisch auf OneDrive speichern nach Hinzufügen der Beschreibung (wegen Export) ***
+        saveToOneDrive();
+        // *** ENDE NEU ***
     }
 
     // Hole die Ideen erneut, um die hinzugefügten Beschreibungen im Export zu haben
@@ -1709,11 +1902,11 @@ async function uploadToOneDrive(f){if(!accessToken){zeigeWarnung("Bitte zuerst m
 // FUNKTION: Speichern der Ideen auf OneDrive (angepasst für wählbaren Pfad)
 async function saveToOneDrive(){
     if(!accessToken){
-        const loginSuccess = await handleLogin(); // handleLogin zeigt schon Meldung
-        if (!loginSuccess || !accessToken) {
-             // Meldung wird schon in handleLogin() gezeigt
-             return;
-        }
+        // Für die automatische Speicherung wollen wir nicht unbedingt jedes Mal ein Login-Popup.
+        // Stattdessen zeigen wir eine Info-Meldung oder Log im Konsolenlog.
+        console.log("OneDrive-Speicherung übersprungen: Benutzer nicht angemeldet.");
+        zeigeWarnung("Anmeldung erforderlich: Änderungen wurden nur lokal gespeichert.", 'info'); // Weniger aufdringliche Meldung
+        return;
     }
 
     // Get both ideen, benutzerliste, and kategorien
@@ -1738,15 +1931,18 @@ async function saveToOneDrive(){
 
     // Prüfe, ob ein Pfad vorhanden ist und nicht nur "/"
     if (!filePath || filePath === "/") {
-         zeigeWarnung("Bitte geben Sie einen gültigen Pfad (z.B. /ideenapp/meineIdeen.json) an.");
+         // Dies sollte bei der automatischen Speicherung nicht passieren, aber zur Sicherheit
+         console.error("OneDrive-Speicherung abgebrochen: Ungültiger oder leerer Pfad.");
+         zeigeWarnung("Speichern auf OneDrive fehlgeschlagen: Ungültiger Pfad.", 'warning');
          return;
     }
      // Stelle sicher, dass der Pfad mit einem Schrägstrich beginnt
      const finalFilePath = filePath.startsWith('/') ? filePath : '/' + filePath;
 
 
-    // Initialmeldung "Speichere..." - jetzt mit Typ 'info'
-    zeigeWarnung(`Speichere Ideen, Benutzerliste und Kategorien auf OneDrive unter ${finalFilePath}...`, 'info'); // Update message
+    // Initialmeldung "Speichere..." - jetzt mit Typ 'info' (weniger aufdringlich für automatische Speicherung)
+    // zeigeWarnung(`Speichere auf OneDrive...`, 'info'); // Diese Meldung kann bei jeder kleinen Änderung nerven, daher weglassen oder nur im Konsolenlog
+
 
     try{
         // URL für den PUT (Speichern) Request
@@ -1762,23 +1958,29 @@ async function saveToOneDrive(){
         });
 
         if(response.ok){
-            zeigeWarnung(`Ideen, Benutzerliste und Kategorien erfolgreich auf OneDrive gespeichert unter ${finalFilePath}!`, 'success'); // Update message
-            istGespeichert = true;
+            // Zeige Erfolgsmeldung nur, wenn es nicht zu häufig passiert (z.B. nach einer Sekunde Inaktivität)
+            // Eine einfache Erfolgsmeldung nach jeder automatischen Speicherung kann ebenfalls nerven.
+            // Daher loggen wir hier nur in die Konsole.
+            console.log(`Erfolgreich auf OneDrive gespeichert unter ${finalFilePath}.`);
+            istGespeichert = true; // Markiere als gespeichert nach erfolgreichem Auto-Save
+
              // >>> Mandanten-Dropdown nach Speichern aktualisieren, da neue Mandanten hinzugefügt werden könnten <<<
-            aktualisiereMandantenFilterDropdown();
+            // Dies wird bereits an anderer Stelle aufgerufen, z.B. nach dem Speichern einer Idee.
+            // Ein zusätzlicher Aufruf hier könnte unnötig sein, aber schadet nicht.
+            // aktualisiereMandantenFilterDropdown();
             // >>> Ende Mandanten-Dropdown Update <<<
         } else {
-            // Fehlerfall - rote Warnung
+            // Fehlerfall - logge den Fehler in die Konsole und zeige eine Warnung
             const error = await response.json().catch(() => null);
-            // Zeige spezifischere Fehlermeldung, falls verfügbar
             const errorMessage = error?.error?.message || response.statusText || 'Unbekannter Fehler';
-            zeigeWarnung(`Fehler (${response.status}) beim Speichern auf OneDrive unter ${finalFilePath}: ${errorMessage}`, 'warning');
+            console.error(`Fehler (${response.status}) beim Speichern auf OneDrive unter ${finalFilePath}: ${errorMessage}`, error);
+            zeigeWarnung(`Speichern auf OneDrive fehlgeschlagen: ${errorMessage}`, 'warning'); // Zeige Warnung bei Fehler
         }
 
     } catch(e){
-        // Catch bei Netzwerk- oder anderen Fehlern - rote Warnung
+        // Catch bei Netzwerk- oder anderen Fehlern
         console.error('Exception during OneDrive save:', e);
-        zeigeWarnung("Fehler beim Speichern auf OneDrive: " + e.message);
+        zeigeWarnung("Fehler beim Speichern auf OneDrive: " + e.message, 'warning'); // Zeige Warnung bei Exception
     }
 }
 
@@ -1852,40 +2054,51 @@ async function loadFromOneDrive(){
                          ideen.forEach(idee => {
                              if (!idee.id) { idee.id = generateUUID(); changed = true; }
                              if (!Array.isArray(idee.beschreibungen)) { idee.beschreibungen = []; changed = true; }
-                             if (Array.isArray(idee.beschreibungen) && idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
-                                     idee.beschreibungen = idee.beschreibungen.map(text => ({
-                                         text: text,
-                                         timestamp: new Date().toISOString() // Set valid timestamp
-                                     }));
-                                     changed = true;
-                                }
+                             // Verbesserte Prüfung für Beschreibungsobjekte und Timestamps
+                             if (Array.isArray(idee.beschreibungen)) {
+                                  idee.beschreibungen = idee.beschreibungen.map(b => {
+                                      // Prüfe, ob b ein gültiges Objekt mit text-Property ist
+                                      if (b && typeof b === 'object' && typeof b.text === 'string') {
+                                          // Prüfe und migriere Timestamp
+                                          let descTimestamp = b.timestamp;
+                                          if (descTimestamp === undefined || descTimestamp === null) {
+                                              descTimestamp = new Date().toISOString(); // Setze aktuellen Timestamp
+                                              changed = true;
+                                          } else {
+                                              const descDate = new Date(descTimestamp);
+                                              if (isNaN(descDate.getTime())) { // Ungültiges Datum
+                                                  console.warn("Migrating invalid description timestamp in idea:", idee.id, "Original entry:", b);
+                                                  descTimestamp = new Date().toISOString(); // Setze aktuellen Timestamp
+                                                  changed = true;
+                                              }
+                                          }
+                                          return { text: b.text, timestamp: descTimestamp }; // Rückgabe als korrektes Objekt
+                                      } else if (typeof b === 'string') {
+                                           // Migriere alte String-Formate
+                                           console.warn("Migrating string description entry in idea:", idee.id, "Original entry:", b);
+                                           changed = true;
+                                           return { text: b, timestamp: new Date().toISOString() }; // Konvertiere zu Objekt mit neuem Timestamp
+                                      } else {
+                                          // Ungültiger Eintrag, logge und entferne ihn
+                                          console.warn("Removing malformed description entry in idea:", idee.id, "Malformed entry:", b);
+                                          changed = true;
+                                          return null; // Markiere zum Entfernen
+                                      }
+                                  }).filter(b => b !== null); // Entferne null-Einträge (malformed)
+                             } else {
+                                 idee.beschreibungen = []; // Sicherstellen, dass beschreibungen ein Array ist
+                                 changed = true;
+                             }
+
                              if (idee.benutzer === undefined) { idee.benutzer = ""; changed = true; }
                              if (idee.mandantennummer === undefined) { idee.mandantennummer = ""; changed = true; }
                              if (idee.firmenname === undefined) { idee.firmenname = ""; changed = true; }
                              // Validate/migrate main idea timestamp
                              const date = new Date(idee.timestamp);
-                             if (isNaN(date.getTime())) {
-                                  console.warn("Invalid timestamp loaded from OneDrive for idea:", idee);
+                             if (isNaN(date.getTime())) { // Check if date is 'Invalid Date'
+                                  console.warn("Migrating invalid main idea timestamp:", idee.id, "Original timestamp:", idee.timestamp);
                                   idee.timestamp = new Date().toISOString(); // Set to current timestamp
                                   changed = true;
-                             }
-                             // Validate/migrate timestamp for EACH description
-                             if (Array.isArray(idee.beschreibungen)) {
-                                  idee.beschreibungen.forEach(b => {
-                                       if (b && typeof b.text === 'string') {
-                                            if (b.timestamp === undefined || b.timestamp === null) {
-                                                b.timestamp = new Date().toISOString();
-                                                changed = true;
-                                            } else {
-                                                const descDate = new Date(b.timestamp);
-                                                if (isNaN(descDate.getTime())) {
-                                                     console.warn("Invalid timestamp loaded from OneDrive for description in idea:", idee, "Description:", b);
-                                                     b.timestamp = new Date().toISOString();
-                                                     changed = true;
-                                                }
-                                            }
-                                       }
-                                  });
                              }
                          });
 
@@ -1900,43 +2113,51 @@ async function loadFromOneDrive(){
                          // Apply all migration/ID checks to the old ideen array
                          ideen.forEach(idee => {
                              if (!idee.id) { idee.id = generateUUID(); changed = true; }
-                              if (Array.isArray(idee.beschreibungen) && idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
-                                     idee.beschreibungen = idee.beschreibungen.map(text => ({
-                                         text: text,
-                                         timestamp: new Date().toISOString() // Set valid timestamp
-                                     }));
-                                     changed = true;
-                                } else if (!Array.isArray(idee.beschreibungen)) {
-                                     idee.beschreibungen = [];
-                                     changed = true;
-                                }
+                              // Verbesserte Prüfung für Beschreibungsobjekte und Timestamps im alten Format
+                              if (Array.isArray(idee.beschreibungen)) {
+                                   idee.beschreibungen = idee.beschreibungen.map(b => {
+                                       // Prüfe, ob b ein gültiges Objekt mit text-Property ist
+                                       if (b && typeof b === 'object' && typeof b.text === 'string') {
+                                           // Prüfe und migriere Timestamp
+                                           let descTimestamp = b.timestamp;
+                                           if (descTimestamp === undefined || descTimestamp === null) {
+                                               descTimestamp = new Date().toISOString(); // Setze aktuellen Timestamp
+                                               changed = true;
+                                           } else {
+                                               const descDate = new Date(descTimestamp);
+                                               if (isNaN(descDate.getTime())) { // Ungültiges Datum
+                                                    console.warn("Migrating invalid description timestamp in idea (old format):", idee.id, "Original entry:", b);
+                                                    descTimestamp = new Date().toISOString(); // Setze aktuellen Timestamp
+                                                    changed = true;
+                                               }
+                                           }
+                                           return { text: b.text, timestamp: descTimestamp }; // Rückgabe als korrektes Objekt
+                                       } else if (typeof b === 'string') {
+                                            // Migriere alte String-Formate
+                                            console.warn("Migrating string description entry in idea (old format):", idee.id, "Original entry:", b);
+                                            changed = true;
+                                            return { text: b, timestamp: new Date().toISOString() }; // Konvertiere zu Objekt mit neuem Timestamp
+                                       } else {
+                                           // Ungültiger Eintrag, logge und entferne ihn
+                                           console.warn("Removing malformed description entry in idea (old format):", idee.id, "Malformed entry:", b);
+                                           changed = true;
+                                           return null; // Markiere zum Entfernen
+                                       }
+                                   }).filter(b => b !== null); // Entferne null-Einträge (malformed)
+                              } else {
+                                  idee.beschreibungen = []; // Sicherstellen, dass beschreibungen ein Array ist
+                                  changed = true;
+                              }
+
                              if (idee.benutzer === undefined) { idee.benutzer = ""; changed = true; }
                              if (idee.mandantennummer === undefined) { idee.mandantennummer = ""; changed = true; }
                              if (idee.firmenname === undefined) { idee.firmenname = ""; changed = true; }
                              // Validate/migrate main idea timestamp
                              const date = new Date(idee.timestamp);
                              if (isNaN(date.getTime())) { // Check if date is 'Invalid Date'
-                                  console.warn("Invalid timestamp loaded from OneDrive (old format) for idea:", idee);
+                                  console.warn("Migrating invalid main idea timestamp (old format):", idee.id, "Original timestamp:", idee.timestamp);
                                   idee.timestamp = new Date().toISOString(); // Set to current timestamp
                                   changed = true;
-                             }
-                              // Validate/migrate timestamp for EACH description
-                             if (Array.isArray(idee.beschreibungen)) {
-                                  idee.beschreibungen.forEach(b => {
-                                       if (b && typeof b.text === 'string') {
-                                            if (b.timestamp === undefined || b.timestamp === null) {
-                                                b.timestamp = new Date().toISOString();
-                                                changed = true;
-                                            } else {
-                                                const descDate = new Date(b.timestamp);
-                                                if (isNaN(descDate.getTime())) {
-                                                     console.warn("Invalid timestamp loaded from OneDrive (old format) for description in idea:", idee, "Description:", b);
-                                                     b.timestamp = new Date().toISOString();
-                                                     changed = true;
-                                                }
-                                            }
-                                       }
-                                  });
                              }
                          });
 
@@ -1967,7 +2188,7 @@ async function loadFromOneDrive(){
                     initialisiereKategorien();
                     initialisiereBenutzer(); // This will now populate from the loaded localStorage['benutzerliste']
                     // aktualisiereMandantenFilterDropdown() muss nach dem Laden der Ideen aufgerufen werden
-                    aktualisiereMandantenFilterDropdown();
+                    aktualisiereMandantenFilterDropdown(); // HIER IST DER AUFRUF, MUSS NACH ensureIdeasHaveIds SEIN
                     // >>> DROPDOWNS NACH DEM LADEN AKTUALISIEREN ENDE<<<
 
 
@@ -1993,12 +2214,13 @@ async function loadFromOneDrive(){
            else {
                const error = await response.json().catch(() => null);
                const errorMessage = error?.error?.message || response.statusText || 'Unbekannter Fehler';
+               console.error(`Fehler (${response.status}) beim Laden von OneDrive von ${finalFilePath}: ${errorMessage}`, error);
                zeigeWarnung(`Fehler (${response.status}) beim Laden von OneDrive von ${finalFilePath}: ${errorMessage}`, 'warning');
           }
 
      } catch(e){
          console.error('Exception during OneDrive load:', e);
-         zeigeWarnung("Fehler beim Laden von OneDrive: " + e.message);
+         zeigeWarnung("Fehler beim Laden von OneDrive: " + e.message, 'warning');
      }
 }
 
@@ -2046,40 +2268,51 @@ async function ladeIdeenAusDatei(){try{let file;if(window.showOpenFilePicker){[f
          ideen.forEach(idee => {
              if (!idee.id) { idee.id = generateUUID(); changed = true; }
               if (!Array.isArray(idee.beschreibungen)) { idee.beschreibungen = []; changed = true; }
-              if (Array.isArray(idee.beschreibungen) && idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
-                                 idee.beschreibungen = idee.beschreibungen.map(text => ({
-                                     text: text,
-                                     timestamp: new Date().toISOString() // Set valid timestamp
-                                 }));
-                                 changed = true;
-                            }
+              // Verbesserte Prüfung für Beschreibungsobjekte und Timestamps
+              if (Array.isArray(idee.beschreibungen)) {
+                   idee.beschreibungen = idee.beschreibungen.map(b => {
+                       // Prüfe, ob b ein gültiges Objekt mit text-Property ist
+                       if (b && typeof b === 'object' && typeof b.text === 'string') {
+                           // Prüfe und migriere Timestamp
+                           let descTimestamp = b.timestamp;
+                           if (descTimestamp === undefined || descTimestamp === null) {
+                               descTimestamp = new Date().toISOString(); // Setze aktuellen Timestamp
+                               changed = true;
+                           } else {
+                               const descDate = new Date(descTimestamp);
+                               if (isNaN(descDate.getTime())) { // Ungültiges Datum
+                                   console.warn("Migrating invalid description timestamp in idea:", idee.id, "Original entry:", b);
+                                   descTimestamp = new Date().toISOString(); // Setze aktuellen Timestamp
+                                   changed = true;
+                               }
+                           }
+                           return { text: b.text, timestamp: descTimestamp }; // Rückgabe als korrektes Objekt
+                       } else if (typeof b === 'string') {
+                            // Migriere alte String-Formate
+                            console.warn("Migrating string description entry in idea:", idee.id, "Original entry:", b);
+                            changed = true;
+                            return { text: b, timestamp: new Date().toISOString() }; // Konvertiere zu Objekt mit neuem Timestamp
+                       } else {
+                           // Ungültiger Eintrag, logge und entferne ihn
+                           console.warn("Removing malformed description entry in idea:", idee.id, "Malformed entry:", b);
+                           changed = true;
+                           return null; // Markiere zum Entfernen
+                       }
+                   }).filter(b => b !== null); // Entferne null-Einträge (malformed)
+              } else {
+                  idee.beschreibungen = []; // Sicherstellen, dass beschreibungen ein Array ist
+                  changed = true;
+              }
+
              if (idee.benutzer === undefined) { idee.benutzer = ""; changed = true; }
              if (idee.mandantennummer === undefined) { idee.mandantennummer = ""; changed = true; }
              if (idee.firmenname === undefined) { idee.firmenname = ""; changed = true; }
              // Validate/migrate main idea timestamp
              const date = new Date(idee.timestamp);
              if (isNaN(date.getTime())) { // Check if date is 'Invalid Date'
-                  console.warn("Invalid timestamp loaded from file for idea:", idee);
+                  console.warn("Migrating invalid main idea timestamp:", idee.id, "Original timestamp:", idee.timestamp);
                   idee.timestamp = new Date().toISOString(); // Set to current timestamp
                   changed = true;
-             }
-             // Validate/migrate timestamp for EACH description
-             if (Array.isArray(idee.beschreibungen)) {
-                  idee.beschreibungen.forEach(b => {
-                       if (b && typeof b.text === 'string') {
-                            if (b.timestamp === undefined || b.timestamp === null) {
-                                b.timestamp = new Date().toISOString();
-                                changed = true;
-                            } else {
-                                const descDate = new Date(b.timestamp);
-                                if (isNaN(descDate.getTime())) {
-                                     console.warn("Invalid timestamp loaded from file (old format) for description in idea:", idee, "Description:", b);
-                                     b.timestamp = new Date().toISOString();
-                                     changed = true;
-                                }
-                            }
-                       }
-                  });
              }
          });
 
@@ -2092,43 +2325,50 @@ async function ladeIdeenAusDatei(){try{let file;if(window.showOpenFilePicker){[f
          changed = true; // Data structure changed, mark for potential re-save
          ideen.forEach(idee => {
              if (!idee.id) { idee.id = generateUUID(); changed = true; }
-              if (Array.isArray(idee.beschreibungen) && idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
-                                 idee.beschreibungen = idee.beschreibungen.map(text => ({
-                                     text: text,
-                                     timestamp: new Date().toISOString() // Set valid timestamp
-                                 }));
-                                 changed = true;
-                            } else if (!Array.isArray(idee.beschreibungen)) {
-                                 idee.beschreibungen = [];
-                                 changed = true;
-                            }
+              // Verbesserte Prüfung für Beschreibungsobjekte und Timestamps im alten Format
+              if (Array.isArray(idee.beschreibungen)) {
+                                   idee.beschreibungen = idee.beschreibungen.map(b => {
+                                       // Prüfe, ob b ein gültiges Objekt mit text-Property ist
+                                       if (b && typeof b === 'object' && typeof b.text === 'string') {
+                                           // Prüfe und migriere Timestamp
+                                           let descTimestamp = b.timestamp;
+                                           if (descTimestamp === undefined || descTimestamp === null) {
+                                               descTimestamp = new Date().toISOString(); // Setze aktuellen Timestamp
+                                               changed = true;
+                                           } else {
+                                               const descDate = new Date(descTimestamp);
+                                               if (isNaN(descDate.getTime())) { // Ungültiges Datum
+                                                    console.warn("Migrating invalid description timestamp in idea (old format):", idee.id, "Original entry:", b);
+                                                    descTimestamp = new Date().toISOString(); // Setze aktuellen Timestamp
+                                                    changed = true;
+                                               }
+                                           }
+                                           return { text: b.text, timestamp: descTimestamp }; // Rückgabe als korrektes Objekt
+                                       } else if (typeof b === 'string') {
+                                            // Migriere alte String-Formate
+                                            console.warn("Migrating string description entry in idea (old format):", idee.id, "Original entry:", b);
+                                            changed = true;
+                                            return { text: b, timestamp: new Date().toISOString() }; // Konvertiere zu Objekt mit neuem Timestamp
+                                       } else {
+                                           // Ungültiger Eintrag, logge und entferne ihn
+                                           console.warn("Removing malformed description entry in idea (old format):", idee.id, "Malformed entry:", b);
+                                           changed = true;
+                                           return null; // Markiere zum Entfernen
+                                       }
+                                   }).filter(b => b !== null); // Entferne null-Einträge (malformed)
+                              } else {
+                                  idee.beschreibungen = []; // Sicherstellen, dass beschreibungen ein Array ist
+                                  changed = true;
+                              }
              if (idee.benutzer === undefined) { idee.benutzer = ""; changed = true; }
              if (idee.mandantennummer === undefined) { idee.mandantennummer = ""; changed = true; }
              if (idee.firmenname === undefined) { idee.firmenname = ""; changed = true; }
              // Validate/migrate main idea timestamp
              const date = new Date(idee.timestamp);
              if (isNaN(date.getTime())) { // Check if date is 'Invalid Date'
-                  console.warn("Invalid timestamp loaded from file (old format) for idea:", idee);
+                  console.warn("Migrating invalid main idea timestamp (old format):", idee.id, "Original timestamp:", idee.timestamp);
                   idee.timestamp = new Date().toISOString(); // Set to current timestamp
                   changed = true;
-             }
-              // Validate/migrate timestamp for EACH description
-             if (Array.isArray(idee.beschreibungen)) {
-                  idee.beschreibungen.forEach(b => {
-                       if (b && typeof b.text === 'string') {
-                            if (b.timestamp === undefined || b.timestamp === null) {
-                                b.timestamp = new Date().toISOString();
-                                changed = true;
-                            } else {
-                                const descDate = new Date(b.timestamp);
-                                if (isNaN(descDate.getTime())) {
-                                     console.warn("Invalid timestamp loaded from file (old format) for description in idea:", idee, "Description:", b);
-                                     b.timestamp = new Date().toISOString();
-                                     changed = true;
-                                }
-                            }
-                       }
-                  });
              }
          });
 
@@ -2159,7 +2399,7 @@ async function ladeIdeenAusDatei(){try{let file;if(window.showOpenFilePicker){[f
      initialisiereKategorien();
      initialisiereBenutzer(); // This will now populate from the loaded localStorage['benutzerliste']
      // aktualisiereMandantenFilterDropdown() muss nach dem Laden der Ideen aufgerufen werden
-     aktualisiereMandantenFilterDropdown();
+     aktualisiereMandantenFilterDropdown(); // HIER IST DER AUFRUF, MUSS NACH ensureIdeasHaveIds SEIN
      // >>> DROPDOWNS NACH DEM LADEN AKTUALISIEREN ENDE<<<
 
 
@@ -2205,18 +2445,43 @@ function ensureIdeasHaveIds() {
             idee.id = generateUUID();
             changed = true;
         }
-        // Optional: Beschreibungen von Array zu Array von Objekten konvertieren, falls alte Daten nur Strings waren
-        if (Array.isArray(idee.beschreibungen) && idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
-             // Convert string array to object array
-             idee.beschreibungen = idee.beschreibungen.map(text => ({
-                 text: text,
-                 timestamp: new Date().toISOString() // Set a valid timestamp during migration
-             }));
-             changed = true; // Markiere als geändert, falls Konvertierung nötig war
-        } else if (!Array.isArray(idee.beschreibungen)) {
+        // Verbesserte Prüfung für Beschreibungsobjekte und Timestamps
+         if (Array.isArray(idee.beschreibungen)) {
+              idee.beschreibungen = idee.beschreibungen.map(b => {
+                  // Prüfe, ob b ein gültiges Objekt mit text-Property ist
+                  if (b && typeof b === 'object' && typeof b.text === 'string') {
+                      // Prüfe und migriere Timestamp
+                      let descTimestamp = b.timestamp;
+                      if (descTimestamp === undefined || descTimestamp === null) {
+                          descTimestamp = new Date().toISOString(); // Setze aktuellen Timestamp
+                          changed = true;
+                      } else {
+                          const descDate = new Date(descTimestamp);
+                          if (isNaN(descDate.getTime())) { // Ungültiges Datum
+                              console.warn("Migrating invalid description timestamp in idea:", idee.id, "Original entry:", b);
+                              descTimestamp = new Date().toISOString(); // Setze aktuellen Timestamp
+                              changed = true;
+                          }
+                      }
+                      return { text: b.text, timestamp: descTimestamp }; // Rückgabe als korrektes Objekt
+                  } else if (typeof b === 'string') {
+                       // Migriere alte String-Formate
+                       console.warn("Migrating string description entry in idea:", idee.id, "Original entry:", b);
+                       changed = true;
+                       return { text: b, timestamp: new Date().toISOString() }; // Konvertiere zu Objekt mit neuem Timestamp
+                  } else {
+                      // Ungültiger Eintrag, logge und entferne ihn
+                      console.warn("Removing malformed description entry in idea:", idee.id, "Malformed entry:", b);
+                      changed = true;
+                      return null; // Markiere zum Entfernen
+                  }
+              }).filter(b => b !== null); // Entferne null-Einträge (malformed)
+         } else {
              idee.beschreibungen = []; // Sicherstellen, dass beschreibungen ein Array ist
-             changed = true; // Markiere als geändert, falls Array neu erstellt wurde
-        }
+             changed = true;
+         }
+
+
          /* --- SICHERSTELLEN, DASS BENUTZERFELD VORHANDEN IST (für ältere Daten) START --- */
         if (idee.benutzer === undefined) {
              idee.benutzer = ""; // Leerer String als Standard, falls Feld fehlt
@@ -2237,45 +2502,12 @@ function ensureIdeasHaveIds() {
         // >>> NEW: Validate/migrate main idea timestamp START <<<
         const date = new Date(idee.timestamp);
         if (isNaN(date.getTime())) { // Check if date is 'Invalid Date'
-             console.warn("Invalid timestamp found for idea:", idee); // Log warning
+             console.warn("Migrating invalid main idea timestamp:", idee.id, "Original timestamp:", idee.timestamp); // Log warning
              idee.timestamp = new Date().toISOString(); // Set to current timestamp
              changed = true;
         }
         // >>> NEW: Validate/migrate timestamp END <<<
 
-        // >>> NEW: Validate/migrate timestamp for EACH description START <<<
-        if (Array.isArray(idee.beschreibungen)) {
-             idee.beschreibungen.forEach(b => {
-                  // Ensure each description object has a text property (basic check) and a timestamp
-                  if (b && typeof b.text === 'string') { // Check if entry is at least a basic object with text
-                       // Ensure timestamp property exists for older formats or corrupted data
-                       if (b.timestamp === undefined || b.timestamp === null) {
-                           b.timestamp = new Date().toISOString();
-                           changed = true;
-                       } else {
-                           const descDate = new Date(b.timestamp);
-                           if (isNaN(descDate.getTime())) { // Check if description timestamp is 'Invalid Date'
-                                console.warn("Invalid timestamp found for description in idea:", idee, "Entry:", b); // Log warning
-                                b.timestamp = new Date().toISOString();
-                                changed = true;
-                           }
-                       }
-                  } else {
-                      // Handle potentially malformed description entries (e.g., null, not objects)
-                      console.warn("Malformed description entry found in idea:", idee, "Entry:", b);
-                      // Decide how to handle malformed entries - for now, log and move on.
-                      // If you want to remove them:
-                      // const indexToRemove = idee.beschreibungen.indexOf(b);
-                      // if (indexToRemove > -1) {
-                      //    idee.beschreibungen.splice(indexToRemove, 1);
-                      //    changed = true;
-                      // }
-                  }
-             });
-              // If you decided to remove malformed entries, you might need to re-assign the array:
-              // idee.beschreibungen = idee.beschreibungen.filter(b => b && typeof b.text === 'string' && b.timestamp !== undefined && b.timestamp !== null && !isNaN(new Date(b.timestamp).getTime())); // More robust filtering
-        }
-        /* --- NEW: Validate/migrate timestamp for EACH description END --- */
     });
     if (changed) {
         localStorage.setItem("ideen", JSON.stringify(ideen));
@@ -2287,7 +2519,7 @@ function ensureIdeasHaveIds() {
 /* --- INITIALISIERUNGSFUNKTIONEN SIND IN BLOCK 4 IMPLEMENTIERT --- */
 // function initialisiereKategorien() { ... }
 // function initialisiereBenutzer() { ... }
-// function aktualisiereMandantenFilterDropdown() { ... }
+// function aktualisiereMandantenFilterDropdown() { ... } // Jetzt HIER oben definiert
 
 /* --- FILTER-FUNKTIONEN SIND IN BLOCK 4 IMPLEMENTIERT --- */
 // function filterNachMandant(){ ... } // Wird vom onchange des Dropdowns aufgerufen
@@ -2297,8 +2529,8 @@ function ensureIdeasHaveIds() {
 
 
 /* --- AUFRUFE DER INITIALISIERUNGSFUNKTIONEN BEIM LADEN DER SEITE START --- */
-initialisiereKategorien(); // Muss vor ensureIdeenHaveIds() aufgerufen werden, wenn Standardkategorien gesetzt werden sollen
-initialisiereBenutzer();   // Muss vor ensureIdeenHaveIds() aufgerufen werden
+initialisiereKategorien(); // Muss vor ensureIdeasHaveIds() aufgerufen werden, wenn Standardkategorien gesetzt werden sollen
+initialisiereBenutzer();   // Muss vor ensureIdeasHaveIds() aufgerufen werden
 ensureIdeasHaveIds(); // Prüft/Migriert Ideen und setzt IDs/Standardfelder (Benutzer/Mandant/Timestamps)
 // !!! WICHTIG: aktualisiereMandantenFilterDropdown MUSS NACH ensureIdeasHaveIds aufgerufen werden,
 // da ensureIdeasHaveIds möglicherweise Mandantennummern zu älteren Ideen hinzufügt.
