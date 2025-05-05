@@ -526,12 +526,14 @@ function speichereIdee(){
              saveIdeeObjekt(text, dateien); // Ruft saveIdeeObjekt direkt auf
          }
     } else {
+         // Keine neuen Dateien, aber evtl. alte behalten beim Bearbeiten
+         let zuSpeicherndeDateien = [];
          if (bearbeiteId !== null) {
               const originalIdeen = JSON.parse(localStorage.getItem("ideen") || "[]");
               const ideeInBearbeitung = originalIdeen.find(item => item.id === bearbeiteId);
-              if (ideeInBearbeitung?.dateien) { dateien = ideeInBearbeitung.dateien; }
+              if (ideeInBearbeitung?.dateien) { zuSpeicherndeDateien = ideeInBearbeitung.dateien; }
          }
-        saveIdeeObjekt(text, dateien); // Ruft saveIdeeObjekt direkt auf
+        saveIdeeObjekt(text, zuSpeicherndeDateien); // Ruft saveIdeeObjekt direkt auf
     }
 }
 
@@ -621,12 +623,12 @@ function zeigeIdeen(){
     if (sortierung !== "standard") {
         filteredIdeen.sort((a,b)=>{
             if(sortierung==="prio"){ const p={"Hoch":3,"Mittel":2,"Niedrig":1}; return (p[b.prioritaet]||0) - (p[a.prioritaet]||0); }
-            let timeA = 0, timeB = 0; // Default für ungültige Daten
-             try { timeA = new Date(a.timestamp).getTime(); if(isNaN(timeA)) timeA = (sortierung === "neu" ? 0 : Infinity);} catch(e){ timeA = (sortierung === "neu" ? 0 : Infinity); }
-             try { timeB = new Date(b.timestamp).getTime(); if(isNaN(timeB)) timeB = (sortierung === "neu" ? 0 : Infinity);} catch(e){ timeB = (sortierung === "neu" ? 0 : Infinity); }
+            let timeA = 0, timeB = 0;
+             try { timeA = new Date(a.timestamp?.split('_')[0]).getTime(); if(isNaN(timeA)) timeA = (sortierung === "neu" ? -Infinity : Infinity);} catch(e){ timeA = (sortierung === "neu" ? -Infinity : Infinity); } // Use -Infinity for neuest sort
+             try { timeB = new Date(b.timestamp?.split('_')[0]).getTime(); if(isNaN(timeB)) timeB = (sortierung === "neu" ? -Infinity : Infinity);} catch(e){ timeB = (sortierung === "neu" ? -Infinity : Infinity); }
             if(sortierung==="neu"){ return timeB - timeA; }
             if(sortierung==="alt"){ return timeA - timeB; }
-            return 0; // Default für unbekannte Sortierung
+            return 0;
         });
     }
 
@@ -640,10 +642,7 @@ function zeigeIdeen(){
             if (typeof ts === 'string' && ts.includes('_')) { ts = ts.split('_')[0]; }
             try { const d = new Date(ts); if (!isNaN(d.getTime())) { datumText = d.toLocaleString("de-DE"); }} catch(e){}
         }
-
-        // --- NEU: Vorgangsnummer anzeigen ---
         const vorgangsnummerHtml = idee.vorgangsnummer ? `<div class="vorgangsnummer-anzeige-liste">Vorgang: <b>${idee.vorgangsnummer}</b></div>` : '';
-        // --- ENDE NEU ---
 
         return`<div class="idee${erledigt?' erledigt':''}"><div class="idee-content">${vorgangsnummerHtml}<h3>${idee.text}</h3><p>${idee.details||""}</p>${idee.benutzer?`<div>Zuständig: <b>${idee.benutzer}</b></div>`:""}${idee.mandantennummer?`<div>Mandantennummer: <b>${idee.mandantennummer}</b></div>`:""}${idee.firmenname?`<div>Firmenname: <b>${idee.firmenname}</b></div>`:""}${idee.beschreibungen&&idee.beschreibungen.length?`<div class="beschreibung-historie"><b>Weitere Beschreibungen:</b>${idee.beschreibungen.map(b=>{
              let beschrTimestampText = "Ungültiges Datum";
@@ -652,6 +651,7 @@ function zeigeIdeen(){
                  if (typeof bts === 'string' && bts.includes('_')) { bts = bts.split('_')[0]; }
                  try{ const bd = new Date(bts); if (!isNaN(bd.getTime())) { beschrTimestampText = bd.toLocaleString("de-DE"); }} catch(e){}
             }
+            // Verwende b.timestamp (potenziell mit _) für den Edit-Button
             return `<div class="beschreibung-item"><div class="beschreibung-text-zeit"><span class="beschreibung-zeit">${beschrTimestampText}</span>${b.text}</div><button class="edit-beschreibung-btn" onclick="bearbeiteEinzelneBeschreibung('${ideeId}', '${b.timestamp}')">✏️</button></div>`;
         }).join("")}</div>`:""}<small>${idee.kategorie||'Keine'} | ${idee.prioritaet||"Keine"} | ${datumText}</small>${idee.dateien?.map(file=>`<a class="datei-link" href="${file.link||file.data}" target="_blank">${file.link?'🌐':'📎'} ${file.name}</a>${file.link?'<div class="datei-info">OneDrive-Link</div>':`<div class="datei-info">Pfad: <i>${file.pfad||file.name}</i></div>`}${file.type?.startsWith("image/")?`<img src="${file.link||file.data}" style="max-width:150px;">`:""}${file.type==="application/pdf"?`<iframe src="${file.link||file.data}" style="width:150px;height:100px;"></iframe>`:""}`).join("")}<div class="idee-actions"><button onclick="verschiebeIdee('${ideeId}',-1)">⬆️</button><button onclick="verschiebeIdee('${ideeId}',1)">⬇️</button><button onclick="bearbeiteIdee('${ideeId}')">✏️</button><button onclick="toggleErledigt('${ideeId}')">${erledigt?"↩️":"✔️"}</button><button onclick="loescheIdee('${ideeId}')">🗑️</button><button onclick="zeigeBeschreibungDialog('${ideeId}')">+ Beschreibung</button></div></div><input type="checkbox" class="idee-checkbox" onchange="toggleAuswahl('${ideeId}',this)" ${ausgewaehlt.includes(ideeId)?"checked":""}></div>`;
     }).join("");
@@ -680,11 +680,11 @@ function bearbeiteIdee(ideeId){
 
     document.getElementById("ideeText").value = idee.text;
     document.getElementById("ideeDetails").value = idee.details || "";
-    document.getElementById("kategorie").value = idee.kategorie || ""; // Fallback auf Leerstring
+    document.getElementById("kategorie").value = idee.kategorie || "";
     document.getElementById("mandantennummer").value = idee.mandantennummer || "";
     document.getElementById("firmenname").value = idee.firmenname || "";
     document.getElementById("benutzer").value = idee.benutzer || "";
-    setzePrioritaet(idee.prioritaet || ""); // Setze Prio-Buttons
+    setzePrioritaet(idee.prioritaet || "");
 
     bearbeiteId = ideeId;
 
@@ -693,13 +693,26 @@ function bearbeiteIdee(ideeId){
      if (idee.dateien) {
          idee.dateien.forEach(file => {
              const fileUrl = file.link || file.data;
-             if (fileUrl) { dateiVorschauDiv.innerHTML += `<a class="datei-link" href="${fileUrl}" target="_blank">${file.link ? '🌐' : '📎'} ${file.name}</a>...`; } // Gekürzt für Lesbarkeit
+             // Zeige Vorschau nur wenn URL vorhanden
+             if (fileUrl) {
+                 dateiVorschauDiv.innerHTML += `
+                     <div style="display: inline-block; margin: 5px; text-align: center; max-width: 150px;">
+                         <a class="datei-link" href="${fileUrl}" target="_blank" title="${file.name}">
+                             ${file.type?.startsWith("image/") ? `<img src="${fileUrl}" style="max-width:100%; max-height:80px; display:block; margin-bottom: 3px;">` : ''}
+                             ${file.type==="application/pdf" ? `<iframe src="${fileUrl}" style="width:100%; height:80px; border:1px solid #ccc; display:block; margin-bottom: 3px;"></iframe>` : ''}
+                             ${(!file.type?.startsWith("image/") && file.type!=="application/pdf") ? `<span style="font-size: 2em; display: block; margin-bottom: 3px;">${file.link?'🌐':'📎'}</span>` : ''}
+                             <span style="font-size: 0.8em; word-break: break-all;">${file.name}</span>
+                         </a>
+                         <div class="datei-info" style="font-size: 0.7em; color: grey;">${file.link?'OneDrive':'Lokal'}</div>
+                     </div>`;
+             }
          });
      }
     document.getElementById("speichernBtn").textContent = "💾 Aktualisieren";
     document.getElementById("abbrechenBtn").style.display = "";
     istGespeichert = false;
 }
+
 
 function abbrechenBearbeiten(){
     bearbeiteId = null;
@@ -719,24 +732,29 @@ function abbrechenBearbeiten(){
 
 function verschiebeIdee(ideeId, richtung){
     let fullIdeen = JSON.parse(localStorage.getItem("ideen")||"[]");
-    // Filter/Sortierungswerte aus UI holen
     const filterKategorieValue = document.getElementById("filterKategorie").value;
     const filterMandantValue = document.getElementById("filterMandant").value;
     const filterBenutzerValue = document.getElementById("filterBenutzer").value;
     const filterArchivValue = document.getElementById("filterArchiv").value;
     const sortierung = document.getElementById("sortierung").value;
 
-    // Aktuelle gefilterte/sortierte Ansicht simulieren
     let currentViewIdeen = [...fullIdeen];
     if(filterKategorieValue) currentViewIdeen = currentViewIdeen.filter(i => i.kategorie === filterKategorieValue);
     if(filterMandantValue) currentViewIdeen = currentViewIdeen.filter(i => (i.mandantennummer||"").toLowerCase() === filterMandantValue.toLowerCase());
     if(filterBenutzerValue) currentViewIdeen = currentViewIdeen.filter(i => (i.benutzer||"").toLowerCase() === filterBenutzerValue.toLowerCase());
     if (filterArchivValue === "nicht_erledigt") { currentViewIdeen = currentViewIdeen.filter(i => !(i.erledigt || false)); }
     else if (filterArchivValue === "erledigt") { currentViewIdeen = currentViewIdeen.filter(i => (i.erledigt || false)); }
-    if (sortierung !== "standard") { /* ... Sortierlogik wie in zeigeIdeen ... */ }
+    if (sortierung !== "standard") {
+         currentViewIdeen.sort((a,b)=>{
+            if(sortierung==="prio"){ const p={"Hoch":3,"Mittel":2,"Niedrig":1}; return (p[b.prioritaet]||0) - (p[a.prioritaet]||0); }
+            let timeA = 0, timeB = 0;
+             try { timeA = new Date(a.timestamp?.split('_')[0]).getTime(); if(isNaN(timeA)) timeA = (sortierung === "neu" ? -Infinity : Infinity);} catch(e){ timeA = (sortierung === "neu" ? -Infinity : Infinity); }
+             try { timeB = new Date(b.timestamp?.split('_')[0]).getTime(); if(isNaN(timeB)) timeB = (sortierung === "neu" ? -Infinity : Infinity);} catch(e){ timeB = (sortierung === "neu" ? -Infinity : Infinity); }
+            if(sortierung==="neu"){ return timeB - timeA; } if(sortierung==="alt"){ return timeA - timeB; } return 0; });
+    }
 
     const currentViewPos = currentViewIdeen.findIndex(item => item.id === ideeId);
-    if (currentViewPos === -1) { return; } // Nicht in aktueller Ansicht
+    if (currentViewPos === -1) { return; }
 
     const targetViewPos = currentViewPos + richtung;
     if (targetViewPos >= 0 && targetViewPos < currentViewIdeen.length) {
@@ -750,6 +768,7 @@ function verschiebeIdee(ideeId, richtung){
         } else { zeigeWarnung("Interner Fehler beim Verschieben."); }
     }
 }
+
 
 function loescheIdee(ideeId){
     if(!confirm("Wirklich löschen?")) return;
@@ -848,14 +867,15 @@ function ausgewaehlteNotizenLoeschen(){
 function alleIdeenLoeschen(){
     if(!confirm("Wirklich ALLE Ideen löschen?"))return;
     localStorage.setItem("ideen","[]");
-    aktualisiereMandantenFilterDropdown(); aktualisiereBenutzerDropdowns();
-    ausgewaehlt=[]; bearbeiteId = null; beschreibungFuerId = null; beschreibungZuBearbeitenderTimestamp = null;
-    zeigeIdeen(); abbrechenBearbeiten(); istGespeichert=true;
-    // Vorgangsnummer Zähler zurücksetzen? Entscheidung: Ja.
+    // Vorgangsnummer Zähler zurücksetzen
     naechsteVorgangsnummer = 1;
     localStorage.setItem("naechsteVorgangsnummer", "1");
     zeigeNaechsteNummer();
-    // --- Ende Reset Vorgangsnummer ---
+    // Dropdowns aktualisieren
+    aktualisiereMandantenFilterDropdown(); aktualisiereBenutzerDropdowns();
+    // UI zurücksetzen
+    ausgewaehlt=[]; bearbeiteId = null; beschreibungFuerId = null; beschreibungZuBearbeitenderTimestamp = null;
+    zeigeIdeen(); abbrechenBearbeiten(); istGespeichert=true;
     saveToOneDrive();
 }
 
@@ -865,7 +885,6 @@ function alleIdeenLoeschen(){
 function getExportIdeen(){
     let ideen = JSON.parse(localStorage.getItem("ideen")||"[]");
     if(ausgewaehlt.length > 0){ return ideen.filter(item => ausgewaehlt.includes(item.id)); }
-    // Filter/Sortierung für Export anwenden
     const filterKategorie = document.getElementById("filterKategorie").value;
     const filterMandant = document.getElementById("filterMandant").value;
     const filterBenutzer = document.getElementById("filterBenutzer").value;
@@ -877,18 +896,17 @@ function getExportIdeen(){
     if(filterBenutzer) exportIdeen = exportIdeen.filter(i => (i.benutzer||"").toLowerCase() === filterBenutzer.toLowerCase());
     if (filterArchivValue === "nicht_erledigt") { exportIdeen = exportIdeen.filter(i => !(i.erledigt || false)); }
     else if (filterArchivValue === "erledigt") { exportIdeen = exportIdeen.filter(i => (i.erledigt || false)); }
-    if (sortierung !== "standard") { /* ... Sortierlogik wie in zeigeIdeen ... */ }
+    if (sortierung !== "standard") {
+        exportIdeen.sort((a,b)=>{ /* ... Sortierlogik ... */ });
+    }
     return exportIdeen;
 }
 
 
 function exportiereAlsPDF(){const{jsPDF}=window.jspdf;const doc=new jsPDF();const margin=15;const pageHeight=doc.internal.pageSize.getHeight();let y=margin;const ideen=getExportIdeen();ideen.forEach((idee,idx)=>{
-    const titel=`${idee.vorgangsnummer ? `[Vorgang ${idee.vorgangsnummer}] ` : ''}${idee.text}${idee.benutzer ? ` (Zust.: ${idee.benutzer})` : ''}`; // Vorgangsnummer im Titel
+    const titel=`${idee.vorgangsnummer ? `[Vorgang ${idee.vorgangsnummer}] ` : ''}${idee.text}${idee.benutzer ? ` (Zust.: ${idee.benutzer})` : ''}`;
     const titelLines=doc.splitTextToSize(titel,180);doc.setFontSize(12); titelLines.forEach(line=>{if(y+7>pageHeight-margin){doc.addPage();y=margin;}doc.text(line,margin,y);y+=7;});
-    const metaLines = [];
-    metaLines.push(`Kat.: ${idee.kategorie||'-'}`);
-    // if(idee.benutzer) metaLines.push(`Zust.: ${idee.benutzer}`); // Bereits im Titel
-    metaLines.push(`Prio: ${idee.prioritaet||"-"}`);
+    const metaLines = []; metaLines.push(`Kat.: ${idee.kategorie||'-'}`); metaLines.push(`Prio: ${idee.prioritaet||"-"}`);
     let datumTextPDF = "-"; if (idee.timestamp) { let ts=idee.timestamp; if(typeof ts==='string'&&ts.includes('_')){ts=ts.split('_')[0];} try{const d=new Date(ts); if(!isNaN(d.getTime())){datumTextPDF=d.toLocaleString("de-DE");}}catch(e){} } metaLines.push(`Datum: ${datumTextPDF}`);
     if(idee.mandantennummer) metaLines.push(`Mandant: ${idee.mandantennummer}`); if(idee.firmenname) metaLines.push(`Firma: ${idee.firmenname}`);
     doc.setFontSize(10); metaLines.forEach(text=>{if(y+6>pageHeight-margin){doc.addPage();y=margin;}doc.text(text,margin,y);y+=6;});
@@ -899,53 +917,50 @@ function exportiereAlsPDF(){const{jsPDF}=window.jspdf;const doc=new jsPDF();cons
 
 function exportiereAlsText(){const ideen=getExportIdeen();const text=ideen.map(idee=>{
     let datumTextTXT = "-"; if (idee.timestamp) { let ts=idee.timestamp; if(typeof ts==='string'&&ts.includes('_')){ts=ts.split('_')[0];} try{const d=new Date(ts); if(!isNaN(d.getTime())){datumTextTXT=d.toLocaleString("de-DE");}}catch(e){} }
-    return (
-    `=== ${idee.vorgangsnummer ? `[Vorgang ${idee.vorgangsnummer}] ` : ''}${idee.text} ===\n` + // Vorgangsnummer
-    `Kategorie: ${idee.kategorie||'-'}\n` +
-    `${idee.benutzer?`Zuständig: ${idee.benutzer}\n`:""}` +
-    `Priorität: ${idee.prioritaet||"-"}\n` +
-    `Datum: ${datumTextTXT}\n` +
-    `${idee.mandantennummer?"Mandantennummer: "+idee.mandantennummer+"\n":""}` +
-    `${idee.firmenname?"Firmenname: "+idee.firmenname+"\n":""}` +
-    `${idee.details?`Beschreibung: ${idee.details}\n`:""}` +
+    return ( `=== ${idee.vorgangsnummer ? `[Vorgang ${idee.vorgangsnummer}] ` : ''}${idee.text} ===\n` +
+    `Kategorie: ${idee.kategorie||'-'}\n` + `${idee.benutzer?`Zuständig: ${idee.benutzer}\n`:""}` + `Priorität: ${idee.prioritaet||"-"}\n` + `Datum: ${datumTextTXT}\n` +
+    `${idee.mandantennummer?"Mandant: "+idee.mandantennummer+"\n":""}` + `${idee.firmenname?"Firma: "+idee.firmenname+"\n":""}` + `${idee.details?`Beschreibung: ${idee.details}\n`:""}` +
     `${idee.beschreibungen&&idee.beschreibungen.length?`Weitere Beschreibungen:\n${idee.beschreibungen.map(b=>{ let btsText="-"; if(b.timestamp){let bts=b.timestamp; if(typeof bts==='string'&&bts.includes('_')){bts=bts.split('_')[0];} try{const bd=new Date(bts); if(!isNaN(bd.getTime())){btsText=bd.toLocaleString("de-DE");}}catch(e){}} return `  - [${btsText}] ${b.text}`; }).join("\n")}\n`:""}` +
-    `Anhänge: ${idee.dateien?.map(f=>f.name).join(", ")||"Keine"}\n`
-    );
-}).join("\n\n");const blob=new Blob([text],{type:"text/plain"});const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download="ideen-export.txt";link.click();URL.revokeObjectURL(url);}
+    `Anhänge: ${idee.dateien?.map(f=>f.name).join(", ")||"Keine"}\n` );
+}).join("\n\n");const blob=new Blob([text],{type:"text/plain"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="ideen-export.txt";a.click();URL.revokeObjectURL(url);}
 
-// Funktion zum Teilen per E-Mail (NUR mit Dateinamen in Anhängen)
 async function teilePerEmail(){
     if(ausgewaehlt.length === 0) { zeigeWarnung("Bitte wählen Sie Notizen für den Export aus."); return; }
-    const recipientInput = prompt("An wen soll exportiert werden? Geben Sie eine E-Mail-Adresse ein oder wählen Sie eine Option: 'ich', 'mandant', 'support', oder 'andere (variable Eingabe)'");
+    const recipientInput = prompt("An wen soll exportiert werden? E-Mail oder 'ich', 'mandant', 'support', 'andere'");
     let recipientInfo = recipientInput ? recipientInput.trim().toLowerCase() : "";
-    if (!recipientInfo) { zeigeWarnung("Export abgebrochen: Kein Empfänger angegeben."); return; }
+    if (!recipientInfo) { zeigeWarnung("Export abgebrochen."); return; }
     if (!["ich", "mandant", "support"].includes(recipientInfo) && recipientInfo !== "andere" && !recipientInfo.startsWith("andere:")) { recipientInfo = `Direkte Eingabe: ${recipientInput.trim()}`;
-    } else if (recipientInfo === "andere") { const other = prompt("Bitte geben Sie Info für 'andere' an:"); if (!other?.trim()) { zeigeWarnung("Export abgebrochen."); return; } recipientInfo = `Andere: ${other.trim()}`; }
+    } else if (recipientInfo === "andere") { const other=prompt("Info für 'andere'?"); if (!other?.trim()){zeigeWarnung("Abgebrochen."); return;} recipientInfo = `Andere: ${other.trim()}`; }
 
     let ideen = JSON.parse(localStorage.getItem("ideen") || "[]"); let changed = false;
-    ideen.forEach(idee => { if (ausgewaehlt.includes(idee.id)) { const desc = `Weitergeleitet via E-Mail an: ${recipientInfo} am ${new Date().toLocaleString("de-DE")}`; if (!idee.beschreibungen) {idee.beschreibungen = [];} const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); idee.beschreibungen.push({ text: desc, timestamp: ts }); changed = true; }});
+    ideen.forEach(idee => { if (ausgewaehlt.includes(idee.id)) { const desc = `Weitergeleitet via E-Mail an: ${recipientInfo} am ${new Date().toLocaleString("de-DE")}`; if (!idee.beschreibungen){idee.beschreibungen = [];} const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); idee.beschreibungen.push({ text: desc, timestamp: ts }); changed = true; }});
     if (changed) { localStorage.setItem("ideen", JSON.stringify(ideen)); zeigeIdeen(); istGespeichert = false; await saveToOneDrive(); }
 
     const ideenToExport = getExportIdeen();
     const text = ideenToExport.map(idee => {
-        let datumTextEmail="-"; if(idee.timestamp){let ts=idee.timestamp; if(typeof ts==='string'&&ts.includes('_')){ts=ts.split('_')[0];} try{const d=new Date(ts); if(!isNaN(d.getTime())){datumTextEmail=d.toLocaleString("de-DE");}}catch(e){}}
-        return (
-            `*${idee.vorgangsnummer ? `[Vorgang ${idee.vorgangsnummer}] ` : ''}${idee.text}*\n` + // Vorgangsnummer
-            `Kategorie: ${idee.kategorie||'-'}\n` + `${idee.benutzer?`Zuständig: ${idee.benutzer}\n`:""}` + `Priorität: ${idee.prioritaet||"-"}\n` + `Datum: ${datumTextEmail}\n` +
+        let datumText="-"; if(idee.timestamp){let ts=idee.timestamp; if(typeof ts==='string'&&ts.includes('_')){ts=ts.split('_')[0];} try{const d=new Date(ts); if(!isNaN(d.getTime())){datumText=d.toLocaleString("de-DE");}}catch(e){}}
+        return ( `*${idee.vorgangsnummer ? `[Vorgang ${idee.vorgangsnummer}] ` : ''}${idee.text}*\n` +
+            `Kategorie: ${idee.kategorie||'-'}\n` + `${idee.benutzer?`Zuständig: ${idee.benutzer}\n`:""}` + `Priorität: ${idee.prioritaet||"-"}\n` + `Datum: ${datumText}\n` +
             `${idee.mandantennummer?"Mandant: "+idee.mandantennummer+"\n":""}` + `${idee.firmenname?"Firma: "+idee.firmenname+"\n":""}` + `${idee.details?`Beschreibung: ${idee.details}\n`:""}` +
             `${idee.beschreibungen&&idee.beschreibungen.length?`Weitere Beschreibungen:\n${idee.beschreibungen.map(b=>{ let btsText="-"; if(b.timestamp){let bts=b.timestamp; if(typeof bts==='string'&&bts.includes('_')){bts=bts.split('_')[0];} try{const bd=new Date(bts); if(!isNaN(bd.getTime())){btsText=bd.toLocaleString("de-DE");}}catch(e){}} return `  - [${btsText}] ${b.text}`; }).join("\n")}\n`:""}` +
-            `\nAnhänge: ${idee.dateien?.map(f => f.name).join(", ") || "Keine"}\n` // Nur Namen
-        ); }).join("\n\n")+"\n\n[Bitte Anhänge manuell hinzufügen]";
-    const emailSubject = encodeURIComponent("Ideen-Export"); const emailBody = encodeURIComponent(text);
-    const finalRecipient = recipientInput.includes('@') ? encodeURIComponent(recipientInput.trim()) : '';
-    const mailtoLink = `mailto:${finalRecipient}?subject=${emailSubject}&body=${emailBody}`;
-    try { window.location.href = mailtoLink; } catch (e) { console.error("Mailto Fehler:", e); zeigeWarnung("Fehler beim Öffnen des Mail-Programms: " + e.message); }
-    ausgewaehlt = []; zeigeIdeen(); // Checkboxen zurücksetzen
+            `\nAnhänge: ${idee.dateien?.map(f => f.name).join(", ") || "Keine"}\n` ); // Nur Namen
+    }).join("\n\n")+"\n\n[Bitte Anhänge manuell hinzufügen]";
+    const subject = encodeURIComponent("Ideen-Export"); const body = encodeURIComponent(text);
+    const recipient = recipientInput.includes('@') ? encodeURIComponent(recipientInput.trim()) : '';
+    const mailto = `mailto:${recipient}?subject=${subject}&body=${body}`;
+    try { window.location.href = mailto; } catch (e) { console.error("Mailto Fehler:", e); zeigeWarnung("Fehler beim Öffnen des Mail-Programms: " + e.message); }
+    ausgewaehlt = []; zeigeIdeen();
 }
 
-// Funktion zum Teilen per WhatsApp (UNVERÄNDERT bezüglich Links)
+// WhatsApp Funktion mit dem auskommentierten Block für Testzwecke
 async function teilePerWhatsApp(){
-     if(ausgewaehlt.length === 0) { zeigeWarnung("Bitte wählen Sie Notizen für den Export aus."); return; }
+     if(ausgewaehlt.length === 0) {
+        zeigeWarnung("Bitte wählen Sie Notizen für den Export aus.");
+        return;
+     }
+
+     // --- TEST: DIESER BLOCK IST DEAKTIVIERT (AUSKOMMENTIERT) --- START
+     /*
      const recipientInput = prompt("An wen soll exportiert werden? Info oder 'ich', 'mandant', 'support', 'andere'");
      let recipientInfo = recipientInput ? recipientInput.trim().toLowerCase() : "";
      if (!recipientInfo) { zeigeWarnung("Export abgebrochen."); return; }
@@ -954,20 +969,34 @@ async function teilePerWhatsApp(){
 
      let ideen = JSON.parse(localStorage.getItem("ideen") || "[]"); let changed = false;
      ideen.forEach(idee => { if (ausgewaehlt.includes(idee.id)) { const desc = `Weitergeleitet via WhatsApp an: ${recipientInfo} am ${new Date().toLocaleString("de-DE")}`; if (!idee.beschreibungen){idee.beschreibungen = [];} const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); idee.beschreibungen.push({ text: desc, timestamp: ts }); changed = true; }});
-     if (changed) { localStorage.setItem("ideen", JSON.stringify(ideen)); zeigeIdeen(); istGespeichert = false; await saveToOneDrive(); }
+     if (changed) {
+         localStorage.setItem("ideen", JSON.stringify(ideen));
+         zeigeIdeen(); // UI wird hier aktualisiert
+         istGespeichert = false;
+         await saveToOneDrive(); // Asynchroner Aufruf
+     }
+     */
+    // --- TEST: DIESER BLOCK IST DEAKTIVIERT (AUSKOMMENTIERT) --- END
 
-     const ideenToExport = getExportIdeen();
+     const ideenToExport = getExportIdeen(); // Liest aktuelle Daten
+
      const text = ideenToExport.map(idee => {
          let datumTextWA="-"; if(idee.timestamp){let ts=idee.timestamp; if(typeof ts==='string'&&ts.includes('_')){ts=ts.split('_')[0];} try{const d=new Date(ts); if(!isNaN(d.getTime())){datumTextWA=d.toLocaleString("de-DE");}}catch(e){}}
-         return ( `*${idee.vorgangsnummer ? `[Vorgang ${idee.vorgangsnummer}] ` : ''}${idee.text}*\n` + // Vorgangsnummer
+         return ( `*${idee.vorgangsnummer ? `[Vorgang ${idee.vorgangsnummer}] ` : ''}${idee.text}*\n` +
          `📁 Kat.: ${idee.kategorie||'-'}\n` + `${idee.benutzer?`🧑‍💻 Zust.: ${idee.benutzer}\n`:""}` + `🔖 Prio: ${idee.prioritaet||"-"}\n` + `📅 ${datumTextWA}\n` +
          `${idee.details?`📝 ${idee.details}\n`:""}` + `${idee.mandantennummer?`Mandant: ${idee.mandantennummer}\n`:""}` + `${idee.firmenname?`Firma: ${idee.firmenname}\n`:""}` +
          `${idee.beschreibungen&&idee.beschreibungen.length?`Weitere Beschreibungen:\n${idee.beschreibungen.map(b=>{ let btsText="-"; if(b.timestamp){let bts=b.timestamp; if(typeof bts==='string'&&bts.includes('_')){bts=bts.split('_')[0];} try{const bd=new Date(bts); if(!isNaN(bd.getTime())){btsText=bd.toLocaleString("de-DE");}}catch(e){}} return `  - [${btsText}] ${b.text}`; }).join("\n")}\n`:""}` +
-         `📎 Anhänge: ${idee.dateien?.map(f=>`${f.name} (${f.link||f.data||'Kein Link'})`).join(", ")||"Keine"}\n` ); // Links bleiben hier drin
+         `📎 Anhänge: ${idee.dateien?.map(f=>`${f.name} (${f.link||f.data||'Kein Link'})`).join(", ")||"Keine"}\n` ); // Links bleiben hier drin für WA
      }).join("\n\n");
-     try { window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,"_blank"); } catch (e) { console.error("WhatsApp Fehler:", e); zeigeWarnung("Fehler beim Öffnen von WhatsApp: " + e.message); }
-     ausgewaehlt = []; zeigeIdeen();
+
+     try {
+         window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,"_blank");
+     } catch (e) { console.error("WhatsApp Fehler:", e); zeigeWarnung("Fehler beim Öffnen von WhatsApp: " + e.message); }
+
+     ausgewaehlt = [];
+     zeigeIdeen(); // Auswahl zurücksetzen
 }
+
 
 /* --- END BLOCK 6: Export Functions --- */
 /* --- START BLOCK 7: OneDrive & Local File Functions --- */
@@ -989,12 +1018,9 @@ document.getElementById("kategorie").addEventListener("change",()=>{istGespeiche
 document.getElementById("neueKategorie").addEventListener("input",()=>{istGespeichert=false;});
 document.getElementById("benutzer").addEventListener("change",()=>{istGespeichert=false;});
 document.getElementById("neuerBenutzer").addEventListener("input",()=>{istGespeichert=false;});
-// Kein Listener für onedrivePath, da keine direkte Bearbeitung der Ideen
-
-document.getElementById("dateien").addEventListener("change",function(e){const v=document.getElementById("dateiVorschau");v.innerHTML="";Array.from(e.target.files).forEach(file=>{const url=URL.createObjectURL(file);v.innerHTML+=`<a class="datei-link" href="${url}" target="_blank">📄 ${file.name}</a>...`;});istGespeichert=false;});
+document.getElementById("dateien").addEventListener("change",function(e){const v=document.getElementById("dateiVorschau");v.innerHTML="";Array.from(e.target.files).forEach(file=>{const url=URL.createObjectURL(file); /* Gekürzte Vorschau-Logik */ v.innerHTML+=`<div style="display:inline-block;margin:3px;"><a href="${url}" target="_blank">📄 ${file.name}</a></div>`;});istGespeichert=false;});
 window.addEventListener("beforeunload",function(e){if(!istGespeichert){const msg="Ungespeicherte Änderungen! Seite wirklich verlassen?";e.preventDefault();e.returnValue=msg;return msg;}});
 
-// Funktion zur Migration und Validierung von Daten beim Laden (localStorage)
 function ensureIdeasHaveIds() {
     let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
     let changed = false;
@@ -1009,24 +1035,25 @@ function ensureIdeasHaveIds() {
         if (idee.mandantennummer === undefined) { idee.mandantennummer = ""; changed = true; }
         if (idee.firmenname === undefined) { idee.firmenname = ""; changed = true; }
         if (idee.erledigt === undefined) { idee.erledigt = false; changed = true; }
-        // --- NEU: Vorgangsnummer hinzufügen/prüfen ---
-        if (idee.vorgangsnummer === undefined) { idee.vorgangsnummer = null; changed = true; } // Alten Notizen null zuweisen
+        if (idee.vorgangsnummer === undefined) { idee.vorgangsnummer = null; changed = true; }
 
-        // Timestamp Validierung
+        // Timestamp Validierung (Haupt-Timestamp)
         if (!idee.timestamp) { idee.timestamp = new Date().toISOString(); changed = true; }
         else { let ts=idee.timestamp; if(typeof ts==='string'&&ts.includes('_')){ts=ts.split('_')[0];} try{if(isNaN(new Date(ts).getTime())){idee.timestamp=new Date().toISOString(); changed=true;}}catch(e){idee.timestamp=new Date().toISOString(); changed=true;} }
-        // Timestamp Validierung für Beschreibungen
+        // Timestamp Validierung (Beschreibungen) + Filter Malformed
         if (Array.isArray(idee.beschreibungen)) {
-            idee.beschreibungen.forEach(b => { if (b && typeof b.text === 'string') { if (!b.timestamp) { b.timestamp = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); changed = true; } else { let bts = b.timestamp; let needsUpdate = false; if(typeof bts === 'string' && bts.includes('_')) { const dp = bts.split('_')[0]; try { if(isNaN(new Date(dp).getTime())) needsUpdate = true; } catch(e){ needsUpdate = true; } } else { try { if(isNaN(new Date(bts).getTime())) needsUpdate = true; } catch(e){ needsUpdate = true; } } if(needsUpdate) { b.timestamp = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); changed = true; console.warn("Invalid desc timestamp replaced", b); } } } });
-            // Malformed Einträge filtern
-            const initialLength = idee.beschreibungen.length;
-            idee.beschreibungen = idee.beschreibungen.filter(b => b && typeof b.text === 'string' && b.timestamp);
-            if (idee.beschreibungen.length < initialLength) { changed = true; console.log("Removed malformed description entries."); }
+            const originalLength = idee.beschreibungen.length;
+            idee.beschreibungen = idee.beschreibungen.filter(b => b && typeof b.text === 'string'); // Grundlegende Struktur prüfen
+            idee.beschreibungen.forEach(b => {
+                if (!b.timestamp) { b.timestamp = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); changed = true; }
+                else { let bts = b.timestamp; let needsUpdate = false; if(typeof bts === 'string' && bts.includes('_')) { const dp = bts.split('_')[0]; try { if(isNaN(new Date(dp).getTime())) needsUpdate = true; } catch(e){ needsUpdate = true; } } else { try { if(isNaN(new Date(bts).getTime())) needsUpdate = true; } catch(e){ needsUpdate = true; } } if(needsUpdate) { b.timestamp = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); changed = true; console.warn("Invalid desc timestamp replaced", b); } }
+            });
+            if (idee.beschreibungen.length < originalLength) { changed = true; console.log("Removed malformed description entries."); }
         }
     });
 
     if (changed) { console.log("Datenmigration angewendet."); localStorage.setItem("ideen", JSON.stringify(ideen)); }
-    ausgewaehlt = []; // Auswahl immer zurücksetzen bei Migration/Init
+    ausgewaehlt = [];
 }
 
 
