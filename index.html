@@ -22,10 +22,10 @@ button{padding:10px 18px;font-size:1em;margin-top:10px;margin-right:8px;border-r
 .idee-content h3,.idee-content p,.idee-content small{max-width:100%;overflow-wrap:break-word;word-break:break-word;font-size:1em;}
 .idee.erledigt .idee-content h3,.idee.erledigt .idee-content p,.idee.erledigt .idee-content small{text-decoration:line-through;color:#888;}
 .beschreibung-historie{margin:8px 0 12px 0;}
-.beschreibung-item{margin:4px 0 4px 0;padding:6px 8px;background:#f8f8f8;border-left:3pt solid #bbb;font-size:0.98em; display: flex; justify-content: space-between; align-items: center;} /* Flexbox für Button daneben */
+.beschreibung-item{margin:4px 0 4px 0;padding:6px 8px;background:#f8f8f8;border-left:3px solid #bbb;font-size:0.98em; display: flex; justify-content: space-between; align-items: center;} /* Flexbox für Button daneben */
 .beschreibung-text-zeit { flex-grow: 1; margin-right: 10px;} /* Text nimmt Platz ein */
 .beschreibung-zeit{color:#666;font-size:0.9em;margin-bottom:2px;display:block;}
-.beschreibung-eingabe{margin:10px 0;background:#f9f9f9;border-left:3pt solid #bbb;padding:8px;}
+.beschreibung-eingabe{margin:10px 0;background:#f9f9f9;border-left:3px solid #bbb;padding:8px;}
 .idee-checkbox{margin-left:10px;margin-top:5px;min-width:28px;min-height:28px;}
 .idee-actions{margin-top:10px;display:flex;gap:5px;flex-wrap:wrap;}
 .idee-actions button{width:auto;min-width:44px;padding:6px 10px;font-size:0.95em;}
@@ -51,21 +51,21 @@ button{padding:10px 18px;font-size:1em;margin-top:10px;margin-right:8px;border-r
 /* CSS für Warnmeldungen (rot) */
 #warnung.warnung{
     color:#d32f2f; /* Red */
-    border: 1pt solid #d32f2f;
+    border: 1px solid #d32f2f;
     background-color: #ffe0e0; /* Light red background */
 }
 
 /* CSS für Erfolgsmeldungen (grün) */
 #warnung.success-message {
     color: #388e3c; /* Green */
-    border: 1pt solid #388e3c;
+    border: 1px solid #388e3c;
     background-color: #e8f5e9; /* Light green background */
 }
 
 /* CSS für Info/Progress Meldungen (blau/grau) */
 #warnung.info-message {
     color: #1a73e8; /* Neutral Blue */
-    border: 1pt solid #1a73e8;
+    border: 1px solid #1a73e8;
     background-color: #e8f0fe; /* Light neutral background */
 }
 
@@ -607,6 +607,12 @@ function aktualisiereMandantenFilterDropdown() {
         filterMandantSelect.value = "";
         filterMandantValue = "";
     }
+
+     // Trigger die Anzeige neu, falls der Filterwert sich geändert hat
+     // Dies wird von zeigeIdeen() übernommen, das nach der Initialisierung und nach Aktionen aufgerufen wird.
+     // Die onchange Listener der Dropdowns rufen direkt filterNachX auf, die wiederum zeigeIdeen aufrufen.
+     // Daher ist ein expliziter Aufruf hier nicht nötig, wenn die aktualisierteMandantenFilterDropdown
+     // nach dem Laden/Speichern aufgerufen wird, da zeigeIdeen danach kommt.
 }
 
 // Filterfunktionen - Lesen den Wert jetzt direkt aus den Dropdowns
@@ -692,7 +698,7 @@ function speichereIdee(){
                    const ideeInBearbeitung = originalIdeen.find(item => item.id === bearbeiteId);
                    if (ideeInBearbeitung && ideeInBearbeitung.dateien) {
                         // Füge alte Dateien hinzu (auch lokale oder OneDrive, je nachdem was da war)
-                        dateien = dateien.concat(ideeInBearbeitung.dateien); // Fügt alle alten Dateien hinzu
+                        dateien = dateien.concat(ideeInbearbeitung.dateien); // Fügt alle alten Dateien hinzu
                    }
               }
              saveIdeeObjekt(text, dateien); // Sofort speichern
@@ -751,7 +757,7 @@ function saveIdeeObjekt(text, dateien){
         }
 
         bearbeiteId = null; // Bearbeitungsmodus beenden
-        document.getElementById("speichernBtn").textContent = "💾 Aktualisieren";
+        document.getElementById("speichernBtn").textContent = "💾 Speichern";
         document.getElementById("abbrechenBtn").style.display = "none";
     } else {
         // Neue Idee hinzufügen
@@ -790,9 +796,6 @@ function saveIdeeObjekt(text, dateien){
     document.getElementById("benutzer").value = ""; // Setze Benutzerfeld zurück
     // >>> ENDE ZURÜCKSETZEN <<<
     istGespeichert = true;
-    // *** NEU: Automatisch auf OneDrive speichern nach Speichern/Aktualisieren einer Idee ***
-    saveToOneDrive();
-    // *** ENDE NEU ***
 }
 
 /* --- END BLOCK 5a: Save Idea Functions --- */
@@ -893,7 +896,7 @@ function toggleErledigt(ideeId){
         localStorage.setItem("ideen", JSON.stringify(ideen));
         zeigeIdeen(); // Liste neu rendern (Filter beachten!)
         istGespeichert = false; // Statusänderung = ungespeichert
-        // *** NEU: Automatisch auf OneDrive speichern nach Änderung des Erledigt-Status ***
+         // *** NEU: Automatisch auf OneDrive speichern nach Änderung des Erledigt-Status ***
         saveToOneDrive();
         // *** ENDE NEU ***
     }
@@ -1282,10 +1285,6 @@ function neuenBenutzerHinzufuegen(){
     benutzerliste.push(neuerBenutzerName);
     benutzerliste.sort(); // Optional: Liste alphabetisch sortieren
     localStorage.setItem("benutzerliste", JSON.stringify(benutzerliste));
-     // *** NEU: Automatisch auf OneDrive speichern nach Änderung der Benutzerliste ***
-    saveToOneDrive();
-    // *** ENDE NEU ***
-
 
     // Dropdown-Listen aktualisieren
     aktualisiereBenutzerDropdowns();
@@ -1328,10 +1327,6 @@ function benutzerLoeschen(){
     if (index > -1) {
         benutzerliste.splice(index, 1);
         localStorage.setItem("benutzerliste", JSON.stringify(benutzerliste));
-        // *** NEU: Automatisch auf OneDrive speichern nach Änderung der Benutzerliste ***
-        saveToOneDrive();
-        // *** ENDE NEU ***
-
 
         // Notizen löschen, die diesem Benutzer zugeordnet sind
         let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
@@ -1387,10 +1382,6 @@ function benutzerLoeschen(){
               }
          }
 
-         // *** NEU: Automatisch auf OneDrive speichern nach Änderung der Ideen (durch Benutzerlöschung) ***
-        saveToOneDrive();
-        // *** ENDE NEU ***
-
 
         zeigeWarnung(`Benutzer "${benutzernameZuLoeschen}" und ${anzahlGeloeschterNotizen} zugeordnete Notiz(en) erfolgreich gelöscht.`, 'success'); // Erfolgsmeldung mit Anzahl Notizen
         zeigeIdeen(); // Liste neu rendern
@@ -1411,7 +1402,7 @@ function aktualisiereBenutzerDropdowns() {
 
 // Filterfunktionen (Implementierung bereits in Block 4)
 // function filterNachMandant(){ ... } // Wird vom onchange des Dropdowns aufgerufen
-// function filterMandantZuruecksetzen(){ ... } // Wird nicht mehr vom Button aufgerufen
+// function filterMandantZuruecksetzen(){ ... } // Wird nicht mehr vom HTML Button aufgerufen
 // function filterNachBenutzer(){ ... } // Wird vom onchange des Dropdowns aufgerufen
 // function filterBenutzerZuruecksetzen(){ ... } // Wird nicht mehr vom Button aufgerufen
 
@@ -1472,237 +1463,73 @@ function getExportIdeen(){
 }
 
 
-// Funktion für den PDF Export - Angepasst für WhatsApp-ähnliche Darstellung mit Symbolen
-function exportiereAlsPDF(){
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    const margin = 15; // Seitenrand
-    const pageWidth = doc.internal.pageSize.getWidth(); // Seitenbreite
-    const pageHeight = doc.internal.pageSize.getHeight(); // Seitenhöhe
-    let y = margin; // Aktuelle Y-Position auf der Seite
-    const lineHeight = 6; // Standard Zeilenhöhe
-    const headingLineHeight = 7; // Zeilenhöhe für Überschriften
-    const smallLineHeight = 5; // Kleinere Zeilenhöhe für Metadaten etc.
-    const textWidth = pageWidth - 2 * margin; // Verfügbare Textbreite
+function exportiereAlsPDF(){const{jsPDF}=window.jspdf;const doc=new jsPDF();const margin=15;const pageHeight=doc.internal.pageSize.getHeight();let y=margin;const ideen=getExportIdeen();ideen.forEach((idee,idx)=>{
+    /* --- BENUTZER ZUM TITEL HINZUFÜGEN (Optional, kann auch als eigenes Feld) START --- */
+    const titel=`Idee ${idx+1}: ${idee.text}${idee.benutzer ? ` (Zuständig: ${idee.benutzer})` : ''}`;
+    /* --- BENUTZER ZUM TITEL HINZUFÜGEN (Optional, kann auch als eigenes Feld) ENDE --- */
+    const titelLines=doc.splitTextToSize(titel,180);doc.setFontSize(12); titelLines.forEach(line=>{if(y+7>pageHeight-margin){doc.addPage();y=margin;}doc.text(line,margin,y);y+=7;}); // Verringere Zeilenhöhe für Titel
+    /* --- BENUTZER ZU METADATEN HINZUFÜGEN START --- */
+    const metaLines = [];
+    metaLines.push(`Kategorie: ${idee.kategorie}`);
+    if(idee.benutzer) metaLines.push(`Zuständig: ${idee.benutzer}`); // Füge Benutzer hinzu, wenn vorhanden
+    metaLines.push(`Priorität: ${idee.prioritaet||"Keine"}`);
+    const anzeigeDatum = new Date(idee.timestamp);
+     if (!isNaN(anzeigeDatum.getTime())) { // Prüfen, ob Datum gültig ist
+        metaLines.push(`Datum: ${anzeigeDatum.toLocaleString("de-DE")}`);
+     } else {
+        metaLines.push(`Datum: Ungültiges Datum`); // Oder eine Fehlermeldung
+     }
 
+    if(idee.mandantennummer) metaLines.push(`Mandantennummer: ${idee.mandantennummer}`);
+    if(idee.firmenname) metaLines.push(`Firmenname: ${idee.firmenname}`);
 
-    const ideen = getExportIdeen(); // Ideen abrufen (gefiltert/sortiert)
+    doc.setFontSize(10); // Kleinere Schrift für Metadaten
+    metaLines.forEach(text=>{if(y+6>pageHeight-margin){doc.addPage();y=margin;}doc.text(text,margin,y);y+=6;}); // Verringere Zeilenhöhe für Metadaten
+    /* --- BENUTZER ZU METADATEN HINZUFÜGEN ENDE --- */
 
-    doc.setFontSize(10); // Standard Schriftgröße
+    if(idee.details){
+        doc.setFontSize(10); // Kleinere Schrift für Details
+        const detailLines=doc.splitTextToSize(idee.details,180);
+        detailLines.forEach(line=>{if(y+6>pageHeight-margin){doc.addPage();y=margin;}doc.text(line,margin,y);y+=6;});
+    }
 
-    ideen.forEach((idee, idx) => {
-        // Abstand vor jeder neuen Idee (außer der ersten)
-        if (idx > 0) {
-            y += 15; // Größerer Abstand zwischen Ideen
-        }
+    if(idee.beschreibungen&&idee.beschreibungen.length){
+        doc.setFontSize(10); // Kleinere Schrift für Beschreibungen
+        doc.text("Weitere Beschreibungen:",margin,y);
+        y+=6; // Abstand
+        idee.beschreibungen.forEach(b=>{
+            const beschrDatum = new Date(b.timestamp);
+            const beschrTimestampText = !isNaN(beschrDatum.getTime()) ? beschrDatum.toLocaleString("de-DE") : "Ungültiges Datum";
+            const beschr=`[${beschrTimestampText}] ${b.text}`; // Formatierung Zeitstempel Beschreibung
 
-        // Prüfen, ob genug Platz für den Titel ist, sonst neue Seite
-        if (y + headingLineHeight > pageHeight - margin) {
-            doc.addPage();
-            y = margin;
-        }
-
-        // Titel (fett, größer)
-        doc.setFontSize(12);
-        doc.setFont(undefined, 'bold'); // Text fett machen
-        const titelLines = doc.splitTextToSize(idee.text, textWidth); // Titel auf Breite umbrechen
-        titelLines.forEach(line => {
-             if (y + headingLineHeight > pageHeight - margin) {
-                doc.addPage();
-                y = margin;
-            }
-            doc.text(line, margin, y);
-            y += headingLineHeight;
+            const lines=doc.splitTextToSize(beschr,180);
+            lines.forEach(line=>{if(y+6>pageHeight-margin){doc.addPage();y=margin;}doc.text(line,margin,y);y+=6;});
         });
-        doc.setFont(undefined, 'normal'); // Schrift wieder normal setzen
-        doc.setFontSize(10); // Schriftgröße zurücksetzen
+    }
 
-        y += 3; // Kleiner Abstand nach Titel
-
-        // Metadaten mit Labels und Symbolen (WhatsApp-ähnlich)
-        // Kategorie
-        if (idee.kategorie) {
-             const katText = `📁 Kategorie: ${idee.kategorie}`;
-             const katLines = doc.splitTextToSize(katText, textWidth);
-             katLines.forEach(line => {
-                 if (y + smallLineHeight > pageHeight - margin) { doc.addPage(); y = margin; }
-                 doc.text(line, margin, y); y += smallLineHeight;
-             });
-        }
-
-        // Zuständig
-        if (idee.benutzer) {
-             const benutzerText = `🧑‍💻 Zuständig: ${idee.benutzer}`; // WhatsApp Symbol für Benutzer
-             const benutzerLines = doc.splitTextToSize(benutzerText, textWidth);
-             benutzerLines.forEach(line => {
-                 if (y + smallLineHeight > pageHeight - margin) { doc.addPage(); y = margin; }
-                 doc.text(line, margin, y); y += smallLineHeight;
-             });
-        }
-
-        // Priorität
-        if (idee.prioritaet) {
-             let prioSymbol = '🔖'; // Standard Lesezeichen Symbol
-             if (idee.prioritaet === 'Hoch') prioSymbol = '🔴'; // Roter Kreis
-             if (idee.prioritaet === 'Mittel') prioSymbol = '🟠'; // Oranger Kreis
-             if (idee.prioritaet === 'Niedrig') prioSymbol = '🟢'; // Grüner Kreis
-
-             const prioText = `${prioSymbol} Priorität: ${idee.prioritaet}`;
-              const prioLines = doc.splitTextToSize(prioText, textWidth);
-             prioLines.forEach(line => {
-                 if (y + smallLineHeight > pageHeight - margin) { doc.addPage(); y = margin; }
-                 doc.text(line, margin, y); y += smallLineHeight;
-             });
-        }
-
-        // Datum
-        const anzeigeDatum = new Date(idee.timestamp);
-        const datumText = !isNaN(anzeigeDatum.getTime()) ? anzeigeDatum.toLocaleString("de-DE") : "Ungültiges Datum";
-        const datumLine = `📅 ${datumText}`; // Kalender Symbol
-         const datumLines = doc.splitTextToSize(datumLine, textWidth);
-         datumLines.forEach(line => {
-             if (y + smallLineHeight > pageHeight - margin) { doc.addPage(); y = margin; }
-             doc.text(line, margin, y); y += smallLineHeight;
-         });
-
-
-        // Mandantennummer (ohne Symbol im WhatsApp Beispiel, aber hier hinzufügen?)
-        if (idee.mandantennummer) {
-             const mandantText = `Mandantennummer: ${idee.mandantennummer}`; // Kein Symbol
-             const mandantLines = doc.splitTextToSize(mandantText, textWidth);
-             mandantLines.forEach(line => {
-                 if (y + smallLineHeight > pageHeight - margin) { doc.addPage(); y = margin; }
-                 doc.text(line, margin, y); y += smallLineHeight;
-             });
-        }
-
-        // Firmenname (ohne Symbol)
-        if (idee.firmenname) {
-             const firmaText = `Firmenname: ${idee.firmenname}`; // Kein Symbol
-             const firmaLines = doc.splitTextToSize(firmaText, textWidth);
-             firmaLines.forEach(line => {
-                 if (y + smallLineHeight > pageHeight - margin) { doc.addPage(); y = margin; }
-                 doc.text(line, margin, y); y += smallLineHeight;
-             });
-        }
-
-        y += 5; // Abstand nach Metadaten
-
-
-        // Details (Beschreibung)
-        if(idee.details){
-            if (y + lineHeight > pageHeight - margin) { doc.addPage(); y = margin; }
-             doc.setFont(undefined, 'bold'); // Label fett
-            doc.text("📝 Details:", margin, y); // Stift Symbol + Label
-            doc.setFont(undefined, 'normal'); // Schrift wieder normal
-            y += lineHeight; // Abstand nach Label
-
-            const detailLines=doc.splitTextToSize(idee.details, textWidth); // Details auf Breite umbrechen
-            detailLines.forEach(line=>{
-                if(y+lineHeight > pageHeight-margin){doc.addPage();y=margin;}
-                doc.text(line,margin,y);
-                y+=lineHeight;
-            });
-             y += 5; // Abstand nach Details
-        }
-
-        // Weitere Beschreibungen (Historie)
-        if(idee.beschreibungen && idee.beschreibungen.length > 0){
-             if (y + lineHeight > pageHeight - margin) { doc.addPage(); y = margin; }
-             doc.setFont(undefined, 'bold'); // Label fett
-            doc.text("✍️ Weitere Beschreibungen:", margin, y); // Schreibendes Hand Symbol + Label
-             doc.setFont(undefined, 'normal'); // Schrift wieder normal
-            y += lineHeight; // Abstand nach Label
-
-            idee.beschreibungen.forEach(b=>{
-                const beschrDatum = new Date(b.timestamp);
-                const beschrTimestampText = !isNaN(beschrDatum.getTime()) ? beschrDatum.toLocaleString("de-DE") : "Ungültiges Datum";
-                // Formatierung wie im WhatsApp Export: - [Datum] Text
-                const beschr=`- [${beschrTimestampText}] ${b.text}`;
-
-                const lines=doc.splitTextToSize(beschr, textWidth); // Beschreibung auf Breite umbrechen
-                lines.forEach(line=>{
-                    if(y+lineHeight > pageHeight-margin){doc.addPage();y=margin;}
-                    doc.text(line,margin,y);
-                    y+=lineHeight;
-                });
-            });
-             y += 5; // Abstand nach Beschreibungen
-        }
-
-
-        // Anhänge
-        if(idee.dateien?.length > 0){
-            if (y + lineHeight > pageHeight - margin) { doc.addPage(); y = margin; }
-            doc.setFont(undefined, 'bold'); // Label fett
-            doc.text("📎 Anhänge:", margin, y); // Büroklammer Symbol + Label
-            doc.setFont(undefined, 'normal'); // Schrift wieder normal
-             y += lineHeight; // Abstand nach Label
-
-            doc.setFontSize(10); // Kleinere Schrift für Anhänge
+    if(idee.dateien?.length > 0){
+        doc.setFontSize(10); // Kleinere Schrift für Anhänge
+        doc.text("Anhänge:", margin, y);
+         y += 6;
+        idee.dateien.forEach(file=>{
+            if(y+6>pageHeight-margin){doc.addPage();y=margin; doc.setFontSize(10); doc.text("Anhänge:", margin, y); y+=6;} // Neuen Header auf neuer Seite
             doc.setTextColor(0,0,255); // Blau für Links
-
-            idee.dateien.forEach(file=>{
-                if(y+lineHeight > pageHeight-margin){
-                    doc.addPage();
-                    y=margin;
-                    // Neuen Header und Farbe auf neuer Seite (optional, kann auch weggelassen werden)
-                     doc.setFont(undefined, 'bold'); doc.text("Anhänge (fortgesetzt):", margin, y); doc.setFont(undefined, 'normal'); y+=lineHeight;
-                     doc.setFontSize(10); doc.setTextColor(0,0,255);
-                }
-
-                const linkText = `📄 ${file.name}`; // Blatt Symbol + Dateiname
-                 const fileUrl = file.link || file.data; // Nutze Link oder lokale URL
-
-                 // jsPDF textWithLink ist besser für URLs, fallback zu normalem Text
-                if (doc.textWithLink && fileUrl) {
-                    doc.textWithLink(linkText, margin, y, { url: fileUrl });
-                } else {
-                    doc.text(linkText, margin, y); // Fallback oder wenn kein Link
-                }
-
-                doc.setTextColor(0,0,0); // Farbe zurücksetzen für die nächste Zeile
-                 y += smallLineHeight; // Kleinere Zeilenhöhe nach jedem Anhang
-                 // Optional: Dateipfad oder Info hinzufügen
-                 if (file.link) {
-                      if(y+smallLineHeight > pageHeight-margin){doc.addPage();y=margin;doc.setFontSize(10);doc.setTextColor(0,0,0);}
-                       doc.setFontSize(8); // Noch kleiner für Info
-                       doc.setTextColor(128,128,128); // Grau
-                       doc.text(`(OneDrive-Link)`, margin + 5, y); // Etwas eingerückt
-                       doc.setTextColor(0,0,0); // Zurücksetzen
-                       doc.setFontSize(10);
-                       y += smallLineHeight - 2; // Kleinerer Sprung nach Info
-                 } else if (file.pfad) {
-                      if(y+smallLineHeight > pageHeight-margin){doc.addPage();y=margin;doc.setFontSize(10);doc.setTextColor(0,0,0);}
-                      doc.setFontSize(8); // Noch kleiner für Info
-                       doc.setTextColor(128,128,128); // Grau
-                      doc.text(`(Pfad: ${file.pfad})`, margin + 5, y); // Etwas eingerückt
-                       doc.setTextColor(0,0,0); // Zurücksetzen
-                      doc.setFontSize(10);
-                       y += smallLineHeight - 2; // Kleinerer Sprung nach Info
-                 }
-                 y+=2; // Kleiner Abstand nach Anhang/Info
-
-            });
-             // y += 5; // Abstand nach Anhängen (wird durch den Abstand vor der nächsten Idee geregelt)
-        }
-
-        // Optional: Erledigt-Status anzeigen? Im WhatsApp Export ist es ein Häkchen unten rechts, im PDF vielleicht eine Zeile?
-         if (idee.erledigt) {
-             if (y + smallLineHeight > pageHeight - margin) { doc.addPage(); y = margin; }
-             doc.setFont(undefined, 'bold');
-             doc.text("Status: Erledigt ✔️", margin, y);
-             doc.setFont(undefined, 'normal');
-              y += smallLineHeight + 5; // Abstand nach Status
-         }
+            const linkText = `🌐 ${file.name}`;
+             // Check if textWithLink is available
+             if (doc.textWithLink) {
+                 doc.textWithLink(linkText, margin, y, { url: file.link || file.data });
+             } else {
+                 // Fallback if textWithLink is not available
+                 doc.text(linkText, margin, y);
+             }
+            doc.setTextColor(0,0,0); // Zurücksetzen auf Schwarz
+            y+=6;
+        });
+    }
 
 
-        // Abstand zur nächsten Idee wird am Anfang der Schleife behandelt
-    });
-
-    doc.save("ideen-export.pdf");
-}
-
+    y+=10; // Abstand zwischen Ideen
+    if(y>pageHeight-margin){doc.addPage();y=margin;}});doc.save("ideen-export.pdf");}
 
 function exportiereAlsText(){const ideen=getExportIdeen();const text=ideen.map(idee=>
     /* --- BENUTZER ZUM TEXTEXPORT HINZUFÜGEN START --- */
@@ -1719,36 +1546,37 @@ function exportiereAlsText(){const ideen=getExportIdeen();const text=ideen.map(i
     /* --- BENUTZER ZUM TEXTEXPORT HINZUFÜGEN ENDE --- */
 ).join("\n\n");const blob=new Blob([text],{type:"text/plain"});const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download="ideen-export.txt";link.click();;}
 
-// Funktion zum Teilen per E-Mail - Angepasst für automatische Beschreibung bei Weiterleitung
+// Funktion zum Teilen per E-Mail - Angepasst für automatische Beschreibung bei Weiterleitung und verbesserte Prompts
 async function teilePerEmail(){ // Funktion ist jetzt async wegen await beim Speichern
     if(ausgewaehlt.length === 0) {
         zeigeWarnung("Bitte wählen Sie Notizen für den Export aus.");
         return;
     }
 
-    const recipientType = prompt("An wen soll exportiert werden? (ich, mandant, support, andere)");
-    let recipientInfo = recipientType;
+    // >>> VERBESSERTE PROMPT LOGIK START <<<
+    const recipientInput = prompt("An wen soll exportiert werden? Geben Sie eine E-Mail-Adresse ein oder wählen Sie eine Option: 'ich', 'mandant', 'support', oder 'andere (variable Eingabe)'");
+    let recipientInfo = recipientInput ? recipientInput.trim().toLowerCase() : ""; // Kleinbuchstaben für Vergleich
 
-    if (recipientType && recipientType.toLowerCase() === "andere") {
-        const otherRecipient = prompt("Bitte geben Sie die Adresse/Information für 'andere' an:");
-        if (!otherRecipient) {
-            zeigeWarnung("Export abgebrochen: Keine Adresse für 'andere' angegeben.");
-            return; // Export abbrechen wenn keine Adresse angegeben
-        }
-        recipientInfo += `: ${otherRecipient}`;
-    } else if (recipientType !== null && recipientType.trim() !== "" && !["ich", "mandant", "support"].includes(recipientType.toLowerCase())) {
-        // Abfangen ungültiger Eingaben, falls nicht 'ich', 'mandant', 'support', null oder leer
-         const otherRecipient = prompt(`Ungültiger Empfängertyp "${recipientType}". Bitte geben Sie die korrekte Adresse/Information an oder wählen Sie 'ich', 'mandant' oder 'support':`);
-         if (!otherRecipient) {
-             zeigeWarnung("Export abgebrochen: Keine gültige Empfängerinformation.");
-             return; // Export abbrechen
-         }
-         recipientInfo = `Andere: ${otherRecipient}`; // Speichere als 'Andere: [Eingabe]'
-    } else if (recipientType === null || recipientType.trim() === "") {
-         // Export abbrechen, wenn der erste Prompt abgebrochen oder leer gelassen wurde
-         zeigeWarnung("Export abgebrochen: Kein Empfänger angegeben.");
-         return;
+    if (!recipientInfo) {
+        zeigeWarnung("Export abgebrochen: Kein Empfänger angegeben.");
+        return;
     }
+
+    // Prüfe auf vordefinierte Optionen
+    if (!["ich", "mandant", "support"].includes(recipientInfo) && recipientInfo !== "andere" && !recipientInfo.startsWith("andere:")) {
+         // Wenn es keine vordefinierte Option ist und nicht explizit "andere", behandle es als direkte Eingabe
+         recipientInfo = `Direkte Eingabe: ${recipientInput.trim()}`;
+    } else if (recipientInfo === "andere") {
+         // Wenn "andere" gewählt wurde, frage explizit nach der variablen Eingabe
+         const otherRecipient = prompt("Bitte geben Sie die genaue Adresse/Information für 'andere (variable Eingabe)' an:");
+         if (!otherRecipient || otherRecipient.trim() === "") {
+             zeigeWarnung("Export abgebrochen: Keine variable Eingabe für 'andere' angegeben.");
+             return;
+         }
+         recipientInfo = `Andere: ${otherRecipient.trim()}`;
+    }
+    // Wenn "ich", "mandant", "support" oder eine Eingabe mit "andere:" gewählt wurde, wird recipientInfo bereits korrekt gesetzt.
+    // >>> VERBESSERTE PROMPT LOGIK ENDE <<<
 
 
     let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
@@ -1795,45 +1623,62 @@ async function teilePerEmail(){ // Funktion ist jetzt async wegen await beim Spe
             `${idee.firmenname?"Firmenname: "+idee.firmenname+"\n":""}` +
             `${idee.details?`Beschreibung: ${idee.details}\n`:""}` +
             `${idee.beschreibungen&&idee.beschreibungen.length?`Weitere Beschreibungen:\n${idee.beschreibungen.map(b=>`  - [${new Date(b.timestamp).toLocaleString("de-DE")}] ${b.text}`).join("\n")}\n`:""}` +
-            `\nAnhänge: ${idee.dateien?.map(f=>`${f.name} (${f.link||f.data||'Kein Link'})`).join(", ")||"Keine"}\n`
+            `\nAnhänge: ${idee.dateien?.map(f=>`${f.name} (${f.link||f.data||'Kein Link'})`).join(", ")||"Keine"}\n` // Fügt Link/URL hinzu, Fallback
         );
     }).join("\n\n")+"\n\n[Bitte Anhänge manuell hinzufügen]";
 
-    window.location.href=`mailto:?subject=Ideen-Export&body=${encodeURIComponent(text)}`;
+    // Betreff und Body müssen korrekt URL-kodiert sein.
+    const emailSubject = encodeURIComponent("Ideen-Export");
+    const emailBody = encodeURIComponent(text);
+    // >>> KORRIGIERTE ZEILE FÜR EMAIL EXPORT START <<<
+    // Füge recipientInfo in den "to" Teil des mailto-Links ein, wenn es eine direkte Eingabe ist.
+    // Bei vordefinierten Optionen wird kein Empfänger im Link gesetzt.
+    // Geändert: Verwende jetzt den originalen recipientInput für den "to"-Teil, da dieser die E-Mail-Adresse enthalten kann.
+    const mailtoLink = `mailto:${recipientInput.startsWith('Direkte Eingabe:') ? encodeURIComponent(recipientInput.substring('Direkte Eingabe:'.length).trim()) : ''}?subject=${emailSubject}&body=${emailBody}`;
+     // Wenn die Eingabe eine E-Mail-Adresse war, nutzen wir diese im "to"-Feld.
+    // Wenn eine Option gewählt wurde ("ich", "mandant", "support", "andere"), bleibt das "to"-Feld leer,
+    // da wir keine E-Mail-Adressen für diese Optionen haben.
+    const finalRecipientForMailto = recipientInput.includes('@') ? encodeURIComponent(recipientInput.trim()) : ''; // Prüfe einfach auf '@' als Indikator für eine E-Mail-Adresse
+    const mailtoLinkCorrected = `mailto:${finalRecipientForMailto}?subject=${emailSubject}&body=${emailBody}`;
+    window.location.href = mailtoLinkCorrected;
+    // >>> KORRIGIERTE ZEILE FÜR EMAIL EXPORT ENDE <<<
+
+
     ausgewaehlt = []; // Auswahl nach Export leeren
      zeigeIdeen(); // Liste neu rendern, um die Checkboxen zu deaktivieren
 }
 
-// Funktion zum Teilen per WhatsApp - Angepasst für automatische Beschreibung bei Weiterleitung
+// Funktion zum Teilen per WhatsApp - Angepasst für automatische Beschreibung bei Weiterleitung und verbesserte Prompts
 async function teilePerWhatsApp(){ // Funktion ist jetzt async wegen await beim Speichern
      if(ausgewaehlt.length === 0) {
         zeigeWarnung("Bitte wählen Sie Notizen für den Export aus.");
         return;
     }
 
-    const recipientType = prompt("An wen soll exportiert werden? (ich, mandant, support, andere)");
-    let recipientInfo = recipientType;
+    // >>> VERBESSERTE PROMPT LOGIK START <<<
+    const recipientInput = prompt("An wen soll exportiert werden? Geben Sie die Information ein oder wählen Sie eine Option: 'ich', 'mandant', 'support', oder 'andere (variable Eingabe)'");
+    let recipientInfo = recipientInput ? recipientInput.trim().toLowerCase() : ""; // Kleinbuchstaben für Vergleich
 
-    if (recipientType && recipientType.toLowerCase() === "andere") {
-        const otherRecipient = prompt("Bitte geben Sie die Adresse/Information für 'andere' an:");
-         if (!otherRecipient) {
-             zeigeWarnung("Export abgebrochen: Keine Adresse für 'andere' angegeben.");
-             return; // Export abbrechen
-         }
-        recipientInfo += `: ${otherRecipient}`;
-    } else if (recipientType !== null && recipientType.trim() !== "" && !["ich", "mandant", "support"].includes(recipientType.toLowerCase())) {
-        // Abfangen ungültiger Eingaben
-         const otherRecipient = prompt(`Ungültiger Empfängertyp "${recipientType}". Bitte geben Sie die korrekte Adresse/Information an oder wählen Sie 'ich', 'mandant' oder 'support':`);
-         if (!otherRecipient) {
-             zeigeWarnung("Export abgebrochen: Keine gültige Empfängerinformation.");
-             return; // Export abbrechen
-         }
-         recipientInfo = `Andere: ${otherRecipient}`; // Speichere als 'Andere: [Eingabe]'
-    } else if (recipientType === null || recipientType.trim() === "") {
-         // Export abbrechen, wenn der erste Prompt abgebrochen oder leer gelassen wurde
-         zeigeWarnung("Export abgebrochen: Kein Empfänger angegeben.");
-         return;
+    if (!recipientInfo) {
+        zeigeWarnung("Export abgebrochen: Kein Empfänger angegeben.");
+        return;
     }
+
+    // Prüfe auf vordefinierte Optionen
+    if (!["ich", "mandant", "support"].includes(recipientInfo) && recipientInfo !== "andere" && !recipientInfo.startsWith("andere:")) {
+         // Wenn es keine vordefinierte Option ist und nicht explizit "andere", behandle es als direkte Eingabe
+         recipientInfo = `Direkte Eingabe: ${recipientInput.trim()}`;
+    } else if (recipientInfo === "andere") {
+         // Wenn "andere" gewählt wurde, frage explizit nach der variablen Eingabe
+         const otherRecipient = prompt("Bitte geben Sie die genaue Information für 'andere (variable Eingabe)' an:");
+         if (!otherRecipient || otherRecipient.trim() === "") {
+             zeigeWarnung("Export abgebrochen: Keine variable Eingabe für 'andere' angegeben.");
+             return;
+         }
+         recipientInfo = `Andere: ${otherRecipient.trim()}`;
+    }
+     // Wenn "ich", "mandant", "support" oder eine Eingabe mit "andere:" gewählt wurde, wird recipientInfo bereits korrekt gesetzt.
+     // >>> VERBESSERTE PROMPT LOGIK ENDE <<<
 
 
     let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
@@ -1842,7 +1687,10 @@ async function teilePerWhatsApp(){ // Funktion ist jetzt async wegen await beim 
     // Füge Beschreibung zu jeder ausgewählten Idee hinzu
     ideen.forEach(idee => {
         if (ausgewaehlt.includes(idee.id)) {
+            // *** KORRIGIERTE ZEILE FÜR WHATSAPP BESCHREIBUNG START ***
+            // recipientInfo muss korrekt in die Beschreibung eingefügt werden
             const newDescriptionText = `Weitergeleitet via WhatsApp an: ${recipientInfo} am ${new Date().toLocaleString("de-DE")}`;
+            // *** KORRIGIERTE ZEILE FÜR WHATSAPP BESCHREIBUNG ENDE ***
              if (!idee.beschreibungen) {
                 idee.beschreibungen = [];
             }
@@ -1872,23 +1720,29 @@ async function teilePerWhatsApp(){ // Funktion ist jetzt async wegen await beim 
          const datumText = !isNaN(anzeigeDatum.getTime()) ? anzeigeDatum.toLocaleString("de-DE") : "Ungültiges Datum";
 
         return (
-            `*${idee.text}*\n` +
-            `📁 Kategorie: ${idee.kategorie}\n` +
-            `${idee.benutzer?`🧑‍💻 Zuständig: ${idee.benutzer}\n`:""}` + // Füge Benutzer hinzu, wenn vorhanden (mit optionalem Emoji)
-            `🔖 Priorität: ${idee.prioritaet||"Keine"}\n` +
-            `📅 ${datumText}\n` + // Verwendet den geprüften Datumstext
-            `${idee.details?`📝 ${idee.details}\n`:""}` + // Details nur einfügen, wenn vorhanden
-            `${idee.mandantennummer?`Mandantennummer: ${idee.mandantennummer}\n`:""}` + // Mandant nur einfügen, wenn vorhanden
-            `${idee.firmenname?`Firmenname: ${idee.firmenname}\n`:""}` + // Firmenname nur einfügen, wenn vorhanden
-            `${idee.beschreibungen&&idee.beschreibungen.length?`Weitere Beschreibungen:\n${idee.beschreibungen.map(b=>{
-                const beschrDatum = new Date(b.timestamp);
-                const beschrTimestampText = !isNaN(beschrDatum.getTime()) ? beschrDatum.toLocaleString("de-DE") : "Ungültiges Datum";
-                return `  - [${beschrTimestampText}] ${b.text}`;
-            }).join("\n")}\n`:""}` + // Beschreibungen einfügen und Zeitstempel formatieren
-            `📎 Anhänge: ${idee.dateien?.map(f=>`${f.name} (${f.link||f.data||'Kein Link'})`).join(", ")||"Keine"}\n` // Fügt Link/URL hinzu, Fallback
+    // >>> BENUTZER ZUM WHATSAPP-EXPORT HINZUFÜGEN START <<<
+        `*${idee.text}*\n` +
+        `📁 Kategorie: ${idee.kategorie}\n` +
+        `${idee.benutzer?`🧑‍💻 Zuständig: ${idee.benutzer}\n`:""}` + // Füge Benutzer hinzu, wenn vorhanden (mit optionalem Emoji)
+        `🔖 Priorität: ${idee.prioritaet||"Keine"}\n` +
+        `📅 ${datumText}\n` + // Verwendet den geprüften Datumstext
+        `${idee.details?`📝 ${idee.details}\n`:""}` + // Details nur einfügen, wenn vorhanden
+        `${idee.mandantennummer?`Mandantennummer: ${idee.mandantennummer}\n`:""}` + // Mandant nur einfügen, wenn vorhanden
+        `${idee.firmenname?`Firmenname: ${idee.firmenname}\n`:""}` + // Firmenname nur einfügen, wenn vorhanden
+        `${idee.beschreibungen&&idee.beschreibungen.length?`Weitere Beschreibungen:\n${idee.beschreibungen.map(b=>{
+            const beschrDatum = new Date(b.timestamp);
+            const beschrTimestampText = !isNaN(beschrDatum.getTime()) ? beschrDatum.toLocaleString("de-DE") : "Ungültiges Datum";
+            return `  - [${beschrTimestampText}] ${b.text}`;
+        }).join("\n")}\n`:""}` + // Beschreibungen einfügen und Zeitstempel formatieren
+        `📎 Anhänge: ${idee.dateien?.map(f=>`${f.name} (${f.link||f.data||'Kein Link'})`).join(", ")||"Keine"}\n` // Fügt Link/URL hinzu, Fallback
+    // >>> BENUTZER ZUM WHATSAPP-EXPORT HINZUFÜGEN ENDE <<<
         );
     }).join("\n\n");
+    // *** KORRIGIERTE ZEILE FÜR WHATSAPP EXPORT START ***
+    // Der gesamte Text muss URL-kodiert sein.
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,"_blank");
+    // *** KORRIGIERTE ZEILE FÜR WHATSAPP EXPORT ENDE ***
+
 
     ausgewaehlt = []; // Auswahl nach Export leeren
      zeigeIdeen(); // Liste neu rendern, um die Checkboxen zu deaktivieren
@@ -2054,51 +1908,40 @@ async function loadFromOneDrive(){
                          ideen.forEach(idee => {
                              if (!idee.id) { idee.id = generateUUID(); changed = true; }
                              if (!Array.isArray(idee.beschreibungen)) { idee.beschreibungen = []; changed = true; }
-                             // Verbesserte Prüfung für Beschreibungsobjekte und Timestamps
-                             if (Array.isArray(idee.beschreibungen)) {
-                                  idee.beschreibungen = idee.beschreibungen.map(b => {
-                                      // Prüfe, ob b ein gültiges Objekt mit text-Property ist
-                                      if (b && typeof b === 'object' && typeof b.text === 'string') {
-                                          // Prüfe und migriere Timestamp
-                                          let descTimestamp = b.timestamp;
-                                          if (descTimestamp === undefined || descTimestamp === null) {
-                                              descTimestamp = new Date().toISOString(); // Setze aktuellen Timestamp
-                                              changed = true;
-                                          } else {
-                                              const descDate = new Date(descTimestamp);
-                                              if (isNaN(descDate.getTime())) { // Ungültiges Datum
-                                                  console.warn("Migrating invalid description timestamp in idea:", idee.id, "Original entry:", b);
-                                                  descTimestamp = new Date().toISOString(); // Setze aktuellen Timestamp
-                                                  changed = true;
-                                              }
-                                          }
-                                          return { text: b.text, timestamp: descTimestamp }; // Rückgabe als korrektes Objekt
-                                      } else if (typeof b === 'string') {
-                                           // Migriere alte String-Formate
-                                           console.warn("Migrating string description entry in idea:", idee.id, "Original entry:", b);
-                                           changed = true;
-                                           return { text: b, timestamp: new Date().toISOString() }; // Konvertiere zu Objekt mit neuem Timestamp
-                                      } else {
-                                          // Ungültiger Eintrag, logge und entferne ihn
-                                          console.warn("Removing malformed description entry in idea:", idee.id, "Malformed entry:", b);
-                                          changed = true;
-                                          return null; // Markiere zum Entfernen
-                                      }
-                                  }).filter(b => b !== null); // Entferne null-Einträge (malformed)
-                             } else {
-                                 idee.beschreibungen = []; // Sicherstellen, dass beschreibungen ein Array ist
-                                 changed = true;
-                             }
-
+                             if (Array.isArray(idee.beschreibungen) && idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
+                                     idee.beschreibungen = idee.beschreibungen.map(text => ({
+                                         text: text,
+                                         timestamp: new Date().toISOString() // Set valid timestamp
+                                     }));
+                                     changed = true;
+                                }
                              if (idee.benutzer === undefined) { idee.benutzer = ""; changed = true; }
                              if (idee.mandantennummer === undefined) { idee.mandantennummer = ""; changed = true; }
                              if (idee.firmenname === undefined) { idee.firmenname = ""; changed = true; }
                              // Validate/migrate main idea timestamp
                              const date = new Date(idee.timestamp);
-                             if (isNaN(date.getTime())) { // Check if date is 'Invalid Date'
-                                  console.warn("Migrating invalid main idea timestamp:", idee.id, "Original timestamp:", idee.timestamp);
+                             if (isNaN(date.getTime())) {
+                                  console.warn("Invalid timestamp loaded from OneDrive for idea:", idee);
                                   idee.timestamp = new Date().toISOString(); // Set to current timestamp
                                   changed = true;
+                             }
+                             // Validate/migrate timestamp for EACH description
+                             if (Array.isArray(idee.beschreibungen)) {
+                                  idee.beschreibungen.forEach(b => {
+                                       if (b && typeof b.text === 'string') {
+                                            if (b.timestamp === undefined || b.timestamp === null) {
+                                                b.timestamp = new Date().toISOString();
+                                                changed = true;
+                                            } else {
+                                                const descDate = new Date(b.timestamp);
+                                                if (isNaN(descDate.getTime())) {
+                                                     console.warn("Invalid timestamp loaded from OneDrive for description in idea:", idee, "Description:", b);
+                                                     b.timestamp = new Date().toISOString();
+                                                     changed = true;
+                                                }
+                                            }
+                                       }
+                                  });
                              }
                          });
 
@@ -2113,51 +1956,43 @@ async function loadFromOneDrive(){
                          // Apply all migration/ID checks to the old ideen array
                          ideen.forEach(idee => {
                              if (!idee.id) { idee.id = generateUUID(); changed = true; }
-                              // Verbesserte Prüfung für Beschreibungsobjekte und Timestamps im alten Format
-                              if (Array.isArray(idee.beschreibungen)) {
-                                   idee.beschreibungen = idee.beschreibungen.map(b => {
-                                       // Prüfe, ob b ein gültiges Objekt mit text-Property ist
-                                       if (b && typeof b === 'object' && typeof b.text === 'string') {
-                                           // Prüfe und migriere Timestamp
-                                           let descTimestamp = b.timestamp;
-                                           if (descTimestamp === undefined || descTimestamp === null) {
-                                               descTimestamp = new Date().toISOString(); // Setze aktuellen Timestamp
-                                               changed = true;
-                                           } else {
-                                               const descDate = new Date(descTimestamp);
-                                               if (isNaN(descDate.getTime())) { // Ungültiges Datum
-                                                    console.warn("Migrating invalid description timestamp in idea (old format):", idee.id, "Original entry:", b);
-                                                    descTimestamp = new Date().toISOString(); // Setze aktuellen Timestamp
-                                                    changed = true;
-                                               }
-                                           }
-                                           return { text: b.text, timestamp: descTimestamp }; // Rückgabe als korrektes Objekt
-                                       } else if (typeof b === 'string') {
-                                            // Migriere alte String-Formate
-                                            console.warn("Migrating string description entry in idea (old format):", idee.id, "Original entry:", b);
-                                            changed = true;
-                                            return { text: b, timestamp: new Date().toISOString() }; // Konvertiere zu Objekt mit neuem Timestamp
-                                       } else {
-                                           // Ungültiger Eintrag, logge und entferne ihn
-                                           console.warn("Removing malformed description entry in idea (old format):", idee.id, "Malformed entry:", b);
-                                           changed = true;
-                                           return null; // Markiere zum Entfernen
-                                       }
-                                   }).filter(b => b !== null); // Entferne null-Einträge (malformed)
-                              } else {
-                                  idee.beschreibungen = []; // Sicherstellen, dass beschreibungen ein Array ist
-                                  changed = true;
-                              }
-
+                              if (Array.isArray(idee.beschreibungen) && idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
+                                     idee.beschreibungen = idee.beschreibungen.map(text => ({
+                                         text: text,
+                                         timestamp: new Date().toISOString() // Set valid timestamp
+                                     }));
+                                     changed = true;
+                                } else if (!Array.isArray(idee.beschreibungen)) {
+                                     idee.beschreibungen = [];
+                                     changed = true;
+                                }
                              if (idee.benutzer === undefined) { idee.benutzer = ""; changed = true; }
                              if (idee.mandantennummer === undefined) { idee.mandantennummer = ""; changed = true; }
                              if (idee.firmenname === undefined) { idee.firmenname = ""; changed = true; }
                              // Validate/migrate main idea timestamp
                              const date = new Date(idee.timestamp);
                              if (isNaN(date.getTime())) { // Check if date is 'Invalid Date'
-                                  console.warn("Migrating invalid main idea timestamp (old format):", idee.id, "Original timestamp:", idee.timestamp);
+                                  console.warn("Invalid timestamp loaded from OneDrive (old format) for idea:", idee);
                                   idee.timestamp = new Date().toISOString(); // Set to current timestamp
                                   changed = true;
+                             }
+                              // Validate/migrate timestamp for EACH description
+                             if (Array.isArray(idee.beschreibungen)) {
+                                  idee.beschreibungen.forEach(b => {
+                                       if (b && typeof b.text === 'string') {
+                                            if (b.timestamp === undefined || b.timestamp === null) {
+                                                b.timestamp = new Date().toISOString();
+                                                changed = true;
+                                            } else {
+                                                const descDate = new Date(b.timestamp);
+                                                if (isNaN(descDate.getTime())) {
+                                                     console.warn("Invalid timestamp loaded from OneDrive (old format) for description in idea:", idee, "Description:", b);
+                                                     b.timestamp = new Date().toISOString();
+                                                     changed = true;
+                                                }
+                                            }
+                                       }
+                                  });
                              }
                          });
 
@@ -2188,7 +2023,7 @@ async function loadFromOneDrive(){
                     initialisiereKategorien();
                     initialisiereBenutzer(); // This will now populate from the loaded localStorage['benutzerliste']
                     // aktualisiereMandantenFilterDropdown() muss nach dem Laden der Ideen aufgerufen werden
-                    aktualisiereMandantenFilterDropdown(); // HIER IST DER AUFRUF, MUSS NACH ensureIdeasHaveIds SEIN
+                    aktualisiereMandantenFilterDropdown();
                     // >>> DROPDOWNS NACH DEM LADEN AKTUALISIEREN ENDE<<<
 
 
@@ -2268,51 +2103,40 @@ async function ladeIdeenAusDatei(){try{let file;if(window.showOpenFilePicker){[f
          ideen.forEach(idee => {
              if (!idee.id) { idee.id = generateUUID(); changed = true; }
               if (!Array.isArray(idee.beschreibungen)) { idee.beschreibungen = []; changed = true; }
-              // Verbesserte Prüfung für Beschreibungsobjekte und Timestamps
-              if (Array.isArray(idee.beschreibungen)) {
-                   idee.beschreibungen = idee.beschreibungen.map(b => {
-                       // Prüfe, ob b ein gültiges Objekt mit text-Property ist
-                       if (b && typeof b === 'object' && typeof b.text === 'string') {
-                           // Prüfe und migriere Timestamp
-                           let descTimestamp = b.timestamp;
-                           if (descTimestamp === undefined || descTimestamp === null) {
-                               descTimestamp = new Date().toISOString(); // Setze aktuellen Timestamp
-                               changed = true;
-                           } else {
-                               const descDate = new Date(descTimestamp);
-                               if (isNaN(descDate.getTime())) { // Ungültiges Datum
-                                   console.warn("Migrating invalid description timestamp in idea:", idee.id, "Original entry:", b);
-                                   descTimestamp = new Date().toISOString(); // Setze aktuellen Timestamp
-                                   changed = true;
-                               }
-                           }
-                           return { text: b.text, timestamp: descTimestamp }; // Rückgabe als korrektes Objekt
-                       } else if (typeof b === 'string') {
-                            // Migriere alte String-Formate
-                            console.warn("Migrating string description entry in idea:", idee.id, "Original entry:", b);
-                            changed = true;
-                            return { text: b, timestamp: new Date().toISOString() }; // Konvertiere zu Objekt mit neuem Timestamp
-                       } else {
-                           // Ungültiger Eintrag, logge und entferne ihn
-                           console.warn("Removing malformed description entry in idea:", idee.id, "Malformed entry:", b);
-                           changed = true;
-                           return null; // Markiere zum Entfernen
-                       }
-                   }).filter(b => b !== null); // Entferne null-Einträge (malformed)
-              } else {
-                  idee.beschreibungen = []; // Sicherstellen, dass beschreibungen ein Array ist
-                  changed = true;
-              }
-
+              if (Array.isArray(idee.beschreibungen) && idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
+                                 idee.beschreibungen = idee.beschreibungen.map(text => ({
+                                     text: text,
+                                     timestamp: new Date().toISOString() // Set valid timestamp
+                                 }));
+                                 changed = true;
+                            }
              if (idee.benutzer === undefined) { idee.benutzer = ""; changed = true; }
              if (idee.mandantennummer === undefined) { idee.mandantennummer = ""; changed = true; }
              if (idee.firmenname === undefined) { idee.firmenname = ""; changed = true; }
              // Validate/migrate main idea timestamp
              const date = new Date(idee.timestamp);
              if (isNaN(date.getTime())) { // Check if date is 'Invalid Date'
-                  console.warn("Migrating invalid main idea timestamp:", idee.id, "Original timestamp:", idee.timestamp);
+                  console.warn("Invalid timestamp loaded from file for idea:", idee);
                   idee.timestamp = new Date().toISOString(); // Set to current timestamp
                   changed = true;
+             }
+             // Validate/migrate timestamp for EACH description
+             if (Array.isArray(idee.beschreibungen)) {
+                  idee.beschreibungen.forEach(b => {
+                       if (b && typeof b.text === 'string') {
+                            if (b.timestamp === undefined || b.timestamp === null) {
+                                b.timestamp = new Date().toISOString();
+                                changed = true;
+                            } else {
+                                const descDate = new Date(b.timestamp);
+                                if (isNaN(descDate.getTime())) {
+                                     console.warn("Invalid timestamp loaded from file (old format) for description in idea:", idee, "Description:", b);
+                                     b.timestamp = new Date().toISOString();
+                                     changed = true;
+                                }
+                            }
+                       }
+                  });
              }
          });
 
@@ -2325,50 +2149,43 @@ async function ladeIdeenAusDatei(){try{let file;if(window.showOpenFilePicker){[f
          changed = true; // Data structure changed, mark for potential re-save
          ideen.forEach(idee => {
              if (!idee.id) { idee.id = generateUUID(); changed = true; }
-              // Verbesserte Prüfung für Beschreibungsobjekte und Timestamps im alten Format
-              if (Array.isArray(idee.beschreibungen)) {
-                                   idee.beschreibungen = idee.beschreibungen.map(b => {
-                                       // Prüfe, ob b ein gültiges Objekt mit text-Property ist
-                                       if (b && typeof b === 'object' && typeof b.text === 'string') {
-                                           // Prüfe und migriere Timestamp
-                                           let descTimestamp = b.timestamp;
-                                           if (descTimestamp === undefined || descTimestamp === null) {
-                                               descTimestamp = new Date().toISOString(); // Setze aktuellen Timestamp
-                                               changed = true;
-                                           } else {
-                                               const descDate = new Date(descTimestamp);
-                                               if (isNaN(descDate.getTime())) { // Ungültiges Datum
-                                                    console.warn("Migrating invalid description timestamp in idea (old format):", idee.id, "Original entry:", b);
-                                                    descTimestamp = new Date().toISOString(); // Setze aktuellen Timestamp
-                                                    changed = true;
-                                               }
-                                           }
-                                           return { text: b.text, timestamp: descTimestamp }; // Rückgabe als korrektes Objekt
-                                       } else if (typeof b === 'string') {
-                                            // Migriere alte String-Formate
-                                            console.warn("Migrating string description entry in idea (old format):", idee.id, "Original entry:", b);
-                                            changed = true;
-                                            return { text: b, timestamp: new Date().toISOString() }; // Konvertiere zu Objekt mit neuem Timestamp
-                                       } else {
-                                           // Ungültiger Eintrag, logge und entferne ihn
-                                           console.warn("Removing malformed description entry in idea (old format):", idee.id, "Malformed entry:", b);
-                                           changed = true;
-                                           return null; // Markiere zum Entfernen
-                                       }
-                                   }).filter(b => b !== null); // Entferne null-Einträge (malformed)
-                              } else {
-                                  idee.beschreibungen = []; // Sicherstellen, dass beschreibungen ein Array ist
-                                  changed = true;
-                              }
+              if (Array.isArray(idee.beschreibungen) && idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
+                                 idee.beschreibungen = idee.beschreibungen.map(text => ({
+                                     text: text,
+                                     timestamp: new Date().toISOString() // Set valid timestamp
+                                 }));
+                                 changed = true;
+                            } else if (!Array.isArray(idee.beschreibungen)) {
+                                 idee.beschreibungen = [];
+                                 changed = true;
+                            }
              if (idee.benutzer === undefined) { idee.benutzer = ""; changed = true; }
              if (idee.mandantennummer === undefined) { idee.mandantennummer = ""; changed = true; }
              if (idee.firmenname === undefined) { idee.firmenname = ""; changed = true; }
              // Validate/migrate main idea timestamp
              const date = new Date(idee.timestamp);
              if (isNaN(date.getTime())) { // Check if date is 'Invalid Date'
-                  console.warn("Migrating invalid main idea timestamp (old format):", idee.id, "Original timestamp:", idee.timestamp);
+                  console.warn("Invalid timestamp loaded from file (old format) for idea:", idee);
                   idee.timestamp = new Date().toISOString(); // Set to current timestamp
                   changed = true;
+             }
+              // Validate/migrate timestamp for EACH description
+             if (Array.isArray(idee.beschreibungen)) {
+                  idee.beschreibungen.forEach(b => {
+                       if (b && typeof b.text === 'string') {
+                            if (b.timestamp === undefined || b.timestamp === null) {
+                                b.timestamp = new Date().toISOString();
+                                changed = true;
+                            } else {
+                                const descDate = new Date(b.timestamp);
+                                if (isNaN(descDate.getTime())) {
+                                     console.warn("Invalid timestamp loaded from file (old format) for description in idea:", idee, "Description:", b);
+                                     b.timestamp = new Date().toISOString();
+                                     changed = true;
+                                }
+                            }
+                       }
+                  });
              }
          });
 
@@ -2399,7 +2216,7 @@ async function ladeIdeenAusDatei(){try{let file;if(window.showOpenFilePicker){[f
      initialisiereKategorien();
      initialisiereBenutzer(); // This will now populate from the loaded localStorage['benutzerliste']
      // aktualisiereMandantenFilterDropdown() muss nach dem Laden der Ideen aufgerufen werden
-     aktualisiereMandantenFilterDropdown(); // HIER IST DER AUFRUF, MUSS NACH ensureIdeasHaveIds SEIN
+     aktualisiereMandantenFilterDropdown();
      // >>> DROPDOWNS NACH DEM LADEN AKTUALISIEREN ENDE<<<
 
 
@@ -2445,43 +2262,18 @@ function ensureIdeasHaveIds() {
             idee.id = generateUUID();
             changed = true;
         }
-        // Verbesserte Prüfung für Beschreibungsobjekte und Timestamps
-         if (Array.isArray(idee.beschreibungen)) {
-              idee.beschreibungen = idee.beschreibungen.map(b => {
-                  // Prüfe, ob b ein gültiges Objekt mit text-Property ist
-                  if (b && typeof b === 'object' && typeof b.text === 'string') {
-                      // Prüfe und migriere Timestamp
-                      let descTimestamp = b.timestamp;
-                      if (descTimestamp === undefined || descTimestamp === null) {
-                          descTimestamp = new Date().toISOString(); // Setze aktuellen Timestamp
-                          changed = true;
-                      } else {
-                          const descDate = new Date(descTimestamp);
-                          if (isNaN(descDate.getTime())) { // Ungültiges Datum
-                              console.warn("Migrating invalid description timestamp in idea:", idee.id, "Original entry:", b);
-                              descTimestamp = new Date().toISOString(); // Setze aktuellen Timestamp
-                              changed = true;
-                          }
-                      }
-                      return { text: b.text, timestamp: descTimestamp }; // Rückgabe als korrektes Objekt
-                  } else if (typeof b === 'string') {
-                       // Migriere alte String-Formate
-                       console.warn("Migrating string description entry in idea:", idee.id, "Original entry:", b);
-                       changed = true;
-                       return { text: b, timestamp: new Date().toISOString() }; // Konvertiere zu Objekt mit neuem Timestamp
-                  } else {
-                      // Ungültiger Eintrag, logge und entferne ihn
-                      console.warn("Removing malformed description entry in idea:", idee.id, "Malformed entry:", b);
-                      changed = true;
-                      return null; // Markiere zum Entfernen
-                  }
-              }).filter(b => b !== null); // Entferne null-Einträge (malformed)
-         } else {
+        // Optional: Beschreibungen von Array zu Array von Objekten konvertieren, falls alte Daten nur Strings waren
+        if (Array.isArray(idee.beschreibungen) && idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
+             // Convert string array to object array
+             idee.beschreibungen = idee.beschreibungen.map(text => ({
+                 text: text,
+                 timestamp: new Date().toISOString() // Set a valid timestamp during migration
+             }));
+             changed = true; // Markiere als geändert, falls Konvertierung nötig war
+        } else if (!Array.isArray(idee.beschreibungen)) {
              idee.beschreibungen = []; // Sicherstellen, dass beschreibungen ein Array ist
-             changed = true;
-         }
-
-
+             changed = true; // Markiere als geändert, falls Array neu erstellt wurde
+        }
          /* --- SICHERSTELLEN, DASS BENUTZERFELD VORHANDEN IST (für ältere Daten) START --- */
         if (idee.benutzer === undefined) {
              idee.benutzer = ""; // Leerer String als Standard, falls Feld fehlt
@@ -2502,12 +2294,45 @@ function ensureIdeasHaveIds() {
         // >>> NEW: Validate/migrate main idea timestamp START <<<
         const date = new Date(idee.timestamp);
         if (isNaN(date.getTime())) { // Check if date is 'Invalid Date'
-             console.warn("Migrating invalid main idea timestamp:", idee.id, "Original timestamp:", idee.timestamp); // Log warning
+             console.warn("Invalid timestamp found for idea:", idee); // Log warning
              idee.timestamp = new Date().toISOString(); // Set to current timestamp
              changed = true;
         }
         // >>> NEW: Validate/migrate timestamp END <<<
 
+        // >>> NEW: Validate/migrate timestamp for EACH description START <<<
+        if (Array.isArray(idee.beschreibungen)) {
+             idee.beschreibungen.forEach(b => {
+                  // Ensure each description object has a text property (basic check) and a timestamp
+                  if (b && typeof b.text === 'string') { // Check if entry is at least a basic object with text
+                       // Ensure timestamp property exists for older formats or corrupted data
+                       if (b.timestamp === undefined || b.timestamp === null) {
+                           b.timestamp = new Date().toISOString();
+                           changed = true;
+                       } else {
+                           const descDate = new Date(b.timestamp);
+                           if (isNaN(descDate.getTime())) { // Check if description timestamp is 'Invalid Date'
+                                console.warn("Invalid timestamp found for description in idea:", idee, "Description:", b); // Log warning
+                                b.timestamp = new Date().toISOString();
+                                changed = true;
+                           }
+                       }
+                  } else {
+                      // Handle potentially malformed description entries (e.g., null, not objects)
+                      console.warn("Malformed description entry found in idea:", idee, "Entry:", b);
+                      // Decide how to handle malformed entries - for now, log and move on.
+                      // If you want to remove them:
+                      // const indexToRemove = idee.beschreibungen.indexOf(b);
+                      // if (indexToRemove > -1) {
+                      //    idee.beschreibungen.splice(indexToRemove, 1);
+                      //    changed = true;
+                      // }
+                  }
+             });
+              // If you decided to remove malformed entries, you might need to re-assign the array:
+              // idee.beschreibungen = idee.beschreibungen.filter(b => b && typeof b.text === 'string' && b.timestamp !== undefined && b.timestamp !== null && !isNaN(new Date(b.timestamp).getTime())); // More robust filtering
+        }
+        /* --- NEW: Validate/migrate timestamp for EACH description END --- */
     });
     if (changed) {
         localStorage.setItem("ideen", JSON.stringify(ideen));
@@ -2519,7 +2344,7 @@ function ensureIdeasHaveIds() {
 /* --- INITIALISIERUNGSFUNKTIONEN SIND IN BLOCK 4 IMPLEMENTIERT --- */
 // function initialisiereKategorien() { ... }
 // function initialisiereBenutzer() { ... }
-// function aktualisiereMandantenFilterDropdown() { ... } // Jetzt HIER oben definiert
+// function aktualisiereMandantenFilterDropdown() { ... }
 
 /* --- FILTER-FUNKTIONEN SIND IN BLOCK 4 IMPLEMENTIERT --- */
 // function filterNachMandant(){ ... } // Wird vom onchange des Dropdowns aufgerufen
@@ -2529,8 +2354,8 @@ function ensureIdeasHaveIds() {
 
 
 /* --- AUFRUFE DER INITIALISIERUNGSFUNKTIONEN BEIM LADEN DER SEITE START --- */
-initialisiereKategorien(); // Muss vor ensureIdeasHaveIds() aufgerufen werden, wenn Standardkategorien gesetzt werden sollen
-initialisiereBenutzer();   // Muss vor ensureIdeasHaveIds() aufgerufen werden
+initialisiereKategorien(); // Muss vor ensureIdeenHaveIds() aufgerufen werden, wenn Standardkategorien gesetzt werden sollen
+initialisiereBenutzer();   // Muss vor ensureIdeenHaveIds() aufgerufen werden
 ensureIdeasHaveIds(); // Prüft/Migriert Ideen und setzt IDs/Standardfelder (Benutzer/Mandant/Timestamps)
 // !!! WICHTIG: aktualisiereMandantenFilterDropdown MUSS NACH ensureIdeasHaveIds aufgerufen werden,
 // da ensureIdeasHaveIds möglicherweise Mandantennummern zu älteren Ideen hinzufügt.
