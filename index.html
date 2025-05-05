@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Ideen-App Pro</title>
 <style>
-/* Hier beginnt der CSS-Code im nächsten Block */
 /* --- START BLOCK 2: CSS Styles --- */
 html,body{box-sizing:border-box;margin:0;padding:0;background:#f4f4f4;width:100vw;max-width:100vw;overflow-x:hidden;}
 body{font-family:Arial,sans-serif;margin:0 0 20px 0;}
@@ -840,10 +839,19 @@ function zeigeIdeen(){
                 return (p[b.prioritaet]||0) - (p[a.prioritaet]||0);
             }
             if(sortierung==="neu"){
-                return new Date(b.timestamp) - new Date(a.timestamp);
+                // Korrigiere potenziell ungültige Timestamps vor dem Sortieren
+                const dateA = new Date(a.timestamp);
+                const dateB = new Date(b.timestamp);
+                const timeA = isNaN(dateA.getTime()) ? 0 : dateA.getTime();
+                const timeB = isNaN(dateB.getTime()) ? 0 : dateB.getTime();
+                return timeB - timeA;
             }
             // sortierung === "alt"
-            return new Date(a.timestamp) - new Date(b.timestamp);
+            const dateA = new Date(a.timestamp);
+            const dateB = new Date(b.timestamp);
+            const timeA = isNaN(dateA.getTime()) ? Infinity : dateA.getTime(); // Ungültige Daten nach hinten
+            const timeB = isNaN(dateB.getTime()) ? Infinity : dateB.getTime();
+            return timeA - timeB;
         });
     } // Wenn sortierung === "standard", bleibt die Reihenfolge, wie sie aus localStorage kam (oder nach Filtern)
 
@@ -854,14 +862,36 @@ function zeigeIdeen(){
         const ideeId = idee.id; // Die eindeutige ID der Idee
 
         const erledigt = idee.erledigt || false;
-        const anzeigeDatum = new Date(idee.timestamp);
-        const datumText = !isNaN(anzeigeDatum.getTime()) ? anzeigeDatum.toLocaleString("de-DE") : "Ungültiges Datum";
+        // Korrigiere Zeitstempelanzeige
+        let datumText = "Ungültiges Datum";
+        if (idee.timestamp) {
+            let ts = idee.timestamp;
+            // Entferne potenziellen _randomstring Teil nur für die Anzeige
+            if (typeof ts === 'string' && ts.includes('_')) {
+                ts = ts.split('_')[0];
+            }
+            const anzeigeDatum = new Date(ts);
+            if (!isNaN(anzeigeDatum.getTime())) {
+                 datumText = anzeigeDatum.toLocaleString("de-DE");
+            }
+        }
 
 
         // Verwende ideeId für Action button calls und Checkbox
         return`<div class="idee${erledigt?' erledigt':''}"><div class="idee-content"><h3>${idee.text}</h3><p>${idee.details||""}</p>${idee.benutzer?`<div>Zuständig: <b>${idee.benutzer}</b></div>`:""}${idee.mandantennummer?`<div>Mandantennummer: <b>${idee.mandantennummer}</b></div>`:""}${idee.firmenname?`<div>Firmenname: <b>${idee.firmenname}</b></div>`:""}${idee.beschreibungen&&idee.beschreibungen.length?`<div class="beschreibung-historie"><b>Weitere Beschreibungen:</b>${idee.beschreibungen.map(b=>{
-            const beschrDatum = new Date(b.timestamp);
-            const beschrTimestampText = !isNaN(beschrDatum.getTime()) ? beschrDatum.toLocaleString("de-DE") : "Ungültiges Datum";
+             // Korrigiere Zeitstempelanzeige für Beschreibungen
+            let beschrTimestampText = "Ungültiges Datum";
+            if (b.timestamp) {
+                 let bts = b.timestamp;
+                 if (typeof bts === 'string' && bts.includes('_')) {
+                      bts = bts.split('_')[0];
+                 }
+                const beschrDatum = new Date(bts);
+                 if (!isNaN(beschrDatum.getTime())) {
+                    beschrTimestampText = beschrDatum.toLocaleString("de-DE");
+                 }
+            }
+            // Benutze originalen b.timestamp (potenziell mit _...) für den Edit-Button
             return `<div class="beschreibung-item"><div class="beschreibung-text-zeit"><span class="beschreibung-zeit">${beschrTimestampText}</span>${b.text}</div><button class="edit-beschreibung-btn" onclick="bearbeiteEinzelneBeschreibung('${ideeId}', '${b.timestamp}')">✏️</button></div>`;
         }).join("")}</div>`:""}<small>${idee.kategorie} | ${idee.prioritaet||"Keine"} | ${datumText}</small>${idee.dateien?.map(file=>`<a class="datei-link" href="${file.link||file.data}" target="_blank">${file.link?'🌐':'📎'} ${file.name}</a>${file.link?'<div class="datei-info">OneDrive-Link</div>':`<div class="datei-info">Pfad: <i>${file.pfad||file.name}</i></div>`}${file.type?.startsWith("image/")?`<img src="${file.link||file.data}" style="max-width:150px;">`:""}${file.type==="application/pdf"?`<iframe src="${file.link||file.data}" style="width:150px;height:100px;"></iframe>`:""}`).join("")}<div class="idee-actions"><button onclick="verschiebeIdee('${ideeId}',-1)">⬆️</button><button onclick="verschiebeIdee('${ideeId}',1)">⬇️</button><button onclick="bearbeiteIdee('${ideeId}')">✏️</button><button onclick="toggleErledigt('${ideeId}')">${erledigt?"↩️":"✔️"}</button><button onclick="loescheIdee('${ideeId}')">🗑️</button><button onclick="zeigeBeschreibungDialog('${ideeId}')">+ Beschreibung</button></div></div><input type="checkbox" class="idee-checkbox" onchange="toggleAuswahl('${ideeId}',this)" ${ausgewaehlt.includes(ideeId)?"checked":""}></div>`;
     }).join("");
@@ -988,9 +1018,19 @@ function verschiebeIdee(ideeId, richtung){
                 return (p[b.prioritaet]||0) - (p[a.prioritaet]||0);
             }
             if(sortierung==="neu"){
-                return new Date(b.timestamp) - new Date(a.timestamp);
+                // Korrigiere potenziell ungültige Timestamps vor dem Sortieren
+                const dateA = new Date(a.timestamp);
+                const dateB = new Date(b.timestamp);
+                const timeA = isNaN(dateA.getTime()) ? 0 : dateA.getTime();
+                const timeB = isNaN(dateB.getTime()) ? 0 : dateB.getTime();
+                return timeB - timeA;
             }
-            return new Date(a.timestamp) - new Date(b.timestamp);
+            // sortierung === "alt"
+            const dateA = new Date(a.timestamp);
+            const dateB = new Date(b.timestamp);
+            const timeA = isNaN(dateA.getTime()) ? Infinity : dateA.getTime(); // Ungültige Daten nach hinten
+            const timeB = isNaN(dateB.getTime()) ? Infinity : dateB.getTime();
+            return timeA - timeB;
         });
     }
 
@@ -1085,6 +1125,7 @@ function zeigeBeschreibungDialog(ideeId, descTimestamp = null){
          // Bearbeiten einer vorhandenen Beschreibung
          const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
          const idee = ideen.find(item => item.id === ideeId);
+         // Finde die Beschreibung anhand des (potenziell _random) Timestamps
          const beschreibung = idee?.beschreibungen.find(b => b.timestamp === descTimestamp);
 
          if (beschreibung) {
@@ -1129,7 +1170,7 @@ function beschreibungSpeichern(){
               const beschreibungIndex = ideen[ideeIndex].beschreibungen.findIndex(b => b.timestamp === beschreibungZuBearbeitenderTimestamp);
               if (beschreibungIndex !== -1) {
                    ideen[ideeIndex].beschreibungen[beschreibungIndex].text = t; // Text aktualisieren
-                   // Timestamp wird hier nicht geändert, könnte man aber
+                   // Timestamp wird hier nicht geändert, da er als ID dient
               } else {
                    zeigeWarnung("Fehler: Beschreibungseintrag zum Bearbeiten nicht gefunden.");
               }
@@ -1452,9 +1493,19 @@ function getExportIdeen(){
                 return (p[b.prioritaet]||0) - (p[a.prioritaet]||0);
             }
             if(sortierung==="neu"){
-                return new Date(b.timestamp) - new Date(a.timestamp);
+                 // Korrigiere potenziell ungültige Timestamps vor dem Sortieren
+                const dateA = new Date(a.timestamp);
+                const dateB = new Date(b.timestamp);
+                const timeA = isNaN(dateA.getTime()) ? 0 : dateA.getTime();
+                const timeB = isNaN(dateB.getTime()) ? 0 : dateB.getTime();
+                return timeB - timeA;
             }
-            return new Date(a.timestamp) - new Date(b.timestamp);
+            // sortierung === "alt"
+            const dateA = new Date(a.timestamp);
+            const dateB = new Date(b.timestamp);
+            const timeA = isNaN(dateA.getTime()) ? Infinity : dateA.getTime(); // Ungültige Daten nach hinten
+            const timeB = isNaN(dateB.getTime()) ? Infinity : dateB.getTime();
+            return timeA - timeB;
         });
     }
 
@@ -1473,12 +1524,20 @@ function exportiereAlsPDF(){const{jsPDF}=window.jspdf;const doc=new jsPDF();cons
     metaLines.push(`Kategorie: ${idee.kategorie}`);
     if(idee.benutzer) metaLines.push(`Zuständig: ${idee.benutzer}`); // Füge Benutzer hinzu, wenn vorhanden
     metaLines.push(`Priorität: ${idee.prioritaet||"Keine"}`);
-    const anzeigeDatum = new Date(idee.timestamp);
-     if (!isNaN(anzeigeDatum.getTime())) { // Prüfen, ob Datum gültig ist
-        metaLines.push(`Datum: ${anzeigeDatum.toLocaleString("de-DE")}`);
-     } else {
-        metaLines.push(`Datum: Ungültiges Datum`); // Oder eine Fehlermeldung
-     }
+
+    // Korrigiere Zeitstempel für PDF
+    let datumTextPDF = "Ungültiges Datum";
+    if (idee.timestamp) {
+        let ts = idee.timestamp;
+        if (typeof ts === 'string' && ts.includes('_')) {
+            ts = ts.split('_')[0];
+        }
+        const anzeigeDatum = new Date(ts);
+        if (!isNaN(anzeigeDatum.getTime())) {
+             datumTextPDF = anzeigeDatum.toLocaleString("de-DE");
+        }
+    }
+    metaLines.push(`Datum: ${datumTextPDF}`); // Verwende korrigierten Text
 
     if(idee.mandantennummer) metaLines.push(`Mandantennummer: ${idee.mandantennummer}`);
     if(idee.firmenname) metaLines.push(`Firmenname: ${idee.firmenname}`);
@@ -1498,9 +1557,19 @@ function exportiereAlsPDF(){const{jsPDF}=window.jspdf;const doc=new jsPDF();cons
         doc.text("Weitere Beschreibungen:",margin,y);
         y+=6; // Abstand
         idee.beschreibungen.forEach(b=>{
-            const beschrDatum = new Date(b.timestamp);
-            const beschrTimestampText = !isNaN(beschrDatum.getTime()) ? beschrDatum.toLocaleString("de-DE") : "Ungültiges Datum";
-            const beschr=`[${beschrTimestampText}] ${b.text}`; // Formatierung Zeitstempel Beschreibung
+             // Korrigiere Zeitstempel für Beschreibungen im PDF
+             let beschrTimestampTextPDF = "Ungültiges Datum";
+            if (b.timestamp) {
+                 let bts = b.timestamp;
+                 if (typeof bts === 'string' && bts.includes('_')) {
+                      bts = bts.split('_')[0];
+                 }
+                const beschrDatum = new Date(bts);
+                 if (!isNaN(beschrDatum.getTime())) {
+                    beschrTimestampTextPDF = beschrDatum.toLocaleString("de-DE");
+                 }
+            }
+            const beschr=`[${beschrTimestampTextPDF}] ${b.text}`; // Formatierung Zeitstempel Beschreibung
 
             const lines=doc.splitTextToSize(beschr,180);
             lines.forEach(line=>{if(y+6>pageHeight-margin){doc.addPage();y=margin;}doc.text(line,margin,y);y+=6;});
@@ -1531,20 +1600,49 @@ function exportiereAlsPDF(){const{jsPDF}=window.jspdf;const doc=new jsPDF();cons
     y+=10; // Abstand zwischen Ideen
     if(y>pageHeight-margin){doc.addPage();y=margin;}});doc.save("ideen-export.pdf");}
 
-function exportiereAlsText(){const ideen=getExportIdeen();const text=ideen.map(idee=>
+function exportiereAlsText(){const ideen=getExportIdeen();const text=ideen.map(idee=>{
+    // Korrigiere Zeitstempel für Text-Export
+    let datumTextTXT = "Ungültiges Datum";
+    if (idee.timestamp) {
+        let ts = idee.timestamp;
+        if (typeof ts === 'string' && ts.includes('_')) {
+            ts = ts.split('_')[0];
+        }
+        const anzeigeDatum = new Date(ts);
+        if (!isNaN(anzeigeDatum.getTime())) {
+             datumTextTXT = anzeigeDatum.toLocaleString("de-DE");
+        }
+    }
+
+    return (
     /* --- BENUTZER ZUM TEXTEXPORT HINZUFÜGEN START --- */
     `=== ${idee.text} ===\n` +
     `Kategorie: ${idee.kategorie}\n` +
     `${idee.benutzer?`Zuständig: ${idee.benutzer}\n`:""}` + // Füge Benutzer hinzu, wenn vorhanden
     `Priorität: ${idee.prioritaet||"Keine"}\n` +
-    `Datum: ${new Date(idee.timestamp).toLocaleString("de-DE")}\n` +
+    `Datum: ${datumTextTXT}\n` + // Verwende korrigierten Datumstext
     `${idee.mandantennummer?"Mandantennummer: "+idee.mandantennummer+"\n":""}` +
     `${idee.firmenname?"Firmenname: "+idee.firmenname+"\n":""}` +
     `${idee.details?`Beschreibung: ${idee.details}\n`:""}` + // Details nur einfügen, wenn vorhanden
-    `${idee.beschreibungen&&idee.beschreibungen.length?`Weitere Beschreibungen:\n${idee.beschreibungen.map(b=>`  - [${new Date(b.timestamp).toLocaleString("de-DE")}] ${b.text}`).join("\n")}\n`:""}` + // Beschreibungen einfügen und Zeitstempel formatieren
+    `${idee.beschreibungen&&idee.beschreibungen.length?`Weitere Beschreibungen:\n${idee.beschreibungen.map(b=>{
+        // Korrigiere Zeitstempel für Beschreibungen im Text-Export
+        let beschrTimestampTextTXT = "Ungültiges Datum";
+        if (b.timestamp) {
+             let bts = b.timestamp;
+             if (typeof bts === 'string' && bts.includes('_')) {
+                  bts = bts.split('_')[0];
+             }
+            const beschrDatum = new Date(bts);
+             if (!isNaN(beschrDatum.getTime())) {
+                beschrTimestampTextTXT = beschrDatum.toLocaleString("de-DE");
+             }
+        }
+        return `  - [${beschrTimestampTextTXT}] ${b.text}`;
+    }).join("\n")}\n`:""}` + // Beschreibungen einfügen und Zeitstempel formatieren
     `Anhänge: ${idee.dateien?.map(f=>f.name).join(", ")||"Keine"}\n`
     /* --- BENUTZER ZUM TEXTEXPORT HINZUFÜGEN ENDE --- */
-).join("\n\n");const blob=new Blob([text],{type:"text/plain"});const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download="ideen-export.txt";link.click();;}
+    );
+}).join("\n\n");const blob=new Blob([text],{type:"text/plain"});const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download="ideen-export.txt";link.click();;}
 
 // Funktion zum Teilen per E-Mail - Angepasst für automatische Beschreibung bei Weiterleitung und verbesserte Prompts
 async function teilePerEmail(){ // Funktion ist jetzt async wegen await beim Speichern
@@ -1610,19 +1708,43 @@ async function teilePerEmail(){ // Funktion ist jetzt async wegen await beim Spe
     const ideenToExport = getExportIdeen(); // Diese Funktion nutzt localStorage, also die aktualisierten Ideen
 
     const text = ideenToExport.map(idee => {
-         const anzeigeDatum = new Date(idee.timestamp);
-         const datumText = !isNaN(anzeigeDatum.getTime()) ? anzeigeDatum.toLocaleString("de-DE") : "Ungültiges Datum";
+        // Korrigiere Zeitstempel für E-Mail-Export
+        let datumTextEmail = "Ungültiges Datum";
+        if (idee.timestamp) {
+            let ts = idee.timestamp;
+            if (typeof ts === 'string' && ts.includes('_')) {
+                ts = ts.split('_')[0];
+            }
+            const anzeigeDatum = new Date(ts);
+            if (!isNaN(anzeigeDatum.getTime())) {
+                 datumTextEmail = anzeigeDatum.toLocaleString("de-DE");
+            }
+        }
 
         return (
             `*${idee.text}*\n` +
             `Kategorie: ${idee.kategorie}\n` +
             `${idee.benutzer?`Zuständig: ${idee.benutzer}\n`:""}` +
             `Priorität: ${idee.prioritaet||"Keine"}\n` +
-            `Datum: ${datumText}\n` + // Verwendet den geprüften Datumstext
+            `Datum: ${datumTextEmail}\n` + // Verwendet den geprüften Datumstext
             `${idee.mandantennummer?"Mandantennummer: "+idee.mandantennummer+"\n":""}` +
             `${idee.firmenname?"Firmenname: "+idee.firmenname+"\n":""}` +
             `${idee.details?`Beschreibung: ${idee.details}\n`:""}` +
-            `${idee.beschreibungen&&idee.beschreibungen.length?`Weitere Beschreibungen:\n${idee.beschreibungen.map(b=>`  - [${new Date(b.timestamp).toLocaleString("de-DE")}] ${b.text}`).join("\n")}\n`:""}` +
+            `${idee.beschreibungen&&idee.beschreibungen.length?`Weitere Beschreibungen:\n${idee.beschreibungen.map(b=>{
+                // Korrigiere Zeitstempel für Beschreibungen im E-Mail-Export
+                 let beschrTimestampTextEmail = "Ungültiges Datum";
+                if (b.timestamp) {
+                     let bts = b.timestamp;
+                     if (typeof bts === 'string' && bts.includes('_')) {
+                          bts = bts.split('_')[0];
+                     }
+                    const beschrDatum = new Date(bts);
+                     if (!isNaN(beschrDatum.getTime())) {
+                        beschrTimestampTextEmail = beschrDatum.toLocaleString("de-DE");
+                     }
+                }
+                 return `  - [${beschrTimestampTextEmail}] ${b.text}`;
+            }).join("\n")}\n`:""}` +
             `\nAnhänge: ${idee.dateien?.map(f=>`${f.name} (${f.link||f.data||'Kein Link'})`).join(", ")||"Keine"}\n` // Fügt Link/URL hinzu, Fallback
         );
     }).join("\n\n")+"\n\n[Bitte Anhänge manuell hinzufügen]";
@@ -1716,8 +1838,18 @@ async function teilePerWhatsApp(){ // Funktion ist jetzt async wegen await beim 
 
 
     const text = ideenToExport.map(idee => {
-         const anzeigeDatum = new Date(idee.timestamp);
-         const datumText = !isNaN(anzeigeDatum.getTime()) ? anzeigeDatum.toLocaleString("de-DE") : "Ungültiges Datum";
+        // Korrigiere Zeitstempel für WhatsApp-Export
+        let datumTextWA = "Ungültiges Datum";
+        if (idee.timestamp) {
+            let ts = idee.timestamp;
+            if (typeof ts === 'string' && ts.includes('_')) {
+                ts = ts.split('_')[0];
+            }
+            const anzeigeDatum = new Date(ts);
+            if (!isNaN(anzeigeDatum.getTime())) {
+                 datumTextWA = anzeigeDatum.toLocaleString("de-DE");
+            }
+        }
 
         return (
     // >>> BENUTZER ZUM WHATSAPP-EXPORT HINZUFÜGEN START <<<
@@ -1725,14 +1857,24 @@ async function teilePerWhatsApp(){ // Funktion ist jetzt async wegen await beim 
         `📁 Kategorie: ${idee.kategorie}\n` +
         `${idee.benutzer?`🧑‍💻 Zuständig: ${idee.benutzer}\n`:""}` + // Füge Benutzer hinzu, wenn vorhanden (mit optionalem Emoji)
         `🔖 Priorität: ${idee.prioritaet||"Keine"}\n` +
-        `📅 ${datumText}\n` + // Verwendet den geprüften Datumstext
+        `📅 ${datumTextWA}\n` + // Verwendet den geprüften Datumstext
         `${idee.details?`📝 ${idee.details}\n`:""}` + // Details nur einfügen, wenn vorhanden
         `${idee.mandantennummer?`Mandantennummer: ${idee.mandantennummer}\n`:""}` + // Mandant nur einfügen, wenn vorhanden
         `${idee.firmenname?`Firmenname: ${idee.firmenname}\n`:""}` + // Firmenname nur einfügen, wenn vorhanden
         `${idee.beschreibungen&&idee.beschreibungen.length?`Weitere Beschreibungen:\n${idee.beschreibungen.map(b=>{
-            const beschrDatum = new Date(b.timestamp);
-            const beschrTimestampText = !isNaN(beschrDatum.getTime()) ? beschrDatum.toLocaleString("de-DE") : "Ungültiges Datum";
-            return `  - [${beschrTimestampText}] ${b.text}`;
+            // Korrigiere Zeitstempel für Beschreibungen im WhatsApp-Export
+             let beschrTimestampTextWA = "Ungültiges Datum";
+            if (b.timestamp) {
+                 let bts = b.timestamp;
+                 if (typeof bts === 'string' && bts.includes('_')) {
+                      bts = bts.split('_')[0];
+                 }
+                const beschrDatum = new Date(bts);
+                 if (!isNaN(beschrDatum.getTime())) {
+                    beschrTimestampTextWA = beschrDatum.toLocaleString("de-DE");
+                 }
+            }
+            return `  - [${beschrTimestampTextWA}] ${b.text}`;
         }).join("\n")}\n`:""}` + // Beschreibungen einfügen und Zeitstempel formatieren
         `📎 Anhänge: ${idee.dateien?.map(f=>`${f.name} (${f.link||f.data||'Kein Link'})`).join(", ")||"Keine"}\n` // Fügt Link/URL hinzu, Fallback
     // >>> BENUTZER ZUM WHATSAPP-EXPORT HINZUFÜGEN ENDE <<<
@@ -1887,9 +2029,6 @@ async function loadFromOneDrive(){
                     // Die initialisiereKategorien() Funktion am Ende wird von localStorage lesen.
                     let kategorienAusDatei = null; // Variable, um Kategorien aus der Datei zu speichern, falls vorhanden
 
-                    let changed = false; // Track if migration/changes were needed
-
-
                     // Check if loadedData is the new combined format or old ideen array
                     if (loadedData && typeof loadedData === 'object' && Array.isArray(loadedData.ideen) && Array.isArray(loadedData.benutzerliste)) {
                          // New format: contains ideen, benutzerliste, and kategorien
@@ -1902,107 +2041,20 @@ async function loadFromOneDrive(){
                          if (!Array.isArray(kategorienAusDatei)) {
                              kategorienAusDatei = null; // Ungültige Daten in Datei -> ignoriere Kategorien aus Datei
                          }
-
-
-                         // Migration/ID check still needed for ideen array consistency
-                         ideen.forEach(idee => {
-                             if (!idee.id) { idee.id = generateUUID(); changed = true; }
-                             if (!Array.isArray(idee.beschreibungen)) { idee.beschreibungen = []; changed = true; }
-                             if (Array.isArray(idee.beschreibungen) && idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
-                                     idee.beschreibungen = idee.beschreibungen.map(text => ({
-                                         text: text,
-                                         timestamp: new Date().toISOString() // Set valid timestamp
-                                     }));
-                                     changed = true;
-                                }
-                             if (idee.benutzer === undefined) { idee.benutzer = ""; changed = true; }
-                             if (idee.mandantennummer === undefined) { idee.mandantennummer = ""; changed = true; }
-                             if (idee.firmenname === undefined) { idee.firmenname = ""; changed = true; }
-                             // Validate/migrate main idea timestamp
-                             const date = new Date(idee.timestamp);
-                             if (isNaN(date.getTime())) {
-                                  console.warn("Invalid timestamp loaded from OneDrive for idea:", idee);
-                                  idee.timestamp = new Date().toISOString(); // Set to current timestamp
-                                  changed = true;
-                             }
-                             // Validate/migrate timestamp for EACH description
-                             if (Array.isArray(idee.beschreibungen)) {
-                                  idee.beschreibungen.forEach(b => {
-                                       if (b && typeof b.text === 'string') {
-                                            if (b.timestamp === undefined || b.timestamp === null) {
-                                                b.timestamp = new Date().toISOString();
-                                                changed = true;
-                                            } else {
-                                                const descDate = new Date(b.timestamp);
-                                                if (isNaN(descDate.getTime())) {
-                                                     console.warn("Invalid timestamp loaded from OneDrive for description in idea:", idee, "Description:", b);
-                                                     b.timestamp = new Date().toISOString();
-                                                     changed = true;
-                                                }
-                                            }
-                                       }
-                                  });
-                             }
-                         });
-
                     } else if (Array.isArray(loadedData)) {
                          // Old format: only contains the ideen array
                          ideen = loadedData;
                          benutzerliste = []; // Initialize benutzerliste as empty for old data
                          // Kategorien werden hier NICHT verändert, bleiben lokal.
                          kategorienAusDatei = null; // Keine Kategorien im alten Format
-
-                         changed = true; // Data structure changed, mark for potential re-save
-                         // Apply all migration/ID checks to the old ideen array
-                         ideen.forEach(idee => {
-                             if (!idee.id) { idee.id = generateUUID(); changed = true; }
-                              if (Array.isArray(idee.beschreibungen) && idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
-                                     idee.beschreibungen = idee.beschreibungen.map(text => ({
-                                         text: text,
-                                         timestamp: new Date().toISOString() // Set valid timestamp
-                                     }));
-                                     changed = true;
-                                } else if (!Array.isArray(idee.beschreibungen)) {
-                                     idee.beschreibungen = [];
-                                     changed = true;
-                                }
-                             if (idee.benutzer === undefined) { idee.benutzer = ""; changed = true; }
-                             if (idee.mandantennummer === undefined) { idee.mandantennummer = ""; changed = true; }
-                             if (idee.firmenname === undefined) { idee.firmenname = ""; changed = true; }
-                             // Validate/migrate main idea timestamp
-                             const date = new Date(idee.timestamp);
-                             if (isNaN(date.getTime())) { // Check if date is 'Invalid Date'
-                                  console.warn("Invalid timestamp loaded from OneDrive (old format) for idea:", idee);
-                                  idee.timestamp = new Date().toISOString(); // Set to current timestamp
-                                  changed = true;
-                             }
-                              // Validate/migrate timestamp for EACH description
-                             if (Array.isArray(idee.beschreibungen)) {
-                                  idee.beschreibungen.forEach(b => {
-                                       if (b && typeof b.text === 'string') {
-                                            if (b.timestamp === undefined || b.timestamp === null) {
-                                                b.timestamp = new Date().toISOString();
-                                                changed = true;
-                                            } else {
-                                                const descDate = new Date(b.timestamp);
-                                                if (isNaN(descDate.getTime())) {
-                                                     console.warn("Invalid timestamp loaded from OneDrive (old format) for description in idea:", idee, "Description:", b);
-                                                     b.timestamp = new Date().toISOString();
-                                                     changed = true;
-                                                }
-                                            }
-                                       }
-                                  });
-                             }
-                         });
-
                     } else {
                          throw new Error("Ungültiges Dateiformat"); // Data was neither the new object nor the old array
                     }
 
-                    // Speichere die geladenen/migrierten Ideen und Benutzer in localStorage
+                    // Speichere die geladenen Ideen und Benutzer in localStorage
+                    // WICHTIG: Die Migrationslogik (ensureIdeasHaveIds) wird nach dem Speichern aufgerufen
                     localStorage.setItem("ideen", JSON.stringify(ideen));
-                    localStorage.setItem("benutzerliste", JSON.stringify(benutzerliste)); // FIXED TYPO: JSON to JSON.stringify
+                    localStorage.setItem("benutzerliste", JSON.stringify(benutzerliste));
 
                     // NEUE LOGIK: Speichere Kategorien aus der Datei NUR, wenn sie im neuen Format vorlagen
                     if (kategorienAusDatei !== null) {
@@ -2015,35 +2067,26 @@ async function loadFromOneDrive(){
                     }
 
 
-                    ausgewaehlt = []; // Clear selection after loading from file, as IDs might be new/different
+                    ausgewaehlt = []; // Clear selection after loading
 
-                    // >>> DROPDOWNS NACH DEM LADEN AKTUALISIEREN START<<<
-                    // initialisiereKategorien lädt jetzt immer von localStorage,
-                    // was entweder die aus der Datei geladenen (neues Format) oder die beibehaltenen lokalen Kategorien (altes Format) sind.
-                    initialisiereKategorien();
-                    initialisiereBenutzer(); // This will now populate from the loaded localStorage['benutzerliste']
-                    // aktualisiereMandantenFilterDropdown() muss nach dem Laden der Ideen aufgerufen werden
-                    aktualisiereMandantenFilterDropdown();
-                    // >>> DROPDOWNS NACH DEM LADEN AKTUALISIEREN ENDE<<<
+                    // >>> DROPDOWNS UND DATEN NACH DEM LADEN AKTUALISIEREN START<<<
+                    initialisiereKategorien(); // Lädt aus localStorage (aktualisiert durch obige Logik)
+                    initialisiereBenutzer();   // Lädt aus localStorage (aktualisiert durch obige Logik)
+                    ensureIdeasHaveIds(); // AN DIESER STELLE MIGRATION DURCHFÜHREN!
+                    aktualisiereMandantenFilterDropdown(); // Mandanten-Dropdown aktualisieren
+                    zeigeIdeen(); // Ideen anzeigen (mit migrierten Daten)
+                    // >>> DROPDOWNS UND DATEN NACH DEM LADEN AKTUALISIEREN ENDE<<<
 
-
-                    zeigeIdeen(); // Ideen anzeigen
-                    zeigeWarnung(`Ideen und Benutzerliste erfolgreich von OneDrive geladen von ${finalFilePath}!${kategorienAusDatei !== null ? ' Kategorien wurden ebenfalls geladen.' : ' Lokale Kategorien wurden beibehalten.'}`, 'success'); // Update message
-
+                    zeigeWarnung(`Daten erfolgreich von OneDrive geladen von ${finalFilePath}!${kategorienAusDatei !== null ? ' Kategorien wurden ebenfalls geladen.' : ' Lokale Kategorien wurden beibehalten.'}`, 'success'); // Update message
                     istGespeichert = true;
 
-                     // If data structure was migrated from old format, might be good to resave?
-                     // No, loading successfully is enough, saving happens on user action.
-
-
                } catch (parseError) {
-                    // Fehler beim Parsen oder Migrieren der Daten
-                    console.error('Error parsing or migrating loaded data:', parseError);
+                    // Fehler beim Parsen der Daten
+                    console.error('Error parsing loaded data:', parseError);
                     zeigeWarnung(`Fehler beim Verarbeiten der geladenen Daten von ${finalFilePath}. Stelle sicher, dass es sich um eine gültige Ideen-JSON-Datei handelt.`, 'warning');
                }
 
-          } // ... existing 404 and other error handling ...
-          else if (response.status === 404) {
+          } else if (response.status === 404) {
                zeigeWarnung(`Datei nicht gefunden auf OneDrive unter ${finalFilePath}.`, 'warning');
           }
            else {
@@ -2086,8 +2129,6 @@ async function ladeIdeenAusDatei(){try{let file;if(window.showOpenFilePicker){[f
     // Die initialisiereKategorien() Funktion am Ende wird von localStorage lesen.
     let kategorienAusDatei = null; // Variable, um Kategorien aus der Datei zu speichern, falls vorhanden
 
-    let changed = false; // Track if migration/changes were needed
-
      if (loadedData && typeof loadedData === 'object' && Array.isArray(loadedData.ideen) && Array.isArray(loadedData.benutzerliste)) {
          ideen = loadedData.ideen;
          benutzerliste = loadedData.benutzerliste;
@@ -2098,104 +2139,18 @@ async function ladeIdeenAusDatei(){try{let file;if(window.showOpenFilePicker){[f
          if (!Array.isArray(kategorienAusDatei)) {
              kategorienAusDatei = null; // Ungültige Daten in Datei -> ignoriere Kategorien aus Datei
          }
-
-
-         ideen.forEach(idee => {
-             if (!idee.id) { idee.id = generateUUID(); changed = true; }
-              if (!Array.isArray(idee.beschreibungen)) { idee.beschreibungen = []; changed = true; }
-              if (Array.isArray(idee.beschreibungen) && idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
-                                 idee.beschreibungen = idee.beschreibungen.map(text => ({
-                                     text: text,
-                                     timestamp: new Date().toISOString() // Set valid timestamp
-                                 }));
-                                 changed = true;
-                            }
-             if (idee.benutzer === undefined) { idee.benutzer = ""; changed = true; }
-             if (idee.mandantennummer === undefined) { idee.mandantennummer = ""; changed = true; }
-             if (idee.firmenname === undefined) { idee.firmenname = ""; changed = true; }
-             // Validate/migrate main idea timestamp
-             const date = new Date(idee.timestamp);
-             if (isNaN(date.getTime())) { // Check if date is 'Invalid Date'
-                  console.warn("Invalid timestamp loaded from file for idea:", idee);
-                  idee.timestamp = new Date().toISOString(); // Set to current timestamp
-                  changed = true;
-             }
-             // Validate/migrate timestamp for EACH description
-             if (Array.isArray(idee.beschreibungen)) {
-                  idee.beschreibungen.forEach(b => {
-                       if (b && typeof b.text === 'string') {
-                            if (b.timestamp === undefined || b.timestamp === null) {
-                                b.timestamp = new Date().toISOString();
-                                changed = true;
-                            } else {
-                                const descDate = new Date(b.timestamp);
-                                if (isNaN(descDate.getTime())) {
-                                     console.warn("Invalid timestamp loaded from file (old format) for description in idea:", idee, "Description:", b);
-                                     b.timestamp = new Date().toISOString();
-                                     changed = true;
-                                }
-                            }
-                       }
-                  });
-             }
-         });
-
     } else if (Array.isArray(loadedData)) {
          ideen = loadedData;
          benutzerliste = [];
          // Kategorien werden hier NICHT verändert, bleiben lokal.
          kategorienAusDatei = null; // Keine Kategorien im alten Format
-
-         changed = true; // Data structure changed, mark for potential re-save
-         ideen.forEach(idee => {
-             if (!idee.id) { idee.id = generateUUID(); changed = true; }
-              if (Array.isArray(idee.beschreibungen) && idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
-                                 idee.beschreibungen = idee.beschreibungen.map(text => ({
-                                     text: text,
-                                     timestamp: new Date().toISOString() // Set valid timestamp
-                                 }));
-                                 changed = true;
-                            } else if (!Array.isArray(idee.beschreibungen)) {
-                                 idee.beschreibungen = [];
-                                 changed = true;
-                            }
-             if (idee.benutzer === undefined) { idee.benutzer = ""; changed = true; }
-             if (idee.mandantennummer === undefined) { idee.mandantennummer = ""; changed = true; }
-             if (idee.firmenname === undefined) { idee.firmenname = ""; changed = true; }
-             // Validate/migrate main idea timestamp
-             const date = new Date(idee.timestamp);
-             if (isNaN(date.getTime())) { // Check if date is 'Invalid Date'
-                  console.warn("Invalid timestamp loaded from file (old format) for idea:", idee);
-                  idee.timestamp = new Date().toISOString(); // Set to current timestamp
-                  changed = true;
-             }
-              // Validate/migrate timestamp for EACH description
-             if (Array.isArray(idee.beschreibungen)) {
-                  idee.beschreibungen.forEach(b => {
-                       if (b && typeof b.text === 'string') {
-                            if (b.timestamp === undefined || b.timestamp === null) {
-                                b.timestamp = new Date().toISOString();
-                                changed = true;
-                            } else {
-                                const descDate = new Date(b.timestamp);
-                                if (isNaN(descDate.getTime())) {
-                                     console.warn("Invalid timestamp loaded from file (old format) for description in idea:", idee, "Description:", b);
-                                     b.timestamp = new Date().toISOString();
-                                     changed = true;
-                                }
-                            }
-                       }
-                  });
-             }
-         });
-
     } else {
          throw new Error("Ungültiges Dateiformat"); // Data was neither the new object nor the old array
     }
 
 
      localStorage.setItem("ideen", JSON.stringify(ideen));
-     localStorage.setItem("benutzerliste", JSON.stringify(benutzerliste)); // FIXED TYPO: JSON to JSON.stringify
+     localStorage.setItem("benutzerliste", JSON.stringify(benutzerliste));
 
      // NEUE LOGIK: Speichere Kategorien aus der Datei NUR, wenn sie im neuen Format vorlagen
      if (kategorienAusDatei !== null) {
@@ -2208,21 +2163,18 @@ async function ladeIdeenAusDatei(){try{let file;if(window.showOpenFilePicker){[f
      }
 
 
-     ausgewaehlt = []; // Clear selection after loading from file, as IDs might be new/different
+     ausgewaehlt = []; // Clear selection after loading
 
-     // >>> DROPDOWNS NACH DEM LADEN AKTUALISIEREN START<<<
-     // initialisiereKategorien lädt jetzt immer von localStorage,
-     // was entweder die aus der Datei geladenen (neues Format) oder die beibehaltenen lokalen Kategorien (altes Format) sind.
-     initialisiereKategorien();
-     initialisiereBenutzer(); // This will now populate from the loaded localStorage['benutzerliste']
-     // aktualisiereMandantenFilterDropdown() muss nach dem Laden der Ideen aufgerufen werden
-     aktualisiereMandantenFilterDropdown();
-     // >>> DROPDOWNS NACH DEM LADEN AKTUALISIEREN ENDE<<<
+     // >>> DROPDOWNS UND DATEN NACH DEM LADEN AKTUALISIEREN START<<<
+     initialisiereKategorien(); // Lädt aus localStorage (aktualisiert durch obige Logik)
+     initialisiereBenutzer();   // Lädt aus localStorage (aktualisiert durch obige Logik)
+     ensureIdeasHaveIds(); // AN DIESER STELLE MIGRATION DURCHFÜHREN!
+     aktualisiereMandantenFilterDropdown(); // Mandanten-Dropdown aktualisieren
+     zeigeIdeen(); // Ideen anzeigen (mit migrierten Daten)
+     // >>> DROPDOWNS UND DATEN NACH DEM LADEN AKTUALISIEREN ENDE<<<
 
 
-     zeigeIdeen(); // Ideen anzeigen
-     zeigeWarnung(`Ideen und Benutzerliste erfolgreich lokal geladen!${kategorienAusDatei !== null ? ' Kategorien wurden ebenfalls geladen.' : ' Lokale Kategorien wurden beibehalten.'}`, 'success');
-
+     zeigeWarnung(`Daten erfolgreich lokal geladen!${kategorienAusDatei !== null ? ' Kategorien wurden ebenfalls geladen.' : ' Lokale Kategorien wurden beibehalten.'}`, 'success');
      istGespeichert=true;
     }catch(e){
         if(e.name!=="AbortError")zeigeWarnung("Fehler beim lokalen Laden: "+e.message);
@@ -2246,100 +2198,120 @@ document.getElementById("neuerBenutzer").addEventListener("input",()=>{istGespei
 document.getElementById("dateien").addEventListener("change",function(e){const v=document.getElementById("dateiVorschau");v.innerHTML="";Array.from(e.target.files).forEach(file=>{const url=URL.createObjectURL(file);v.innerHTML+=`<a class="datei-link" href="${url}" target="_blank">📄 ${file.name}</a><div class="datei-info">Pfad: <i>${file.webkitRelativePath||file.name}</i></div>${file.type.startsWith("image/")?`<img src="${url}" style="max-width:150px;">`:""}${file.type==="application/pdf"?`<iframe src="${url}" style="width:150px;height:100px;"></iframe>`:""}`;});istGespeichert=false;});
 window.addEventListener("beforeunload",function(e){if(!istGespeichert){const msg="Sie haben ungespeicherte Änderungen. Möchten Sie die Seite wirklich verlassen?";e.preventDefault();e.returnValue=msg;return msg;}});
 
-// Beim Initialisieren oder Laden aus Datei sicherstellen, dass alle Ideen eine ID haben und Datenformat konsistent ist
-// >>> ANGEPASST FÜR FEHLENDE FELDER UND TIMESTAMPS START <<<
+// Funktion zur Migration und Validierung von Daten beim Laden (localStorage)
 function ensureIdeasHaveIds() {
     let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-    let changed = false;
-    // Stellen Sie sicher, dass ideen ein Array ist, auch wenn localStorage leer oder korrupt ist
+    let changed = false; // Track changes to minimize localStorage writes
+    // Ensure ideen is an array, even if localStorage is empty or corrupted
     if (!Array.isArray(ideen)) {
          ideen = [];
          changed = true;
     }
 
     ideen.forEach(idee => {
+        // Ensure ID exists
         if (!idee.id) {
             idee.id = generateUUID();
             changed = true;
         }
-        // Optional: Beschreibungen von Array zu Array von Objekten konvertieren, falls alte Daten nur Strings waren
-        if (Array.isArray(idee.beschreibungen) && idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
-             // Convert string array to object array
+
+        // Ensure 'beschreibungen' is an array of objects
+        if (!Array.isArray(idee.beschreibungen)) {
+             idee.beschreibungen = [];
+             changed = true;
+        } else if (idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
+             // Convert old string array to new object array
              idee.beschreibungen = idee.beschreibungen.map(text => ({
                  text: text,
-                 timestamp: new Date().toISOString() // Set a valid timestamp during migration
+                 timestamp: new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9) // Add unique timestamp
              }));
-             changed = true; // Markiere als geändert, falls Konvertierung nötig war
-        } else if (!Array.isArray(idee.beschreibungen)) {
-             idee.beschreibungen = []; // Sicherstellen, dass beschreibungen ein Array ist
-             changed = true; // Markiere als geändert, falls Array neu erstellt wurde
-        }
-         /* --- SICHERSTELLEN, DASS BENUTZERFELD VORHANDEN IST (für ältere Daten) START --- */
-        if (idee.benutzer === undefined) {
-             idee.benutzer = ""; // Leerer String als Standard, falls Feld fehlt
-              changed = true;
-        }
-         /* --- SICHERSTELLEN, DASS BENUTTENDFELD VORHANDEN IST (für ältere Daten) ENDE --- */ // FIXED TYPO: BENUTTENDFELD to BENUTZERFELD
-         /* --- SICHERSTELLEN, DASS MANDANTENFELDER VORHANDEN SIND (für ältere Daten) START --- */
-         if (idee.mandantennummer === undefined) {
-              idee.mandantennummer = ""; // Leerer String als Standard
-              changed = true;
-         }
-          if (idee.firmenname === undefined) {
-              idee.firmenname = ""; // Leerer String als Standard
-               changed = true;
-         }
-        /* --- SICHERSTELLEN, DASS MANDANTENFELDER VORHANDEN SIND (für ältere Daten) ENDE --- */
-
-        // >>> NEW: Validate/migrate main idea timestamp START <<<
-        const date = new Date(idee.timestamp);
-        if (isNaN(date.getTime())) { // Check if date is 'Invalid Date'
-             console.warn("Invalid timestamp found for idea:", idee); // Log warning
-             idee.timestamp = new Date().toISOString(); // Set to current timestamp
              changed = true;
         }
-        // >>> NEW: Validate/migrate timestamp END <<<
 
-        // >>> NEW: Validate/migrate timestamp for EACH description START <<<
+        // Ensure optional fields exist
+        if (idee.benutzer === undefined) { idee.benutzer = ""; changed = true; }
+        if (idee.mandantennummer === undefined) { idee.mandantennummer = ""; changed = true; }
+        if (idee.firmenname === undefined) { idee.firmenname = ""; changed = true; }
+        if (idee.erledigt === undefined) { idee.erledigt = false; changed = true; } // Ensure erledigt exists
+
+        // === TIMESTAMP VALIDATION/CORRECTION ===
+        // --- Validate/Migrate main idea timestamp ---
+        if (!idee.timestamp) { // If timestamp is missing entirely
+            console.warn("Missing timestamp for idea:", idee);
+            idee.timestamp = new Date().toISOString();
+            changed = true;
+        } else {
+            let validTimestamp = idee.timestamp;
+            // Check if it has the problematic _random suffix
+            if (typeof validTimestamp === 'string' && validTimestamp.includes('_')) {
+                validTimestamp = validTimestamp.split('_')[0]; // Use only the part before '_'
+                 // Optionally update the original timestamp permanently?
+                 // idee.timestamp = validTimestamp;
+                 // changed = true;
+                 // For now, just use the corrected one for validation.
+            }
+            const date = new Date(validTimestamp);
+            if (isNaN(date.getTime())) { // Check if date is 'Invalid Date'
+                 console.warn("Invalid timestamp found for idea (will be replaced):", idee.timestamp, "in idea:", idee);
+                 idee.timestamp = new Date().toISOString(); // Set to current timestamp
+                 changed = true;
+            } else if (idee.timestamp !== validTimestamp) {
+                 // If correction happened (split _), potentially update the stored value
+                 // idee.timestamp = validTimestamp; // Uncomment to permanently remove _suffix
+                 // changed = true;
+            }
+        }
+
+        // --- Validate/Migrate timestamp for EACH description ---
         if (Array.isArray(idee.beschreibungen)) {
              idee.beschreibungen.forEach(b => {
-                  // Ensure each description object has a text property (basic check) and a timestamp
-                  if (b && typeof b.text === 'string') { // Check if entry is at least a basic object with text
-                       // Ensure timestamp property exists for older formats or corrupted data
-                       if (b.timestamp === undefined || b.timestamp === null) {
-                           b.timestamp = new Date().toISOString();
+                  if (b && typeof b.text === 'string') { // Basic check for valid description entry
+                       if (!b.timestamp) { // If timestamp is missing entirely
+                           console.warn("Missing timestamp for description in idea:", idee, "Desc:", b);
+                           b.timestamp = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); // Add unique timestamp
                            changed = true;
                        } else {
-                           const descDate = new Date(b.timestamp);
-                           if (isNaN(descDate.getTime())) { // Check if description timestamp is 'Invalid Date'
-                                console.warn("Invalid timestamp found for description in idea:", idee, "Description:", b); // Log warning
-                                b.timestamp = new Date().toISOString();
-                                changed = true;
+                           let validDescTimestamp = b.timestamp;
+                           // Check if it has the problematic _random suffix
+                           if (typeof validDescTimestamp === 'string' && validDescTimestamp.includes('_')) {
+                               // If it already has the _suffix, assume it was created correctly or needs validation
+                               const datePart = validDescTimestamp.split('_')[0];
+                               const descDate = new Date(datePart);
+                               if (isNaN(descDate.getTime())) {
+                                    console.warn("Invalid date part in description timestamp (will be replaced):", b.timestamp, "in idea:", idee);
+                                    b.timestamp = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); // Set to new unique timestamp
+                                    changed = true;
+                               }
+                               // Keep the original timestamp with _suffix if the date part is valid
+                           } else {
+                               // Timestamp exists but might be invalid (and lacks _suffix)
+                               const descDate = new Date(validDescTimestamp);
+                               if (isNaN(descDate.getTime())) { // Check if description timestamp is 'Invalid Date'
+                                    console.warn("Invalid timestamp found for description (will be replaced):", b.timestamp, "in idea:", idee);
+                                    b.timestamp = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); // Set to new unique timestamp
+                                    changed = true;
+                               }
                            }
                        }
                   } else {
                       // Handle potentially malformed description entries (e.g., null, not objects)
-                      console.warn("Malformed description entry found in idea:", idee, "Entry:", b);
-                      // Decide how to handle malformed entries - for now, log and move on.
-                      // If you want to remove them:
-                      // const indexToRemove = idee.beschreibungen.indexOf(b);
-                      // if (indexToRemove > -1) {
-                      //    idee.beschreibungen.splice(indexToRemove, 1);
-                      //    changed = true;
-                      // }
+                      console.warn("Malformed description entry found in idea (will be filtered out potentially):", idee, "Entry:", b);
+                      // Optionally filter out malformed entries here if needed
                   }
              });
-              // If you decided to remove malformed entries, you might need to re-assign the array:
-              // idee.beschreibungen = idee.beschreibungen.filter(b => b && typeof b.text === 'string' && b.timestamp !== undefined && b.timestamp !== null && !isNaN(new Date(b.timestamp).getTime())); // More robust filtering
+             // Optionally, filter out any malformed description entries after the loop
+             // idee.beschreibungen = idee.beschreibungen.filter(b => b && typeof b.text === 'string' && b.timestamp);
         }
-        /* --- NEW: Validate/migrate timestamp for EACH description END --- */
     });
+
     if (changed) {
+        console.log("Data migration applied. Saving updated data to localStorage.");
         localStorage.setItem("ideen", JSON.stringify(ideen));
     }
-    // Leere die Auswahl beim Start/Laden, da alte Indizes/IDs ungültig sein könnten
+    // Clear selection upon initialization/load
     ausgewaehlt = [];
 }
+
 
 /* --- INITIALISIERUNGSFUNKTIONEN SIND IN BLOCK 4 IMPLEMENTIERT --- */
 // function initialisiereKategorien() { ... }
@@ -2354,14 +2326,12 @@ function ensureIdeasHaveIds() {
 
 
 /* --- AUFRUFE DER INITIALISIERUNGSFUNKTIONEN BEIM LADEN DER SEITE START --- */
-initialisiereKategorien(); // Muss vor ensureIdeenHaveIds() aufgerufen werden, wenn Standardkategorien gesetzt werden sollen
-initialisiereBenutzer();   // Muss vor ensureIdeenHaveIds() aufgerufen werden
-ensureIdeasHaveIds(); // Prüft/Migriert Ideen und setzt IDs/Standardfelder (Benutzer/Mandant/Timestamps)
-// !!! WICHTIG: aktualisiereMandantenFilterDropdown MUSS NACH ensureIdeasHaveIds aufgerufen werden,
-// da ensureIdeasHaveIds möglicherweise Mandantennummern zu älteren Ideen hinzufügt.
-aktualisiereMandantenFilterDropdown(); // Aktualisiert Mandanten-Dropdown basierend auf den geladenen Ideen
-zeigeIdeen(); // Zeigt die Ideen (Filter und Sortierung werden hier angewendet)
-pruebeLoginHinweis(); // Prüft den Login Status
+initialisiereKategorien(); // Load/initialize categories from localStorage
+initialisiereBenutzer();   // Load/initialize users from localStorage
+ensureIdeasHaveIds(); // IMPORTANT: Perform data migration/validation AFTER loading basic lists but BEFORE displaying/using data
+aktualisiereMandantenFilterDropdown(); // Populate mandant dropdown based on potentially migrated idea data
+zeigeIdeen(); // Display ideas (will use migrated/validated data)
+pruebeLoginHinweis(); // Check login status
 /* --- AUFRUFE DER INITIALISIERUNGSFUNKTIONEN BEIM LADEN DER SEITE ENDE --- */
 
 
