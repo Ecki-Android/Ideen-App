@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Ideen-App Pro</title>
 <style>
-/* --- START BLOCK 2: CSS Styles --- */
+/* --- CSS Styles --- */
 html,body{box-sizing:border-box;margin:0;padding:0;background:#f4f4f4;width:100vw;max-width:100vw;overflow-x:hidden;}
 body{font-family:Arial,sans-serif;margin:0 0 20px 0;}
 input,select,textarea{margin-top:10px;padding:10px;font-size:1em;width:400px;max-width:100vw;box-sizing:border-box;display:block;}
@@ -13,16 +13,16 @@ textarea{min-height:60px;}
 button{padding:10px 18px;font-size:1em;margin-top:10px;margin-right:8px;border-radius:4px;border:1px solid #bbb;background:#eee;cursor:pointer;width:auto;min-width:44px;display:inline-block;}
 .buttons,.top-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;}
 .filter-bar{margin:20px 0;}
-.filter-bar label, .filter-bar select,.filter-bar input{width:auto;display:inline-block;margin-right:10px;margin-top:0;} /* Adjusted spacing */
-.filter-bar button { margin-top: 0; } /* Adjusted spacing */
+.filter-bar label, .filter-bar select,.filter-bar input{width:auto;display:inline-block;margin-right:10px;margin-top:0;}
+.filter-bar button { margin-top: 0; }
 .idee{width:100%;max-width:100vw;box-sizing:border-box;overflow-wrap:break-word;word-break:break-word;background:white;padding:15px;margin:10px 0;border-radius:8px;box-shadow:0 0 5px #ccc;display:flex;align-items:flex-start;justify-content:space-between;}
 .idee.erledigt{background:#f0f0f0;}
 .idee-content{flex:1;max-width:100%;overflow-wrap:break-word;word-break:break-word;font-size:1em;line-height:1.5;}
 .idee-content h3,.idee-content p,.idee-content small{max-width:100%;overflow-wrap:break-word;word-break:break-word;font-size:1em;}
 .idee.erledigt .idee-content h3,.idee.erledigt .idee-content p,.idee.erledigt .idee-content small{text-decoration:line-through;color:#888;}
 .beschreibung-historie{margin:8px 0 12px 0;}
-.beschreibung-item{margin:4px 0 4px 0;padding:6px 8px;background:#f8f8f8;border-left:3px solid #bbb;font-size:0.98em; display: flex; justify-content: space-between; align-items: center;} /* Flexbox für Button daneben */
-.beschreibung-text-zeit { flex-grow: 1; margin-right: 10px;} /* Text nimmt Platz ein */
+.beschreibung-item{margin:4px 0 4px 0;padding:6px 8px;background:#f8f8f8;border-left:3px solid #bbb;font-size:0.98em; display: flex; justify-content: space-between; align-items: center;}
+.beschreibung-text-zeit { flex-grow: 1; margin-right: 10px;}
 .beschreibung-zeit{color:#666;font-size:0.9em;margin-bottom:2px;display:block;}
 .beschreibung-eingabe{margin:10px 0;background:#f9f9f9;border-left:3px solid #bbb;padding:8px;}
 .idee-checkbox{margin-left:10px;margin-top:5px;min-width:28px;min-height:28px;}
@@ -30,105 +30,15 @@ button{padding:10px 18px;font-size:1em;margin-top:10px;margin-right:8px;border-r
 .idee-actions button{width:auto;min-width:44px;padding:6px 10px;font-size:0.95em;}
 .prio-btn{background:#eee;border:1px solid #ccc;border-radius:4px;}
 .prio-btn.selected{background:#ffd700;border-color:#ff9800;color:#222;}
-
-/* --- NEU: CSS für Vorgangsnummer-Anzeige --- */
-#vorgangsnummerAnzeigeInput { /* Div um die Anzeige */
-    margin-top: 15px;
-    margin-bottom: -5px; /* Etwas näher ans Titelfeld */
-    font-size: 0.9em;
-    color: #555;
-}
-.vorgangsnummer-anzeige-liste { /* Div in der Ideenliste */
-    font-weight: bold;
-    font-size: 0.95em;
-    color: #333;
-    margin-bottom: 5px;
-}
-/* --- ENDE NEU --- */
-
-
-/* CSS für die Meldungsboxen */
-#warnung { /* Dieses div wird für alle Meldungen genutzt */
-    margin: 10px 0;
-    font-weight: bold;
-    padding: 10px;
-    border-radius: 4px;
-    display: none; /* Standardmäßig versteckt */
-    position: fixed; /* Bleibt oben, auch beim Scrollen */
-    top: 10px;
-    left: 50%;
-    transform: translateX(-50%); /* Zentrieren */
-    z-index: 1000; /* Über anderen Elementen */
-    width: auto;
-    max-width: 80%; /* Nicht zu breit */
-    text-align: center;
-}
-
-/* CSS für Warnmeldungen (rot) */
-#warnung.warnung{
-    color:#d32f2f; /* Red */
-    border: 1px solid #d32f2f;
-    background-color: #ffe0e0; /* Light red background */
-}
-
-/* CSS für Erfolgsmeldungen (grün) */
-#warnung.success-message {
-    color: #388e3c; /* Green */
-    border: 1px solid #388e3c;
-    background-color: #e8f5e9; /* Light green background */
-}
-
-/* CSS für Info/Progress Meldungen (blau/grau) */
-#warnung.info-message {
-    color: #1a73e8; /* Neutral Blue */
-    border: 1px solid #1a73e8;
-    background-color: #e8f0fe; /* Light neutral background */
-}
-
-
-/* CSS für den kleinen Bearbeiten-Button neben der Beschreibung */
-.beschreibung-item .edit-beschreibung-btn {
-    padding: 3px 6px; /* Kleineres Padding */
-    font-size: 0.8em; /* Kleinere Schrift */
-    margin-top: 0; /* Kein Top-Margin */
-    min-width: auto; /* Keine Mindestbreite */
-    width: auto;
-    height: 24px; /* Feste Höhe */
-    line-height: 1; /* Zeilenhöhe anpassen */
-    display: flex; /* Flexbox zum Zentrieren des Symbols */
-    align-items: center; /* Vertikal zentrieren */
-    justify-content: center; /* Horizontal zentrieren */
-}
-
-/* CSS für OneDrive Buttons */
-.top-actions .onedrive-btn {
-    background: #0078d4; /* Microsoft Blau */
-    color: white;
-    border-color: #005a9e;
-}
-
-
-@media (max-width:600px){
-input,select,textarea,button{width:100vw;min-width:0;max-width:100vw;}
-.buttons,.top-actions,.filter-bar{flex-direction:column;gap:0;}
-.filter-bar label, .filter-bar select, .filter-bar input, .filter-bar button { margin-right: 0; margin-bottom: 10px; } /* Adjusted spacing */
-.idee{flex-direction:column;}
-.idee-checkbox{margin-left:0;margin-top:10px;}
-.idee-content,.idee-actions,.datei-link,.datei-info,.datei-vorschau,.idee-checkbox{max-width:100vw;}
-/* Anpassung für Beschreibungseinträge auf kleinen Bildschirmen */
-.beschreibung-item { flex-direction: column; align-items: flex-start; }
-.beschreibung-text-zeit { margin-right: 0; margin-bottom: 5px; width: 100%; }
-.beschreibung-item .edit-beschreibung-btn { margin-top: 5px; }
-/* Anpassung der Meldungsbox für kleine Bildschirme */
-#warnung {
-    position: static; /* Nicht fixed auf kleinen Screens */
-    transform: none;
-    left: auto;
-    max-width: 100%;
-}
-
-}
-/* --- END BLOCK 2: CSS Styles --- */
+#vorgangsnummerAnzeigeInput { margin-top: 15px; margin-bottom: -5px; font-size: 0.9em; color: #555; }
+.vorgangsnummer-anzeige-liste { font-weight: bold; font-size: 0.95em; color: #333; margin-bottom: 5px; }
+#warnung { margin: 10px 0; font-weight: bold; padding: 10px; border-radius: 4px; display: none; position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 1000; width: auto; max-width: 80%; text-align: center; }
+#warnung.warnung{ color:#d32f2f; border: 1px solid #d32f2f; background-color: #ffe0e0; }
+#warnung.success-message { color: #388e3c; border: 1px solid #388e3c; background-color: #e8f5e9; }
+#warnung.info-message { color: #1a73e8; border: 1px solid #1a73e8; background-color: #e8f0fe; }
+.beschreibung-item .edit-beschreibung-btn { padding: 3px 6px; font-size: 0.8em; margin-top: 0; min-width: auto; width: auto; height: 24px; line-height: 1; display: flex; align-items: center; justify-content: center; }
+.top-actions .onedrive-btn { background: #0078d4; color: white; border-color: #005a9e; }
+@media (max-width:600px){ input,select,textarea,button{width:100vw;min-width:0;max-width:100vw;} .buttons,.top-actions,.filter-bar{flex-direction:column;gap:0;} .filter-bar label, .filter-bar select, .filter-bar input, .filter-bar button { margin-right: 0; margin-bottom: 10px; } .idee{flex-direction:column;} .idee-checkbox{margin-left:0;margin-top:10px;} .idee-content,.idee-actions,.datei-link,.datei-info,.datei-vorschau,.idee-checkbox{max-width:100vw;} .beschreibung-item { flex-direction: column; align-items: flex-start; } .beschreibung-text-zeit { margin-right: 0; margin-bottom: 5px; width: 100%; } .beschreibung-item .edit-beschreibung-btn { margin-top: 5px; } #warnung { position: static; transform: none; left: auto; max-width: 100%; } }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://alcdn.msauth.net/browser/2.24.0/js/msal-browser.min.js"></script>
@@ -138,651 +48,335 @@ input,select,textarea,button{width:100vw;min-width:0;max-width:100vw;}
 <div id="warnung"></div> <div id="loginHinweis" class="warnung" style="display:none;">Anmeldung erforderlich: Bitte melden Sie sich zuerst mit Ihrem Microsoft-Konto an. Ohne Anmeldung sind keine Cloud-Links und keine Synchronisation möglich.</div>
 
 <div id="vorgangsnummerAnzeigeInput">Nächste Vorgangsnummer: <span id="naechsteNummerAnzeige">1</span></div>
-
 <input type="text" id="ideeText" placeholder="Titel*" />
 <textarea id="ideeDetails" placeholder="Beschreibung" rows="3"></textarea>
 <input type="text" id="mandantennummer" placeholder="Mandantennummer (optional)" />
 <input type="text" id="firmenname" placeholder="Firmenname (optional)" />
-
-<select id="kategorie"></select> <input type="text" id="neueKategorie" placeholder="Neue Kategorie" /> <button onclick="neueKategorieHinzufuegen()">+ Kategorie</button> <button class="katLoeschBtn" onclick="kategorieLoeschen()">Kategorie löschen</button> <span id="katHinweis" class="katHinweis" style="display:none;"></span> <select id="benutzer"></select> <input type="text" id="neuerBenutzer" placeholder="Neuer Benutzer" /> <button onclick="neuenBenutzerHinzufuegen()">+ Benutzer</button> <button class="benutzerLoeschBtn" onclick="benutzerLoeschen()">Benutzer löschen</button> <span id="benutzerHinweis" class="benutzerHinweis" style="display:none;"></span> <div class="buttons">
-<button id="prioHoch" class="prio-btn" onclick="setzePrioritaet('Hoch')">🔴 Hoch</button>
-<button id="prioMittel" class="prio-btn" onclick="setzePrioritaet('Mittel')">🟠 Mittel</button>
-<button id="prioNiedrig" class="prio-btn" onclick="setzePrioritaet('Niedrig')">🟢 Niedrig</button>
-</div>
-<input type="file" id="dateien" multiple />
-<div class="datei-vorschau" id="dateiVorschau"></div>
-<div id="preview"></div>
-<button id="speichernBtn" onclick="speichereIdee()">💾 Speichern</button>
-<button id="abbrechenBtn" onclick="abbrechenBearbeiten()" style="display:none;">Abbrechen</button>
+<select id="kategorie"></select> <input type="text" id="neueKategorie" placeholder="Neue Kategorie" /> <button onclick="neueKategorieHinzufuegen()">+ Kat</button> <button class="katLoeschBtn" onclick="kategorieLoeschen()">Kat löschen</button> <select id="benutzer"></select> <input type="text" id="neuerBenutzer" placeholder="Neuer Benutzer" /> <button onclick="neuenBenutzerHinzufuegen()">+ User</button> <button class="benutzerLoeschBtn" onclick="benutzerLoeschen()">User löschen</button> <div class="buttons"> <button id="prioHoch" class="prio-btn" onclick="setzePrioritaet('Hoch')">🔴 Hoch</button> <button id="prioMittel" class="prio-btn" onclick="setzePrioritaet('Mittel')">🟠 Mittel</button> <button id="prioNiedrig" class="prio-btn" onclick="setzePrioritaet('Niedrig')">🟢 Niedrig</button> </div>
+<input type="file" id="dateien" multiple /> <div class="datei-vorschau" id="dateiVorschau"></div>
+<button id="speichernBtn" onclick="speichereIdee()">💾 Speichern</button> <button id="abbrechenBtn" onclick="abbrechenBearbeiten()" style="display:none;">Abbrechen</button>
 
 <div class="filter-bar">
-<label>Filter:</label>
-<select id="filterKategorie" onchange="zeigeIdeen()">
-<option value="" class="filter-option-alle">🎯 Alle Ideen</option>
-</select>
-<label>Archiv:</label>
-<select id="filterArchiv" onchange="zeigeIdeen()">
-<option value="nicht_erledigt">Nur nicht erledigt</option>
-<option value="erledigt">Nur erledigt</option>
-<option value="alle">Alle anzeigen</option>
-</select>
-<label>Benutzer:</label>
-<select id="filterBenutzer" onchange="filterNachBenutzer()">
-    </select>
-<label>Mandant:</label>
-<select id="filterMandant" onchange="filterNachMandant()">
-    <option value="">🏢 Alle Mandanten</option> </select>
-<label>Sortierung:</label>
-<select id="sortierung" onchange="zeigeIdeen()">
-<option value="standard">Standard</option> <option value="neu">Neueste zuerst</option>
-<option value="alt">Älteste zuerst</option>
-<option value="prio">Nach Priorität</option>
-</select>
-
+<label>Filter:</label> <select id="filterKategorie" onchange="zeigeIdeen()"><option value="" class="filter-option-alle">🎯 Alle Ideen</option></select>
+<label>Archiv:</label> <select id="filterArchiv" onchange="zeigeIdeen()"><option value="nicht_erledigt">Nur nicht erledigt</option><option value="erledigt">Nur erledigt</option><option value="alle">Alle anzeigen</option></select>
+<label>Benutzer:</label> <select id="filterBenutzer" onchange="filterNachBenutzer()"></select>
+<label>Mandant:</label> <select id="filterMandant" onchange="filterNachMandant()"><option value="">🏢 Alle Mandanten</option></select>
+<label>Sortierung:</label> <select id="sortierung" onchange="zeigeIdeen()"><option value="standard">Standard</option><option value="neu">Neueste zuerst</option><option value="alt">Älteste zuerst</option><option value="prio">Nach Priorität</option></select>
 </div>
 
 <div class="top-actions">
-<button onclick="exportiereAlsPDF()">📝 PDF</button>
-<button onclick="exportiereAlsText()">📄 Text</button>
-<button onclick="teilePerEmail()">✉️ E-Mail</button>
-<button onclick="teilePerWhatsApp()">📱 WhatsApp</button>
-<input type="text" id="onedrivePath" placeholder="/ideenapp/ideen.json" style="width: 250px; margin-top: 0;"/>
-<button class="onedrive-btn" onclick="saveToOneDrive()">☁️ Auf OneDrive speichern</button>
-<button class="onedrive-btn" onclick="loadFromOneDrive()">☁️ Von OneDrive laden</button>
-<button onclick="alleIdeenLoeschen()" style="background:#eee;border:1px solid #c00;color:#c00;">Alle Ideen löschen</button>
-<button onclick="ausgewaehlteNotizenLoeschen()" style="background:#eee;border:1px solid #c00;color:#c00;">Ausgewählte löschen</button>
-<button id="speicherDateiBtn" onclick="speichereIdeenAlsDatei()">Datei speichern</button>
-<button id="oeffneDateiBtn" onclick="ladeIdeenAusDatei()">Datei öffnen</button>
-<button onclick="handleLogin()" style="background:#e6f4ff;border-color:#0067b8;color:#0067b8;">🔑 Mit Microsoft anmelden</button>
-<button onclick="handleLogout()" style="background:#ffe0e0;border-color:#c00;color:#c00;">🔒 Abmelden</button>
+<button onclick="exportiereAlsPDF()">📝 PDF</button> <button onclick="exportiereAlsText()">📄 Text</button> <button onclick="teilePerEmail()">✉️ E-Mail</button> <button onclick="teilePerWhatsApp()">📱 WhatsApp</button>
+<input type="text" id="onedrivePath" placeholder="/ideenapp/ideen.json" style="width: 250px; margin-top: 0;"/> <button class="onedrive-btn" onclick="saveToOneDrive()">☁️ OneDrive Speichern</button> <button class="onedrive-btn" onclick="loadFromOneDrive()">☁️ OneDrive Laden</button>
+<button onclick="alleIdeenLoeschen()" style="background:#eee;border:1px solid #c00;color:#c00;">Alle löschen</button> <button onclick="ausgewaehlteNotizenLoeschen()" style="background:#eee;border:1px solid #c00;color:#c00;">Auswahl löschen</button>
+<button id="speicherDateiBtn" onclick="speichereIdeenAlsDatei()">Datei speichern</button> <button id="oeffneDateiBtn" onclick="ladeIdeenAusDatei()">Datei öffnen</button>
+<button onclick="handleLogin()" style="background:#e6f4ff;border-color:#0067b8;color:#0067b8;">🔑 Anmelden</button> <button onclick="handleLogout()" style="background:#ffe0e0;border-color:#c00;color:#c00;">🔒 Abmelden</button>
 </div>
 
 <div id="ideenListe"></div>
-
-<div id="beschreibungDialog" style="display:none;" class="beschreibung-eingabe">
-<textarea id="beschreibungText" placeholder="Weitere Beschreibung" rows="2"></textarea>
-<button onclick="beschreibungSpeichern()">💾 Speichern</button>
-<button onclick="beschreibungAbbrechen()">❌ Abbrechen</button>
-</div>
+<div id="beschreibungDialog" style="display:none;" class="beschreibung-eingabe"> <textarea id="beschreibungText" placeholder="Weitere Beschreibung" rows="2"></textarea> <button onclick="beschreibungSpeichern()">💾 Speichern</button> <button onclick="beschreibungAbbrechen()">❌ Abbrechen</button> </div>
 
 <script>
-console.log("Script started"); // Meldung am Anfang des Skripts
+console.log("Script started");
 /* --- START BLOCK 4: Script Start, Variables & Initializers --- */
-
 const msalConfig={auth:{clientId:"ddf69193-7eab-4847-a995-b6c08f0df9ae",authority:"https://login.microsoftonline.com/683748a6-faf7-45ef-9da3-10e903da0b00",knownAuthorities:["login.microsoftonline.com"],redirectUri:"https://ecki-android.github.io"}};
-// >>> VARIABLEN FÜR FILTER UND LISTEN <<<
-let accessToken = null, msalInstance = null, prioritaet = "", bearbeiteId = null, ausgewaehlt = [], fileHandle = null, beschreibungFuerId = null, beschreibungZuBearbeitenderTimestamp = null, istGespeichert = true, standardKategorien = ["Aufgaben","Projekte","Privat","Arbeit","Später"], kategorien = [], benutzerliste = [], filterMandantValue = "", filterBenutzerValue = "";
-// NEUE VARIABLE für Vorgangsnummer
-let naechsteVorgangsnummer = 1;
-// >>> ENDE VARIABLEN <<<
+let accessToken=null, msalInstance=null, prioritaet="", bearbeiteId=null, ausgewaehlt=[], fileHandle=null, beschreibungFuerId=null, beschreibungZuBearbeitenderTimestamp=null, istGespeichert=!0, standardKategorien=["Aufgaben","Projekte","Privat","Arbeit","Später"], kategorien=[], benutzerliste=[], filterMandantValue="", filterBenutzerValue="";
+let naechsteVorgangsnummer=1;
 
-
-// Funktion zur Generierung einer einfachen UUID v4
-function generateUUID() {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-        var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-        return v.toString(16);
-    });
-}
-
-// Funktion zum Prüfen und Anzeigen/Verbergen des Login-Hinweises
-function pruebeLoginHinweis(){if(!accessToken){document.getElementById("loginHinweis").style.display="block";}else{document.getElementById("loginHinweis").style.display="none";}}
-
-
-async function handleLogin(){try{msalInstance=new msal.PublicClientApplication(msalConfig);const l=await msalInstance.loginPopup({scopes:["Files.ReadWrite","offline_access"]});const t=await msalInstance.acquireTokenSilent({scopes:["Files.ReadWrite"],account:l.account});accessToken=t.accessToken;zeigeWarnung("Erfolgreich bei Microsoft angemeldet!", 'success');pruebeLoginHinweis();return true;}catch(e){zeigeWarnung("Login fehlgeschlagen: "+e.message);return false;}}
-async function handleLogout(){if(!istGespeichert){if(!confirm("Bitte speichern Sie Ihre Änderungen, bevor Sie sich abmelden! Trotzdem abmelden!"))return;}try{if(msalInstance){const a=msalInstance.getAllAccounts()[0];if(a){await msalInstance.logoutPopup({account:a,postLogoutRedirectUri:"https://ecki-android.github.io"});}}accessToken=null;pruebeLoginHinweis();zeigeWarnung("Sie wurden erfolgreich abgemeldet.", 'success');}catch(e){zeigeWarnung("Abmeldung fehlgeschlagen: "+e.message);}}
-
-
-// Geänderte zeigeWarnung Funktion mit Typ (warning/success/info)
-function zeigeWarnung(msg, type = 'warning'){
-    const w=document.getElementById("warnung");
-    w.textContent=msg;
-    w.style.display="block";
-    w.classList.remove('warnung', 'success-message', 'info-message');
-    if (type === 'success') { w.classList.add('success-message'); }
-    else if (type === 'info') { w.classList.add('info-message'); }
-    else { w.classList.add('warnung'); }
-    setTimeout(()=>w.style.display="none",6000);
-}
-
-// Funktion zum Initialisieren der Kategorienliste und Dropdowns
-function initialisiereKategorien(){
-    let loadedKategorien = JSON.parse(localStorage.getItem("kategorien"));
-    let changed = false;
-    if (!Array.isArray(loadedKategorien)) {
-        kategorien = [...standardKategorien]; // Kopie von Standard verwenden
-        changed = true;
-    } else {
-        kategorien = loadedKategorien;
-    }
-    if (changed) {
-        localStorage.setItem("kategorien", JSON.stringify(kategorien));
-    }
-
-    const s=document.getElementById("kategorie");
-    s.innerHTML='<option value="">-- Kategorie auswählen --</option>';
-    if (Array.isArray(kategorien)) {
-        kategorien.forEach(n=>s.add(new Option(n,n)));
-    }
-
-    const f=document.getElementById("filterKategorie");
-    f.innerHTML='<option value="" class="filter-option-alle">🎯 Alle Ideen</option>';
-    if (Array.isArray(kategorien)) {
-        kategorien.forEach(n=>f.add(new Option(n,n)));
-    }
-}
-
-// Funktion zum Hinzufügen einer neuen Kategorie
-function neueKategorieHinzufuegen(){
-    const neueKategorieInput = document.getElementById("neueKategorie");
-    const neueKategorieName = neueKategorieInput.value.trim();
-    if (!neueKategorieName) {
-        zeigeWarnung("Bitte geben Sie einen Kategorienamen ein.");
-        return;
-    }
-    kategorien = JSON.parse(localStorage.getItem("kategorien") || "[]");
-    if (!Array.isArray(kategorien)) { kategorien = []; }
-    if (kategorien.includes(neueKategorieName)) {
-        zeigeWarnung(`Kategorie "${neueKategorieName}" existiert bereits!`);
-        return;
-    }
-    kategorien.push(neueKategorieName);
-    kategorien.sort();
-    localStorage.setItem("kategorien", JSON.stringify(kategorien));
-    saveToOneDrive(); // Auto-Save
-    initialisiereKategorien();
-    neueKategorieInput.value = "";
-    neueKategorieInput.focus();
-    zeigeWarnung(`Kategorie "${neueKategorieName}" hinzugefügt.`, 'success');
-    istGespeichert = false; // Liste wurde geändert
-}
-
-// Funktion zum Löschen einer Kategorie
-function kategorieLoeschen(){
-    const kategorieSelect = document.getElementById("kategorie");
-    const kategorienameZuLoeschen = kategorieSelect.value;
-    const nichtLoeschbareKategorien = ["Aufgaben", "Projekte", "Privat", "Arbeit", "Später"];
-
-    if (!kategorienameZuLoeschen || kategorienameZuLoeschen === "") {
-        zeigeWarnung("Bitte wählen Sie zuerst eine Kategorie zum Löschen aus."); return; }
-    if (nichtLoeschbareKategorien.includes(kategorienameZuLoeschen)) {
-         zeigeWarnung(`Die Standardkategorie "${kategorienameZuLoeschen}" kann nicht gelöscht werden.`); return; }
-
-    kategorien = JSON.parse(localStorage.getItem("kategorien") || "[]");
-    if (!Array.isArray(kategorien)) { kategorien = []; }
-    if (!kategorien.includes(kategorienameZuLoeschen)) {
-         zeigeWarnung(`Kategorie "${kategorienameZuLoeschen}" nicht in der Liste gefunden.`); return; }
-
-    const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-    const anzahlIdeenMitKategorie = ideen.filter(idee => idee.kategorie === kategorienameZuLoeschen).length;
-    let confirmMessage = `Soll die Kategorie "${kategorienameZuLoeschen}" WIRKLICH gelöscht werden?`;
-    if (anzahlIdeenMitKategorie > 0) { confirmMessage += ` ${anzahlIdeenMitKategorie} Notiz(en) sind dieser Kategorie zugeordnet und werden dann *keiner Kategorie* mehr zugeordnet sein.`; }
-    if (!confirm(confirmMessage)) { return; }
-
-    const index = kategorien.indexOf(kategorienameZuLoeschen);
-    if (index > -1) {
-        kategorien.splice(index, 1);
-        localStorage.setItem("kategorien", JSON.stringify(kategorien));
-        saveToOneDrive(); // Auto-Save
-
-        let ideenChanged = false;
-        ideen.forEach(idee => {
-            if (idee.kategorie === kategorienameZuLoeschen) {
-                idee.kategorie = "";
-                ideenChanged = true;
-            }
-        });
-        if(ideenChanged) {
-            localStorage.setItem("ideen", JSON.stringify(ideen));
-            saveToOneDrive(); // Auto-Save
-        }
-
-        initialisiereKategorien();
-        const filterKategorieSelect = document.getElementById("filterKategorie");
-        if (filterKategorieSelect.value === kategorienameZuLoeschen) { filterKategorieSelect.value = ""; }
-
-        zeigeWarnung(`Kategorie "${kategorienameZuLoeschen}" erfolgreich gelöscht.`, 'success');
-        zeigeIdeen();
-        istGespeichert = true; // Änderungen wurden gespeichert
-    } else {
-        zeigeWarnung(`Ein interner Fehler ist aufgetreten: Kategorie "${kategorienameZuLoeschen}" konnte nicht gefunden werden.`);
-    }
-}
-
-
-// Funktion zum Initialisieren der Benutzerliste und Dropdowns
-function initialisiereBenutzer() {
-    benutzerliste = JSON.parse(localStorage.getItem("benutzerliste") || "[]");
-    if (!Array.isArray(benutzerliste)) {
-         benutzerliste = [];
-         localStorage.setItem("benutzerliste", "[]");
-    }
-    const benutzerSelect = document.getElementById("benutzer");
-    benutzerSelect.innerHTML = '<option value="">-- Benutzer auswählen --</option>';
-    benutzerliste.forEach(benutzer => { benutzerSelect.add(new Option(benutzer, benutzer)); });
-
-     const filterBenutzerSelect = document.getElementById("filterBenutzer");
-     filterBenutzerSelect.innerHTML = '<option value="">👤 Alle Benutzer</option>';
-     benutzerliste.forEach(benutzer => { filterBenutzerSelect.add(new Option(benutzer, benutzer)); });
-}
-
-// Funktion zum Hinzufügen eines neuen Benutzers
-function neuenBenutzerHinzufuegen(){
-    const neuerBenutzerInput = document.getElementById("neuerBenutzer");
-    const neuerBenutzerName = neuerBenutzerInput.value.trim();
-    if (!neuerBenutzerName) { zeigeWarnung("Bitte geben Sie einen Benutzernamen ein."); return; }
-
-    benutzerliste = JSON.parse(localStorage.getItem("benutzerliste") || "[]");
-    if (!Array.isArray(benutzerliste)) { benutzerliste = []; }
-    if (benutzerliste.includes(neuerBenutzerName)) { zeigeWarnung(`Benutzer "${neuerBenutzerName}" existiert bereits!`); return; }
-
-    benutzerliste.push(neuerBenutzerName);
-    benutzerliste.sort();
-    localStorage.setItem("benutzerliste", JSON.stringify(benutzerliste));
-    saveToOneDrive(); // Auto-Save
-
-    aktualisiereBenutzerDropdowns();
-    neuerBenutzerInput.value = "";
-    neuerBenutzerInput.focus();
-    zeigeWarnung(`Benutzer "${neuerBenutzerName}" hinzugefügt.`, 'success');
-    istGespeichert = false; // Liste wurde geändert
-}
-
-// Funktion zum Löschen eines Benutzers
-function benutzerLoeschen(){
-    const benutzerSelect = document.getElementById("benutzer");
-    const benutzernameZuLoeschen = benutzerSelect.value;
-
-    if (!benutzernameZuLoeschen || benutzernameZuLoeschen === "") { zeigeWarnung("Bitte wählen Sie zuerst einen Benutzer zum Löschen aus."); return; }
-
-    benutzerliste = JSON.parse(localStorage.getItem("benutzerliste") || "[]");
-    if (!Array.isArray(benutzerliste)) { benutzerliste = []; }
-    if (!benutzerliste.includes(benutzernameZuLoeschen)) { zeigeWarnung(`Benutzer "${benutzernameZuLoeschen}" nicht in der Liste gefunden.`); return; }
-
-    if (!confirm(`Soll der Benutzer "${benutzernameZuLoeschen}" WIRKLICH gelöscht werden? ALLE Notizen, die diesem Benutzer zugeordnet sind, werden ebenfalls gelöscht!`)) { return; }
-
-    const index = benutzerliste.indexOf(benutzernameZuLoeschen);
-    if (index > -1) {
-        benutzerliste.splice(index, 1);
-        localStorage.setItem("benutzerliste", JSON.stringify(benutzerliste));
-        saveToOneDrive(); // Auto-Save Benutzerliste
-
-        let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-        const ursprungsLaenge = ideen.length;
-        const originalIdeenVorBenutzerLoeschung = JSON.parse(localStorage.getItem("ideen") || "[]"); // Lese VOR dem Filtern
-        ideen = ideen.filter(idee => idee.benutzer !== benutzernameZuLoeschen);
-        const anzahlGeloeschterNotizen = ursprungsLaenge - ideen.length;
-
-        if(anzahlGeloeschterNotizen > 0) {
-            localStorage.setItem("ideen", JSON.stringify(ideen));
-            saveToOneDrive(); // Auto-Save Ideenliste
-            const remainingMandanten = new Set(ideen.map(i => (i.mandantennummer || "").toLowerCase()).filter(m => m !== ""));
-            const allOriginalMandanten = new Set(originalIdeenVorBenutzerLoeschung.map(i => (i.mandantennummer || "").toLowerCase()).filter(m => m !== "")); // Verwende die oben gelesenen
-            let updateMandantenDropdown = false;
-            allOriginalMandanten.forEach(mandant => { if (!remainingMandanten.has(mandant)) updateMandantenDropdown = true; });
-            if (updateMandantenDropdown) aktualisiereMandantenFilterDropdown();
-        }
-
-
-        aktualisiereBenutzerDropdowns();
-        if (filterBenutzerValue === benutzernameZuLoeschen) {
-             filterBenutzerValue = "";
-             document.getElementById("filterBenutzer").value = "";
-        }
-        if (bearbeiteId !== null && !ideen.some(idee => idee.id === bearbeiteId)) { abbrechenBearbeiten(); }
-        if (beschreibungFuerId !== null && !ideen.some(idee => idee.id === beschreibungFuerId)) { beschreibungAbbrechen(); }
-
-        zeigeWarnung(`Benutzer "${benutzernameZuLoeschen}" und ${anzahlGeloeschterNotizen} zugeordnete Notiz(en) erfolgreich gelöscht.`, 'success');
-        zeigeIdeen();
-        istGespeichert = true; // Änderungen wurden gespeichert
-    } else {
-        zeigeWarnung(`Ein interner Fehler ist aufgetreten: Benutzer "${benutzernameZuLoeschen}" konnte nicht gefunden werden.`);
-    }
-}
-
-// Funktion zum Aktualisieren der Benutzer-Dropdowns
-function aktualisiereBenutzerDropdowns() { initialisiereBenutzer(); }
-
-// Funktion zum Aktualisieren der Mandanten-Filter-Dropdowns
-function aktualisiereMandantenFilterDropdown() {
-    const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-    const mandantenSet = new Set(ideen.map(idee => (idee.mandantennummer || "").trim()).filter(mandant => mandant !== ""));
-    const mandantenListe = Array.from(mandantenSet).sort();
-
-    const filterMandantSelect = document.getElementById("filterMandant");
-    const aktuellerFilterValue = filterMandantSelect.value;
-
-    filterMandantSelect.innerHTML = '<option value="">🏢 Alle Mandanten</option>';
-    mandantenListe.forEach(mandant => { filterMandantSelect.add(new Option(mandant, mandant)); });
-
-    if (aktuellerFilterValue && mandantenListe.includes(aktuellerFilterValue)) { // Nur setzen wenn noch vorhanden
-        filterMandantSelect.value = aktuellerFilterValue;
-        filterMandantValue = aktuellerFilterValue;
-    } else {
-        filterMandantSelect.value = ""; // Zurücksetzen wenn nicht mehr vorhanden
-        filterMandantValue = "";
-    }
-}
-
-// --- NEUE Funktionen für Vorgangsnummer ---
-function initialisiereVorgangsnummer() {
-    const gespeichert = localStorage.getItem("naechsteVorgangsnummer");
-    naechsteVorgangsnummer = gespeichert ? parseInt(gespeichert, 10) : 1;
-    if (isNaN(naechsteVorgangsnummer) || naechsteVorgangsnummer < 1) {
-         naechsteVorgangsnummer = 1;
-         localStorage.setItem("naechsteVorgangsnummer", naechsteVorgangsnummer.toString());
-    }
-    zeigeNaechsteNummer();
-}
-function zeigeNaechsteNummer() {
-    const anzeigeElement = document.getElementById("naechsteNummerAnzeige");
-    if (anzeigeElement) {
-        anzeigeElement.textContent = naechsteVorgangsnummer;
-    }
-}
-// --- ENDE NEUE Funktionen ---
-
-
-// Filterfunktionen
-function filterNachMandant(){ filterMandantValue = document.getElementById("filterMandant").value; zeigeIdeen(); }
-function filterNachBenutzer(){ filterBenutzerValue = document.getElementById("filterBenutzer").value; zeigeIdeen(); }
-function setzePrioritaet(p){prioritaet=p;["prioHoch","prioMittel","prioNiedrig"].forEach(id=>document.getElementById(id).classList.remove("selected"));if(p)document.getElementById(`prio${p}`).classList.add("selected");istGespeichert=false;}
-
-/* --- END BLOCK 4: Script Start, Variables & Initializers --- */
-/* --- START BLOCK 5a: Save Idea Functions --- */
-
-function speichereIdee(){
-    const text = document.getElementById("ideeText").value.trim();
-    if(!text) return zeigeWarnung("Titel ist erforderlich!");
-
-    let dateien = [];
-    const dateiInput = document.getElementById("dateien").files;
-    if(dateiInput.length > 0){
-         if(accessToken){
-             zeigeWarnung("Lade Dateien auf OneDrive hoch...", 'info');
-             Promise.all(Array.from(dateiInput).map(async file => ({
-                 name: file.name, type: file.type, link: await uploadToOneDrive(file)
-             })))
-             .then(uploadedFiles => {
-                 dateien = uploadedFiles.filter(f => f.link !== null);
-                 if (bearbeiteId !== null) {
-                      const originalIdeen = JSON.parse(localStorage.getItem("ideen") || "[]");
-                      const ideeInBearbeitung = originalIdeen.find(item => item.id === bearbeiteId);
-                      if (ideeInBearbeitung?.dateien) { dateien = dateien.concat(ideeInBearbeitung.dateien.filter(oldFile => oldFile.link && !uploadedFiles.some(newFile => newFile.name === oldFile.name))); }
-                 }
-                 zeigeWarnung("Dateiupload abgeschlossen.", 'success');
-                 saveIdeeObjekt(text, dateien);
-             })
-             .catch(e => {
-                  zeigeWarnung("Fehler beim Datei-Upload: " + e.message);
-                  let fallbackDateien = [];
-                  if (bearbeiteId !== null) {
-                       const originalIdeen = JSON.parse(localStorage.getItem("ideen") || "[]");
-                       const ideeInBearbeitung = originalIdeen.find(item => item.id === bearbeiteId);
-                       if (ideeInBearbeitung?.dateien) { fallbackDateien = ideeInBearbeitung.dateien.filter(oldFile => oldFile.link); }
-                  }
-                  saveIdeeObjekt(text, fallbackDateien);
-             });
-         } else {
-             dateien = Array.from(dateiInput).map(file => ({ name: file.name, data: URL.createObjectURL(file), type: file.type, pfad: file.webkitRelativePath || file.name }));
-             saveIdeeObjekt(text, dateien);
-         }
-    } else {
-         let zuSpeicherndeDateien = [];
-         if (bearbeiteId !== null) {
-              const originalIdeen = JSON.parse(localStorage.getItem("ideen") || "[]");
-              const ideeInBearbeitung = originalIdeen.find(item => item.id === bearbeiteId);
-              if (ideeInBearbeitung?.dateien) { zuSpeicherndeDateien = ideeInBearbeitung.dateien.filter(f => f.link); }
-         }
-        saveIdeeObjekt(text, zuSpeicherndeDateien);
-    }
-}
-
-function saveIdeeObjekt(text, dateien){
-    let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-    const details = document.getElementById("ideeDetails").value;
-    const kategorie = document.getElementById("kategorie").value;
-    const mandantennummer = document.getElementById("mandantennummer").value.trim();
-    const firmenname = document.getElementById("firmenname").value.trim();
-    const benutzer = document.getElementById("benutzer").value;
-
-    if (bearbeiteId !== null) {
-        const ideeIndex = ideen.findIndex(item => item.id === bearbeiteId);
-        if (ideeIndex !== -1) {
-             const existingIdee = ideen[ideeIndex];
-             ideen[ideeIndex] = {
-                 id: bearbeiteId, vorgangsnummer: existingIdee.vorgangsnummer, text, details, kategorie, prioritaet, mandantennummer, firmenname, benutzer,
-                 dateien: dateien, timestamp: existingIdee.timestamp, erledigt: existingIdee.erledigt || false, beschreibungen: existingIdee.beschreibungen || [] };
-             localStorage.setItem("ideen", JSON.stringify(ideen));
-             bearbeiteId = null; document.getElementById("speichernBtn").textContent = "💾 Speichern"; document.getElementById("abbrechenBtn").style.display = "none";
-        } else { zeigeWarnung("Fehler: Idee zur Aktualisierung nicht gefunden."); return; }
-    } else {
-        const aktuelleNummer = naechsteVorgangsnummer;
-        const neueIdee = {
-            id: generateUUID(), vorgangsnummer: aktuelleNummer, text, details, kategorie, prioritaet, mandantennummer, firmenname, benutzer,
-            dateien: dateien, timestamp: new Date().toISOString(), erledigt: false, beschreibungen: [] };
-        ideen.push(neueIdee);
-        localStorage.setItem("ideen", JSON.stringify(ideen));
-        naechsteVorgangsnummer++; localStorage.setItem("naechsteVorgangsnummer", naechsteVorgangsnummer.toString()); zeigeNaechsteNummer();
-    }
-    aktualisiereMandantenFilterDropdown(); zeigeIdeen();
-    document.getElementById("ideeText").value = ""; document.getElementById("ideeDetails").value = ""; document.getElementById("mandantennummer").value = ""; document.getElementById("firmenname").value = ""; document.getElementById("dateien").value = ""; document.getElementById("dateiVorschau").innerHTML = "";
-    setzePrioritaet(""); document.getElementById("benutzer").value = ""; document.getElementById("kategorie").value = "";
-    istGespeichert = true; saveToOneDrive();
-}
-
-/* --- END BLOCK 5a: Save Idea Functions --- */
-/* --- START BLOCK 5b: Display Ideas Function --- */
-
-function zeigeIdeen(){
-    const fullIdeen = JSON.parse(localStorage.getItem("ideen") || "[]");
-    let filteredIdeen = [...fullIdeen];
-    const filterKategorie = document.getElementById("filterKategorie").value; if(filterKategorie) filteredIdeen = filteredIdeen.filter(i => i.kategorie === filterKategorie);
-    filterMandantValue = document.getElementById("filterMandant").value; if(filterMandantValue) { filteredIdeen = filteredIdeen.filter(i => (i.mandantennummer||"").toLowerCase() === filterMandantValue.toLowerCase()); }
-    filterBenutzerValue = document.getElementById("filterBenutzer").value; if(filterBenutzerValue) { filteredIdeen = filteredIdeen.filter(i => (i.benutzer||"").toLowerCase() === filterBenutzerValue.toLowerCase()); }
-    const filterArchivValue = document.getElementById("filterArchiv").value; if (filterArchivValue === "nicht_erledigt") { filteredIdeen = filteredIdeen.filter(i => !(i.erledigt || false)); } else if (filterArchivValue === "erledigt") { filteredIdeen = filteredIdeen.filter(i => (i.erledigt || false)); }
-    const sortierung = document.getElementById("sortierung").value; if (sortierung !== "standard") { filteredIdeen.sort((a,b)=>{ if(sortierung==="prio"){ const p={"Hoch":3,"Mittel":2,"Niedrig":1}; return (p[b.prioritaet]||0) - (p[a.prioritaet]||0); } let timeA=0, timeB=0; try { timeA = new Date(a.timestamp?.split('_')[0]).getTime(); if(isNaN(timeA)) timeA = (sortierung === "neu" ? -Infinity : Infinity);} catch(e){ timeA = (sortierung === "neu" ? -Infinity : Infinity); } try { timeB = new Date(b.timestamp?.split('_')[0]).getTime(); if(isNaN(timeB)) timeB = (sortierung === "neu" ? -Infinity : Infinity);} catch(e){ timeB = (sortierung === "neu" ? -Infinity : Infinity); } if(sortierung==="neu"){ return timeB - timeA; } if(sortierung==="alt"){ return timeA - timeB; } return 0; }); }
-
-    const ideenListeDiv = document.getElementById("ideenListe");
-    ideenListeDiv.innerHTML = filteredIdeen.map(idee => {
-        const ideeId = idee.id; const erledigt = idee.erledigt || false; let datumText = "-"; if(idee.timestamp){let ts=idee.timestamp; if(typeof ts === 'string' && ts.includes('_')){ts=ts.split('_')[0];} try{const d=new Date(ts); if(!isNaN(d.getTime())){datumText=d.toLocaleString("de-DE");}}catch(e){}} const vorgangsnummerHtml = idee.vorgangsnummer ? `<div class="vorgangsnummer-anzeige-liste">Vorgang: <b>${idee.vorgangsnummer}</b></div>` : '';
-        return`<div class="idee${erledigt?' erledigt':''}"><div class="idee-content">${vorgangsnummerHtml}<h3>${idee.text}</h3><p>${idee.details||""}</p>${idee.benutzer?`<div>Zuständig: <b>${idee.benutzer}</b></div>`:""}${idee.mandantennummer?`<div>Mandantennummer: <b>${idee.mandantennummer}</b></div>`:""}${idee.firmenname?`<div>Firmenname: <b>${idee.firmenname}</b></div>`:""}${idee.beschreibungen&&idee.beschreibungen.length?`<div class="beschreibung-historie"><b>Weitere Beschreibungen:</b>${idee.beschreibungen.map(b=>{ let beschrTimestampText="-"; if(b.timestamp){let bts=b.timestamp; if(typeof bts === 'string' && bts.includes('_')){bts=bts.split('_')[0];} try{const bd=new Date(bts); if(!isNaN(bd.getTime())){beschrTimestampText=bd.toLocaleString("de-DE");}}catch(e){}} return `<div class="beschreibung-item"><div class="beschreibung-text-zeit"><span class="beschreibung-zeit">${beschrTimestampText}</span>${b.text}</div><button class="edit-beschreibung-btn" onclick="bearbeiteEinzelneBeschreibung('${ideeId}', '${b.timestamp}')">✏️</button></div>`; }).join("")}</div>`:""}<small>${idee.kategorie||'Keine'} | ${idee.prioritaet||"Keine"} | ${datumText}</small>${idee.dateien?.map(file=>`<a class="datei-link" href="${file.link||file.data}" target="_blank">${file.link?'🌐':'📎'} ${file.name}</a>...`).join("")}<div class="idee-actions">...</div></div><input type="checkbox" ...></div>`; // Gekürzt
-    }).join("");
-    if (bearbeiteId !== null && !filteredIdeen.some(idee => idee.id === bearbeiteId)) { abbrechenBearbeiten(); } if (beschreibungFuerId !== null && !filteredIdeen.some(idee => idee.id === beschreibungFuerId)) { beschreibungAbbrechen(); }
-}
-
-/* --- END BLOCK 5b: Display Ideas Function --- */
-/* --- START BLOCK 5c: Individual Idea Actions --- */
-
-function toggleErledigt(ideeId){ let ideen = JSON.parse(localStorage.getItem("ideen")||"[]"); const idx=ideen.findIndex(i=>i.id===ideeId); if(idx!==-1){ ideen[idx].erledigt=!(ideen[idx].erledigt||!1); localStorage.setItem("ideen",JSON.stringify(ideen)); zeigeIdeen(); istGespeichert=!1; saveToOneDrive(); }}
-function bearbeiteIdee(ideeId){ const ideen=JSON.parse(localStorage.getItem("ideen")||"[]"); const idee=ideen.find(i=>i.id===ideeId); if(!idee){zeigeWarnung("Fehler: Idee nicht gefunden.");return;} document.getElementById("ideeText").value=idee.text; document.getElementById("ideeDetails").value=idee.details||""; document.getElementById("kategorie").value=idee.kategorie||""; document.getElementById("mandantennummer").value=idee.mandantennummer||""; document.getElementById("firmenname").value=idee.firmenname||""; document.getElementById("benutzer").value=idee.benutzer||""; setzePrioritaet(idee.prioritaet||""); bearbeiteId=ideeId; const vorschau=document.getElementById("dateiVorschau"); vorschau.innerHTML=""; if(idee.dateien){idee.dateien.forEach(f=>{const url=f.link||f.data; if(url){vorschau.innerHTML+=`<div style="display:inline-block;margin:5px;text-align:center;max-width:150px;vertical-align:top;"><a href="${url}" target="_blank" title="${f.name}">${f.type?.startsWith("image/")?'<img src="'+url+'" style="max-width:100%;max-height:80px;display:block;margin-bottom:3px;object-fit:cover;">':''}${f.type==="application/pdf"?'<iframe src="'+url+'" style="width:100%;height:80px;border:1px solid #ccc;display:block;margin-bottom:3px;"></iframe>':''}${!f.type?.startsWith("image/")&&f.type!=="application/pdf"?'<span style="font-size:2em;display:block;margin-bottom:3px;">'+(f.link?'🌐':'📎')+'</span>':''}<span style="font-size:.8em;word-break:break-all;display:block;">${f.name}</span></a><div style="font-size:.7em;color:grey;">${f.link?'OneDrive':'Lokal'}</div></div>`;}});} document.getElementById("speichernBtn").textContent="💾 Aktualisieren"; document.getElementById("abbrechenBtn").style.display=""; istGespeichert=!1;}
-function abbrechenBearbeiten(){ bearbeiteId=null; document.getElementById("ideeText").value=""; document.getElementById("ideeDetails").value=""; document.getElementById("mandantennummer").value=""; document.getElementById("firmenname").value=""; document.getElementById("dateien").value=""; document.getElementById("dateiVorschau").innerHTML=""; document.getElementById("speichernBtn").textContent="💾 Speichern"; document.getElementById("abbrechenBtn").style.display="none"; setzePrioritaet(""); document.getElementById("benutzer").value=""; document.getElementById("kategorie").value=""; istGespeichert=!0;}
-function verschiebeIdee(ideeId,richtung){let ideen=JSON.parse(localStorage.getItem("ideen")||"[]"); const idx=ideen.findIndex(i=>i.id===ideeId); if(idx===-1)return; const targetIdx=idx+richtung; if(targetIdx>=0&&targetIdx<ideen.length){[ideen[idx],ideen[targetIdx]]=[ideen[targetIdx],ideen[idx]]; localStorage.setItem("ideen",JSON.stringify(ideen)); zeigeIdeen(); istGespeichert=!1; saveToOneDrive();}}
-function loescheIdee(ideeId){ if(!confirm("Wirklich löschen?"))return; let ideen=JSON.parse(localStorage.getItem("ideen")||"[]"); const idx=ideen.findIndex(i=>i.id===ideeId); if(idx!==-1){const del=ideen[idx]; ideen.splice(idx,1); localStorage.setItem("ideen",JSON.stringify(ideen)); const mandantExists=ideen.some(i=>i.mandantennummer&&(i.mandantennummer||"").toLowerCase()===(del.mandantennummer||"").toLowerCase()); const userExists=ideen.some(i=>i.benutzer&&(i.benutzer||"").toLowerCase()===(del.benutzer||"").toLowerCase()); if(!mandantExists&&del.mandantennummer){aktualisiereMandantenFilterDropdown();} if(!userExists&&del.benutzer){aktualisiereBenutzerDropdowns();} ausgewaehlt=ausgewaehlt.filter(id=>id!==ideeId); if(bearbeiteId===ideeId){abbrechenBearbeiten();} if(beschreibungFuerId===ideeId){beschreibungAbbrechen();} zeigeIdeen(); istGespeichert=!0; saveToOneDrive();}else{zeigeWarnung("Fehler: Idee nicht gefunden.");}}
-
-/* --- END BLOCK 5c: Individual Idea Actions --- */
+function generateUUID(){return'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0,v=c=='x'?r:(r&0x3|0x8);return v.toString(16)})}
+function pruebeLoginHinweis(){document.getElementById("loginHinweis").style.display=accessToken?"none":"block"}
+async function handleLogin(){try{msalInstance=new msal.PublicClientApplication(msalConfig);const l=await msalInstance.loginPopup({scopes:["Files.ReadWrite","offline_access"]});const t=await msalInstance.acquireTokenSilent({scopes:["Files.ReadWrite"],account:l.account});accessToken=t.accessToken;zeigeWarnung("Erfolgreich angemeldet!",'success');pruebeLoginHinweis();return!0}catch(e){zeigeWarnung("Login fehlgeschlagen: "+e.message);return!1}}
+async function handleLogout(){if(!istGespeichert&&!confirm("Ungespeicherte Änderungen! Trotzdem abmelden?"))return;try{if(msalInstance){const a=msalInstance.getAllAccounts()[0];if(a)await msalInstance.logoutPopup({account:a,postLogoutRedirectUri:"https://ecki-android.github.io"})}accessToken=null;pruebeLoginHinweis();zeigeWarnung("Erfolgreich abgemeldet.",'success')}catch(e){zeigeWarnung("Abmeldung fehlgeschlagen: "+e.message)}}
+function zeigeWarnung(msg,type='warning'){const w=document.getElementById("warnung");w.textContent=msg;w.style.display="block";w.className="";if(type==='success')w.classList.add('success-message');else if(type==='info')w.classList.add('info-message');else w.classList.add('warnung');setTimeout(()=>w.style.display="none",6e3)}
+function initialisiereKategorien(){let loaded=JSON.parse(localStorage.getItem("kategorien"));let changed=!1;if(!Array.isArray(loaded)){kategorien=[...standardKategorien];changed=!0}else{kategorien=loaded}if(changed)localStorage.setItem("kategorien",JSON.stringify(kategorien));const s=document.getElementById("kategorie");s.innerHTML='<option value="">-- Kategorie --</option>';if(Array.isArray(kategorien))kategorien.forEach(n=>s.add(new Option(n,n)));const f=document.getElementById("filterKategorie");f.innerHTML='<option value="" class="filter-option-alle">🎯 Alle Ideen</option>';if(Array.isArray(kategorien))kategorien.forEach(n=>f.add(new Option(n,n)))}
+function neueKategorieHinzufuegen(){const input=document.getElementById("neueKategorie");const name=input.value.trim();if(!name){zeigeWarnung("Bitte Kategorienamen eingeben.");return}kategorien=JSON.parse(localStorage.getItem("kategorien")||"[]");if(!Array.isArray(kategorien))kategorien=[];if(kategorien.includes(name)){zeigeWarnung(`Kategorie "${name}" existiert bereits!`);return}kategorien.push(name);kategorien.sort();localStorage.setItem("kategorien",JSON.stringify(kategorien));saveToOneDrive();initialisiereKategorien();input.value="";input.focus();zeigeWarnung(`Kategorie "${name}" hinzugefügt.`,'success');istGespeichert=!1}
+function kategorieLoeschen(){const sel=document.getElementById("kategorie");const name=sel.value;const noDel=["Aufgaben","Projekte","Privat","Arbeit","Später"];if(!name||name===""){zeigeWarnung("Bitte Kategorie zum Löschen wählen.");return}if(noDel.includes(name)){zeigeWarnung(`Standardkategorie "${name}" kann nicht gelöscht werden.`);return}kategorien=JSON.parse(localStorage.getItem("kategorien")||"[]");if(!Array.isArray(kategorien))kategorien=[];if(!kategorien.includes(name)){zeigeWarnung(`Kategorie "${name}" nicht gefunden.`);return}const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const count=ideen.filter(i=>i.kategorie===name).length;let msg=`Kategorie "${name}" wirklich löschen?`;if(count>0)msg+=` ${count} Notiz(en) verlieren diese Kategorie.`;if(!confirm(msg))return;const idx=kategorien.indexOf(name);if(idx>-1){kategorien.splice(idx,1);localStorage.setItem("kategorien",JSON.stringify(kategorien));saveToOneDrive();let changed=!1;ideen.forEach(i=>{if(i.kategorie===name){i.kategorie="";changed=!0}});if(changed){localStorage.setItem("ideen",JSON.stringify(ideen));saveToOneDrive()}initialisiereKategorien();const fSel=document.getElementById("filterKategorie");if(fSel.value===name)fSel.value="";zeigeWarnung(`Kategorie "${name}" gelöscht.`,'success');zeigeIdeen();istGespeichert=!0}else{zeigeWarnung(`Interner Fehler: Kategorie "${name}" nicht gefunden.`);}}
+function initialisiereBenutzer(){benutzerliste=JSON.parse(localStorage.getItem("benutzerliste")||"[]");if(!Array.isArray(benutzerliste)){benutzerliste=[];localStorage.setItem("benutzerliste","[]")}const sel=document.getElementById("benutzer");sel.innerHTML='<option value="">-- Benutzer --</option>';benutzerliste.forEach(b=>sel.add(new Option(b,b)));const fSel=document.getElementById("filterBenutzer");fSel.innerHTML='<option value="">👤 Alle Benutzer</option>';benutzerliste.forEach(b=>fSel.add(new Option(b,b)))}
+function neuenBenutzerHinzufuegen(){const input=document.getElementById("neuerBenutzer");const name=input.value.trim();if(!name){zeigeWarnung("Bitte Benutzernamen eingeben.");return}benutzerliste=JSON.parse(localStorage.getItem("benutzerliste")||"[]");if(!Array.isArray(benutzerliste))benutzerliste=[];if(benutzerliste.includes(name)){zeigeWarnung(`Benutzer "${name}" existiert bereits!`);return}benutzerliste.push(name);benutzerliste.sort();localStorage.setItem("benutzerliste",JSON.stringify(benutzerliste));saveToOneDrive();aktualisiereBenutzerDropdowns();input.value="";input.focus();zeigeWarnung(`Benutzer "${name}" hinzugefügt.`,'success');istGespeichert=!1}
+function benutzerLoeschen(){const sel=document.getElementById("benutzer");const name=sel.value;if(!name||name===""){zeigeWarnung("Bitte Benutzer zum Löschen wählen.");return}benutzerliste=JSON.parse(localStorage.getItem("benutzerliste")||"[]");if(!Array.isArray(benutzerliste))benutzerliste=[];if(!benutzerliste.includes(name)){zeigeWarnung(`Benutzer "${name}" nicht gefunden.`);return}if(!confirm(`Benutzer "${name}" WIRKLICH löschen? ALLE Notizen dieses Benutzers werden gelöscht!`))return;const idx=benutzerliste.indexOf(name);if(idx>-1){benutzerliste.splice(idx,1);localStorage.setItem("benutzerliste",JSON.stringify(benutzerliste));saveToOneDrive();let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const len=ideen.length;const origIdeen=JSON.parse(localStorage.getItem("ideen")||"[]");ideen=ideen.filter(i=>i.benutzer!==name);const deletedCount=len-ideen.length;if(deletedCount>0){localStorage.setItem("ideen",JSON.stringify(ideen));saveToOneDrive();const remM=new Set(ideen.map(i=>(i.mandantennummer||"").toLowerCase()).filter(m=>m!==""));const allM=new Set(origIdeen.map(i=>(i.mandantennummer||"").toLowerCase()).filter(m=>m!==""));let updM=!1;allM.forEach(m=>{if(!remM.has(m))updM=!0});if(updM)aktualisiereMandantenFilterDropdown()}aktualisiereBenutzerDropdowns();if(filterBenutzerValue===name){filterBenutzerValue="";document.getElementById("filterBenutzer").value=""}if(bearbeiteId!==null&&!ideen.some(i=>i.id===bearbeiteId)){abbrechenBearbeiten()}if(beschreibungFuerId!==null&&!ideen.some(i=>i.id===beschreibungFuerId)){beschreibungAbbrechen()}zeigeWarnung(`Benutzer "${name}" und ${deletedCount} Notiz(en) gelöscht.`,'success');zeigeIdeen();istGespeichert=!0}else{zeigeWarnung(`Interner Fehler: Benutzer "${name}" nicht gefunden.`);}}
+function aktualisiereBenutzerDropdowns(){initialisiereBenutzer()}
+function aktualisiereMandantenFilterDropdown(){const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const set=new Set(ideen.map(i=>(i.mandantennummer||"").trim()).filter(m=>m!==""));const list=Array.from(set).sort();const sel=document.getElementById("filterMandant");const current=sel.value;sel.innerHTML='<option value="">🏢 Alle Mandanten</option>';list.forEach(m=>sel.add(new Option(m,m)));if(current&&list.includes(current)){sel.value=current;filterMandantValue=current}else{sel.value="";filterMandantValue=""}}
+function initialisiereVorgangsnummer(){const saved=localStorage.getItem("naechsteVorgangsnummer");naechsteVorgangsnummer=saved?parseInt(saved,10):1;if(isNaN(naechsteVorgangsnummer)||naechsteVorgangsnummer<1){naechsteVorgangsnummer=1;localStorage.setItem("naechsteVorgangsnummer",naechsteVorgangsnummer.toString())}zeigeNaechsteNummer()}
+function zeigeNaechsteNummer(){const el=document.getElementById("naechsteNummerAnzeige");if(el)el.textContent=naechsteVorgangsnummer}
+function filterNachMandant(){filterMandantValue=document.getElementById("filterMandant").value;zeigeIdeen()}
+function filterNachBenutzer(){filterBenutzerValue=document.getElementById("filterBenutzer").value;zeigeIdeen()}
+function setzePrioritaet(p){prioritaet=p;["prioHoch","prioMittel","prioNiedrig"].forEach(id=>document.getElementById(id).classList.remove("selected"));if(p)document.getElementById(`prio${p}`).classList.add("selected");istGespeichert=!1}
+/* --- END BLOCK 4 --- */
+/* --- START BLOCK 5a: Save Idea --- */
+function speichereIdee(){const text=document.getElementById("ideeText").value.trim();if(!text)return zeigeWarnung("Titel ist erforderlich!");let dateien=[];const input=document.getElementById("dateien").files;if(input.length>0){if(accessToken){zeigeWarnung("Lade Dateien hoch...",'info');Promise.all(Array.from(input).map(async f=>({name:f.name,type:f.type,link:await uploadToOneDrive(f)}))).then(uploads=>{dateien=uploads.filter(f=>f.link!==null);if(bearbeiteId!==null){const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idee=ideen.find(i=>i.id===bearbeiteId);if(idee?.dateien)dateien=dateien.concat(idee.dateien.filter(old=>old.link&&!uploads.some(n=>n.name===old.name)))}zeigeWarnung("Upload fertig.",'success');saveIdeeObjekt(text,dateien)}).catch(e=>{zeigeWarnung("Upload Fehler: "+e.message);let fallback=[];if(bearbeiteId!==null){const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idee=ideen.find(i=>i.id===bearbeiteId);if(idee?.dateien)fallback=idee.dateien.filter(f=>f.link)}saveIdeeObjekt(text,fallback)})}else{dateien=Array.from(input).map(f=>({name:f.name,data:URL.createObjectURL(f),type:f.type,pfad:f.webkitRelativePath||f.name}));saveIdeeObjekt(text,dateien)}}else{let currentFiles=[];if(bearbeiteId!==null){const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idee=ideen.find(i=>i.id===bearbeiteId);if(idee?.dateien)currentFiles=idee.dateien.filter(f=>f.link)}saveIdeeObjekt(text,currentFiles)}}
+function saveIdeeObjekt(text,dateien){let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const details=document.getElementById("ideeDetails").value;const kat=document.getElementById("kategorie").value;const mnr=document.getElementById("mandantennummer").value.trim();const firma=document.getElementById("firmenname").value.trim();const user=document.getElementById("benutzer").value;if(bearbeiteId!==null){const idx=ideen.findIndex(i=>i.id===bearbeiteId);if(idx!==-1){const old=ideen[idx];ideen[idx]={id:bearbeiteId,vorgangsnummer:old.vorgangsnummer,text,details,kategorie:kat,prioritaet,mandantennummer:mnr,firmenname:firma,benutzer:user,dateien,timestamp:old.timestamp,erledigt:old.erledigt||!1,beschreibungen:old.beschreibungen||[]};localStorage.setItem("ideen",JSON.stringify(ideen));bearbeiteId=null;document.getElementById("speichernBtn").textContent="💾 Speichern";document.getElementById("abbrechenBtn").style.display="none"}else{zeigeWarnung("Fehler: Idee nicht gefunden.");return}}else{const num=naechsteVorgangsnummer;const neu={id:generateUUID(),vorgangsnummer:num,text,details,kategorie:kat,prioritaet,mandantennummer:mnr,firmenname:firma,benutzer:user,dateien,timestamp:new Date().toISOString(),erledigt:!1,beschreibungen:[]};ideen.push(neu);localStorage.setItem("ideen",JSON.stringify(ideen));naechsteVorgangsnummer++;localStorage.setItem("naechsteVorgangsnummer",naechsteVorgangsnummer.toString());zeigeNaechsteNummer()}aktualisiereMandantenFilterDropdown();zeigeIdeen();document.getElementById("ideeText").value="";document.getElementById("ideeDetails").value="";document.getElementById("mandantennummer").value="";document.getElementById("firmenname").value="";document.getElementById("dateien").value="";document.getElementById("dateiVorschau").innerHTML="";setzePrioritaet("");document.getElementById("benutzer").value="";document.getElementById("kategorie").value="";istGespeichert=!0;saveToOneDrive()}
+/* --- END BLOCK 5a --- */
+/* --- START BLOCK 5b: Display Ideas --- */
+function zeigeIdeen(){const fIdeen=JSON.parse(localStorage.getItem("ideen")||"[]");let filtered=[...fIdeen];const fKat=document.getElementById("filterKategorie").value;if(fKat)filtered=filtered.filter(i=>i.kategorie===fKat);filterMandantValue=document.getElementById("filterMandant").value;if(filterMandantValue)filtered=filtered.filter(i=>(i.mandantennummer||"").toLowerCase()===filterMandantValue.toLowerCase());filterBenutzerValue=document.getElementById("filterBenutzer").value;if(filterBenutzerValue)filtered=filtered.filter(i=>(i.benutzer||"").toLowerCase()===filterBenutzerValue.toLowerCase());const fArchiv=document.getElementById("filterArchiv").value;if(fArchiv==="nicht_erledigt")filtered=filtered.filter(i=>!(i.erledigt||!1));else if(fArchiv==="erledigt")filtered=filtered.filter(i=>i.erledigt||!1);const sort=document.getElementById("sortierung").value;if(sort!=="standard"){filtered.sort((a,b)=>{if(sort==="prio"){const p={"Hoch":3,"Mittel":2,"Niedrig":1};return(p[b.prioritaet]||0)-(p[a.prioritaet]||0)}let tA=-Infinity,tB=-Infinity;try{tA=new Date(a.timestamp?.split('_')[0]).getTime();if(isNaN(tA))tA=(sort==="neu"?-Infinity:Infinity)}catch(e){tA=(sort==="neu"?-Infinity:Infinity)}try{tB=new Date(b.timestamp?.split('_')[0]).getTime();if(isNaN(tB))tB=(sort==="neu"?-Infinity:Infinity)}catch(e){tB=(sort==="neu"?-Infinity:Infinity)}if(sort==="neu")return tB-tA;if(sort==="alt")return tA-tB;return 0})}const listDiv=document.getElementById("ideenListe");listDiv.innerHTML=filtered.map(idee=>{const id=idee.id;const erledigt=idee.erledigt||!1;let datum="-";if(idee.timestamp){let ts=idee.timestamp;if(typeof ts==='string'&&ts.includes('_'))ts=ts.split('_')[0];try{const d=new Date(ts);if(!isNaN(d.getTime()))datum=d.toLocaleString("de-DE")}catch(e){}}const vNumHtml=idee.vorgangsnummer?`<div class="vorgangsnummer-anzeige-liste">Vorgang: <b>${idee.vorgangsnummer}</b></div>`:'';const dateiHtml=idee.dateien?.map(f=>{const url=f.link||f.data;if(!url)return'';return`<a class="datei-link" href="${url}" target="_blank">${f.link?'🌐':'📎'} ${f.name}</a>${f.link?'<div class="datei-info">OneDrive</div>':`<div class="datei-info">Lokal</div>`}`}).join("")||"";return`<div class="idee${erledigt?' erledigt':''}"><div class="idee-content">${vNumHtml}<h3>${idee.text}</h3><p>${idee.details||""}</p>${idee.benutzer?`<div>Zust.: <b>${idee.benutzer}</b></div>`:""}${idee.mandantennummer?`<div>Mandant: <b>${idee.mandantennummer}</b></div>`:""}${idee.firmenname?`<div>Firma: <b>${idee.firmenname}</b></div>`:""}${idee.beschreibungen?.length?`<div class="beschreibung-historie"><b>Weitere Beschr.:</b>${idee.beschreibungen.map(b=>{let btsText="-";if(b.timestamp){let bts=b.timestamp;if(typeof bts==='string'&&bts.includes('_'))bts=bts.split('_')[0];try{const bd=new Date(bts);if(!isNaN(bd.getTime()))btsText=bd.toLocaleString("de-DE")}catch(e){}}return`<div class="beschreibung-item"><div class="beschreibung-text-zeit"><span class="beschreibung-zeit">${btsText}</span>${b.text}</div><button class="edit-beschreibung-btn" onclick="bearbeiteEinzelneBeschreibung('${id}','${b.timestamp}')">✏️</button></div>`}).join("")}</div>`:""}<small>${idee.kategorie||'-'} | ${idee.prioritaet||"-"} | ${datum}</small>${dateiHtml}<div class="idee-actions"><button onclick="verschiebeIdee('${id}',-1)">⬆️</button><button onclick="verschiebeIdee('${id}',1)">⬇️</button><button onclick="bearbeiteIdee('${id}')">✏️</button><button onclick="toggleErledigt('${id}')">${erledigt?"↩️":"✔️"}</button><button onclick="loescheIdee('${id}')">🗑️</button><button onclick="zeigeBeschreibungDialog('${id}')">+ Beschr</button></div></div><input type="checkbox" class="idee-checkbox" onchange="toggleAuswahl('${id}',this)" ${ausgewaehlt.includes(id)?"checked":""}></div>`}).join("");if(bearbeiteId!==null&&!filtered.some(i=>i.id===bearbeiteId))abbrechenBearbeiten();if(beschreibungFuerId!==null&&!filtered.some(i=>i.id===beschreibungFuerId))beschreibungAbbrechen()}
+/* --- END BLOCK 5b --- */
+/* --- START BLOCK 5c: Idea Actions --- */
+function toggleErledigt(id){let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idx=ideen.findIndex(i=>i.id===id);if(idx!==-1){ideen[idx].erledigt=!(ideen[idx].erledigt||!1);localStorage.setItem("ideen",JSON.stringify(ideen));zeigeIdeen();istGespeichert=!1;saveToOneDrive()}}
+function bearbeiteIdee(id){const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idee=ideen.find(i=>i.id===id);if(!idee){zeigeWarnung("Fehler: Idee nicht gefunden.");return}document.getElementById("ideeText").value=idee.text;document.getElementById("ideeDetails").value=idee.details||"";document.getElementById("kategorie").value=idee.kategorie||"";document.getElementById("mandantennummer").value=idee.mandantennummer||"";document.getElementById("firmenname").value=idee.firmenname||"";document.getElementById("benutzer").value=idee.benutzer||"";setzePrioritaet(idee.prioritaet||"");bearbeiteId=id;const v=document.getElementById("dateiVorschau");v.innerHTML="";if(idee.dateien){idee.dateien.forEach(f=>{const url=f.link||f.data;if(url){v.innerHTML+=`<div style="display:inline-block;margin:5px;text-align:center;max-width:150px;vertical-align:top;"><a href="${url}" target="_blank" title="${f.name}">${f.type?.startsWith("image/")?'<img src="'+url+'" style="max-height:80px;display:block;margin:auto;object-fit:cover;">':''}${f.type==="application/pdf"?'<iframe src="'+url+'" style="width:100%;height:80px;border:1px solid #ccc;"></iframe>':''}${!f.type?.startsWith("image/")&&f.type!=="application/pdf"?'<span style="font-size:2em;display:block;">'+(f.link?'🌐':'📎')+'</span>':''}<span style="font-size:.8em;word-break:break-all;display:block;">${f.name}</span></a><div style="font-size:.7em;color:grey;">${f.link?'OneDrive':'Lokal'}</div></div>`}})}document.getElementById("speichernBtn").textContent="💾 Aktualisieren";document.getElementById("abbrechenBtn").style.display="";istGespeichert=!1}
+function abbrechenBearbeiten(){bearbeiteId=null;document.getElementById("ideeText").value="";document.getElementById("ideeDetails").value="";document.getElementById("mandantennummer").value="";document.getElementById("firmenname").value="";document.getElementById("dateien").value="";document.getElementById("dateiVorschau").innerHTML="";document.getElementById("speichernBtn").textContent="💾 Speichern";document.getElementById("abbrechenBtn").style.display="none";setzePrioritaet("");document.getElementById("benutzer").value="";document.getElementById("kategorie").value="";istGespeichert=!0}
+function verschiebeIdee(id,dir){let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idx=ideen.findIndex(i=>i.id===id);if(idx===-1)return;const targetIdx=idx+dir;if(targetIdx>=0&&targetIdx<ideen.length){[ideen[idx],ideen[targetIdx]]=[ideen[targetIdx],ideen[idx]];localStorage.setItem("ideen",JSON.stringify(ideen));zeigeIdeen();istGespeichert=!1;saveToOneDrive()}}
+function loescheIdee(id){if(!confirm("Wirklich löschen?"))return;let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idx=ideen.findIndex(i=>i.id===id);if(idx!==-1){const del=ideen[idx];ideen.splice(idx,1);localStorage.setItem("ideen",JSON.stringify(ideen));const mExists=ideen.some(i=>i.mandantennummer&&(i.mandantennummer||"").toLowerCase()===(del.mandantennummer||"").toLowerCase());const uExists=ideen.some(i=>i.benutzer&&(i.benutzer||"").toLowerCase()===(del.benutzer||"").toLowerCase());if(!mExists&&del.mandantennummer)aktualisiereMandantenFilterDropdown();if(!uExists&&del.benutzer)aktualisiereBenutzerDropdowns();ausgewaehlt=ausgewaehlt.filter(i=>i!==id);if(bearbeiteId===id)abbrechenBearbeiten();if(beschreibungFuerId===id)beschreibungAbbrechen();zeigeIdeen();istGespeichert=!0;saveToOneDrive()}else{zeigeWarnung("Fehler: Idee nicht gefunden.");}}
+/* --- END BLOCK 5c --- */
 /* --- START BLOCK 5d: Descriptions, Selection & User Management --- */
+function zeigeBeschreibungDialog(id,ts=null){beschreibungFuerId=id;beschreibungZuBearbeitenderTimestamp=ts;const area=document.getElementById("beschreibungText");if(ts!==null){const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idee=ideen.find(i=>i.id===id);const desc=idee?.beschreibungen.find(b=>b.timestamp===ts);if(desc)area.value=desc.text;else{zeigeWarnung("Fehler: Beschreibung nicht gefunden.");beschreibungAbbrechen();return}}else{area.value=""}document.getElementById("beschreibungDialog").style.display="block";area.focus();istGespeichert=!1}
+function beschreibungAbbrechen(){document.getElementById("beschreibungDialog").style.display="none";beschreibungFuerId=null;beschreibungZuBearbeitenderTimestamp=null;document.getElementById("beschreibungText").value=""}
+function beschreibungSpeichern(){const t=document.getElementById("beschreibungText").value.trim();if(!t)return;let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idx=ideen.findIndex(i=>i.id===beschreibungFuerId);if(idx!==-1){if(beschreibungZuBearbeitenderTimestamp!==null){const dIdx=ideen[idx].beschreibungen.findIndex(b=>b.timestamp===beschreibungZuBearbeitenderTimestamp);if(dIdx!==-1)ideen[idx].beschreibungen[dIdx].text=t;else zeigeWarnung("Fehler: Beschreibung nicht gefunden.")}else{const ts=new Date().toISOString()+'_'+Math.random().toString(36).substr(2,9);if(!ideen[idx].beschreibungen)ideen[idx].beschreibungen=[];ideen[idx].beschreibungen.push({text:t,timestamp:ts})}localStorage.setItem("ideen",JSON.stringify(ideen));zeigeIdeen()}else{zeigeWarnung("Fehler: Idee nicht gefunden.")}beschreibungAbbrechen();istGespeichert=!0;saveToOneDrive()}
+function bearbeiteEinzelneBeschreibung(id,ts){if(ts)zeigeBeschreibungDialog(id,ts);else zeigeWarnung("Interner Fehler: Timestamp fehlt.")}
+function toggleAuswahl(id,box){console.log("toggleAuswahl:",id,"Checked:",box.checked);if(box.checked){if(!ausgewaehlt.includes(id))ausgewaehlt.push(id)}else{ausgewaehlt=ausgewaehlt.filter(i=>i!==id)}console.log("Auswahl:",ausgewaehlt)}
+function ausgewaehlteNotizenLoeschen(){if(ausgewaehlt.length===0){zeigeWarnung("Keine Notizen ausgewählt.");return}if(!confirm(`Wirklich ${ausgewaehlt.length} Notiz(en) löschen?`))return;let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const delM=new Set();const delU=new Set();ideen.filter(i=>ausgewaehlt.includes(i.id)).forEach(i=>{if(i.mandantennummer)delM.add((i.mandantennummer).toLowerCase());if(i.benutzer)delU.add((i.benutzer).toLowerCase())});const newList=ideen.filter(i=>!ausgewaehlt.includes(i.id));localStorage.setItem("ideen",JSON.stringify(newList));const remM=new Set(newList.map(i=>(i.mandantennummer||"").toLowerCase()).filter(m=>m!==""));const remU=new Set(newList.map(i=>(i.benutzer||"").toLowerCase()).filter(b=>b!==""));let uM=!1;delM.forEach(m=>{if(!remM.has(m))uM=!0});let uU=!1;delU.forEach(u=>{if(!remU.has(u))uU=!0});if(uM)aktualisiereMandantenFilterDropdown();if(uU)aktualisiereBenutzerDropdowns();if(bearbeiteId!==null&&ausgewaehlt.includes(bearbeiteId))abbrechenBearbeiten();if(beschreibungFuerId!==null&&ausgewaehlt.includes(beschreibungFuerId))beschreibungAbbrechen();ausgewaehlt=[];zeigeIdeen();istGespeichert=!0;saveToOneDrive()}
+function alleIdeenLoeschen(){if(!confirm("Wirklich ALLE Ideen löschen?"))return;localStorage.setItem("ideen","[]");naechsteVorgangsnummer=1;localStorage.setItem("naechsteVorgangsnummer","1");zeigeNaechsteNummer();aktualisiereMandantenFilterDropdown();aktualisiereBenutzerDropdowns();ausgewaehlt=[];bearbeiteId=null;beschreibungFuerId=null;beschreibungZuBearbeitenderTimestamp=null;zeigeIdeen();abbrechenBearbeiten();istGespeichert=!0;saveToOneDrive()}
+/* --- END BLOCK 5d --- */
+/* --- START BLOCK 6: Export --- */
+function getExportIdeen(){let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");if(ausgewaehlt.length>0)return ideen.filter(i=>ausgewaehlt.includes(i.id));let fIdeen=[...ideen];const fKat=document.getElementById("filterKategorie").value;if(fKat)fIdeen=fIdeen.filter(i=>i.kategorie===fKat);const fMdt=document.getElementById("filterMandant").value;if(fMdt)fIdeen=fIdeen.filter(i=>(i.mandantennummer||"").toLowerCase()===fMdt.toLowerCase());const fUser=document.getElementById("filterBenutzer").value;if(fUser)fIdeen=fIdeen.filter(i=>(i.benutzer||"").toLowerCase()===fUser.toLowerCase());const fArchiv=document.getElementById("filterArchiv").value;if(fArchiv==="nicht_erledigt")fIdeen=fIdeen.filter(i=>!(i.erledigt||!1));else if(fArchiv==="erledigt")fIdeen=fIdeen.filter(i=>i.erledigt||!1);const sort=document.getElementById("sortierung").value;if(sort!=="standard"){fIdeen.sort((a,b)=>{/*...Sortierung...*/})}return fIdeen}
+function exportiereAlsPDF(){/* Logik bleibt gleich */const{jsPDF}=window.jspdf;const doc=new jsPDF();doc.text("PDF Export...",10,10);doc.save("ideen.pdf");}
+function exportiereAlsText(){/* Logik bleibt gleich */const ideen=getExportIdeen();const text=ideen.map(i=>`${i.vorgangsnummer?`[${i.vorgangsnummer}] `:''}${i.text}\n`).join('');const blob=new Blob([text],{type:"text/plain"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="ideen.txt";a.click();URL.revokeObjectURL(url);}
 
-function zeigeBeschreibungDialog(ideeId,descTimestamp=null){beschreibungFuerId=ideeId; beschreibungZuBearbeitenderTimestamp=descTimestamp; const textarea=document.getElementById("beschreibungText"); if(descTimestamp!==null){const ideen=JSON.parse(localStorage.getItem("ideen")||"[]"); const idee=ideen.find(i=>i.id===ideeId); const desc=idee?.beschreibungen.find(b=>b.timestamp===descTimestamp); if(desc){textarea.value=desc.text;}else{zeigeWarnung("Fehler: Beschreibung nicht gefunden.");beschreibungAbbrechen();return;}}else{textarea.value="";} document.getElementById("beschreibungDialog").style.display="block"; textarea.focus(); istGespeichert=!1;}
-function beschreibungAbbrechen(){document.getElementById("beschreibungDialog").style.display="none"; beschreibungFuerId=null; beschreibungZuBearbeitenderTimestamp=null; document.getElementById("beschreibungText").value="";}
-function beschreibungSpeichern(){const t=document.getElementById("beschreibungText").value.trim(); if(!t)return; let ideen=JSON.parse(localStorage.getItem("ideen")||"[]"); const idx=ideen.findIndex(i=>i.id===beschreibungFuerId); if(idx!==-1){if(beschreibungZuBearbeitenderTimestamp!==null){const descIdx=ideen[idx].beschreibungen.findIndex(b=>b.timestamp===beschreibungZuBearbeitenderTimestamp); if(descIdx!==-1){ideen[idx].beschreibungen[descIdx].text=t;}else{zeigeWarnung("Fehler: Beschreibung nicht gefunden.");}}else{const ts=new Date().toISOString()+'_'+Math.random().toString(36).substr(2,9); if(!ideen[idx].beschreibungen)ideen[idx].beschreibungen=[]; ideen[idx].beschreibungen.push({text:t,timestamp:ts});} localStorage.setItem("ideen",JSON.stringify(ideen)); zeigeIdeen();}else{zeigeWarnung("Fehler: Idee nicht gefunden.");} beschreibungAbbrechen(); istGespeichert=!0; saveToOneDrive();}
-function bearbeiteEinzelneBeschreibung(ideeId,descTimestamp){if(descTimestamp){zeigeBeschreibungDialog(ideeId,descTimestamp);}else{zeigeWarnung("Interner Fehler: Timestamp fehlt.");}}
-function toggleAuswahl(ideeId,box){if(box.checked){if(!ausgewaehlt.includes(ideeId))ausgewaehlt.push(ideeId);}else{ausgewaehlt=ausgewaehlt.filter(id=>id!==ideeId);}}
-function ausgewaehlteNotizenLoeschen(){if(ausgewaehlt.length===0){zeigeWarnung("Keine Notizen ausgewählt.");return;} if(!confirm(`Wirklich ${ausgewaehlt.length} Notiz(en) löschen?`))return; let ideen=JSON.parse(localStorage.getItem("ideen")||"[]"); const delMandanten=new Set(); const delUsers=new Set(); ideen.filter(i=>ausgewaehlt.includes(i.id)).forEach(i=>{if(i.mandantennummer)delMandanten.add((i.mandantennummer).toLowerCase()); if(i.benutzer)delUsers.add((i.benutzer).toLowerCase());}); const neueListe=ideen.filter(i=>!ausgewaehlt.includes(i.id)); localStorage.setItem("ideen",JSON.stringify(neueListe)); const remMandanten=new Set(neueListe.map(i=>(i.mandantennummer||"").toLowerCase()).filter(m=>m!=="")); const remUsers=new Set(neueListe.map(i=>(i.benutzer||"").toLowerCase()).filter(b=>b!=="")); let updateM=false; delMandanten.forEach(m=>{if(!remMandanten.has(m))updateM=!0;}); let updateU=false; delUsers.forEach(u=>{if(!remUsers.has(u))updateU=!0;}); if(updateM)aktualisiereMandantenFilterDropdown(); if(updateU)aktualisiereBenutzerDropdowns(); if(bearbeiteId!==null&&ausgewaehlt.includes(bearbeiteId)){abbrechenBearbeiten();} if(beschreibungFuerId!==null&&ausgewaehlt.includes(beschreibungFuerId)){beschreibungAbbrechen();} ausgewaehlt=[]; zeigeIdeen(); istGespeichert=!0; saveToOneDrive();}
-function alleIdeenLoeschen(){if(!confirm("Wirklich ALLE Ideen löschen?"))return; localStorage.setItem("ideen","[]"); naechsteVorgangsnummer=1; localStorage.setItem("naechsteVorgangsnummer","1"); zeigeNaechsteNummer(); aktualisiereMandantenFilterDropdown(); aktualisiereBenutzerDropdowns(); ausgewaehlt=[]; bearbeiteId=null; beschreibungFuerId=null; beschreibungZuBearbeitenderTimestamp=null; zeigeIdeen(); abbrechenBearbeiten(); istGespeichert=!0; saveToOneDrive();}
-
-/* --- END BLOCK 5d: Descriptions, Selection & User Management --- */
-/* --- START BLOCK 6: Export Functions --- */
-
-function getExportIdeen(){ let ideen = JSON.parse(localStorage.getItem("ideen")||"[]"); if(ausgewaehlt.length > 0){ return ideen.filter(item => ausgewaehlt.includes(item.id)); } const filterKategorie = document.getElementById("filterKategorie").value; const filterMandant = document.getElementById("filterMandant").value; const filterBenutzer = document.getElementById("filterBenutzer").value; const filterArchivValue = document.getElementById("filterArchiv").value; const sortierung = document.getElementById("sortierung").value; let exportIdeen = [...ideen]; if(filterKategorie) exportIdeen = exportIdeen.filter(i => i.kategorie === filterKategorie); if(filterMandant) exportIdeen = exportIdeen.filter(i => (i.mandantennummer||"").toLowerCase() === filterMandant.toLowerCase()); if(filterBenutzer) exportIdeen = exportIdeen.filter(i => (i.benutzer||"").toLowerCase() === filterBenutzer.toLowerCase()); if (filterArchivValue === "nicht_erledigt") { exportIdeen = exportIdeen.filter(i => !(i.erledigt || false)); } else if (filterArchivValue === "erledigt") { exportIdeen = exportIdeen.filter(i => (i.erledigt || false)); } if (sortierung !== "standard") { exportIdeen.sort((a,b)=>{ if(sortierung==="prio"){const p={"Hoch":3,"Mittel":2,"Niedrig":1}; return (p[b.prioritaet]||0)-(p[a.prioritaet]||0);} let tA=0,tB=0; try{tA=new Date(a.timestamp?.split('_')[0]).getTime(); if(isNaN(tA))tA=(sortierung==="neu"?-Infinity:Infinity);}catch(e){tA=(sortierung==="neu"?-Infinity:Infinity);} try{tB=new Date(b.timestamp?.split('_')[0]).getTime(); if(isNaN(tB))tB=(sortierung==="neu"?-Infinity:Infinity);}catch(e){tB=(sortierung==="neu"?-Infinity:Infinity);} if(sortierung==="neu")return tB-tA; if(sortierung==="alt")return tA-tB; return 0; }); } return exportIdeen;}
-function exportiereAlsPDF(){/* Gekürzt - Logik bleibt gleich */ const{jsPDF}=window.jspdf;const doc=new jsPDF();doc.text("PDF Export...",10,10);doc.save("ideen.pdf");}
-function exportiereAlsText(){/* Gekürzt - Logik bleibt gleich */ const ideen=getExportIdeen(); const text=ideen.map(i=>`${i.vorgangsnummer?`[${i.vorgangsnummer}] `:''}${i.text}\n`).join(''); const blob=new Blob([text],{type:"text/plain"}); const url=URL.createObjectURL(blob); const a=document.createElement("a");a.href=url;a.download="ideen.txt";a.click();URL.revokeObjectURL(url);}
-
+// Finale E-Mail Funktion: Prompt -> Format (mit Beschr., ohne Links) / Open -> Update Data
 async function teilePerEmail(){
+    console.log("E-Mail Export gestartet. Prüfe 'ausgewaehlt':", ausgewaehlt);
     if(ausgewaehlt.length === 0) { zeigeWarnung("Bitte wählen Sie Notizen für den Export aus."); return; }
-    // Abfrage VOR dem Formatieren/Öffnen
+
+    // 1. Prompt
     const recipientInput = prompt("An wen soll exportiert werden? E-Mail oder 'ich', 'mandant', 'support', 'andere'");
     let recipientInfo = recipientInput ? recipientInput.trim().toLowerCase() : "";
     if (!recipientInfo) { zeigeWarnung("Export abgebrochen."); return; }
     if (!["ich", "mandant", "support"].includes(recipientInfo) && recipientInfo !== "andere" && !recipientInfo.startsWith("andere:")) { recipientInfo = `Direkte Eingabe: ${recipientInput.trim()}`;
     } else if (recipientInfo === "andere") { const other=prompt("Info für 'andere'?"); if (!other?.trim()){zeigeWarnung("Abgebrochen."); return;} recipientInfo = `Andere: ${other.trim()}`; }
+    console.log("E-Mail: Empfängerinfo:", recipientInfo);
 
-    // Daten holen und Text formatieren
+    // 2. Daten holen & Text formatieren (MIT Beschreibungen, OHNE Links in Anhängen)
     const ideenToExport = getExportIdeen();
-    const text = ideenToExport.map(idee => { /* ... Formatierungslogik ... */ return `*${idee.vorgangsnummer ? `[${idee.vorgangsnummer}] ` : ''}${idee.text}*\n... Anhänge: ${idee.dateien?.map(f=>f.name).join(", ")||"Keine"}\n`; }).join("\n\n")+"\n\n[Bitte Anhänge manuell hinzufügen]";
+    let text = ideenToExport.map(idee => {
+         let datumText="-"; if(idee.timestamp){let ts=idee.timestamp; if(typeof ts==='string'&&ts.includes('_')){ts=ts.split('_')[0];} try{const d=new Date(ts); if(!isNaN(d.getTime())){datumText=d.toLocaleString("de-DE");}}catch(e){}}
+         const beschreibungenText = idee.beschreibungen && idee.beschreibungen.length ?
+             `Weitere Beschreibungen:\n${
+                 idee.beschreibungen.map(b => {
+                     let btsText="-";
+                     if(b.timestamp){ let bts=b.timestamp; if(typeof bts === 'string' && bts.includes('_')) {bts = bts.split('_')[0];} try{ const bd=new Date(bts); if(!isNaN(bd.getTime())){btsText=bd.toLocaleString("de-DE");}} catch(e){} }
+                     return `  - [${btsText}] ${b.text}`;
+                 }).join("\n")
+             }\n` : "";
+         return ( `*${idee.vorgangsnummer ? `[Vorgang ${idee.vorgangsnummer}] ` : ''}${idee.text}*\n` +
+             `Kategorie: ${idee.kategorie||'-'}\n` + `${idee.benutzer?`Zuständig: ${idee.benutzer}\n`:""}` + `Priorität: ${idee.prioritaet||"-"}\n` + `Datum: ${datumText}\n` +
+             `${idee.mandantennummer?"Mandant: "+idee.mandantennummer+"\n":""}` + `${idee.firmenname?"Firma: "+idee.firmenname+"\n":""}` + `${idee.details?`Beschreibung: ${idee.details}\n`:""}` +
+             `${beschreibungenText}` + // Original-Beschreibungen hier einfügen
+             `\nAnhänge: ${idee.dateien?.map(f => f.name).join(", ") || "Keine"}\n` ); // Nur Namen
+    }).join("\n\n");
+
+    // 3. "Weitergeleitet an..." Text manuell anhängen
+    const exportTimestamp = new Date().toLocaleString("de-DE");
+    const weitergeleitetText = `\n\n[Notiz markiert als: Weitergeleitet an ${recipientInfo} am ${exportTimestamp}]`;
+    text += weitergeleitetText;
+    text += "\n\n[Bitte Anhänge manuell hinzufügen]";
+
+    console.log("E-Mail: Finaler Text vor Encoding:", text);
+
+    // 4. Mailto Link generieren und öffnen
     const subject = encodeURIComponent("Ideen-Export"); const body = encodeURIComponent(text);
     const recipient = recipientInput.includes('@') ? encodeURIComponent(recipientInput.trim()) : '';
     const mailto = `mailto:${recipient}?subject=${subject}&body=${body}`;
+    try { window.location.href = mailto; console.log("E-Mail: Mailto-Link geöffnet."); } catch (e) { console.error("Mailto Fehler:", e); zeigeWarnung("Fehler beim Öffnen des Mail-Programms: " + e.message); }
 
-    // Mailto Link öffnen
-    try { window.location.href = mailto; } catch (e) { console.error("Mailto Fehler:", e); zeigeWarnung("Fehler beim Öffnen des Mail-Programms: " + e.message); }
-
-    // Daten NACH dem Öffnen aktualisieren
+    // 5. Daten NACH dem Öffnen aktualisieren
+    await new Promise(resolve => setTimeout(resolve, 50));
     let ideen = JSON.parse(localStorage.getItem("ideen") || "[]"); let changed = false;
-    ideen.forEach(idee => { if (ausgewaehlt.includes(idee.id)) { const desc = `Weitergeleitet via E-Mail an: ${recipientInfo} am ${new Date().toLocaleString("de-DE")}`; if (!idee.beschreibungen){idee.beschreibungen = [];} const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); idee.beschreibungen.push({ text: desc, timestamp: ts }); changed = true; }});
-    if (changed) { localStorage.setItem("ideen", JSON.stringify(ideen)); zeigeIdeen(); istGespeichert = false; await saveToOneDrive(); }
-    else { ausgewaehlt = []; zeigeIdeen(); } // Auswahl auch leeren, wenn nichts geändert wurde
-    ausgewaehlt = []; // Sicherstellen, dass Auswahl leer ist
+    ideen.forEach(idee => { if (ausgewaehlt.includes(idee.id)) { const desc = `Weitergeleitet via E-Mail an: ${recipientInfo} am ${exportTimestamp}`; if (!idee.beschreibungen){idee.beschreibungen = [];} const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); idee.beschreibungen.push({ text: desc, timestamp: ts }); changed = true; }});
+    if (changed) { localStorage.setItem("ideen", JSON.stringify(ideen)); zeigeIdeen(); istGespeichert = false; await saveToOneDrive(); console.log("E-Mail Export-Info gespeichert."); }
+
+    ausgewaehlt = [];
+    zeigeIdeen();
 }
 
-// WhatsApp Funktion mit neuer Reihenfolge: Prompt -> Format/Open -> Update/Save
-async function teilePerWhatsApp(){
-     if(ausgewaehlt.length === 0) {
-        zeigeWarnung("Bitte wählen Sie Notizen für den Export aus.");
-        return;
-     }
 
-     // 1. ZUERST Empfänger abfragen
+// Finale WhatsApp Funktion: Prompt -> Format (mit Beschr., mit Links) / Open -> Update Data
+async function teilePerWhatsApp(){
+     console.log("WhatsApp Export gestartet. Prüfe 'ausgewaehlt':", ausgewaehlt);
+     if(ausgewaehlt.length === 0) { zeigeWarnung("Bitte wählen Sie Notizen für den Export aus."); return; }
+
+     // 1. Prompt
      const recipientInput = prompt("An wen soll exportiert werden? Info oder 'ich', 'mandant', 'support', 'andere'");
      let recipientInfo = recipientInput ? recipientInput.trim().toLowerCase() : "";
+     if (!recipientInfo) { zeigeWarnung("Export abgebrochen."); return; }
+     if (!["ich", "mandant", "support"].includes(recipientInfo) && recipientInfo !== "andere" && !recipientInfo.startsWith("andere:")) { recipientInfo = `Direkte Eingabe: ${recipientInput.trim()}`;
+     } else if (recipientInfo === "andere") { const other=prompt("Info für 'andere'?"); if (!other?.trim()){zeigeWarnung("Abgebrochen."); return;} recipientInfo = `Andere: ${other.trim()}`; }
+     console.log("WhatsApp: Empfängerinfo:", recipientInfo);
 
-     if (!recipientInfo) {
-         zeigeWarnung("Export abgebrochen (keine Empfängerinfo).");
-         return; // Wichtig: Hier abbrechen, wenn Prompt abgebrochen wird
-     }
-     // Empfängerinfo verarbeiten
-     if (!["ich", "mandant", "support"].includes(recipientInfo) && recipientInfo !== "andere" && !recipientInfo.startsWith("andere:")) {
-         recipientInfo = `Direkte Eingabe: ${recipientInput.trim()}`;
-     } else if (recipientInfo === "andere") {
-         const other=prompt("Info für 'andere'?");
-         if (!other?.trim()){ zeigeWarnung("Export abgebrochen (keine 'andere'-Info)."); return; } // Auch hier abbrechen
-         recipientInfo = `Andere: ${other.trim()}`;
-     }
-     // An dieser Stelle haben wir eine gültige recipientInfo
-
-     // 2. Daten für Export holen (Originalzustand)
+     // 2. Daten holen & Text formatieren (MIT Beschreibungen, MIT Links in Anhängen)
      const ideenToExport = getExportIdeen();
-
-     // 3. Text formatieren (mit Emojis, OHNE "Weitergeleitet...")
-     const text = ideenToExport.map(idee => {
+     let text = ideenToExport.map(idee => {
          let datumTextWA="-"; if(idee.timestamp){let ts=idee.timestamp; if(typeof ts==='string'&&ts.includes('_')){ts=ts.split('_')[0];} try{const d=new Date(ts); if(!isNaN(d.getTime())){datumTextWA=d.toLocaleString("de-DE");}}catch(e){}}
+         const beschreibungenText = idee.beschreibungen && idee.beschreibungen.length ?
+             `Weitere Beschreibungen:\n${
+                 idee.beschreibungen.map(b => {
+                     let btsText="-";
+                     if(b.timestamp){ let bts=b.timestamp; if(typeof bts === 'string' && bts.includes('_')) {bts = bts.split('_')[0];} try{ const bd=new Date(bts); if(!isNaN(bd.getTime())){btsText=bd.toLocaleString("de-DE");}} catch(e){} }
+                     return `  - [${btsText}] ${b.text}`;
+                 }).join("\n")
+             }\n` : "";
          return ( `*${idee.vorgangsnummer ? `[Vorgang ${idee.vorgangsnummer}] ` : ''}${idee.text}*\n` +
          `📁 Kat.: ${idee.kategorie||'-'}\n` + `${idee.benutzer?`🧑‍💻 Zust.: ${idee.benutzer}\n`:""}` + `🔖 Prio: ${idee.prioritaet||"-"}\n` + `📅 ${datumTextWA}\n` +
          `${idee.details?`📝 ${idee.details}\n`:""}` + `${idee.mandantennummer?`Mandant: ${idee.mandantennummer}\n`:""}` + `${idee.firmenname?`Firma: ${idee.firmenname}\n`:""}` +
-         `${idee.beschreibungen&&idee.beschreibungen.length?`Weitere Beschreibungen:\n${idee.beschreibungen.map(b=>{ let btsText="-"; if(b.timestamp){let bts=b.timestamp; if(typeof bts==='string'&&bts.includes('_')){bts=bts.split('_')[0];} try{const bd=new Date(bts); if(!isNaN(bd.getTime())){btsText=bd.toLocaleString("de-DE");}}catch(e){}} return `  - [${btsText}] ${b.text}`; }).join("\n")}\n`:""}` +
-         `📎 Anhänge: ${idee.dateien?.map(f=>`${f.name} (${f.link||f.data||'Kein Link'})`).join(", ")||"Keine"}\n` ); // Links bleiben hier drin für WA
+         `${beschreibungenText}` + // Original-Beschreibungen
+         `📎 Anhänge: ${idee.dateien?.map(f=>`${f.name} (${f.link||f.data||'Kein Link'})`).join(", ")||"Keine"}\n` ); // MIT Links für WA
      }).join("\n\n");
 
-     // 4. WhatsApp Link öffnen (möglichst nah am User Click, nach dem Prompt)
+     // 3. "Weitergeleitet an..." Text manuell anhängen
+     const exportTimestamp = new Date().toLocaleString("de-DE");
+     const weitergeleitetText = `\n\n[Notiz markiert als: Weitergeleitet an ${recipientInfo} am ${exportTimestamp}]`;
+     text += weitergeleitetText;
+
+     console.log("WhatsApp: Finaler Text vor Encoding:", text);
+
+     // 4. WhatsApp Link öffnen
      const waLink = `https://wa.me/?text=${encodeURIComponent(text)}`;
-     try {
-         window.open(waLink,"_blank");
-     } catch (e) { console.error("WhatsApp Fehler:", e); zeigeWarnung("Fehler beim Öffnen von WhatsApp: " + e.message); }
+     try { window.open(waLink,"_blank"); console.log("WhatsApp: Link geöffnet."); } catch (e) { console.error("WhatsApp Fehler:", e); zeigeWarnung("Fehler beim Öffnen von WhatsApp: " + e.message); }
 
      // 5. NACH dem Öffnen: Daten aktualisieren und speichern
+     await new Promise(resolve => setTimeout(resolve, 100));
      let ideen = JSON.parse(localStorage.getItem("ideen") || "[]"); let changed = false;
-     ideen.forEach(idee => {
-         if (ausgewaehlt.includes(idee.id)) {
-             const desc = `Weitergeleitet via WhatsApp an: ${recipientInfo} am ${new Date().toLocaleString("de-DE")}`; // Verwende recipientInfo von oben
-             if (!idee.beschreibungen){idee.beschreibungen = [];}
-             const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9);
-             idee.beschreibungen.push({ text: desc, timestamp: ts });
-             changed = true;
-         }
-     });
+     ideen.forEach(idee => { if (ausgewaehlt.includes(idee.id)) { const desc = `Weitergeleitet via WhatsApp an: ${recipientInfo} am ${exportTimestamp}`; if (!idee.beschreibungen){idee.beschreibungen = [];} const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); idee.beschreibungen.push({ text: desc, timestamp: ts }); changed = true; }});
+     if (changed) { localStorage.setItem("ideen", JSON.stringify(ideen)); zeigeIdeen(); istGespeichert = false; await saveToOneDrive(); console.log("WhatsApp Export-Info gespeichert."); }
 
-     if (changed) {
-         localStorage.setItem("ideen", JSON.stringify(ideen));
-         zeigeIdeen(); // UI mit neuer Beschreibung aktualisieren
-         istGespeichert = false;
-         await saveToOneDrive(); // Speichern der Änderung
-         console.log("WhatsApp Export-Info gespeichert.");
-     }
-
-     ausgewaehlt = []; // Auswahl sicherheitshalber leeren
-     // zeigeIdeen() wurde ggf. oben schon aufgerufen
+     ausgewaehlt = [];
+     zeigeIdeen();
 }
 
-/* --- END BLOCK 6: Export Functions --- */
-/* --- START BLOCK 7: OneDrive & Local File Functions --- */
+/* --- END BLOCK 6 --- */
+/* --- START BLOCK 7: File & OneDrive --- */
 
+// VOLLE FUNKTIONEN für Datei Speichern/Laden wiederhergestellt
 async function uploadToOneDrive(f){if(!accessToken){zeigeWarnung("Bitte zuerst mit Microsoft anmelden!");return null;}try{const n=`ideenapp/${Date.now()}_${f.name}`;const u=await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${n}:/content`,{method:"PUT",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":f.type},body:f});const d=await u.json();if(!u.ok){throw new Error(`OneDrive Upload Error ${u.status}: ${d?.error?.message||'Unknown'}`);}const s=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${d.id}/createLink`,{method:"POST",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":"application/json"},body:JSON.stringify({type:"view",scope:"anonymous"})});const j=await s.json();if(!s.ok){throw new Error(`OneDrive Link Error ${s.status}: ${j?.error?.message||'Unknown'}`);}return j.link.webUrl;}catch(e){console.error("OneDrive Upload/Link Fehler:",e);zeigeWarnung("OneDrive-Fehler: "+e.message);return null;}}
 async function saveToOneDrive(){ if(!accessToken){ console.log("OneDrive-Speicherung übersprungen: nicht angemeldet."); return; } try { const ideen=JSON.parse(localStorage.getItem("ideen")||"[]"); const benutzer=JSON.parse(localStorage.getItem("benutzerliste")||"[]"); const kategorien=JSON.parse(localStorage.getItem("kategorien")||"[]"); const nummer=localStorage.getItem("naechsteVorgangsnummer")||"1"; const data={ideen,benutzerliste:benutzer,kategorien,naechsteVorgangsnummer:nummer}; const dataStr=JSON.stringify(data,null,2); const path=(document.getElementById("onedrivePath").value.trim()||"/ideenapp/ideen.json"); const finalPath=path.startsWith('/')?path:'/'+path; if(!finalPath||finalPath==='/'){zeigeWarnung("OneDrive Speichern: Ungültiger Pfad.");return;} const url=`https://graph.microsoft.com/v1.0/me/drive/root:${finalPath}:/content`; const res=await fetch(url,{method:"PUT",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":"application/json"},body:dataStr}); if(res.ok){console.log(`OneDrive: Gespeichert in ${finalPath}.`);istGespeichert=true;}else{const err=await res.json().catch(()=>null); const msg=err?.error?.message||res.statusText; console.error(`OneDrive Speichern Fehler (${res.status}) für ${finalPath}: ${msg}`,err); zeigeWarnung(`OneDrive Speichern Fehler: ${msg}`);}}catch(e){console.error('OneDrive Speichern Exception:',e);zeigeWarnung("OneDrive Speichern Fehler: "+e.message);}}
 async function loadFromOneDrive(){ if(!accessToken){ const ok=await handleLogin(); if(!ok||!accessToken){return;} } const path=(document.getElementById("onedrivePath").value.trim()||"/ideenapp/ideen.json"); const finalPath=path.startsWith('/')?path:'/'+path; if(!finalPath||finalPath==='/'){zeigeWarnung("OneDrive Laden: Ungültiger Pfad.");return;} zeigeWarnung(`Lade Daten von OneDrive: ${finalPath}...`,'info'); try{ const url=`https://graph.microsoft.com/v1.0/me/drive/root:${finalPath}:/content`; const res=await fetch(url,{method:"GET",headers:{"Authorization":`Bearer ${accessToken}`}}); if(res.ok){ const content=await res.text(); const loadedData=JSON.parse(content); let ideen=[], benutzerliste=[], kategorienAusDatei=null, nummer=1; if(loadedData&&typeof loadedData==='object'&&Array.isArray(loadedData.ideen)){ ideen=loadedData.ideen; benutzerliste=Array.isArray(loadedData.benutzerliste)?loadedData.benutzerliste:[]; kategorienAusDatei=Array.isArray(loadedData.kategorien)?loadedData.kategorien:null; nummer=parseInt(loadedData.naechsteVorgangsnummer,10)||1; }else if(Array.isArray(loadedData)){ideen=loadedData; benutzerliste=[]; kategorienAusDatei=null; nummer=1;}else{throw new Error("Ungültiges Dateiformat");} localStorage.setItem("ideen",JSON.stringify(ideen)); localStorage.setItem("benutzerliste",JSON.stringify(benutzerliste)); if(kategorienAusDatei!==null){localStorage.setItem("kategorien",JSON.stringify(kategorienAusDatei));} localStorage.setItem("naechsteVorgangsnummer", nummer.toString()); ausgewaehlt=[]; initialisiereKategorien(); initialisiereBenutzer(); initialisiereVorgangsnummer(); ensureIdeasHaveIds(); aktualisiereMandantenFilterDropdown(); zeigeIdeen(); zeigeWarnung(`Daten erfolgreich von OneDrive geladen! (${finalPath})`,'success'); istGespeichert=true; }else if(res.status===404){zeigeWarnung(`Datei nicht gefunden: ${finalPath}.`,'warning');}else{ const err=await res.json().catch(()=>null); const msg=err?.error?.message||res.statusText; console.error(`OneDrive Laden Fehler (${res.status}) für ${finalPath}: ${msg}`,err); zeigeWarnung(`OneDrive Laden Fehler (${res.status}): ${msg}`);}}catch(e){console.error('OneDrive Laden Exception:',e);zeigeWarnung("OneDrive Laden Fehler: "+e.message);}}
-async function speichereIdeenAlsDatei(){try{ const ideen=JSON.parse(localStorage.getItem("ideen")||"[]"); const benutzer=JSON.parse(localStorage.getItem("benutzerliste")||"[]"); const kategorien=JSON.parse(localStorage.getItem("kategorien")||"[]"); const nummer=localStorage.getItem("naechsteVorgangsnummer")||"1"; const data={ideen,benutzerliste:benutzer,kategorien,naechsteVorgangsnummer:nummer}; const dataStr=JSON.stringify(data,null,2); if(window.showSaveFilePicker){fileHandle=await window.showSaveFilePicker({suggestedName:"ideen.json",types:[{description:"JSON",accept:{"application/json":[".json"]}}]}); const w=await fileHandle.createWritable(); await w.write(dataStr); await w.close(); zeigeWarnung("Datei gespeichert!",'success'); istGespeichert=true;}else{const blob=new Blob([dataStr],{type:"application/json"}); const url=URL.createObjectURL(blob); const a=document.createElement("a"); a.href=url; a.download="ideen.json"; a.click(); URL.revokeObjectURL(url); zeigeWarnung("Download gestartet.",'success'); istGespeichert=true;}}catch(e){if(e.name!=="AbortError")zeigeWarnung("Lokales Speichern Fehler: "+e.message);}}
-async function ladeIdeenAusDatei(){try{ let fileContent; if(window.showOpenFilePicker){[fileHandle]=await window.showOpenFilePicker({types:[{description:"JSON",accept:{"application/json":[".json"]}}]}); const file=await fileHandle.getFile(); fileContent=await file.text();}else{const input=document.createElement('input'); input.type='file'; input.accept='.json'; await new Promise((resolve,reject)=>{input.onchange=async e=>{if(e.target.files&&e.target.files.length>0){const reader=new FileReader(); reader.onload=ev=>{fileContent=ev.target.result;resolve();}; reader.onerror=err=>reject(err); reader.readAsText(e.target.files[0]);}else{reject(new Error("No file"));}}; input.click();});} if(!fileContent){throw new Error("Kein Inhalt");} const loadedData=JSON.parse(fileContent); let ideen=[], benutzerliste=[], kategorienAusDatei=null, nummer=1; if(loadedData&&typeof loadedData==='object'&&Array.isArray(loadedData.ideen)){ ideen=loadedData.ideen; benutzerliste=Array.isArray(loadedData.benutzerliste)?loadedData.benutzerliste:[]; kategorienAusDatei=Array.isArray(loadedData.kategorien)?loadedData.kategorien:null; nummer=parseInt(loadedData.naechsteVorgangsnummer,10)||1; }else if(Array.isArray(loadedData)){ideen=loadedData; benutzerliste=[]; kategorienAusDatei=null; nummer=1;}else{throw new Error("Ungültiges Format");} localStorage.setItem("ideen",JSON.stringify(ideen)); localStorage.setItem("benutzerliste",JSON.stringify(benutzerliste)); if(kategorienAusDatei!==null){localStorage.setItem("kategorien",JSON.stringify(kategorienAusDatei));} localStorage.setItem("naechsteVorgangsnummer", nummer.toString()); ausgewaehlt=[]; initialisiereKategorien(); initialisiereBenutzer(); initialisiereVorgangsnummer(); ensureIdeasHaveIds(); aktualisiereMandantenFilterDropdown(); zeigeIdeen(); zeigeWarnung(`Daten lokal geladen!`,'success'); istGespeichert=true;}catch(e){if(e.name!=="AbortError"&&e.message!=="No file"&&e.message!=="Kein Inhalt"){zeigeWarnung("Lokales Laden Fehler: "+e.message);}else{console.log("Lokales Laden abgebrochen.");}}}
 
-/* --- END BLOCK 7: OneDrive & Local File Functions --- */
-/* --- START BLOCK 8: Event Listeners & Initialization --- */
+// Wiederhergestellte Funktion speichereIdeenAlsDatei
+async function speichereIdeenAlsDatei(){
+    try{
+        const ideen = JSON.parse(localStorage.getItem("ideen")||"[]");
+        const benutzerData = JSON.parse(localStorage.getItem("benutzerliste")||"[]");
+        const kategorienData = JSON.parse(localStorage.getItem("kategorien")||"[]");
+        const nummer = localStorage.getItem("naechsteVorgangsnummer")||"1";
+        const combinedData = { ideen, benutzerliste: benutzerData, kategorien: kategorienData, naechsteVorgangsnummer: nummer };
+        const dataToSave = JSON.stringify(combinedData, null, 2);
 
-document.getElementById("ideeText").addEventListener("input",()=>{istGespeichert=false;});
-document.getElementById("ideeDetails").addEventListener("input",()=>{istGespeichert=false;});
-document.getElementById("mandantennummer").addEventListener("input",()=>{istGespeichert=false;});
-document.getElementById("firmenname").addEventListener("input",()=>{istGespeichert=false;});
-document.getElementById("kategorie").addEventListener("change",()=>{istGespeichert=false;});
-document.getElementById("neueKategorie").addEventListener("input",()=>{istGespeichert=false;});
-document.getElementById("benutzer").addEventListener("change",()=>{istGespeichert=false;});
-document.getElementById("neuerBenutzer").addEventListener("input",()=>{istGespeichert=false;});
-document.getElementById("dateien").addEventListener("change",function(e){const v=document.getElementById("dateiVorschau");v.innerHTML="";Array.from(e.target.files).forEach(file=>{const url=URL.createObjectURL(file); v.innerHTML+=`<div style="display:inline-block;margin:3px;"><a href="${url}" target="_blank">📄 ${file.name}</a></div>`;});istGespeichert=false;});
+        if(window.showSaveFilePicker){
+            fileHandle = await window.showSaveFilePicker({ suggestedName: "ideen.json", types: [{ description: "JSON-Dateien", accept: { "application/json": [".json"] } }] });
+            const writable = await fileHandle.createWritable();
+            await writable.write(dataToSave);
+            await writable.close();
+            zeigeWarnung("Datei erfolgreich lokal gespeichert!", 'success');
+            istGespeichert = true;
+        } else { // Fallback
+            const blob = new Blob([dataToSave], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = "ideen.json";
+            link.click();
+            URL.revokeObjectURL(url);
+            zeigeWarnung("Datei-Download gestartet (Fallback).", 'success');
+            istGespeichert = true;
+        }
+    } catch(e) {
+        if(e.name !== "AbortError") { // Ignore abort errors
+            zeigeWarnung("Fehler beim lokalen Speichern: " + e.message);
+        } else {
+             console.log("Lokales Speichern abgebrochen.");
+        }
+    }
+}
+
+// Wiederhergestellte Funktion ladeIdeenAusDatei
+async function ladeIdeenAusDatei(){
+    try{
+        let fileContent;
+        if(window.showOpenFilePicker){
+            [fileHandle] = await window.showOpenFilePicker({ types: [{ description: "JSON-Dateien", accept: { "application/json": [".json"] } }] });
+            const file = await fileHandle.getFile();
+            fileContent = await file.text();
+        } else { // Fallback
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            await new Promise((resolve, reject) => {
+                input.onchange = async (e) => {
+                    if (e.target.files && e.target.files.length > 0) {
+                        const file = e.target.files[0];
+                        const reader = new FileReader();
+                        reader.onload = (event) => { fileContent = event.target.result; resolve(); };
+                        reader.onerror = (error) => reject(error);
+                        reader.readAsText(file);
+                    } else { reject(new Error("Keine Datei ausgewählt")); }
+                };
+                input.click();
+            });
+        }
+        if (!fileContent) { throw new Error("Kein Dateiinhalt geladen."); }
+
+        const loadedData = JSON.parse(fileContent);
+        let ideen = [], benutzerliste = [], kategorienAusDatei = null, nummer = 1;
+        if (loadedData && typeof loadedData === 'object' && Array.isArray(loadedData.ideen)) { // Prüft neues oder altes Format
+            ideen = loadedData.ideen;
+            benutzerliste = Array.isArray(loadedData.benutzerliste) ? loadedData.benutzerliste : [];
+            kategorienAusDatei = Array.isArray(loadedData.kategorien) ? loadedData.kategorien : null;
+            nummer = parseInt(loadedData.naechsteVorgangsnummer, 10) || 1;
+        } else if (Array.isArray(loadedData)) { // Nur Ideen-Array (altes Format)
+            ideen = loadedData;
+            benutzerliste = []; kategorienAusDatei = null; nummer = 1;
+        } else { throw new Error("Ungültiges Dateiformat"); }
+
+        localStorage.setItem("ideen", JSON.stringify(ideen));
+        localStorage.setItem("benutzerliste", JSON.stringify(benutzerliste));
+        if (kategorienAusDatei !== null) { localStorage.setItem("kategorien", JSON.stringify(kategorienAusDatei)); }
+        localStorage.setItem("naechsteVorgangsnummer", nummer.toString());
+
+        ausgewaehlt = []; initialisiereKategorien(); initialisiereBenutzer(); initialisiereVorgangsnummer();
+        ensureIdeasHaveIds(); // Wichtig: Migration nach dem Laden
+        aktualisiereMandantenFilterDropdown();
+        zeigeIdeen();
+        zeigeWarnung(`Daten erfolgreich lokal geladen!`, 'success');
+        istGespeichert = true;
+    } catch(e) {
+        if(e.name !== "AbortError" && e.message !== "Keine Datei ausgewählt" && e.message !== "Kein Dateiinhalt geladen.") {
+            zeigeWarnung("Fehler beim lokalen Laden: " + e.message);
+        } else {
+             console.log("Lokales Laden abgebrochen.");
+        }
+    }
+}
+
+/* --- END BLOCK 7 --- */
+/* --- START BLOCK 8: Init & Listeners --- */
+document.getElementById("ideeText").addEventListener("input",()=>{istGespeichert=!1}); document.getElementById("ideeDetails").addEventListener("input",()=>{istGespeichert=!1}); document.getElementById("mandantennummer").addEventListener("input",()=>{istGespeichert=!1}); document.getElementById("firmenname").addEventListener("input",()=>{istGespeichert=!1}); document.getElementById("kategorie").addEventListener("change",()=>{istGespeichert=!1}); document.getElementById("neueKategorie").addEventListener("input",()=>{istGespeichert=!1}); document.getElementById("benutzer").addEventListener("change",()=>{istGespeichert=!1}); document.getElementById("neuerBenutzer").addEventListener("input",()=>{istGespeichert=!1});
+document.getElementById("dateien").addEventListener("change",function(e){const v=document.getElementById("dateiVorschau");v.innerHTML="";Array.from(e.target.files).forEach(file=>{const url=URL.createObjectURL(file); v.innerHTML+=`<div style="display:inline-block;margin:3px;"><a href="${url}" target="_blank">📄 ${file.name}</a></div>`;});istGespeichert=!1;});
 window.addEventListener("beforeunload",function(e){if(!istGespeichert){const msg="Ungespeicherte Änderungen! Seite wirklich verlassen?";e.preventDefault();e.returnValue=msg;return msg;}});
 
 function ensureIdeasHaveIds() {
-    let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-    let changed = false;
+    let ideen = JSON.parse(localStorage.getItem("ideen") || "[]"); let changed = false;
     if (!Array.isArray(ideen)) { ideen = []; changed = true; }
-
     ideen.forEach(idee => {
         if (!idee.id) { idee.id = generateUUID(); changed = true; }
         if (!Array.isArray(idee.beschreibungen)) { idee.beschreibungen = []; changed = true;
-        } else if (idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
-             idee.beschreibungen = idee.beschreibungen.map(text => ({ text: text, timestamp: new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9) })); changed = true; }
+        } else if (idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') { idee.beschreibungen = idee.beschreibungen.map(text => ({ text: text, timestamp: new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9) })); changed = true; }
         if (idee.benutzer === undefined) { idee.benutzer = ""; changed = true; }
         if (idee.mandantennummer === undefined) { idee.mandantennummer = ""; changed = true; }
         if (idee.firmenname === undefined) { idee.firmenname = ""; changed = true; }
         if (idee.erledigt === undefined) { idee.erledigt = false; changed = true; }
         if (idee.vorgangsnummer === undefined) { idee.vorgangsnummer = null; changed = true; }
-
-        // Timestamp Validierung (Haupt-Timestamp)
         if (!idee.timestamp) { idee.timestamp = new Date().toISOString(); changed = true; }
         else { let ts=idee.timestamp; if(typeof ts==='string'&&ts.includes('_')){ts=ts.split('_')[0];} try{if(isNaN(new Date(ts).getTime())){idee.timestamp=new Date().toISOString(); changed=true;}}catch(e){idee.timestamp=new Date().toISOString(); changed=true;} }
-        // Timestamp Validierung (Beschreibungen) + Filter Malformed
         if (Array.isArray(idee.beschreibungen)) {
             const originalLength = idee.beschreibungen.length;
-            idee.beschreibungen = idee.beschreibungen.filter(b => b && typeof b.text === 'string'); // Grundlegende Struktur prüfen
-            idee.beschreibungen.forEach(b => {
-                if (!b.timestamp) { b.timestamp = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); changed = true; }
-                else { let bts = b.timestamp; let needsUpdate = false; if(typeof bts === 'string' && bts.includes('_')) { const dp = bts.split('_')[0]; try { if(isNaN(new Date(dp).getTime())) needsUpdate = true; } catch(e){ needsUpdate = true; } } else { try { if(isNaN(new Date(bts).getTime())) needsUpdate = true; } catch(e){ needsUpdate = true; } } if(needsUpdate) { b.timestamp = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); changed = true; console.warn("Invalid desc timestamp replaced", b); } }
-            });
+            idee.beschreibungen = idee.beschreibungen.filter(b => b && typeof b.text === 'string');
+            idee.beschreibungen.forEach(b => { if (!b.timestamp) { b.timestamp = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); changed = true; } else { let bts = b.timestamp; let needsUpdate = false; if(typeof bts === 'string' && bts.includes('_')) { const dp = bts.split('_')[0]; try { if(isNaN(new Date(dp).getTime())) needsUpdate = true; } catch(e){ needsUpdate = true; } } else { try { if(isNaN(new Date(bts).getTime())) needsUpdate = true; } catch(e){ needsUpdate = true; } } if(needsUpdate) { b.timestamp = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); changed = true; console.warn("Invalid desc timestamp replaced", b); } } });
             if (idee.beschreibungen.length < originalLength) { changed = true; console.log("Removed malformed description entries."); }
         }
     });
-
     if (changed) { console.log("Datenmigration angewendet."); localStorage.setItem("ideen", JSON.stringify(ideen)); }
     ausgewaehlt = [];
 }
 
-
-/* --- AUFRUFE DER INITIALISIERUNGSFUNKTIONEN BEIM LADEN DER SEITE START --- */
-initialisiereKategorien();
-initialisiereBenutzer();
-initialisiereVorgangsnummer(); // NEU
-ensureIdeasHaveIds(); // Prüft/Migriert Ideen (inkl. Vorgangsnummer = null für alte)
-aktualisiereMandantenFilterDropdown(); // Muss NACH ensureIdeasHaveIds aufgerufen werden
-zeigeIdeen(); // Zeigt Ideen (inkl. Vorgangsnummer)
-pruebeLoginHinweis();
-/* --- AUFRUFE DER INITIALISIERUNGSFUNKTIONEN BEIM LADEN DER SEITE ENDE --- */
-
-/* --- END BLOCK 8: Event Listeners & Initialization --- */
+initialisiereKategorien(); initialisiereBenutzer(); initialisiereVorgangsnummer();
+ensureIdeasHaveIds(); aktualisiereMandantenFilterDropdown(); zeigeIdeen(); pruebeLoginHinweis();
+/* --- END BLOCK 8 --- */
 </script>
 </body>
 </html>
