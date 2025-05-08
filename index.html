@@ -11,6 +11,7 @@ body{font-family:Arial,sans-serif;margin:0 0 20px 0;}
 input,select,textarea{margin-top:10px;padding:10px;font-size:1em;width:400px;max-width:100vw;box-sizing:border-box;display:block;}
 textarea{min-height:60px;}
 button{padding:10px 18px;font-size:1em;margin-top:10px;margin-right:8px;border-radius:4px;border:1px solid #bbb;background:#eee;cursor:pointer;width:auto;min-width:44px;display:inline-block;}
+button:disabled { cursor: not-allowed; opacity: 0.6; } /* Style für deaktivierte Buttons */
 .buttons,.top-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;}
 .filter-bar{margin:20px 0;}
 .filter-bar label, .filter-bar select,.filter-bar input{width:auto;display:inline-block;margin-right:10px;margin-top:0;}
@@ -21,8 +22,18 @@ button{padding:10px 18px;font-size:1em;margin-top:10px;margin-right:8px;border-r
 .idee-content h3,.idee-content p,.idee-content small{max-width:100%;overflow-wrap:break-word;word-break:break-word;font-size:1em;}
 .idee.erledigt .idee-content h3,.idee.erledigt .idee-content p,.idee.erledigt .idee-content small{text-decoration:line-through;color:#888;}
 .beschreibung-historie{margin:8px 0 12px 0;}
-.beschreibung-item{margin:4px 0 4px 0;padding:6px 8px;background:#f8f8f8;border-left:3px solid #bbb;font-size:0.98em; display: flex; justify-content: space-between; align-items: center;}
-.beschreibung-text-zeit { flex-grow: 1; margin-right: 10px;}
+.beschreibung-item{ /* Basis-Styling bleibt, Einrückung per Inline-Style */
+    margin:4px 0 4px 0;
+    padding:6px 8px;
+    background:#f8f8f8;
+    border-left:3px solid #bbb;
+    font-size:0.98em;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-sizing: border-box; /* Wichtig bei Breitenänderung durch Margin */
+}
+.beschreibung-text-zeit { flex-grow: 1; margin-right: 10px; overflow-wrap: break-word; word-break: break-word; }
 .beschreibung-zeit{color:#666;font-size:0.9em;margin-bottom:2px;display:block;}
 .beschreibung-eingabe{margin:10px 0;background:#f9f9f9;border-left:3px solid #bbb;padding:8px;}
 .idee-checkbox{margin-left:10px;margin-top:5px;min-width:28px;min-height:28px;}
@@ -39,31 +50,66 @@ button{padding:10px 18px;font-size:1em;margin-top:10px;margin-right:8px;border-r
 .beschreibung-item .edit-beschreibung-btn { padding: 3px 6px; font-size: 0.8em; margin-top: 0; min-width: auto; width: auto; height: 24px; line-height: 1; display: flex; align-items: center; justify-content: center; }
 .top-actions .onedrive-btn { background: #0078d4; color: white; border-color: #005a9e; }
 
-/* NEUE REGELN FÜR VERALTETE ANHÄNGE */
+/* --- START HINZUGEFÜGTE CSS REGELN --- */
+/* Regeln für veraltete Anhänge */
 .anhang-veraltet {
     opacity: 0.7; /* Gesamten Eintrag etwas ausblenden */
 }
 .anhang-veraltet .datei-link {
     text-decoration: line-through; /* Link durchstreichen */
-    color: grey; /* Linkfarbe ändern */
+    color: grey !important; /* Linkfarbe ändern (important ggf. nötig) */
 }
 .toggle-anhang-sichtbarkeit-btn {
-    padding: 1px 4px !important; /* Kleinerer Button, !important ggf. nötig */
+    padding: 1px 4px !important;
     font-size: 0.8em !important;
     margin-left: 8px !important;
     line-height: 1 !important;
-    min-width: auto !important; /* Überschreibe ggf. globalere Button-Styles */
+    min-width: auto !important;
     width: auto !important;
-    margin-top: 0 !important; /* Gleichauf mit dem Link */
-    vertical-align: middle !important; /* Bessere Ausrichtung */
+    margin-top: 0 !important;
+    vertical-align: middle !important;
     border-radius: 3px !important;
     border: 1px solid #ccc !important;
     background: #f0f0f0 !important;
+    cursor: pointer;
 }
-/* ENDE NEUE REGELN */
 
-@media (max-width:600px){ input,select,textarea,button{width:100vw;min-width:0;max-width:100vw;} .buttons,.top-actions,.filter-bar{flex-direction:column;gap:0;} .filter-bar label, .filter-bar select, .filter-bar input, .filter-bar button { margin-right: 0; margin-bottom: 10px; } .idee{flex-direction:column;} .idee-checkbox{margin-left:0;margin-top:10px;} .idee-content,.idee-actions,.datei-link,.datei-info,.datei-vorschau,.idee-checkbox{max-width:100vw;} .beschreibung-item { flex-direction: column; align-items: flex-start; } .beschreibung-text-zeit { margin-right: 0; margin-bottom: 5px; width: 100%; } .beschreibung-item .edit-beschreibung-btn { margin-top: 5px; } #warnung { position: static; transform: none; left: auto; max-width: 100%; } .toggle-anhang-sichtbarkeit-btn { float: right; } /* Button rechts in mobiler Ansicht */ }
+/* Regeln für Beschreibungs-Sortierbuttons */
+.beschreibung-item-actions { /* Container für die Buttons rechts */
+    display: flex;
+    gap: 3px; /* Kleiner Abstand zwischen Buttons */
+    align-items: center;
+    flex-shrink: 0; /* Verhindert Schrumpfen der Buttons */
+}
+.move-beschreibung-btn {
+    padding: 3px 5px !important;
+    font-size: 1em !important; /* Pfeilgröße anpassen */
+    line-height: 1 !important;
+    min-width: auto !important;
+    width: auto !important;
+    height: 24px !important; /* Passend zum Edit-Button */
+    margin: 0 !important; /* Kein margin-top */
+    vertical-align: middle;
+    background-color: #f0f0f0 !important;
+    border: 1px solid #ccc !important;
+    border-radius: 3px !important;
+    cursor: pointer;
+}
+/* --- ENDE HINZUGEFÜGTE CSS REGELN --- */
 
+@media (max-width:600px){
+    input,select,textarea,button{width:100vw;min-width:0;max-width:100vw;}
+    .buttons,.top-actions,.filter-bar{flex-direction:column;gap:0;}
+    .filter-bar label, .filter-bar select, .filter-bar input, .filter-bar button { margin-right: 0; margin-bottom: 10px; }
+    .idee{flex-direction:column;}
+    .idee-checkbox{margin-left:0;margin-top:10px;}
+    .idee-content,.idee-actions,.datei-link,.datei-info,.datei-vorschau,.idee-checkbox{max-width:100vw;}
+    .beschreibung-item { flex-direction: column; align-items: flex-start; width: 100% !important; margin-left: 0 !important; /* Volle Breite, keine linke Margin in Mobil */ padding-left: 8px; } /* padding statt margin für Einrückung? Oder hier kein Einrücken? */
+    .beschreibung-text-zeit { margin-right: 0; margin-bottom: 5px; width: 100%; }
+    .beschreibung-item-actions { margin-top: 5px; width: 100%; justify-content: flex-start; } /* Buttons linksbündig */
+    #warnung { position: static; transform: none; left: auto; max-width: 100%; }
+    .toggle-anhang-sichtbarkeit-btn { float: right; }
+}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://alcdn.msauth.net/browser/2.24.0/js/msal-browser.min.js"></script>
@@ -105,9 +151,9 @@ console.log("Script started");
 /* --- START BLOCK 4: Script Start, Variables & Initializers --- */
 const msalConfig={auth:{clientId:"ddf69193-7eab-4847-a995-b6c08f0df9ae",authority:"https://login.microsoftonline.com/683748a6-faf7-45ef-9da3-10e903da0b00",knownAuthorities:["login.microsoftonline.com"],redirectUri:"https://ecki-android.github.io"}};
 let accessToken=null, msalInstance=null, prioritaet="", bearbeiteId=null, ausgewaehlt=[], fileHandle=null, beschreibungFuerId=null, beschreibungZuBearbeitenderTimestamp=null, istGespeichert=!0;
-const standardKategorien=["Aufgaben","Projekte","Privat","Arbeit","Später"]; // Standardkategorien hier definiert
-let kategorien=[]; // Globale Variable für aktuelle Kategorien
-let benutzerliste=[]; // Globale Variable für aktuelle Benutzer
+const standardKategorien=["Aufgaben","Projekte","Privat","Arbeit","Später"];
+let kategorien=[];
+let benutzerliste=[];
 let filterMandantValue="";
 let filterBenutzerValue="";
 let naechsteVorgangsnummer=1;
@@ -120,59 +166,34 @@ function zeigeWarnung(msg,type='warning'){const w=document.getElementById("warnu
 
 function initialisiereKategorien(){
     let loadedKategorien = null;
-    try { // Fehler abfangen, falls localStorage ungültiges JSON enthält
+    try {
         loadedKategorien = JSON.parse(localStorage.getItem("kategorien"));
-    } catch (e) {
-        console.error("Fehler beim Parsen der Kategorien aus localStorage:", e);
-        localStorage.removeItem("kategorien"); // Bei Fehler ungültige Daten entfernen
-    }
-    
+    } catch (e) { console.error("Fehler beim Parsen der Kategorien:", e); localStorage.removeItem("kategorien"); }
     let kategorienHabenSichGeaendert = false;
-
-    if (!Array.isArray(loadedKategorien)) { // Wenn nichts geladen oder ungültig
-         kategorien = [...standardKategorien]; // Standardkategorien verwenden
+    if (!Array.isArray(loadedKategorien)) {
+         kategorien = [...standardKategorien];
          kategorienHabenSichGeaendert = true;
-         console.log("Standardkategorien initialisiert (keine gültigen im Speicher).");
+         console.log("Standardkategorien initialisiert.");
     } else {
-         kategorien = loadedKategorien; // Geladene Kategorien verwenden
+         kategorien = loadedKategorien;
     }
-
-    // Optional: Sicherstellen, dass Standardkategorien immer vorhanden sind, auch wenn andere hinzugefügt wurden
-    /*
-    standardKategorien.forEach(stdKat => {
-        if (!kategorien.includes(stdKat)) {
-            kategorien.push(stdKat);
-            kategorienHabenSichGeaendert = true;
-        }
-    });
-    if (kategorienHabenSichGeaendert) kategorien.sort();
-    */
-
-    if (kategorienHabenSichGeaendert) {
-        localStorage.setItem("kategorien", JSON.stringify(kategorien));
-    }
-
+    if (kategorienHabenSichGeaendert) { localStorage.setItem("kategorien", JSON.stringify(kategorien)); }
     const selectKategorie = document.getElementById("kategorie");
     selectKategorie.innerHTML = '<option value="">-- Kategorie --</option>';
-    if (Array.isArray(kategorien)) {
-        kategorien.forEach(katName => selectKategorie.add(new Option(katName, katName)));
-    }
-
+    if (Array.isArray(kategorien)) { kategorien.forEach(katName => selectKategorie.add(new Option(katName, katName))); }
     const filterSelectKategorie = document.getElementById("filterKategorie");
     filterSelectKategorie.innerHTML = '<option value="" class="filter-option-alle">🎯 Alle Ideen</option>';
-    if (Array.isArray(kategorien)) {
-        kategorien.forEach(katName => filterSelectKategorie.add(new Option(katName, katName)));
-    }
+    if (Array.isArray(kategorien)) { kategorien.forEach(katName => filterSelectKategorie.add(new Option(katName, katName))); }
     console.log("Kategorien initialisiert:", kategorien);
 }
 
 function neueKategorieHinzufuegen(){const input=document.getElementById("neueKategorie");const name=input.value.trim();if(!name){zeigeWarnung("Bitte Kategorienamen eingeben.");return}kategorien=JSON.parse(localStorage.getItem("kategorien")||"[]");if(!Array.isArray(kategorien))kategorien=[...standardKategorien];if(kategorien.includes(name)){zeigeWarnung(`Kategorie "${name}" existiert bereits!`);return}kategorien.push(name);kategorien.sort();localStorage.setItem("kategorien",JSON.stringify(kategorien));saveToOneDrive();initialisiereKategorien();input.value="";input.focus();zeigeWarnung(`Kategorie "${name}" hinzugefügt.`,'success');istGespeichert=!1}
-function kategorieLoeschen(){const sel=document.getElementById("kategorie");const name=sel.value;const noDel=["Aufgaben","Projekte","Privat","Arbeit","Später"];if(!name||name===""){zeigeWarnung("Bitte Kategorie zum Löschen wählen.");return}if(noDel.includes(name)){zeigeWarnung(`Standardkategorie "${name}" kann nicht gelöscht werden.`);return}kategorien=JSON.parse(localStorage.getItem("kategorien")||"[]");if(!Array.isArray(kategorien))kategorien=[];if(!kategorien.includes(name)){zeigeWarnung(`Kategorie "${name}" nicht gefunden.`);return}const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const count=ideen.filter(i=>i.kategorie===name).length;let msg=`Kategorie "${name}" wirklich löschen?`;if(count>0)msg+=` ${count} Notiz(en) verlieren diese Kategorie.`;if(!confirm(msg))return;const idx=kategorien.indexOf(name);if(idx>-1){kategorien.splice(idx,1);localStorage.setItem("kategorien",JSON.stringify(kategorien));saveToOneDrive();let changed=!1;ideen.forEach(i=>{if(i.kategorie===name){i.kategorie="";changed=!0}});if(changed){localStorage.setItem("ideen",JSON.stringify(ideen));saveToOneDrive()}initialisiereKategorien();const fSel=document.getElementById("filterKategorie");if(fSel.value===name)fSel.value="";zeigeWarnung(`Kategorie "${name}" gelöscht.`,'success');zeigeIdeen();istGespeichert=!0}else{zeigeWarnung(`Interner Fehler: Kategorie "${name}" nicht gefunden.`);}}
+function kategorieLoeschen(){const sel=document.getElementById("kategorie");const name=sel.value;const noDel=["Aufgaben","Projekte","Privat","Arbeit","Später"];if(!name||name===""){zeigeWarnung("Bitte Kategorie zum Löschen wählen.");return}if(noDel.includes(name)){zeigeWarnung(`Standardkategorie "${name}" kann nicht gelöscht werden.`);return}kategorien=JSON.parse(localStorage.getItem("kategorien")||"[]");if(!Array.isArray(kategorien))kategorien=[];if(!kategorien.includes(name)){zeigeWarnung(`Kategorie "${name}" nicht gefunden.`);return}const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const count=ideen.filter(i=>i&&i.kategorie===name).length;let msg=`Kategorie "${name}" wirklich löschen?`;if(count>0)msg+=` ${count} Notiz(en) verlieren diese Kategorie.`;if(!confirm(msg))return;const idx=kategorien.indexOf(name);if(idx>-1){kategorien.splice(idx,1);localStorage.setItem("kategorien",JSON.stringify(kategorien));saveToOneDrive();let changed=!1;ideen.forEach(i=>{if(i&&i.kategorie===name){i.kategorie="";changed=!0}});if(changed){localStorage.setItem("ideen",JSON.stringify(ideen));saveToOneDrive()}initialisiereKategorien();const fSel=document.getElementById("filterKategorie");if(fSel.value===name)fSel.value="";zeigeWarnung(`Kategorie "${name}" gelöscht.`,'success');zeigeIdeen();istGespeichert=!0}else{zeigeWarnung(`Interner Fehler: Kategorie "${name}" nicht gefunden.`);}} // istGespeichert sollte false sein?
 function initialisiereBenutzer(){benutzerliste=JSON.parse(localStorage.getItem("benutzerliste")||"[]");if(!Array.isArray(benutzerliste)){benutzerliste=[];localStorage.setItem("benutzerliste","[]")}const sel=document.getElementById("benutzer");sel.innerHTML='<option value="">-- Benutzer --</option>';benutzerliste.forEach(b=>sel.add(new Option(b,b)));const fSel=document.getElementById("filterBenutzer");fSel.innerHTML='<option value="">👤 Alle Benutzer</option>';benutzerliste.forEach(b=>fSel.add(new Option(b,b)))}
 function neuenBenutzerHinzufuegen(){const input=document.getElementById("neuerBenutzer");const name=input.value.trim();if(!name){zeigeWarnung("Bitte Benutzernamen eingeben.");return}benutzerliste=JSON.parse(localStorage.getItem("benutzerliste")||"[]");if(!Array.isArray(benutzerliste))benutzerliste=[];if(benutzerliste.includes(name)){zeigeWarnung(`Benutzer "${name}" existiert bereits!`);return}benutzerliste.push(name);benutzerliste.sort();localStorage.setItem("benutzerliste",JSON.stringify(benutzerliste));saveToOneDrive();aktualisiereBenutzerDropdowns();input.value="";input.focus();zeigeWarnung(`Benutzer "${name}" hinzugefügt.`,'success');istGespeichert=!1}
-function benutzerLoeschen(){const sel=document.getElementById("benutzer");const name=sel.value;if(!name||name===""){zeigeWarnung("Bitte Benutzer zum Löschen wählen.");return}benutzerliste=JSON.parse(localStorage.getItem("benutzerliste")||"[]");if(!Array.isArray(benutzerliste))benutzerliste=[];if(!benutzerliste.includes(name)){zeigeWarnung(`Benutzer "${name}" nicht gefunden.`);return}if(!confirm(`Benutzer "${name}" WIRKLICH löschen? ALLE Notizen dieses Benutzers werden gelöscht!`))return;const idx=benutzerliste.indexOf(name);if(idx>-1){benutzerliste.splice(idx,1);localStorage.setItem("benutzerliste",JSON.stringify(benutzerliste));saveToOneDrive();let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const len=ideen.length;const origIdeen=JSON.parse(localStorage.getItem("ideen")||"[]");ideen=ideen.filter(i=>i.benutzer!==name);const deletedCount=len-ideen.length;if(deletedCount>0){localStorage.setItem("ideen",JSON.stringify(ideen));saveToOneDrive();const remM=new Set(ideen.map(i=>(i.mandantennummer||"").toLowerCase()).filter(m=>m!==""));const allM=new Set(origIdeen.map(i=>(i.mandantennummer||"").toLowerCase()).filter(m=>m!==""));let updM=!1;allM.forEach(m=>{if(!remM.has(m))updM=!0});if(updM)aktualisiereMandantenFilterDropdown()}aktualisiereBenutzerDropdowns();if(filterBenutzerValue===name){filterBenutzerValue="";document.getElementById("filterBenutzer").value=""}if(bearbeiteId!==null&&!ideen.some(i=>i.id===bearbeiteId)){abbrechenBearbeiten()}if(beschreibungFuerId!==null&&!ideen.some(i=>i.id===beschreibungFuerId)){beschreibungAbbrechen()}zeigeWarnung(`Benutzer "${name}" und ${deletedCount} Notiz(en) gelöscht.`,'success');zeigeIdeen();istGespeichert=!0}else{zeigeWarnung(`Interner Fehler: Benutzer "${name}" nicht gefunden.`);}}
+function benutzerLoeschen(){const sel=document.getElementById("benutzer");const name=sel.value;if(!name||name===""){zeigeWarnung("Bitte Benutzer zum Löschen wählen.");return}benutzerliste=JSON.parse(localStorage.getItem("benutzerliste")||"[]");if(!Array.isArray(benutzerliste))benutzerliste=[];if(!benutzerliste.includes(name)){zeigeWarnung(`Benutzer "${name}" nicht gefunden.`);return}if(!confirm(`Benutzer "${name}" WIRKLICH löschen? ALLE Notizen dieses Benutzers werden gelöscht!`))return;const idx=benutzerliste.indexOf(name);if(idx>-1){benutzerliste.splice(idx,1);localStorage.setItem("benutzerliste",JSON.stringify(benutzerliste));saveToOneDrive();let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const len=ideen.length;const origIdeen=JSON.parse(localStorage.getItem("ideen")||"[]");ideen=ideen.filter(i=>i&&i.benutzer!==name);const deletedCount=len-ideen.length;if(deletedCount>0){localStorage.setItem("ideen",JSON.stringify(ideen));saveToOneDrive();const remM=new Set(ideen.filter(i=>i).map(i=>(i.mandantennummer||"").toLowerCase()).filter(m=>m!==""));const allM=new Set(origIdeen.filter(i=>i).map(i=>(i.mandantennummer||"").toLowerCase()).filter(m=>m!==""));let updM=!1;allM.forEach(m=>{if(!remM.has(m))updM=!0});if(updM)aktualisiereMandantenFilterDropdown()}aktualisiereBenutzerDropdowns();if(filterBenutzerValue===name){filterBenutzerValue="";document.getElementById("filterBenutzer").value=""}if(bearbeiteId!==null&&!ideen.some(i=>i&&i.id===bearbeiteId)){abbrechenBearbeiten()}if(beschreibungFuerId!==null&&!ideen.some(i=>i&&i.id===beschreibungFuerId)){beschreibungAbbrechen()}zeigeWarnung(`Benutzer "${name}" und ${deletedCount} Notiz(en) gelöscht.`,'success');zeigeIdeen();istGespeichert=!0}else{zeigeWarnung(`Interner Fehler: Benutzer "${name}" nicht gefunden.`);}} // istGespeichert sollte false sein?
 function aktualisiereBenutzerDropdowns(){initialisiereBenutzer()}
-function aktualisiereMandantenFilterDropdown(){const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const set=new Set(ideen.map(i=>(i.mandantennummer||"").trim()).filter(m=>m!==""));const list=Array.from(set).sort();const sel=document.getElementById("filterMandant");const current=sel.value;sel.innerHTML='<option value="">🏢 Alle Mandanten</option>';list.forEach(m=>sel.add(new Option(m,m)));if(current&&list.includes(current)){sel.value=current;filterMandantValue=current}else{sel.value="";filterMandantValue=""}}
+function aktualisiereMandantenFilterDropdown(){const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const set=new Set(ideen.filter(i=>i).map(i=>(i.mandantennummer||"").trim()).filter(m=>m!==""));const list=Array.from(set).sort();const sel=document.getElementById("filterMandant");const current=sel.value;sel.innerHTML='<option value="">🏢 Alle Mandanten</option>';list.forEach(m=>sel.add(new Option(m,m)));if(current&&list.includes(current)){sel.value=current;filterMandantValue=current}else{sel.value="";filterMandantValue=""}}
 function initialisiereVorgangsnummer(){const saved=localStorage.getItem("naechsteVorgangsnummer");naechsteVorgangsnummer=saved?parseInt(saved,10):1;if(isNaN(naechsteVorgangsnummer)||naechsteVorgangsnummer<1){naechsteVorgangsnummer=1;localStorage.setItem("naechsteVorgangsnummer",naechsteVorgangsnummer.toString())}zeigeNaechsteNummer()}
 function zeigeNaechsteNummer(){const el=document.getElementById("naechsteNummerAnzeige");if(el)el.textContent=naechsteVorgangsnummer}
 function filterNachMandant(){filterMandantValue=document.getElementById("filterMandant").value;zeigeIdeen()}
@@ -180,64 +201,64 @@ function filterNachBenutzer(){filterBenutzerValue=document.getElementById("filte
 function setzePrioritaet(p){prioritaet=p;["prioHoch","prioMittel","prioNiedrig"].forEach(id=>document.getElementById(id).classList.remove("selected"));if(p)document.getElementById(`prio${p}`).classList.add("selected");istGespeichert=!1}
 /* --- END BLOCK 4 --- */
 
-/* --- START BLOCK 5a: Save Idea --- */
+/* --- START BLOCK 5a: Save Idea (Angepasst für Anhang-ID/Sichtbarkeit) --- */
 async function speichereIdee() {
     const text = document.getElementById("ideeText").value.trim();
     if (!text) return zeigeWarnung("Titel ist erforderlich!");
 
     let dateienFuerSpeicherung = [];
     const fileInput = document.getElementById("dateien");
-    let neuHochgeladeneDateien = []; // Sammelt nur die neu hinzugefügten
+    let neuHochgeladeneDateien = [];
 
-    // 1. Neue Dateien verarbeiten (falls vorhanden)
+    // 1. Neue Dateien verarbeiten
     if (fileInput.files.length > 0) {
-        if (accessToken) { // OneDrive Upload
+        if (accessToken) { // OneDrive
             zeigeWarnung("Lade Dateien hoch...", 'info');
             try {
                 neuHochgeladeneDateien = await Promise.all(Array.from(fileInput.files).map(async f => {
-                    const link = await uploadToOneDrive(f); // Nimmt Originalnamen
+                    const link = await uploadToOneDrive(f);
+                    // Stelle sicher, dass link zurückgegeben wird, auch wenn null
                     return { id: generateUUID(), name: f.name, link: link, type: f.type, sichtbar: true };
                 }));
-                neuHochgeladeneDateien = neuHochgeladeneDateien.filter(f => f.link !== null);
+                neuHochgeladeneDateien = neuHochgeladeneDateien.filter(f => f.link !== null); // Nur erfolgreiche Uploads
                 zeigeWarnung("Upload fertig.", 'success');
             } catch (e) {
                 zeigeWarnung("Upload Fehler: " + e.message);
-                neuHochgeladeneDateien = []; // Bei Fehler keine neuen Dateien
+                neuHochgeladeneDateien = [];
             }
         } else { // Lokale Dateien
             neuHochgeladeneDateien = Array.from(fileInput.files).map(f => ({
                 id: generateUUID(),
                 name: f.name,
-                data: URL.createObjectURL(f), // Nur temporär
+                // data: URL.createObjectURL(f), // Nicht speichern
                 type: f.type,
-                sichtbar: true
+                sichtbar: true,
+                isLocal: true // Kennzeichnung für lokale Datei (wird nicht gespeichert)
             }));
         }
     }
 
-    // 2. Dateiliste zusammenstellen (beim Bearbeiten alte behalten, neue hinzufügen)
+    // 2. Dateiliste zusammenstellen
     let finaleDateiliste = [];
-    if (bearbeiteId !== null) {
+    if (bearbeiteId !== null) { // Beim Bearbeiten
         const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-        const idee = ideen.find(i => i.id === bearbeiteId);
+        const idee = ideen.find(i => i && i.id === bearbeiteId);
         if (idee && idee.dateien) {
-            // Behalte alle alten Dateien, die NICHT durch eine neue mit gleichem Namen ersetzt werden
-             finaleDateiliste = idee.dateien.filter(alt => 
-                !neuHochgeladeneDateien.some(neu => neu.name === alt.name)
+            // Behalte alte Dateien, die NICHT durch neue (gleicher Name) ersetzt werden
+             finaleDateiliste = idee.dateien.filter(alt =>
+                alt && alt.id && !neuHochgeladeneDateien.some(neu => neu.name === alt.name)
             );
         }
-         // Füge die neu hochgeladenen Dateien hinzu
+         // Füge die neuen Dateien hinzu
         finaleDateiliste = finaleDateiliste.concat(neuHochgeladeneDateien);
-    } else {
-        // Beim Erstellen einer neuen Idee nur die neu hochgeladenen nehmen
+    } else { // Neue Idee
         finaleDateiliste = neuHochgeladeneDateien;
     }
 
     // 3. Idee speichern
-    saveIdeeObjekt(text, finaleDateiliste); // Übergibt die zusammengestellte Liste
-    fileInput.value = ""; // Datei-Input immer zurücksetzen
+    saveIdeeObjekt(text, finaleDateiliste);
+    fileInput.value = ""; // Input zurücksetzen
 }
-
 
 function saveIdeeObjekt(text, dateien) {
     let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
@@ -247,56 +268,34 @@ function saveIdeeObjekt(text, dateien) {
     const firma = document.getElementById("firmenname").value.trim();
     const user = document.getElementById("benutzer").value;
 
-    // Sicherstellen, dass alle Dateien id und sichtbar haben
-    // (Lokale 'data' und 'pfad' werden nicht gespeichert)
-    const prozessierteDateien = dateien.map(d => ({
-        id: d.id || generateUUID(), // Stelle sicher, dass eine ID vorhanden ist
+    // Nur relevante Felder für Speicherung aufbereiten
+    const prozessierteDateien = dateien.filter(d => d && d.id).map(d => ({ // Filtere ungültige raus
+        id: d.id,
         name: d.name,
-        link: d.link || null, // Speichere Link (OneDrive)
+        link: d.link || null, // Nur OneDrive-Link speichern
         type: d.type,
-        sichtbar: typeof d.sichtbar === 'boolean' ? d.sichtbar : true // Default auf true
+        sichtbar: typeof d.sichtbar === 'boolean' ? d.sichtbar : true
     }));
 
     if (bearbeiteId !== null) {
-        const idx = ideen.findIndex(i => i.id === bearbeiteId);
+        const idx = ideen.findIndex(i => i && i.id === bearbeiteId);
         if (idx !== -1) {
             const old = ideen[idx];
             ideen[idx] = {
-                ...old,
-                text,
-                details,
-                kategorie: kat,
-                prioritaet,
-                mandantennummer: mnr,
-                firmenname: firma,
-                benutzer: user,
-                dateien: prozessierteDateien // Aktualisierte Dateiliste
+                ...old, text, details, kategorie: kat, prioritaet, mandantennummer: mnr,
+                firmenname: firma, benutzer: user, dateien: prozessierteDateien
             };
-            // Wichtig: `timestamp` wird bei Bearbeitung NICHT aktualisiert.
             localStorage.setItem("ideen", JSON.stringify(ideen));
             bearbeiteId = null;
             document.getElementById("speichernBtn").textContent = "💾 Speichern";
             document.getElementById("abbrechenBtn").style.display = "none";
-        } else {
-            zeigeWarnung("Fehler: Idee nicht gefunden beim Aktualisieren.");
-            return;
-        }
+        } else { zeigeWarnung("Fehler: Idee nicht gefunden."); return; }
     } else {
         const num = naechsteVorgangsnummer;
         const neu = {
-            id: generateUUID(),
-            vorgangsnummer: num,
-            text,
-            details,
-            kategorie: kat,
-            prioritaet,
-            mandantennummer: mnr,
-            firmenname: firma,
-            benutzer: user,
-            dateien: prozessierteDateien,
-            timestamp: new Date().toISOString(), // Zeitstempel für neue Idee
-            erledigt: false,
-            beschreibungen: []
+            id: generateUUID(), vorgangsnummer: num, text, details, kategorie: kat, prioritaet,
+            mandantennummer: mnr, firmenname: firma, benutzer: user, dateien: prozessierteDateien,
+            timestamp: new Date().toISOString(), erledigt: false, beschreibungen: []
         };
         ideen.push(neu);
         localStorage.setItem("ideen", JSON.stringify(ideen));
@@ -304,54 +303,52 @@ function saveIdeeObjekt(text, dateien) {
         localStorage.setItem("naechsteVorgangsnummer", naechsteVorgangsnummer.toString());
         zeigeNaechsteNummer();
     }
-
     aktualisiereMandantenFilterDropdown();
-    zeigeIdeen(); // Aktualisiert die Anzeige
-    // Felder leeren
-    document.getElementById("ideeText").value = "";
-    document.getElementById("ideeDetails").value = "";
-    document.getElementById("mandantennummer").value = "";
-    document.getElementById("firmenname").value = "";
-    document.getElementById("dateiVorschau").innerHTML = ""; // Vorschau leeren
-    setzePrioritaet("");
-    document.getElementById("benutzer").value = "";
-    document.getElementById("kategorie").value = "";
-    istGespeichert = true; // Nach erfolgreichem Speichern ist der Zustand gespeichert
-    saveToOneDrive(); // Versuche OneDrive Sync
+    zeigeIdeen();
+    document.getElementById("ideeText").value = ""; document.getElementById("ideeDetails").value = "";
+    document.getElementById("mandantennummer").value = ""; document.getElementById("firmenname").value = "";
+    document.getElementById("dateiVorschau").innerHTML = "";
+    setzePrioritaet(""); document.getElementById("benutzer").value = ""; document.getElementById("kategorie").value = "";
+    istGespeichert = false; // Änderungen gemacht
+    saveToOneDrive();
 }
 /* --- END BLOCK 5a --- */
 
-/* --- START BLOCK 5b: Display Ideas --- */
+/* --- START BLOCK 5b: Display Ideas (Angepasst für Anhang-Sichtbarkeit & Beschr.-Einrückung) --- */
 function zeigeIdeen() {
-    const fIdeen = JSON.parse(localStorage.getItem("ideen") || "[]");
-    let filtered = [...fIdeen];
-    // Filterlogik (unverändert)
-    const fKat=document.getElementById("filterKategorie").value;if(fKat)filtered=filtered.filter(i=>i.kategorie===fKat);filterMandantValue=document.getElementById("filterMandant").value;if(filterMandantValue)filtered=filtered.filter(i=>(i.mandantennummer||"").toLowerCase()===filterMandantValue.toLowerCase());filterBenutzerValue=document.getElementById("filterBenutzer").value;if(filterBenutzerValue)filtered=filtered.filter(i=>(i.benutzer||"").toLowerCase()===filterBenutzerValue.toLowerCase());const fArchiv=document.getElementById("filterArchiv").value;if(fArchiv==="nicht_erledigt")filtered=filtered.filter(i=>!(i.erledigt||!1));else if(fArchiv==="erledigt")filtered=filtered.filter(i=>i.erledigt||!1);
-    // Sortierlogik (unverändert)
-    const sort=document.getElementById("sortierung").value;if(sort!=="standard"){filtered.sort((a,b)=>{if(sort==="prio"){const p={"Hoch":3,"Mittel":2,"Niedrig":1};return(p[b.prioritaet]||0)-(p[a.prioritaet]||0)}let tA=-Infinity,tB=-Infinity;try{tA=new Date(a.timestamp?.split('_')[0]).getTime();if(isNaN(tA))tA=(sort==="neu"?-Infinity:Infinity)}catch(e){tA=(sort==="neu"?-Infinity:Infinity)}try{tB=new Date(b.timestamp?.split('_')[0]).getTime();if(isNaN(tB))tB=(sort==="neu"?-Infinity:Infinity)}catch(e){tB=(sort==="neu"?-Infinity:Infinity)}if(sort==="neu")return tB-tA;if(sort==="alt")return tA-tB;return 0})}
+    let fIdeen = [];
+    try { fIdeen = JSON.parse(localStorage.getItem("ideen") || "[]"); } catch(e) { console.error("Fehler beim Laden der Ideen:", e); localStorage.removeItem("ideen"); fIdeen = []; }
+    if (!Array.isArray(fIdeen)) fIdeen = []; // Sicherstellen, dass es ein Array ist
+
+    let filtered = fIdeen.filter(i => i && i.id); // Nur valide Ideen berücksichtigen
+
+    // Filterlogik
+    const fKat=document.getElementById("filterKategorie")?.value;if(fKat)filtered=filtered.filter(i=>i.kategorie===fKat);
+    filterMandantValue=document.getElementById("filterMandant")?.value;if(filterMandantValue)filtered=filtered.filter(i=>(i.mandantennummer||"").toLowerCase()===filterMandantValue.toLowerCase());
+    filterBenutzerValue=document.getElementById("filterBenutzer")?.value;if(filterBenutzerValue)filtered=filtered.filter(i=>(i.benutzer||"").toLowerCase()===filterBenutzerValue.toLowerCase());
+    const fArchiv=document.getElementById("filterArchiv")?.value;if(fArchiv==="nicht_erledigt")filtered=filtered.filter(i=>!(i.erledigt||false));else if(fArchiv==="erledigt")filtered=filtered.filter(i=>(i.erledigt||false));
+
+    // Sortierlogik
+    const sort=document.getElementById("sortierung")?.value;if(sort && sort!=="standard"){filtered.sort((a,b)=>{if (!a || !b) return 0; if(sort==="prio"){const p={"Hoch":3,"Mittel":2,"Niedrig":1};return(p[b.prioritaet]||0)-(p[a.prioritaet]||0)}let tA=-Infinity,tB=-Infinity;try{tA=new Date(a.timestamp?.split('_')[0]).getTime();if(isNaN(tA))tA=(sort==="neu"?-Infinity:Infinity)}catch(e){tA=(sort==="neu"?-Infinity:Infinity)}try{tB=new Date(b.timestamp?.split('_')[0]).getTime();if(isNaN(tB))tB=(sort==="neu"?-Infinity:Infinity)}catch(e){tB=(sort==="neu"?-Infinity:Infinity)}if(sort==="neu")return tB-tA;if(sort==="alt")return tA-tB;return 0})}
 
     const listDiv = document.getElementById("ideenListe");
     listDiv.innerHTML = filtered.map(idee => {
         const id = idee.id;
         const erledigt = idee.erledigt || false;
-        let datum = getFormattedDate(idee.timestamp); // Helferfunktion nutzen
+        let datum = getFormattedDate(idee.timestamp);
         const vNumHtml = idee.vorgangsnummer ? `<div class="vorgangsnummer-anzeige-liste">Vorgang: <b>${idee.vorgangsnummer}</b></div>` : '';
-        
-        // *** NEUE ANHANGS-HTML LOGIK mit Button ***
+
+        // Anhänge HTML (mit Sichtbarkeits-Toggle)
         let dateiHtml = "";
         if (idee.dateien && idee.dateien.length > 0) {
-            dateiHtml = idee.dateien.map(f => {
-                if (!f || !f.id) return ''; // Überspringe ungültige Einträge
-                const url = f.link || '#'; // Link oder Platzhalter
-                const istLokal = !f.link; // Annahme: Wenn kein Link, dann lokal (data wird nicht gespeichert)
-                
-                const istSichtbar = f.sichtbar === true; // Explizit true prüfen
-                const anhangKlasse = istSichtbar ? "" : " anhang-veraltet"; // CSS-Klasse für Styling
+            dateiHtml = idee.dateien.filter(f => f && f.id).map(f => {
+                const url = f.link || '#';
+                const istSichtbar = f.sichtbar === true;
+                const anhangKlasse = istSichtbar ? "" : " anhang-veraltet";
                 const anhangPraefix = istSichtbar ? "" : "[Veraltet] ";
-                const icon = f.link ? '🌐' : '📎'; // Icon basierend auf Link-Existenz
-                const buttonSymbol = istSichtbar ? '👁️' : '🙈'; // Auge auf/zu
+                const icon = f.link ? '🌐' : '📎';
+                const buttonSymbol = istSichtbar ? '👁️' : '🙈';
                 const buttonTitle = istSichtbar ? 'Anhang ausblenden' : 'Anhang einblenden';
-
                 return `<div class="anhang-eintrag${anhangKlasse}" style="margin-bottom: 3px; display: flex; align-items: center;">
                             <a class="datei-link" href="${url}" target="_blank" title="${f.name || ''}">
                                 ${icon} ${anhangPraefix}${f.name || 'Unbekannt'}
@@ -363,20 +360,38 @@ function zeigeIdeen() {
                         </div>`;
             }).join("");
             if (dateiHtml) {
-                 // Um sicherzustellen, dass die Liste untereinander erscheint
-                dateiHtml = `<div class="anhaenge-liste" style="margin-top: 8px; display: flex; flex-direction: column; align-items: flex-start;"><b>Anhänge:</b>${dateiHtml}</div>`;
+                 dateiHtml = `<div class="anhaenge-liste" style="margin-top: 8px; display: flex; flex-direction: column; align-items: flex-start;"><b>Anhänge:</b>${dateiHtml}</div>`;
             }
         }
-        // *** ENDE NEUE ANHANGS-HTML LOGIK ***
 
-        // Beschreibungshistorie HTML
-        const beschreibungenHtml = idee.beschreibungen?.length ? `<div class="beschreibung-historie"><b>Weitere Beschr.:</b>${idee.beschreibungen.map(b => { let btsText = getFormattedDate(b.timestamp); return `<div class="beschreibung-item"><div class="beschreibung-text-zeit"><span class="beschreibung-zeit">${btsText}</span>${b.text}</div><button class="edit-beschreibung-btn" onclick="bearbeiteEinzelneBeschreibung('${id}','${b.timestamp}')">✏️</button></div>` }).join("")}</div>` : "";
+        // Beschreibungshistorie HTML (mit Einrückung und Sortierbuttons)
+        const beschreibungenHtml = idee.beschreibungen?.length ? `<div class="beschreibung-historie"><b>Weitere Beschr.:</b>${
+            idee.beschreibungen.filter(b => b && b.text !== undefined).map(b => {
+                let btsText = getFormattedDate(b.timestamp);
+                const indentLevel = b.level || 0;
+                const indentMargin = indentLevel * 20;
+                const itemWidth = `calc(100% - ${indentMargin}px)`;
+                return `<div class="beschreibung-item" style="margin-left: ${indentMargin}px; width: ${itemWidth};">
+                            <div class="beschreibung-text-zeit">
+                                <span class="beschreibung-zeit">${btsText}</span>
+                                ${b.text}
+                            </div>
+                            <div class="beschreibung-item-actions">
+                                <button class="edit-beschreibung-btn" title="Bearbeiten" onclick="bearbeiteEinzelneBeschreibung('${id}','${b.timestamp}')">✏️</button>
+                                <button class="move-beschreibung-btn" title="Nach oben" onclick="verschiebeBeschreibung('${id}','${b.timestamp}', -1)">⬆️</button>
+                                <button class="move-beschreibung-btn" title="Nach unten" onclick="verschiebeBeschreibung('${id}','${b.timestamp}', 1)">⬇️</button>
+                                <button class="move-beschreibung-btn" title="Ausrücken" onclick="aendereEinrueckungBeschreibung('${id}','${b.timestamp}', -1)" ${indentLevel === 0 ? 'disabled' : ''}>⬅️</button>
+                                <button class="move-beschreibung-btn" title="Einrücken" onclick="aendereEinrueckungBeschreibung('${id}','${b.timestamp}', 1)">➡️</button>
+                            </div>
+                        </div>`;
+            }).join("")
+        }</div>` : "";
 
-        // Komplette Idee HTML zusammensetzen
+        // Komplette Idee HTML
         return `<div class="idee${erledigt ? ' erledigt' : ''}">
                   <div class="idee-content">
                     ${vNumHtml}
-                    <h3>${idee.text}</h3>
+                    <h3>${idee.text || 'Ohne Titel'}</h3>
                     <p>${idee.details || ""}</p>
                     ${idee.benutzer ? `<div>Zust.: <b>${idee.benutzer}</b></div>` : ""}
                     ${idee.mandantennummer ? `<div>Mandant: <b>${idee.mandantennummer}</b></div>` : ""}
@@ -397,210 +412,121 @@ function zeigeIdeen() {
                 </div>`;
     }).join("");
 
-    // UI-Zustand nach dem Rendern prüfen
-    if (bearbeiteId !== null && !filtered.some(i => i.id === bearbeiteId)) abbrechenBearbeiten();
-    if (beschreibungFuerId !== null && !filtered.some(i => i.id === beschreibungFuerId)) beschreibungAbbrechen();
+    // UI-Zustand prüfen
+    if (bearbeiteId !== null && !filtered.some(i => i && i.id === bearbeiteId)) abbrechenBearbeiten();
+    if (beschreibungFuerId !== null && !filtered.some(i => i && i.id === beschreibungFuerId)) beschreibungAbbrechen();
 }
 /* --- END BLOCK 5b --- */
 
-/* --- START BLOCK 5c: Idea Actions --- */
-// Funktionen toggleErledigt, bearbeiteIdee, abbrechenBearbeiten, verschiebeIdee, loescheIdee
-// bleiben unverändert gegenüber der Version "74"
-function toggleErledigt(id){let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idx=ideen.findIndex(i=>i.id===id);if(idx!==-1){ideen[idx].erledigt=!(ideen[idx].erledigt||!1);localStorage.setItem("ideen",JSON.stringify(ideen));zeigeIdeen();istGespeichert=!1;saveToOneDrive()}}
-function bearbeiteIdee(id){const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idee=ideen.find(i=>i.id===id);if(!idee){zeigeWarnung("Fehler: Idee nicht gefunden.");return}document.getElementById("ideeText").value=idee.text;document.getElementById("ideeDetails").value=idee.details||"";document.getElementById("kategorie").value=idee.kategorie||"";document.getElementById("mandantennummer").value=idee.mandantennummer||"";document.getElementById("firmenname").value=idee.firmenname||"";document.getElementById("benutzer").value=idee.benutzer||"";setzePrioritaet(idee.prioritaet||"");bearbeiteId=id;const v=document.getElementById("dateiVorschau");v.innerHTML="";if(idee.dateien){idee.dateien.forEach(f=>{const url=f.link||f.data;if(url){v.innerHTML+=`<div style="display:inline-block;margin:5px;text-align:center;max-width:150px;vertical-align:top;"><a href="${url}" target="_blank" title="${f.name}">${f.type?.startsWith("image/")?'<img src="'+url+'" style="max-height:80px;display:block;margin:auto;object-fit:cover;">':''}${f.type==="application/pdf"?'<iframe src="'+url+'" style="width:100%;height:80px;border:1px solid #ccc;"></iframe>':''}${!f.type?.startsWith("image/")&&f.type!=="application/pdf"?'<span style="font-size:2em;display:block;">'+(f.link?'🌐':'📎')+'</span>':''}<span style="font-size:.8em;word-break:break-all;display:block;">${f.name}</span></a><div style="font-size:.7em;color:grey;">${f.link?'OneDrive':'Lokal'}</div></div>`}})}document.getElementById("speichernBtn").textContent="💾 Aktualisieren";document.getElementById("abbrechenBtn").style.display="";istGespeichert=!1}
+/* --- START BLOCK 5c: Idea Actions (Unverändert) --- */
+function toggleErledigt(id){let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idx=ideen.findIndex(i=>i&&i.id===id);if(idx!==-1){ideen[idx].erledigt=!(ideen[idx].erledigt||!1);localStorage.setItem("ideen",JSON.stringify(ideen));zeigeIdeen();istGespeichert=!1;saveToOneDrive()}}
+function bearbeiteIdee(id){const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idee=ideen.find(i=>i&&i.id===id);if(!idee){zeigeWarnung("Fehler: Idee nicht gefunden.");return}document.getElementById("ideeText").value=idee.text;document.getElementById("ideeDetails").value=idee.details||"";document.getElementById("kategorie").value=idee.kategorie||"";document.getElementById("mandantennummer").value=idee.mandantennummer||"";document.getElementById("firmenname").value=idee.firmenname||"";document.getElementById("benutzer").value=idee.benutzer||"";setzePrioritaet(idee.prioritaet||"");bearbeiteId=id;const v=document.getElementById("dateiVorschau");v.innerHTML="";if(idee.dateien){idee.dateien.filter(f=>f&&f.id).forEach(f=>{const url=f.link;if(url){v.innerHTML+=`<div style="display:inline-block;margin:5px;text-align:center;max-width:150px;vertical-align:top;"><a href="${url}" target="_blank" title="${f.name}">${f.type?.startsWith("image/")?'<img src="'+url+'" style="max-height:80px;display:block;margin:auto;object-fit:cover;">':''}${f.type==="application/pdf"?'<iframe src="'+url+'" style="width:100%;height:80px;border:1px solid #ccc;"></iframe>':''}${!f.type?.startsWith("image/")&&f.type!=="application/pdf"?'<span style="font-size:2em;display:block;">'+(f.link?'🌐':'📎')+'</span>':''}<span style="font-size:.8em;word-break:break-all;display:block;">${f.name}</span></a><div style="font-size:.7em;color:grey;">${f.link?'OneDrive':'Lokal'} (${f.sichtbar?'Sichtbar':'Veraltet'})</div></div>`}})}document.getElementById("speichernBtn").textContent="💾 Aktualisieren";document.getElementById("abbrechenBtn").style.display="";istGespeichert=!1}
 function abbrechenBearbeiten(){bearbeiteId=null;document.getElementById("ideeText").value="";document.getElementById("ideeDetails").value="";document.getElementById("mandantennummer").value="";document.getElementById("firmenname").value="";document.getElementById("dateien").value="";document.getElementById("dateiVorschau").innerHTML="";document.getElementById("speichernBtn").textContent="💾 Speichern";document.getElementById("abbrechenBtn").style.display="none";setzePrioritaet("");document.getElementById("benutzer").value="";document.getElementById("kategorie").value="";istGespeichert=!0}
-function verschiebeIdee(id,dir){let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idx=ideen.findIndex(i=>i.id===id);if(idx===-1)return;const targetIdx=idx+dir;if(targetIdx>=0&&targetIdx<ideen.length){[ideen[idx],ideen[targetIdx]]=[ideen[targetIdx],ideen[idx]];localStorage.setItem("ideen",JSON.stringify(ideen));zeigeIdeen();istGespeichert=!1;saveToOneDrive()}}
-function loescheIdee(id){if(!confirm("Wirklich löschen?"))return;let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idx=ideen.findIndex(i=>i.id===id);if(idx!==-1){const del=ideen[idx];ideen.splice(idx,1);localStorage.setItem("ideen",JSON.stringify(ideen));const mExists=ideen.some(i=>i.mandantennummer&&(i.mandantennummer||"").toLowerCase()===(del.mandantennummer||"").toLowerCase());const uExists=ideen.some(i=>i.benutzer&&(i.benutzer||"").toLowerCase()===(del.benutzer||"").toLowerCase());if(!mExists&&del.mandantennummer)aktualisiereMandantenFilterDropdown();if(!uExists&&del.benutzer)aktualisiereBenutzerDropdowns();ausgewaehlt=ausgewaehlt.filter(i=>i!==id);if(bearbeiteId===id)abbrechenBearbeiten();if(beschreibungFuerId===id)beschreibungAbbrechen();zeigeIdeen();istGespeichert=!0;saveToOneDrive()}else{zeigeWarnung("Fehler: Idee nicht gefunden.");}}
+function verschiebeIdee(id,dir){let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idx=ideen.findIndex(i=>i&&i.id===id);if(idx===-1)return;const targetIdx=idx+dir;if(targetIdx>=0&&targetIdx<ideen.length){[ideen[idx],ideen[targetIdx]]=[ideen[targetIdx],ideen[idx]];localStorage.setItem("ideen",JSON.stringify(ideen));zeigeIdeen();istGespeichert=!1;saveToOneDrive()}}
+function loescheIdee(id){if(!confirm("Wirklich löschen?"))return;let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idx=ideen.findIndex(i=>i&&i.id===id);if(idx!==-1){const del=ideen[idx];ideen.splice(idx,1);localStorage.setItem("ideen",JSON.stringify(ideen));const mExists=ideen.some(i=>i&&i.mandantennummer&&(i.mandantennummer||"").toLowerCase()===(del.mandantennummer||"").toLowerCase());const uExists=ideen.some(i=>i&&i.benutzer&&(i.benutzer||"").toLowerCase()===(del.benutzer||"").toLowerCase());if(!mExists&&del.mandantennummer)aktualisiereMandantenFilterDropdown();if(!uExists&&del.benutzer)aktualisiereBenutzerDropdowns();ausgewaehlt=ausgewaehlt.filter(i=>i!==id);if(bearbeiteId===id)abbrechenBearbeiten();if(beschreibungFuerId===id)beschreibungAbbrechen();zeigeIdeen();istGespeichert=false;saveToOneDrive()}else{zeigeWarnung("Fehler: Idee nicht gefunden.");}}
 /* --- END BLOCK 5c --- */
 
-/* --- START BLOCK 5d: Descriptions, Selection & User Management --- */
-// Funktionen zeigeBeschreibungDialog, beschreibungAbbrechen, beschreibungSpeichern,
-// bearbeiteEinzelneBeschreibung, toggleAuswahl, ausgewaehlteNotizenLoeschen,
-// alleIdeenLoeschen bleiben unverändert gegenüber Version "74"
-
-function zeigeBeschreibungDialog(id,ts=null){beschreibungFuerId=id;beschreibungZuBearbeitenderTimestamp=ts;const area=document.getElementById("beschreibungText");if(ts!==null){const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idee=ideen.find(i=>i.id===id);const desc=idee?.beschreibungen.find(b=>b.timestamp===ts);if(desc)area.value=desc.text;else{zeigeWarnung("Fehler: Beschreibung nicht gefunden.");beschreibungAbbrechen();return}}else{area.value=""}document.getElementById("beschreibungDialog").style.display="block";area.focus();istGespeichert=!1}
+/* --- START BLOCK 5d (Mit neuen Funktionen für Anhänge/Beschreibungen) --- */
+function zeigeBeschreibungDialog(id,ts=null){beschreibungFuerId=id;beschreibungZuBearbeitenderTimestamp=ts;const area=document.getElementById("beschreibungText");if(ts!==null){const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idee=ideen.find(i=>i&&i.id===id);const desc=idee?.beschreibungen?.find(b=>b&&b.timestamp===ts);if(desc)area.value=desc.text;else{zeigeWarnung("Fehler: Beschreibung nicht gefunden.");beschreibungAbbrechen();return}}else{area.value=""}document.getElementById("beschreibungDialog").style.display="block";area.focus();istGespeichert=!1}
 function beschreibungAbbrechen(){document.getElementById("beschreibungDialog").style.display="none";beschreibungFuerId=null;beschreibungZuBearbeitenderTimestamp=null;document.getElementById("beschreibungText").value=""}
-function beschreibungSpeichern(){const t=document.getElementById("beschreibungText").value.trim();if(!t)return;let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idx=ideen.findIndex(i=>i.id===beschreibungFuerId);if(idx!==-1){if(beschreibungZuBearbeitenderTimestamp!==null){const dIdx=ideen[idx].beschreibungen.findIndex(b=>b.timestamp===beschreibungZuBearbeitenderTimestamp);if(dIdx!==-1)ideen[idx].beschreibungen[dIdx].text=t;else zeigeWarnung("Fehler: Beschreibung nicht gefunden.")}else{const ts=new Date().toISOString()+'_'+Math.random().toString(36).substr(2,9);if(!ideen[idx].beschreibungen)ideen[idx].beschreibungen=[];ideen[idx].beschreibungen.push({text:t,timestamp:ts})}localStorage.setItem("ideen",JSON.stringify(ideen));zeigeIdeen()}else{zeigeWarnung("Fehler: Idee nicht gefunden.")}beschreibungAbbrechen();istGespeichert=!0;saveToOneDrive()}
+
+function beschreibungSpeichern(){
+    const t=document.getElementById("beschreibungText").value.trim();if(!t)return;
+    let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");
+    const idx=ideen.findIndex(i=>i&&i.id===beschreibungFuerId);
+    if(idx!==-1){
+        if(beschreibungZuBearbeitenderTimestamp!==null){
+            if (!ideen[idx].beschreibungen) ideen[idx].beschreibungen = [];
+            const dIdx=ideen[idx].beschreibungen.findIndex(b=>b&&b.timestamp===beschreibungZuBearbeitenderTimestamp);
+            if(dIdx!==-1) { ideen[idx].beschreibungen[dIdx].text=t; }
+            else { zeigeWarnung("Fehler: Beschreibung zum Bearbeiten nicht gefunden."); }
+        } else {
+            const ts=new Date().toISOString()+'_'+Math.random().toString(36).substr(2,9);
+            if(!ideen[idx].beschreibungen) ideen[idx].beschreibungen=[];
+            ideen[idx].beschreibungen.push({text:t, timestamp:ts, level: 0}); // Mit level: 0
+        }
+        localStorage.setItem("ideen",JSON.stringify(ideen));
+        zeigeIdeen();
+    } else { zeigeWarnung("Fehler: Idee nicht gefunden."); }
+    beschreibungAbbrechen();
+    istGespeichert=false; // Änderung!
+    saveToOneDrive();
+}
+
 function bearbeiteEinzelneBeschreibung(id,ts){if(ts)zeigeBeschreibungDialog(id,ts);else zeigeWarnung("Interner Fehler: Timestamp fehlt.")}
 function toggleAuswahl(id,box){console.log("toggleAuswahl:",id,"Checked:",box.checked);if(box.checked){if(!ausgewaehlt.includes(id))ausgewaehlt.push(id)}else{ausgewaehlt=ausgewaehlt.filter(i=>i!==id)}console.log("Auswahl:",ausgewaehlt)}
-function ausgewaehlteNotizenLoeschen(){if(ausgewaehlt.length===0){zeigeWarnung("Keine Notizen ausgewählt.");return}if(!confirm(`Wirklich ${ausgewaehlt.length} Notiz(en) löschen?`))return;let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const delM=new Set();const delU=new Set();ideen.filter(i=>ausgewaehlt.includes(i.id)).forEach(i=>{if(i.mandantennummer)delM.add((i.mandantennummer).toLowerCase());if(i.benutzer)delU.add((i.benutzer).toLowerCase())});const newList=ideen.filter(i=>!ausgewaehlt.includes(i.id));localStorage.setItem("ideen",JSON.stringify(newList));const remM=new Set(newList.map(i=>(i.mandantennummer||"").toLowerCase()).filter(m=>m!==""));const remU=new Set(newList.map(i=>(i.benutzer||"").toLowerCase()).filter(b=>b!==""));let uM=!1;delM.forEach(m=>{if(!remM.has(m))uM=!0});let uU=!1;delU.forEach(u=>{if(!remU.has(u))uU=!0});if(uM)aktualisiereMandantenFilterDropdown();if(uU)aktualisiereBenutzerDropdowns();if(bearbeiteId!==null&&ausgewaehlt.includes(bearbeiteId))abbrechenBearbeiten();if(beschreibungFuerId!==null&&ausgewaehlt.includes(beschreibungFuerId))beschreibungAbbrechen();ausgewaehlt=[];zeigeIdeen();istGespeichert=!0;saveToOneDrive()}
-function alleIdeenLoeschen(){if(!confirm("Wirklich ALLE Ideen löschen?"))return;localStorage.removeItem("ideen"); localStorage.removeItem("kategorien"); localStorage.removeItem("benutzerliste"); localStorage.removeItem("naechsteVorgangsnummer"); /* Sicherer alles löschen */ naechsteVorgangsnummer=1; kategorien = []; benutzerliste = []; /* Variablen auch zurücksetzen */ zeigeNaechsteNummer(); initialisiereKategorien(); initialisiereBenutzer(); /* Neu initialisieren */ aktualisiereMandantenFilterDropdown(); ausgewaehlt=[];bearbeiteId=null;beschreibungFuerId=null;beschreibungZuBearbeitenderTimestamp=null;zeigeIdeen();abbrechenBearbeiten();istGespeichert=!0;saveToOneDrive()}
+function ausgewaehlteNotizenLoeschen(){if(ausgewaehlt.length===0){zeigeWarnung("Keine Notizen ausgewählt.");return}if(!confirm(`Wirklich ${ausgewaehlt.length} Notiz(en) löschen?`))return;let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const delM=new Set();const delU=new Set();ideen.filter(i=>i&&ausgewaehlt.includes(i.id)).forEach(i=>{if(i.mandantennummer)delM.add((i.mandantennummer).toLowerCase());if(i.benutzer)delU.add((i.benutzer).toLowerCase())});const newList=ideen.filter(i=>!i || !ausgewaehlt.includes(i.id));localStorage.setItem("ideen",JSON.stringify(newList));const remM=new Set(newList.filter(i=>i).map(i=>(i.mandantennummer||"").toLowerCase()).filter(m=>m!==""));const remU=new Set(newList.filter(i=>i).map(i=>(i.benutzer||"").toLowerCase()).filter(b=>b!==""));let uM=!1;delM.forEach(m=>{if(!remM.has(m))uM=!0});let uU=!1;delU.forEach(u=>{if(!remU.has(u))uU=!0});if(uM)aktualisiereMandantenFilterDropdown();if(uU)aktualisiereBenutzerDropdowns();if(bearbeiteId!==null&&ausgewaehlt.includes(bearbeiteId))abbrechenBearbeiten();if(beschreibungFuerId!==null&&ausgewaehlt.includes(beschreibungFuerId))beschreibungAbbrechen();ausgewaehlt=[];zeigeIdeen();istGespeichert=false;saveToOneDrive()} // Änderung!
+function alleIdeenLoeschen(){if(!confirm("Wirklich ALLE Ideen, Kategorien, Benutzer etc. löschen?"))return;localStorage.removeItem("ideen"); localStorage.removeItem("kategorien"); localStorage.removeItem("benutzerliste"); localStorage.removeItem("naechsteVorgangsnummer"); naechsteVorgangsnummer=1; kategorien = []; benutzerliste = []; zeigeNaechsteNummer(); initialisiereKategorien(); initialisiereBenutzer(); aktualisiereMandantenFilterDropdown(); ausgewaehlt=[];bearbeiteId=null;beschreibungFuerId=null;beschreibungZuBearbeitenderTimestamp=null;zeigeIdeen();abbrechenBearbeiten();istGespeichert=true;saveToOneDrive()} // Nach komplettem Löschen ist der Stand "gespeichert"
 
-// *** NEUE Funktion zum Umschalten der Anhang-Sichtbarkeit ***
+// Funktion zum Umschalten der Anhang-Sichtbarkeit
 function toggleAnhangSichtbarkeit(ideeId, anhangId) {
-    if (!ideeId || !anhangId) {
-        console.error("toggleAnhangSichtbarkeit: ideeId oder anhangId fehlt.");
-        return;
-    }
+    if (!ideeId || !anhangId) { console.error("toggleAnhangSichtbarkeit: IDs fehlen."); return; }
     let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-    const ideeIndex = ideen.findIndex(i => i.id === ideeId);
-    if (ideeIndex === -1) {
-        zeigeWarnung("Fehler: Idee zum Umschalten des Anhangs nicht gefunden.");
-        return;
-    }
-
-    if (!Array.isArray(ideen[ideeIndex].dateien)) {
-        // Sollte nicht passieren, wenn Idee gefunden wurde, aber zur Sicherheit
-        console.warn("Keine Anhänge für Idee gefunden, obwohl toggle versucht wurde.");
-        return;
-    }
-
-    const anhangIndex = ideen[ideeIndex].dateien.findIndex(f => f && f.id === anhangId); // Prüfe auch ob f existiert
-    if (anhangIndex === -1) {
-        zeigeWarnung("Fehler: Anhang zum Umschalten nicht gefunden.");
-        return;
-    }
-
-    // Umschalten des 'sichtbar'-Status
+    const ideeIndex = ideen.findIndex(i => i && i.id === ideeId);
+    if (ideeIndex === -1) { zeigeWarnung("Fehler: Idee nicht gefunden."); return; }
+    if (!Array.isArray(ideen[ideeIndex].dateien)) { return; }
+    const anhangIndex = ideen[ideeIndex].dateien.findIndex(f => f && f.id === anhangId);
+    if (anhangIndex === -1) { zeigeWarnung("Fehler: Anhang nicht gefunden."); return; }
     ideen[ideeIndex].dateien[anhangIndex].sichtbar = !(ideen[ideeIndex].dateien[anhangIndex].sichtbar === true);
-
     localStorage.setItem("ideen", JSON.stringify(ideen));
-    zeigeIdeen(); // Ansicht aktualisieren
-    istGespeichert = false; // Zustand hat sich geändert
-    saveToOneDrive(); // Änderungen synchronisieren
-    console.log(`Sichtbarkeit für Anhang ${anhangId} in Idee ${ideeId} auf ${ideen[ideeIndex].dateien[anhangIndex].sichtbar} umgeschaltet.`);
+    zeigeIdeen(); istGespeichert = false; saveToOneDrive();
+    console.log(`Sichtbarkeit Anhang ${anhangId} -> ${ideen[ideeIndex].dateien[anhangIndex].sichtbar}`);
+}
+
+// Funktion zum Verschieben von Beschreibungen (vertikal)
+function verschiebeBeschreibung(ideeId, beschreibungTimestamp, richtung) {
+    if (!ideeId || !beschreibungTimestamp || (richtung !== -1 && richtung !== 1)) { console.error("Ungültige Argumente"); return; }
+    let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+    const ideeIndex = ideen.findIndex(i => i && i.id === ideeId);
+    if (ideeIndex === -1) return zeigeWarnung("Idee nicht gefunden.");
+    if (!ideen[ideeIndex].beschreibungen || !Array.isArray(ideen[ideeIndex].beschreibungen)) return;
+    const beschreibungen = ideen[ideeIndex].beschreibungen;
+    const currentIndex = beschreibungen.findIndex(b => b && b.timestamp === beschreibungTimestamp);
+    if (currentIndex === -1) return zeigeWarnung("Beschreibung nicht gefunden.");
+    const targetIndex = currentIndex + richtung;
+    if (targetIndex < 0 || targetIndex >= beschreibungen.length) { return; } // Grenze erreicht
+    [beschreibungen[currentIndex], beschreibungen[targetIndex]] = [beschreibungen[targetIndex], beschreibungen[currentIndex]];
+    localStorage.setItem("ideen", JSON.stringify(ideen));
+    zeigeIdeen(); istGespeichert = false; saveToOneDrive();
+    console.log(`Beschreibung ${beschreibungTimestamp} verschoben.`);
+}
+
+// Funktion zum Ändern der Einrückung von Beschreibungen (horizontal)
+function aendereEinrueckungBeschreibung(ideeId, beschreibungTimestamp, richtung) {
+    if (!ideeId || !beschreibungTimestamp || (richtung !== -1 && richtung !== 1)) { console.error("Ungültige Argumente"); return; }
+    let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+    const ideeIndex = ideen.findIndex(i => i && i.id === ideeId);
+    if (ideeIndex === -1) return zeigeWarnung("Idee nicht gefunden.");
+    if (!ideen[ideeIndex].beschreibungen || !Array.isArray(ideen[ideeIndex].beschreibungen)) return;
+    const beschrIndex = ideen[ideeIndex].beschreibungen.findIndex(b => b && b.timestamp === beschreibungTimestamp);
+    if (beschrIndex === -1) return zeigeWarnung("Beschreibung nicht gefunden.");
+    const aktuellesLevel = ideen[ideeIndex].beschreibungen[beschrIndex].level || 0;
+    let neuesLevel = aktuellesLevel + richtung;
+    const maxLevel = 5; // Max Tiefe
+    if (neuesLevel < 0) neuesLevel = 0;
+    if (neuesLevel > maxLevel) neuesLevel = maxLevel;
+    if (aktuellesLevel === neuesLevel) { return; } // Nichts zu tun
+    ideen[ideeIndex].beschreibungen[beschrIndex].level = neuesLevel;
+    localStorage.setItem("ideen", JSON.stringify(ideen));
+    zeigeIdeen(); istGespeichert = false; saveToOneDrive();
+    console.log(`Einrückung für ${beschreibungTimestamp} -> Level ${neuesLevel}`);
 }
 /* --- END BLOCK 5d --- */
 
-/* --- START BLOCK 6: Export --- */
+/* --- START BLOCK 6: Export (Angepasst für Sichtbarkeit/Einrückung) --- */
+// Helferfunktion getFormattedDate bleibt gleich
+function getFormattedDate(timestamp) { if (timestamp) { let ts = timestamp; if (typeof ts === 'string' && ts.includes('_')) { ts = ts.split('_')[0]; } try { const d = new Date(ts); if (!isNaN(d.getTime())) { return d.toLocaleString("de-DE", { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }); } } catch (e) { } } return 'N/A'; }
 
-// Helper function to get formatted date string or a placeholder
-function getFormattedDate(timestamp) {
-    if (timestamp) {
-        let ts = timestamp;
-        if (typeof ts === 'string' && ts.includes('_')) {
-            ts = ts.split('_')[0];
-        }
-        try {
-            const d = new Date(ts);
-            if (!isNaN(d.getTime())) {
-                return d.toLocaleString("de-DE", { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
-            }
-        } catch (e) { /* Fall through to return placeholder */ }
-    }
-    return 'N/A';
-}
+// Robuste Funktion getExportIdeen bleibt gleich
+function getExportIdeen() { let resultIdeen = []; try { let ideen = []; try { ideen = JSON.parse(localStorage.getItem("ideen") || "[]"); if (!Array.isArray(ideen)) { console.error("localStorage 'ideen' war kein Array."); ideen = []; localStorage.setItem("ideen", "[]"); } } catch (e) { console.error("Fehler beim Parsen von 'ideen':", e); localStorage.removeItem("ideen"); ideen = []; } const aktuellAusgewaehlteCheckboxes = Array.from(document.querySelectorAll('.idee-checkbox:checked')); let aktuellAusgewaehlteIDs = []; if (aktuellAusgewaehlteCheckboxes.length > 0) { aktuellAusgewaehlteIDs = aktuellAusgewaehlteCheckboxes.map(cb => { try { let parentIdeeDiv = cb.closest('.idee'); if (parentIdeeDiv) { const buttonsMitId = parentIdeeDiv.querySelectorAll('button[onclick*="loescheIdee("], button[onclick*="bearbeiteIdee("], button[onclick*="toggleErledigt("]'); for(let btn of buttonsMitId) { if (btn.onclick) { const match = btn.onclick.toString().match(/\('([^']+)'\)/); if (match && match[1]) return match[1]; } } } } catch (e) { console.error("Error extracting ID:", e, cb); } return null; }).filter(id => id !== null); if (aktuellAusgewaehlteIDs.length > 0) { console.log("Export basierend auf Auswahl:", aktuellAusgewaehlteIDs); resultIdeen = ideen.filter(i => i && i.id && aktuellAusgewaehlteIDs.includes(i.id)); } else { console.warn("Checkboxen gecheckt, aber keine IDs gefunden."); resultIdeen = []; } } else { console.log("Export basierend auf globalen Filtern."); let fIdeen = [...ideen.filter(i=>i&&i.id)]; /* Start with valid ideas */ const fKat = document.getElementById("filterKategorie")?.value; if (fKat) fIdeen = fIdeen.filter(i => i.kategorie === fKat); const fMdt = document.getElementById("filterMandant")?.value; if (fMdt) fIdeen = fIdeen.filter(i => (i.mandantennummer || "").toLowerCase() === fMdt.toLowerCase()); const fUser = document.getElementById("filterBenutzer")?.value; if (fUser) fIdeen = fIdeen.filter(i => (i.benutzer || "").toLowerCase() === fUser.toLowerCase()); const fArchiv = document.getElementById("filterArchiv")?.value; if (fArchiv === "nicht_erledigt") fIdeen = fIdeen.filter(i => !(i.erledigt || false)); else if (fArchiv === "erledigt") fIdeen = fIdeen.filter(i => (i.erledigt || false)); const sort=document.getElementById("sortierung")?.value; if(sort && sort!=="standard"){ fIdeen.sort((a,b)=>{ if (!a || !b) return 0; if(sort==="prio"){ const p={"Hoch":3,"Mittel":2,"Niedrig":1}; return(p[b.prioritaet]||0)-(p[a.prioritaet]||0); } let tA=-Infinity,tB=-Infinity; try{tA=new Date(a.timestamp?.split('_')[0]).getTime();if(isNaN(tA))tA=(sort==="neu"?-Infinity:Infinity)}catch(e){tA=(sort==="neu"?-Infinity:Infinity)} try{tB=new Date(b.timestamp?.split('_')[0]).getTime();if(isNaN(tB))tB=(sort==="neu"?-Infinity:Infinity)}catch(e){tB=(sort==="neu"?-Infinity:Infinity)} if(sort==="neu")return tB-tA; if(sort==="alt")return tA-tB; return 0; }); } resultIdeen = fIdeen; } } catch (error) { console.error("Schwerer Fehler in getExportIdeen:", error); zeigeWarnung("Fehler beim Ermitteln der Ideen.", "warnung"); resultIdeen = []; } if (!Array.isArray(resultIdeen)) { console.error("getExportIdeen hat KEIN Array zurückgegeben!"); return []; } return resultIdeen; }
 
-// *** ROBUSTERE VERSION von getExportIdeen ***
-function getExportIdeen() {
-    let resultIdeen = []; // Standardmäßig leeres Array zurückgeben
-    try {
-        let ideen = [];
-        try {
-             // Versuche, Ideen zu laden und sicherzustellen, dass es ein Array ist
-             ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-             if (!Array.isArray(ideen)) {
-                 console.error("localStorage 'ideen' war kein Array. Wird zurückgesetzt.");
-                 ideen = [];
-                 localStorage.setItem("ideen", "[]"); // Korrigiere Speicher bei ungültigen Daten
-             }
-        } catch (e) {
-             console.error("Fehler beim Parsen von 'ideen' aus localStorage:", e);
-             localStorage.removeItem("ideen"); // Fehlerhafte Daten entfernen
-             ideen = [];
-        }
-
-
-        const aktuellAusgewaehlteCheckboxes = Array.from(document.querySelectorAll('.idee-checkbox:checked'));
-        let aktuellAusgewaehlteIDs = [];
-
-        if (aktuellAusgewaehlteCheckboxes.length > 0) {
-            // IDs aus Checkboxen extrahieren (mit Fehlerbehandlung pro Checkbox)
-            aktuellAusgewaehlteIDs = aktuellAusgewaehlteCheckboxes.map(cb => {
-                 try {
-                    let parentIdeeDiv = cb.closest('.idee');
-                    if (parentIdeeDiv) {
-                        // Verwende eine flexiblere Suche nach der ID, falls sich onclick leicht ändert
-                        const buttonsMitId = parentIdeeDiv.querySelectorAll('button[onclick*="loescheIdee("], button[onclick*="bearbeiteIdee("], button[onclick*="toggleErledigt("]');
-                        for(let btn of buttonsMitId) {
-                            if (btn.onclick) {
-                                const match = btn.onclick.toString().match(/\('([^']+)'\)/); // Sucht nach ('ID')
-                                if (match && match[1]) return match[1];
-                            }
-                        }
-                    }
-                 } catch (e) {
-                     console.error("Error extracting ID from checkbox:", e, cb);
-                 }
-                return null;
-            }).filter(id => id !== null); // Nur gültige IDs behalten
-
-            if (aktuellAusgewaehlteIDs.length > 0) {
-                console.log("Export basierend auf Auswahl:", aktuellAusgewaehlteIDs);
-                // Filtere sicher: Stelle sicher, dass 'i' und 'i.id' existieren
-                resultIdeen = ideen.filter(i => i && i.id && aktuellAusgewaehlteIDs.includes(i.id));
-            } else {
-                 // Falls Checkboxen gecheckt, aber keine IDs gefunden wurden -> leeres Array zurückgeben
-                 console.warn("Checkboxes checked, but no valid IDs extracted. Exporting empty selection.");
-                 resultIdeen = []; // Keine gültige Auswahl getroffen
-            }
-
-        } else { // Keine Checkboxen ausgewählt -> globale Filter anwenden
-            console.log("Export basierend auf globalen Filtern.");
-            let fIdeen = [...ideen]; // Kopie für Filterung
-
-            // Filter sicher anwenden
-            const fKat = document.getElementById("filterKategorie")?.value;
-            if (fKat) fIdeen = fIdeen.filter(i => i && i.kategorie === fKat);
-
-            const fMdt = document.getElementById("filterMandant")?.value;
-            if (fMdt) fIdeen = fIdeen.filter(i => i && (i.mandantennummer || "").toLowerCase() === fMdt.toLowerCase());
-
-            const fUser = document.getElementById("filterBenutzer")?.value;
-            if (fUser) fIdeen = fIdeen.filter(i => i && (i.benutzer || "").toLowerCase() === fUser.toLowerCase());
-
-            const fArchiv = document.getElementById("filterArchiv")?.value;
-            if (fArchiv === "nicht_erledigt") fIdeen = fIdeen.filter(i => i && !(i.erledigt || false));
-            else if (fArchiv === "erledigt") fIdeen = fIdeen.filter(i => i && (i.erledigt || false));
-
-            // Sortierung sicher anwenden
-             const sort=document.getElementById("sortierung")?.value;
-             if(sort && sort!=="standard"){
-                 fIdeen.sort((a,b)=>{
-                    // Füge Sicherheitsprüfungen für a und b hinzu, falls sie aus irgendeinem Grund null/undefined sind
-                    if (!a || !b) return 0;
-
-                    if(sort==="prio"){
-                        const p={"Hoch":3,"Mittel":2,"Niedrig":1};
-                        return(p[b.prioritaet]||0)-(p[a.prioritaet]||0);
-                    }
-                    let tA=-Infinity,tB=-Infinity;
-                    try{tA=new Date(a.timestamp?.split('_')[0]).getTime();if(isNaN(tA))tA=(sort==="neu"?-Infinity:Infinity)}catch(e){tA=(sort==="neu"?-Infinity:Infinity)}
-                    try{tB=new Date(b.timestamp?.split('_')[0]).getTime();if(isNaN(tB))tB=(sort==="neu"?-Infinity:Infinity)}catch(e){tB=(sort==="neu"?-Infinity:Infinity)}
-                    if(sort==="neu")return tB-tA;
-                    if(sort==="alt")return tA-tB;
-                    return 0;
-                });
-             }
-            resultIdeen = fIdeen;
-        }
-
-    } catch (error) {
-        console.error("Schwerer Fehler in getExportIdeen:", error);
-        zeigeWarnung("Fehler beim Ermitteln der zu exportierenden Ideen.", "warnung");
-        resultIdeen = []; // Stelle sicher, dass im Fehlerfall ein leeres Array zurückgegeben wird
-    }
-
-    // Allerletzte Sicherheitsprüfung: Ist das Ergebnis wirklich ein Array?
-    if (!Array.isArray(resultIdeen)) {
-        console.error("getExportIdeen hat KEIN Array zurückgegeben! Erzwinge leeres Array.");
-        return [];
-    }
-    // Gebe das Ergebnisarray zurück (kann leer sein)
-    return resultIdeen;
-}
-// *** Ende der ROBUSTEREN getExportIdeen Funktion ***
-
-// --- Text-Export ---
+// --- Text-Export mit Einrückung & Sichtbarkeit ---
 function exportiereAlsText() {
-    const ideenToExport = getExportIdeen(); // Nutzt die robustere Funktion
-    if (ideenToExport.length === 0) {
-        zeigeWarnung("Keine Notizen zum Exportieren ausgewählt oder gefunden.", "info");
-        return;
-    }
+    const ideenToExport = getExportIdeen();
+    if (ideenToExport.length === 0) { zeigeWarnung("Keine Notizen zum Exportieren.", "info"); return; }
     let textContent = `Ideen-Export - ${new Date().toLocaleString("de-DE")}\n==================================================\n\n`;
     ideenToExport.forEach(idee => {
-        if (!idee) return; // Überspringe ungültige Idee-Objekte
+        if (!idee) return;
         textContent += `${idee.erledigt ? '[ERLEDIGT] ' : ''}${idee.vorgangsnummer ? `[Vorgang ${idee.vorgangsnummer}] ` : ''}${idee.text || 'Ohne Titel'}\n--------------------------------------------------\n`;
         if (idee.kategorie) textContent += `Kategorie: ${idee.kategorie}\n`;
         if (idee.prioritaet) textContent += `Priorität: ${idee.prioritaet}\n`;
@@ -609,243 +535,176 @@ function exportiereAlsText() {
         if (idee.mandantennummer) textContent += `Mandantennummer: ${idee.mandantennummer}\n`;
         if (idee.firmenname) textContent += `Firmenname: ${idee.firmenname}\n`;
         if (idee.details) textContent += `\nBeschreibung:\n${idee.details}\n`;
+
         if (idee.beschreibungen && idee.beschreibungen.length > 0) {
              textContent += `\nWeitere Beschreibungen:\n`;
              idee.beschreibungen.forEach(b => {
-                if (b && b.text) textContent += `- [${getFormattedDate(b.timestamp)}] ${b.text}\n`;
+                if (b && b.text !== undefined) {
+                    const indentSpaces = "  ".repeat(b.level || 0); // Einrückung
+                    textContent += `${indentSpaces}- [${getFormattedDate(b.timestamp)}] ${b.text}\n`;
+                }
              });
         }
 
         if (idee.dateien && idee.dateien.length > 0) {
             textContent += `\nAnhänge:\n`;
             idee.dateien.forEach(f => {
-                 if (!f || !f.id) return; // Überspringe ungültige
-                const praefix = f.sichtbar === false ? "[Veraltet] " : "";
+                 if (!f || !f.id) return;
+                const praefix = f.sichtbar === false ? "[Veraltet] " : ""; // Präfix
                 textContent += `  - Name: ${praefix}${f.name || 'Unbekannt'}\n`;
-                if (f.link) {
-                    textContent += `    Link: ${f.link}\n`;
-                } else {
-                    textContent += `    (Lokale Datei)\n`;
-                }
+                if (f.link) { textContent += `    Link: ${f.link}\n`; }
+                else { textContent += `    (Lokale Datei)\n`; }
             });
         }
         textContent += `\n==================================================\n\n`;
     });
-     const blob = new Blob([textContent], { type: "text/plain;charset=utf-8" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "ideen-export.txt"; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); zeigeWarnung("Text-Export erfolgreich gestartet.", "success");
+     const blob = new Blob([textContent], { type: "text/plain;charset=utf-8" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "ideen-export.txt"; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); zeigeWarnung("Text-Export gestartet.", "success");
 }
 
-// --- PDF-Export ---
+// --- PDF-Export mit Einrückung & Sichtbarkeit ---
 function exportiereAlsPDF() {
-    const ideenToExport = getExportIdeen(); // Nutzt die robustere Funktion
-    if (ideenToExport.length === 0) {
-        zeigeWarnung("Keine Notizen zum Exportieren ausgewählt oder gefunden.", "info");
-        return;
-    }
+    const ideenToExport = getExportIdeen();
+    if (ideenToExport.length === 0) { zeigeWarnung("Keine Notizen zum Exportieren.", "info"); return; }
     const { jsPDF } = window.jspdf; const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-    doc.setProperties({ title: 'Ideen-Export', subject: 'Exportierte Ideen aus der Ideen-App Pro', author: 'Ideen-App Pro', creator: 'Ideen-App Pro' });
+    doc.setProperties({ title: 'Ideen-Export', subject: 'Exportierte Ideen', author: 'Ideen-App Pro', creator: 'Ideen-App Pro' });
     let yPosition = 15; const leftMargin = 15; const rightMargin = 15; const pageHeight = doc.internal.pageSize.height; const contentWidth = doc.internal.pageSize.width - leftMargin - rightMargin; const defaultLineSpacing = 5; const sectionSpacing = 8; const ideaSpacing = 15; const anhangFontSize = 10; const anhangLineHeight = 5;
-    // Helferfunktionen checkAddPage und addWrappedText
     function checkAddPage(neededHeight) { if (yPosition + neededHeight > pageHeight - 15) { doc.addPage(); yPosition = 15; return true; } return false; }
-    function addWrappedText(text, x, maxWidth, options = {}) { doc.setFontSize(options.fontSize || 10); doc.setFont(undefined, options.fontStyle || 'normal'); doc.setTextColor(options.color ? options.color[0] : 0, options.color ? options.color[1] : 0, options.color ? options.color[2] : 0); const lines = doc.splitTextToSize(text || "N/A", maxWidth); for (let i = 0; i < lines.length; i++) { checkAddPage(options.lineHeight || defaultLineSpacing); doc.text(lines[i], x, yPosition); yPosition += (options.lineHeight || defaultLineSpacing); } }
+    function addWrappedText(text, x, maxWidth, options = {}) { const fontSize = options.fontSize || 10; const fontStyle = options.fontStyle || 'normal'; const color = options.color || [0,0,0]; const lineHeight = options.lineHeight || defaultLineSpacing; doc.setFontSize(fontSize); doc.setFont(undefined, fontStyle); doc.setTextColor(color[0], color[1], color[2]); const lines = doc.splitTextToSize(text || "N/A", maxWidth); for (let i = 0; i < lines.length; i++) { checkAddPage(lineHeight); doc.text(lines[i], x, yPosition); yPosition += lineHeight; } }
 
     doc.setFontSize(18); doc.setFont(undefined, 'bold'); addWrappedText(`Ideen-Export - ${new Date().toLocaleDateString("de-DE")}`, leftMargin, contentWidth, {fontSize: 18, fontStyle: 'bold', lineHeight: 7}); yPosition += 5;
 
     ideenToExport.forEach((idee, index) => {
-        if (!idee) return; // Überspringe ungültige Idee-Objekte
-
+        if (!idee) return;
         if (index > 0) { yPosition += (ideaSpacing / 2); } checkAddPage(40); if (index > 0) { doc.setDrawColor(180, 180, 180); doc.line(leftMargin, yPosition - (ideaSpacing / 4) , doc.internal.pageSize.width - rightMargin, yPosition - (ideaSpacing / 4));}
         let titleText = `${idee.erledigt ? '[ERLEDIGT] ' : ''}${idee.vorgangsnummer ? `[Vorgang ${idee.vorgangsnummer}] ` : ''}${idee.text || 'Ohne Titel'}`; addWrappedText(titleText, leftMargin, contentWidth, { fontSize: 14, fontStyle: 'bold', lineHeight: 7 });
         let metaText = `Kategorie: ${idee.kategorie || '-'} | Priorität: ${idee.prioritaet || '-'} | Datum: ${getFormattedDate(idee.timestamp)}`; addWrappedText(metaText, leftMargin, contentWidth, { fontSize: 9, color: [51, 51, 51], lineHeight: 4 }); yPosition += 2;
         if (idee.benutzer) addWrappedText(`Zuständig: ${idee.benutzer}`, leftMargin, contentWidth, { fontSize: 10, lineHeight: defaultLineSpacing }); if (idee.mandantennummer) addWrappedText(`Mandant: ${idee.mandantennummer}`, leftMargin, contentWidth, { fontSize: 10, lineHeight: defaultLineSpacing }); if (idee.firmenname) addWrappedText(`Firma: ${idee.firmenname}`, leftMargin, contentWidth, { fontSize: 10, lineHeight: defaultLineSpacing });
         if (idee.benutzer || idee.mandantennummer || idee.firmenname) yPosition += (sectionSpacing / 2) ;
         if (idee.details) { checkAddPage(sectionSpacing + defaultLineSpacing); addWrappedText("Beschreibung:", leftMargin, contentWidth, { fontSize: 11, fontStyle: 'bold', lineHeight: 6 }); addWrappedText(idee.details, leftMargin, contentWidth, { fontSize: 10, lineHeight: defaultLineSpacing }); yPosition += (sectionSpacing / 2); }
+
+        // Beschreibungen mit Einrückung im PDF
         if (idee.beschreibungen && idee.beschreibungen.length > 0) {
-             checkAddPage(sectionSpacing + defaultLineSpacing); addWrappedText("Weitere Beschreibungen:", leftMargin, contentWidth, { fontSize: 11, fontStyle: 'bold', lineHeight: 6 });
+             checkAddPage(sectionSpacing + defaultLineSpacing);
+             addWrappedText("Weitere Beschreibungen:", leftMargin, contentWidth, { fontSize: 11, fontStyle: 'bold', lineHeight: 6 });
              idee.beschreibungen.forEach(b => {
-                if (b && b.text) { checkAddPage(defaultLineSpacing * 2); addWrappedText(`- [${getFormattedDate(b.timestamp)}] ${b.text}`, leftMargin + 5, contentWidth - 5, { fontSize: 10, lineHeight: defaultLineSpacing }); }
+                if (b && b.text !== undefined) {
+                    checkAddPage(defaultLineSpacing);
+                    const indentMM = (b.level || 0) * 5; // 5mm pro Stufe
+                    const startX = leftMargin + 5 + indentMM;
+                    const maxWidth = contentWidth - 5 - indentMM;
+                    if (maxWidth > 0) {
+                        addWrappedText(`- [${getFormattedDate(b.timestamp)}] ${b.text}`, startX, maxWidth, { fontSize: 10, lineHeight: defaultLineSpacing });
+                    } else {
+                        addWrappedText(`- [${getFormattedDate(b.timestamp)}] ${b.text}`, leftMargin + 5, contentWidth - 5, { fontSize: 10, lineHeight: defaultLineSpacing });
+                    }
+                }
              });
              yPosition += (sectionSpacing / 2);
         }
 
-        // PDF ANHÄNGE mit Sichtbarkeits-Check und Name als Link
+        // PDF ANHÄNGE (mit Sichtbarkeitscheck)
         if (idee.dateien && idee.dateien.length > 0) {
-            checkAddPage(sectionSpacing + anhangLineHeight);
-            addWrappedText("Anhänge:", leftMargin, contentWidth, { fontSize: 11, fontStyle: 'bold', lineHeight: 6 });
-            let currentX = leftMargin + 5;
-
-            for (let i = 0; i < idee.dateien.length; i++) {
-                const f = idee.dateien[i];
-                if (!f || !f.id) continue;
-
-                const isLast = i === idee.dateien.length - 1;
-                const istVeraltet = f.sichtbar === false;
-                const praefix = istVeraltet ? "[Veraltet] " : "";
-                let anhangDisplayName = `${praefix}${f.name || "Unbenannter Anhang"}`;
-                const anhangTextMitKomma = anhangDisplayName + (isLast ? "" : ", ");
-
-                doc.setFontSize(anhangFontSize);
-                const textWidth = doc.getTextWidth(anhangTextMitKomma);
-                const nameWidthForLink = doc.getTextWidth(anhangDisplayName);
-
-                if (currentX + textWidth > doc.internal.pageSize.width - rightMargin && currentX > leftMargin + 5) { // Zeilenumbruch nur, wenn nicht schon am Anfang
-                    currentX = leftMargin + 5;
-                    yPosition += anhangLineHeight;
-                    checkAddPage(anhangLineHeight);
-                }
-
-                const textY = yPosition;
-                const charHeight = doc.getFontSize() / doc.internal.scaleFactor;
-
-                if (f.link) {
-                    const linkColor = istVeraltet ? [128, 128, 128] : [0, 0, 238]; // Grau oder Blau
-                    doc.setTextColor(linkColor[0], linkColor[1], linkColor[2]);
-                    doc.text(anhangTextMitKomma, currentX, textY);
-                    doc.setDrawColor(linkColor[0], linkColor[1], linkColor[2]);
-                    doc.line(currentX, textY + 1, currentX + nameWidthForLink, textY + 1);
-                    doc.link(currentX, textY - charHeight + 1, nameWidthForLink, charHeight, { url: f.link });
-                    doc.setTextColor(0, 0, 0);
-                } else {
-                    const textColor = istVeraltet ? [128, 128, 128] : [0, 0, 0];
-                    doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-                    doc.text(anhangTextMitKomma, currentX, textY);
-                    // Zusatz "(Lokal)"
-                     const localText = " (Lokal)";
-                     const localTextWidth = doc.getTextWidth(localText);
-                      if (currentX + textWidth + localTextWidth <= doc.internal.pageSize.width - rightMargin) {
-                           doc.setTextColor(100, 100, 100);
-                           doc.text(localText, currentX + nameWidthForLink, textY); // Direkt nach dem Namen anhängen
-                           currentX += localTextWidth; // X für das Komma anpassen
-                      }
-                    doc.setTextColor(0, 0, 0);
-                }
-                currentX += textWidth;
-            }
-            yPosition += anhangLineHeight;
-            yPosition += (sectionSpacing / 2);
+             checkAddPage(sectionSpacing + anhangLineHeight); addWrappedText("Anhänge:", leftMargin, contentWidth, { fontSize: 11, fontStyle: 'bold', lineHeight: 6 });
+             let currentX = leftMargin + 5;
+             for (let i = 0; i < idee.dateien.length; i++) {
+                 const f = idee.dateien[i]; if (!f || !f.id) continue;
+                 const isLast = i === idee.dateien.length - 1; const istVeraltet = f.sichtbar === false; const praefix = istVeraltet ? "[Veraltet] " : "";
+                 let anhangDisplayName = `${praefix}${f.name || "Unbenannter Anhang"}`; const anhangTextMitKomma = anhangDisplayName + (isLast ? "" : ", ");
+                 doc.setFontSize(anhangFontSize); const textWidth = doc.getTextWidth(anhangTextMitKomma); const nameWidthForLink = doc.getTextWidth(anhangDisplayName);
+                 if (currentX + textWidth > doc.internal.pageSize.width - rightMargin && currentX > leftMargin + 5) { currentX = leftMargin + 5; yPosition += anhangLineHeight; checkAddPage(anhangLineHeight); }
+                 const textY = yPosition; const charHeight = doc.getFontSize() / doc.internal.scaleFactor;
+                 if (f.link) {
+                     const linkColor = istVeraltet ? [128, 128, 128] : [0, 0, 238]; doc.setTextColor(linkColor[0], linkColor[1], linkColor[2]);
+                     doc.text(anhangTextMitKomma, currentX, textY); doc.setDrawColor(linkColor[0], linkColor[1], linkColor[2]);
+                     doc.line(currentX, textY + 1, currentX + nameWidthForLink, textY + 1); doc.link(currentX, textY - charHeight + 1, nameWidthForLink, charHeight, { url: f.link }); doc.setTextColor(0, 0, 0);
+                 } else {
+                     const textColor = istVeraltet ? [128, 128, 128] : [0, 0, 0]; doc.setTextColor(textColor[0], textColor[1], textColor[2]); doc.text(anhangTextMitKomma, currentX, textY);
+                      const localText = " (Lokal)"; const localTextWidth = doc.getTextWidth(localText); if (!f.link && currentX + textWidth + localTextWidth <= doc.internal.pageSize.width - rightMargin) { doc.setTextColor(100, 100, 100); doc.text(localText, currentX + nameWidthForLink, textY); currentX += localTextWidth;} doc.setTextColor(0, 0, 0);
+                 } currentX += textWidth;
+             } yPosition += anhangLineHeight; yPosition += (sectionSpacing / 2);
         }
         yPosition += ideaSpacing;
     });
-
-    doc.save("ideen-export.pdf");
-    zeigeWarnung("PDF-Export erfolgreich gestartet.", "success");
+    doc.save("ideen-export.pdf"); zeigeWarnung("PDF-Export gestartet.", "success");
 }
 
-// --- E-Mail Export ---
+// --- E-Mail Export mit Einrückung & Sichtbarkeit ---
 async function teilePerEmail(){
-    const ideenToExport = getExportIdeen(); // Nutzt die robustere Funktion
-    if(ideenToExport.length === 0) { zeigeWarnung("Bitte wählen Sie Notizen für den Export aus oder passen Sie die Filter an."); return; }
-    const recipientInput = prompt("An wen soll exportiert werden? E-Mail oder 'ich', 'mandant', 'support', 'andere'");
-    let recipientInfo = recipientInput ? recipientInput.trim().toLowerCase() : "";
-    if (!recipientInfo) { zeigeWarnung("Export abgebrochen."); return; }
-    if (!["ich", "mandant", "support"].includes(recipientInfo) && recipientInfo !== "andere" && !recipientInfo.startsWith("andere:")) { recipientInfo = `Direkte Eingabe: ${recipientInput.trim()}`;
-    } else if (recipientInfo === "andere") { const other=prompt("Info für 'andere'?"); if (!other?.trim()){zeigeWarnung("Abgebrochen."); return;} recipientInfo = `Andere: ${other.trim()}`; }
-    console.log("E-Mail: Empfängerinfo:", recipientInfo);
+    const ideenToExport = getExportIdeen();
+    if(ideenToExport.length === 0) { zeigeWarnung("Keine Notizen für Export ausgewählt."); return; }
+    const recipientInput = prompt("An wen soll exportiert werden? E-Mail oder 'ich', 'mandant', 'support', 'andere'"); let recipientInfo = recipientInput ? recipientInput.trim().toLowerCase() : ""; if (!recipientInfo) { zeigeWarnung("Export abgebrochen."); return; } if (!["ich", "mandant", "support"].includes(recipientInfo) && recipientInfo !== "andere" && !recipientInfo.startsWith("andere:")) { recipientInfo = `Direkte Eingabe: ${recipientInput.trim()}`; } else if (recipientInfo === "andere") { const other=prompt("Info für 'andere'?"); if (!other?.trim()){zeigeWarnung("Abgebrochen."); return;} recipientInfo = `Andere: ${other.trim()}`; } console.log("E-Mail: Empfängerinfo:", recipientInfo);
 
     let text = ideenToExport.map(idee => {
-        if (!idee) return ""; // Überspringe ungültige
+        if (!idee) return "";
          let datumText = getFormattedDate(idee.timestamp);
          const beschreibungenText = idee.beschreibungen && idee.beschreibungen.length ?
              `Weitere Beschreibungen:\n${
-                 idee.beschreibungen.filter(b => b && b.text).map(b => { // Filter ungültige Beschr.
-                     let btsText = getFormattedDate(b.timestamp);
-                     return `  - [${btsText}] ${b.text}`;
+                 idee.beschreibungen.filter(b => b && b.text !== undefined).map(b => {
+                     const indentSpacesMail = "  ".repeat(b.level || 0); // Einrückung
+                     return `${indentSpacesMail}  - [${getFormattedDate(b.timestamp)}] ${b.text}`;
                  }).join("\n")
              }\n` : "";
          let anhaengeText = "Keine";
          if (idee.dateien && idee.dateien.length > 0) {
-             anhaengeText = idee.dateien.filter(f => f && f.id).map(f => { // Filter ungültige Anhänge
+             anhaengeText = idee.dateien.filter(f => f && f.id).map(f => {
                  const praefix = f.sichtbar === false ? "[Veraltet] " : "";
                  return f.link ? `${praefix}${f.name || 'Unbekannt'} (${f.link})` : `${praefix}${f.name || 'Unbekannt'} (Lokal)`;
              }).join(", ");
          }
          return ( `${idee.erledigt ? '[ERLEDIGT] ' : ''}*${idee.vorgangsnummer ? `[Vorgang ${idee.vorgangsnummer}] ` : ''}${idee.text || 'Ohne Titel'}*\n` +
-             `Kategorie: ${idee.kategorie||'-'}\n` + `${idee.benutzer?`Zuständig: ${idee.benutzer}\n`:""}` + `Priorität: ${idee.prioritaet||"-"}\n` + `Datum: ${datumText}\n` +
-             `${idee.mandantennummer?"Mandant: "+idee.mandantennummer+"\n":""}` + `${idee.firmenname?"Firma: "+idee.firmenname+"\n":""}` + `${idee.details?`Beschreibung: ${idee.details}\n`:""}` +
-             `${beschreibungenText}` +
-             `\nAnhänge: ${anhaengeText}\n` );
-    }).filter(s => s !== "").join("\n\n------------------------------------\n\n"); // Filter leere Einträge
+                  `Kategorie: ${idee.kategorie||'-'}\n` + `${idee.benutzer?`Zuständig: ${idee.benutzer}\n`:""}` + `Priorität: ${idee.prioritaet||"-"}\n` + `Datum: ${datumText}\n` +
+                  `${idee.mandantennummer?"Mandant: "+idee.mandantennummer+"\n":""}` + `${idee.firmenname?"Firma: "+idee.firmenname+"\n":""}` + `${idee.details?`Beschreibung: ${idee.details}\n`:""}` +
+                  `${beschreibungenText}` + `\nAnhänge: ${anhaengeText}\n` );
+    }).filter(s => s !== "").join("\n\n------------------------------------\n\n");
 
-    const exportTimestamp = new Date().toLocaleString("de-DE");
-    const weitergeleitetText = `\n\n[Notiz(en) markiert als: Weitergeleitet an ${recipientInfo} am ${exportTimestamp}]`;
-    text += weitergeleitetText;
-    text += "\n\n[Bitte relevante Anhänge manuell hinzufügen, falls nicht über OneDrive geteilt und der Link nicht im Text enthalten ist.]";
-    console.log("E-Mail: Finaler Text vor Encoding:", text);
-
-    const subject = encodeURIComponent(`Ideen-Export (${ideenToExport.length} Notiz${ideenToExport.length > 1 ? 'en':''})`); const body = encodeURIComponent(text);
-    const recipient = recipientInput.includes('@') ? encodeURIComponent(recipientInput.trim()) : '';
-    const mailto = `mailto:${recipient}?subject=${subject}&body=${body}`;
-    try { window.location.href = mailto; console.log("E-Mail: Mailto-Link geöffnet."); } catch (e) { console.error("Mailto Fehler:", e); zeigeWarnung("Fehler beim Öffnen des Mail-Programms: " + e.message); }
-
-    await new Promise(resolve => setTimeout(resolve, 100));
-    let ideenImSpeicher = JSON.parse(localStorage.getItem("ideen") || "[]"); let changed = false;
-    const ausgewaehlteIDsFuerMail = ideenToExport.map(i => i.id);
-    ideenImSpeicher.forEach(idee => { if (idee && idee.id && ausgewaehlteIDsFuerMail.includes(idee.id)) { const desc = `Weitergeleitet via E-Mail an: ${recipientInfo} am ${exportTimestamp}`; if (!idee.beschreibungen){idee.beschreibungen = [];} const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); idee.beschreibungen.push({ text: desc, timestamp: ts }); changed = true; }});
-    if (changed) { localStorage.setItem("ideen", JSON.stringify(ideenImSpeicher)); zeigeIdeen(); istGespeichert = false; await saveToOneDrive(); console.log("E-Mail Export-Info in Notizen gespeichert."); }
+    const exportTimestamp = new Date().toLocaleString("de-DE"); const weitergeleitetText = `\n\n[Notiz(en) markiert als: Weitergeleitet an ${recipientInfo} am ${exportTimestamp}]`; text += weitergeleitetText; text += "\n\n[Anhänge ggf. manuell hinzufügen...]"; console.log("E-Mail: Text:", text);
+    const subject = encodeURIComponent(`Ideen-Export (${ideenToExport.length} Notiz${ideenToExport.length > 1 ? 'en':''})`); const body = encodeURIComponent(text); const recipient = recipientInput.includes('@') ? encodeURIComponent(recipientInput.trim()) : ''; const mailto = `mailto:${recipient}?subject=${subject}&body=${body}`; try { window.location.href = mailto; } catch (e) { console.error("Mailto Fehler:", e); zeigeWarnung("Fehler Mail-Programm: " + e.message); }
+    await new Promise(resolve => setTimeout(resolve, 100)); let ideenImSpeicher = JSON.parse(localStorage.getItem("ideen") || "[]"); let changed = false; const ausgewaehlteIDsFuerMail = ideenToExport.map(i => i.id); ideenImSpeicher.forEach(idee => { if (idee && idee.id && ausgewaehlteIDsFuerMail.includes(idee.id)) { const desc = `Weitergeleitet via E-Mail an: ${recipientInfo} am ${exportTimestamp}`; if (!idee.beschreibungen){idee.beschreibungen = [];} const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); idee.beschreibungen.push({ text: desc, timestamp: ts, level: 0 }); changed = true; }}); if (changed) { localStorage.setItem("ideen", JSON.stringify(ideenImSpeicher)); zeigeIdeen(); istGespeichert = false; await saveToOneDrive(); console.log("E-Mail Export-Info gespeichert."); }
 }
 
-// --- WhatsApp Export ---
+// --- WhatsApp Export mit Einrückung & Sichtbarkeit ---
 async function teilePerWhatsApp(){
-    const ideenToExport = getExportIdeen(); // Nutzt die robustere Funktion
-    if(ideenToExport.length === 0) { zeigeWarnung("Bitte wählen Sie Notizen für den Export aus oder passen Sie die Filter an."); return; }
-    const recipientInput = prompt("An wen soll exportiert werden? Info oder 'ich', 'mandant', 'support', 'andere'");
-    let recipientInfo = recipientInput ? recipientInput.trim().toLowerCase() : "";
-    if (!recipientInfo) { zeigeWarnung("Export abgebrochen."); return; }
-    if (!["ich", "mandant", "support"].includes(recipientInfo) && recipientInfo !== "andere" && !recipientInfo.startsWith("andere:")) { recipientInfo = `Direkte Eingabe: ${recipientInput.trim()}`;
-    } else if (recipientInfo === "andere") { const other=prompt("Info für 'andere'?"); if (!other?.trim()){zeigeWarnung("Abgebrochen."); return;} recipientInfo = `Andere: ${other.trim()}`; }
-    console.log("WhatsApp: Empfängerinfo:", recipientInfo);
+    const ideenToExport = getExportIdeen();
+    if(ideenToExport.length === 0) { zeigeWarnung("Bitte wählen Sie Notizen für Export aus."); return; }
+    const recipientInput = prompt("An wen soll exportiert werden? Info oder 'ich', 'mandant', 'support', 'andere'"); let recipientInfo = recipientInput ? recipientInput.trim().toLowerCase() : ""; if (!recipientInfo) { zeigeWarnung("Export abgebrochen."); return; } if (!["ich", "mandant", "support"].includes(recipientInfo) && recipientInfo !== "andere" && !recipientInfo.startsWith("andere:")) { recipientInfo = `Direkte Eingabe: ${recipientInput.trim()}`; } else if (recipientInfo === "andere") { const other=prompt("Info für 'andere'?"); if (!other?.trim()){zeigeWarnung("Abgebrochen."); return;} recipientInfo = `Andere: ${other.trim()}`; } console.log("WhatsApp: Empfängerinfo:", recipientInfo);
 
     let text = ideenToExport.map(idee => {
-        if (!idee) return ""; // Überspringe ungültige
+        if (!idee) return "";
          let datumTextWA = getFormattedDate(idee.timestamp);
          const beschreibungenText = idee.beschreibungen && idee.beschreibungen.length ?
              `\n*Weitere Beschreibungen:*\n${
-                 idee.beschreibungen.filter(b => b && b.text).map(b => { // Filter ungültige
-                     let btsText = getFormattedDate(b.timestamp);
-                     return `  - _[${btsText}]_ ${b.text}`;
+                 idee.beschreibungen.filter(b => b && b.text !== undefined).map(b => {
+                     const indentSpacesWA = "  ".repeat(b.level || 0); // Einrückung
+                     return `${indentSpacesWA}  - _[${getFormattedDate(b.timestamp)}]_ ${b.text}`;
                  }).join("\n")
              }` : "";
         let anhaengeTextForWhatsApp = "\n📎 Anhänge: Keine";
         if (idee.dateien && idee.dateien.length > 0) {
-            anhaengeTextForWhatsApp = `\n📎 *Anhänge:*\n${idee.dateien.filter(f => f && f.id).map(f => { // Filter ungültige
+            anhaengeTextForWhatsApp = `\n📎 *Anhänge:*\n${idee.dateien.filter(f => f && f.id).map(f => {
                 const praefix = f.sichtbar === false ? "[Veraltet] " : "";
                 return `  - ${praefix}${f.name || 'Unbekannt'} ${f.link ? `(${f.link})` : '(Lokal)'}`;
             }).join("\n")}`;
         }
         return ( `${idee.erledigt ? '_[ERLEDIGT]_ ' : ''}*${idee.vorgangsnummer ? `[Vorgang ${idee.vorgangsnummer}] ` : ''}${idee.text || 'Ohne Titel'}*\n` +
-         `📁 Kat.: ${idee.kategorie||'-'}\n` + `${idee.benutzer?`🧑‍💻 Zust.: ${idee.benutzer}\n`:""}` + `🔖 Prio: ${idee.prioritaet||"-"}\n` + `📅 ${datumTextWA}\n` +
-         `${idee.details?`\n📝 *Beschreibung:*\n${idee.details}\n`:""}` + `${idee.mandantennummer?`🏢 Mandant: ${idee.mandantennummer}\n`:""}` + `${idee.firmenname?`🏭 Firma: ${idee.firmenname}\n`:""}` +
-         `${beschreibungenText}` +
-         `${anhaengeTextForWhatsApp}` );
-    }).filter(s => s !== "").join("\n\n------------------------------------\n\n"); // Filter leere Einträge
+                 `📁 Kat.: ${idee.kategorie||'-'}\n` + `${idee.benutzer?`🧑‍💻 Zust.: ${idee.benutzer}\n`:""}` + `🔖 Prio: ${idee.prioritaet||"-"}\n` + `📅 ${datumTextWA}\n` +
+                 `${idee.details?`\n📝 *Beschreibung:*\n${idee.details}\n`:""}` + `${idee.mandantennummer?`🏢 Mandant: ${idee.mandantennummer}\n`:""}` + `${idee.firmenname?`🏭 Firma: ${idee.firmenname}\n`:""}` +
+                 `${beschreibungenText}` + `${anhaengeTextForWhatsApp}` );
+    }).filter(s => s !== "").join("\n\n------------------------------------\n\n");
 
-    const exportTimestamp = new Date().toLocaleString("de-DE");
-    const weitergeleitetText = `\n\n_[Notiz(en) markiert als: Weitergeleitet an ${recipientInfo} am ${exportTimestamp}]_`;
-    text += weitergeleitetText;
-    console.log("WhatsApp: Finaler Text vor Encoding:", text);
-
-    const waLink = `https://wa.me/?text=${encodeURIComponent(text)}`;
-    try { const waWindow = window.open(waLink,"_blank"); if (!waWindow) { zeigeWarnung("WhatsApp konnte nicht geöffnet werden. Evtl. Popup-Blocker deaktivieren.", "warning"); } else { console.log("WhatsApp: Link geöffnet."); } } catch (e) { console.error("WhatsApp Fehler:", e); zeigeWarnung("Fehler beim Öffnen von WhatsApp: " + e.message); }
-
-    await new Promise(resolve => setTimeout(resolve, 100));
-    let ideenImSpeicher = JSON.parse(localStorage.getItem("ideen") || "[]"); let changed = false;
-    const ausgewaehlteIDsFuerWA = ideenToExport.map(i => i.id);
-    ideenImSpeicher.forEach(idee => { if (idee && idee.id && ausgewaehlteIDsFuerWA.includes(idee.id)) { const desc = `Weitergeleitet via WhatsApp an: ${recipientInfo} am ${exportTimestamp}`; if (!idee.beschreibungen){idee.beschreibungen = [];} const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); idee.beschreibungen.push({ text: desc, timestamp: ts }); changed = true; }});
-    if (changed) { localStorage.setItem("ideen", JSON.stringify(ideenImSpeicher)); zeigeIdeen(); istGespeichert = false; await saveToOneDrive(); console.log("WhatsApp Export-Info in Notizen gespeichert."); }
+     const exportTimestamp = new Date().toLocaleString("de-DE"); const weitergeleitetText = `\n\n_[Notiz(en) markiert als: Weitergeleitet an ${recipientInfo} am ${exportTimestamp}]_`; text += weitergeleitetText; console.log("WhatsApp: Finaler Text:", text); const waLink = `https://wa.me/?text=${encodeURIComponent(text)}`; try { const waWindow = window.open(waLink,"_blank"); if (!waWindow) { zeigeWarnung("WhatsApp konnte nicht geöffnet werden.", "warning"); } else { console.log("WhatsApp: Link geöffnet."); } } catch (e) { console.error("WhatsApp Fehler:", e); zeigeWarnung("Fehler WhatsApp: " + e.message); }
+     await new Promise(resolve => setTimeout(resolve, 100)); let ideenImSpeicher = JSON.parse(localStorage.getItem("ideen") || "[]"); let changed = false; const ausgewaehlteIDsFuerWA = ideenToExport.map(i => i.id); ideenImSpeicher.forEach(idee => { if (idee && idee.id && ausgewaehlteIDsFuerWA.includes(idee.id)) { const desc = `Weitergeleitet via WhatsApp an: ${recipientInfo} am ${exportTimestamp}`; if (!idee.beschreibungen){idee.beschreibungen = [];} const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); idee.beschreibungen.push({ text: desc, timestamp: ts, level: 0 }); changed = true; }}); if (changed) { localStorage.setItem("ideen", JSON.stringify(ideenImSpeicher)); zeigeIdeen(); istGespeichert = false; await saveToOneDrive(); console.log("WhatsApp Export-Info gespeichert."); }
 }
 /* --- END BLOCK 6 --- */
 
-/* --- START BLOCK 7: File & OneDrive --- */
-// Funktionen uploadToOneDrive, saveToOneDrive, loadFromOneDrive,
-// speichereIdeenAlsDatei, ladeIdeenAusDatei
-// bleiben unverändert gegenüber der Version "74"
+/* --- START BLOCK 7: File & OneDrive (Unverändert) --- */
 async function uploadToOneDrive(f){if(!accessToken){zeigeWarnung("Bitte zuerst mit Microsoft anmelden!");return null;}try{const n=`ideenapp/${Date.now()}_${f.name}`;const u=await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${n}:/content`,{method:"PUT",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":f.type},body:f});const d=await u.json();if(!u.ok){throw new Error(`OneDrive Upload Error ${u.status}: ${d?.error?.message||'Unknown'}`);}const s=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${d.id}/createLink`,{method:"POST",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":"application/json"},body:JSON.stringify({type:"view",scope:"anonymous"})});const j=await s.json();if(!s.ok){throw new Error(`OneDrive Link Error ${s.status}: ${j?.error?.message||'Unknown'}`);}return j.link.webUrl;}catch(e){console.error("OneDrive Upload/Link Fehler:",e);zeigeWarnung("OneDrive-Fehler: "+e.message);return null;}}
-async function saveToOneDrive(){ if(!accessToken){ console.log("OneDrive-Speicherung übersprungen: nicht angemeldet."); return; } try { const ideen=JSON.parse(localStorage.getItem("ideen")||"[]"); const benutzer=JSON.parse(localStorage.getItem("benutzerliste")||"[]"); const kategorien=JSON.parse(localStorage.getItem("kategorien")||"[]"); const nummer=localStorage.getItem("naechsteVorgangsnummer")||"1"; const data={ideen,benutzerliste:benutzer,kategorien,naechsteVorgangsnummer:nummer}; const dataStr=JSON.stringify(data,null,2); const path=(document.getElementById("onedrivePath").value.trim()||"/ideenapp/ideen.json"); const finalPath=path.startsWith('/')?path:'/'+path; if(!finalPath||finalPath==='/'){zeigeWarnung("OneDrive Speichern: Ungültiger Pfad.");return;} const url=`https://graph.microsoft.com/v1.0/me/drive/root:${finalPath}:/content`; const res=await fetch(url,{method:"PUT",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":"application/json"},body:dataStr}); if(res.ok){console.log(`OneDrive: Gespeichert in ${finalPath}.`);istGespeichert=true;}else{const err=await res.json().catch(()=>null); const msg=err?.error?.message||res.statusText; console.error(`OneDrive Speichern Fehler (${res.status}) für ${finalPath}: ${msg}`,err); zeigeWarnung(`OneDrive Speichern Fehler: ${msg}`);}}catch(e){console.error('OneDrive Speichern Exception:',e);zeigeWarnung("OneDrive Speichern Fehler: "+e.message);}}
-async function loadFromOneDrive(){ if(!accessToken){ const ok=await handleLogin(); if(!ok||!accessToken){return;} } const path=(document.getElementById("onedrivePath").value.trim()||"/ideenapp/ideen.json"); const finalPath=path.startsWith('/')?path:'/'+path; if(!finalPath||finalPath==='/'){zeigeWarnung("OneDrive Laden: Ungültiger Pfad.");return;} zeigeWarnung(`Lade Daten von OneDrive: ${finalPath}...`,'info'); try{ const url=`https://graph.microsoft.com/v1.0/me/drive/root:${finalPath}:/content`; const res=await fetch(url,{method:"GET",headers:{"Authorization":`Bearer ${accessToken}`}}); if(res.ok){ const content=await res.text(); const loadedData=JSON.parse(content); let ideen=[], benutzerliste=[], kategorienAusDatei=null, nummer=1; if(loadedData&&typeof loadedData==='object'&&Array.isArray(loadedData.ideen)){ ideen=loadedData.ideen; benutzerliste=Array.isArray(loadedData.benutzerliste)?loadedData.benutzerliste:[]; kategorienAusDatei=Array.isArray(loadedData.kategorien)?loadedData.kategorien:null; nummer=parseInt(loadedData.naechsteVorgangsnummer,10)||1; }else if(Array.isArray(loadedData)){ideen=loadedData; benutzerliste=[]; kategorienAusDatei=null; nummer=1;}else{throw new Error("Ungültiges Dateiformat");} localStorage.setItem("ideen",JSON.stringify(ideen)); localStorage.setItem("benutzerliste",JSON.stringify(benutzerliste)); if(kategorienAusDatei!==null){localStorage.setItem("kategorien",JSON.stringify(kategorienAusDatei));} localStorage.setItem("naechsteVorgangsnummer", nummer.toString()); ausgewaehlt=[]; initialisiereKategorien(); initialisiereBenutzer(); initialisiereVorgangsnummer(); ensureIdeasHaveIds(); aktualisiereMandantenFilterDropdown(); zeigeIdeen(); zeigeWarnung(`Daten erfolgreich von OneDrive geladen! (${finalPath})`,'success'); istGespeichert=true; }else if(res.status===404){zeigeWarnung(`Datei nicht gefunden: ${finalPath}.`,'warning');}else{ const err=await res.json().catch(()=>null); const msg=err?.error?.message||res.statusText; console.error(`OneDrive Laden Fehler (${res.status}) für ${finalPath}: ${msg}`,err); zeigeWarnung(`OneDrive Laden Fehler (${res.status}): ${msg}`);}}catch(e){console.error('OneDrive Laden Exception:',e);zeigeWarnung("OneDrive Laden Fehler: "+e.message);}}
-async function speichereIdeenAlsDatei(){ try{ const ideen = JSON.parse(localStorage.getItem("ideen")||"[]"); const benutzerData = JSON.parse(localStorage.getItem("benutzerliste")||"[]"); const kategorienData = JSON.parse(localStorage.getItem("kategorien")||"[]"); const nummer = localStorage.getItem("naechsteVorgangsnummer")||"1"; const combinedData = { ideen, benutzerliste: benutzerData, kategorien: kategorienData, naechsteVorgangsnummer: nummer }; const dataToSave = JSON.stringify(combinedData, null, 2); if(window.showSaveFilePicker){ fileHandle = await window.showSaveFilePicker({ suggestedName: "ideen.json", types: [{ description: "JSON-Dateien", accept: { "application/json": [".json"] } }] }); const writable = await fileHandle.createWritable(); await writable.write(dataToSave); await writable.close(); zeigeWarnung("Datei erfolgreich lokal gespeichert!", 'success'); istGespeichert = true; } else { const blob = new Blob([dataToSave], { type: "application/json" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "ideen.json"; link.click(); URL.revokeObjectURL(url); zeigeWarnung("Datei-Download gestartet (Fallback).", 'success'); istGespeichert = true; }} catch(e) { if(e.name !== "AbortError") { zeigeWarnung("Fehler beim lokalen Speichern: " + e.message); } else { console.log("Lokales Speichern abgebrochen."); }}}
-async function ladeIdeenAusDatei(){ try{ let fileContent; if(window.showOpenFilePicker){ [fileHandle] = await window.showOpenFilePicker({ types: [{ description: "JSON-Dateien", accept: { "application/json": [".json"] } }] }); const file = await fileHandle.getFile(); fileContent = await file.text(); } else { const input = document.createElement('input'); input.type = 'file'; input.accept = '.json'; await new Promise((resolve, reject) => { input.onchange = async (e) => { if (e.target.files && e.target.files.length > 0) { const file = e.target.files[0]; const reader = new FileReader(); reader.onload = (event) => { fileContent = event.target.result; resolve(); }; reader.onerror = (error) => reject(error); reader.readAsText(file); } else { reject(new Error("Keine Datei ausgewählt")); } }; input.click(); }); } if (!fileContent) { throw new Error("Kein Dateiinhalt geladen."); } const loadedData = JSON.parse(fileContent); let ideen = [], benutzerliste = [], kategorienAusDatei = null, nummer = 1; if (loadedData && typeof loadedData === 'object' && Array.isArray(loadedData.ideen)) { ideen = loadedData.ideen; benutzerliste = Array.isArray(loadedData.benutzerliste) ? loadedData.benutzerliste : []; kategorienAusDatei = Array.isArray(loadedData.kategorien) ? loadedData.kategorien : null; nummer = parseInt(loadedData.naechsteVorgangsnummer, 10) || 1; } else if (Array.isArray(loadedData)) { ideen = loadedData; benutzerliste = []; kategorienAusDatei = null; nummer = 1; } else { throw new Error("Ungültiges Dateiformat"); } localStorage.setItem("ideen", JSON.stringify(ideen)); localStorage.setItem("benutzerliste", JSON.stringify(benutzerliste)); if (kategorienAusDatei !== null) { localStorage.setItem("kategorien", JSON.stringify(kategorienAusDatei)); } localStorage.setItem("naechsteVorgangsnummer", nummer.toString()); ausgewaehlt = []; initialisiereKategorien(); initialisiereBenutzer(); initialisiereVorgangsnummer(); ensureIdeasHaveIds(); aktualisiereMandantenFilterDropdown(); zeigeIdeen(); zeigeWarnung(`Daten erfolgreich lokal geladen!`, 'success'); istGespeichert = true; } catch(e) { if(e.name !== "AbortError" && e.message !== "Keine Datei ausgewählt" && e.message !== "Kein Dateiinhalt geladen.") { zeigeWarnung("Fehler beim lokalen Laden: " + e.message); } else { console.log("Lokales Laden abgebrochen."); }}}
+async function saveToOneDrive(){ if(!accessToken){ console.log("OneDrive-Speicherung übersprungen."); return; } try { const ideen=JSON.parse(localStorage.getItem("ideen")||"[]"); const benutzer=JSON.parse(localStorage.getItem("benutzerliste")||"[]"); const kategorien=JSON.parse(localStorage.getItem("kategorien")||"[]"); const nummer=localStorage.getItem("naechsteVorgangsnummer")||"1"; const data={ideen,benutzerliste:benutzer,kategorien,naechsteVorgangsnummer:nummer}; const dataStr=JSON.stringify(data,null,2); const path=(document.getElementById("onedrivePath").value.trim()||"/ideenapp/ideen.json"); const finalPath=path.startsWith('/')?path:'/'+path; if(!finalPath||finalPath==='/'){zeigeWarnung("OneDrive Speichern: Ungültiger Pfad.");return;} const url=`https://graph.microsoft.com/v1.0/me/drive/root:${finalPath}:/content`; const res=await fetch(url,{method:"PUT",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":"application/json"},body:dataStr}); if(res.ok){console.log(`OneDrive: Gespeichert in ${finalPath}.`);istGespeichert=true;}else{const err=await res.json().catch(()=>null); const msg=err?.error?.message||res.statusText; console.error(`OneDrive Speichern Fehler (${res.status}) für ${finalPath}: ${msg}`,err); zeigeWarnung(`OneDrive Speichern Fehler: ${msg}`);}}catch(e){console.error('OneDrive Speichern Exception:',e);zeigeWarnung("OneDrive Speichern Fehler: "+e.message);}}
+async function loadFromOneDrive(){ if(!accessToken){ const ok=await handleLogin(); if(!ok||!accessToken){return;} } const path=(document.getElementById("onedrivePath").value.trim()||"/ideenapp/ideen.json"); const finalPath=path.startsWith('/')?path:'/'+path; if(!finalPath||finalPath==='/'){zeigeWarnung("OneDrive Laden: Ungültiger Pfad.");return;} zeigeWarnung(`Lade Daten von OneDrive: ${finalPath}...`,'info'); try{ const url=`https://graph.microsoft.com/v1.0/me/drive/root:${finalPath}:/content`; const res=await fetch(url,{method:"GET",headers:{"Authorization":`Bearer ${accessToken}`}}); if(res.ok){ const content=await res.text(); const loadedData=JSON.parse(content); let ideen=[], benutzerliste=[], kategorienAusDatei=null, nummer=1; if(loadedData&&typeof loadedData==='object'&&Array.isArray(loadedData.ideen)){ ideen=loadedData.ideen; benutzerliste=Array.isArray(loadedData.benutzerliste)?loadedData.benutzerliste:[]; kategorienAusDatei=Array.isArray(loadedData.kategorien)?loadedData.kategorien:null; nummer=parseInt(loadedData.naechsteVorgangsnummer,10)||1; }else if(Array.isArray(loadedData)){ideen=loadedData; benutzerliste=[]; kategorienAusDatei=null; nummer=1;}else{throw new Error("Ungültiges Dateiformat");} localStorage.setItem("ideen",JSON.stringify(ideen)); localStorage.setItem("benutzerliste",JSON.stringify(benutzerliste)); if(kategorienAusDatei!==null){localStorage.setItem("kategorien",JSON.stringify(kategorienAusDatei));} localStorage.setItem("naechsteVorgangsnummer", nummer.toString()); ausgewaehlt=[]; initialisiereKategorien(); initialisiereBenutzer(); initialisiereVorgangsnummer(); ensureIdeasHaveIds(); aktualisiereMandantenFilterDropdown(); zeigeIdeen(); zeigeWarnung(`Daten von OneDrive geladen! (${finalPath})`,'success'); istGespeichert=true; }else if(res.status===404){zeigeWarnung(`Datei nicht gefunden: ${finalPath}.`,'warning');}else{ const err=await res.json().catch(()=>null); const msg=err?.error?.message||res.statusText; console.error(`OneDrive Laden Fehler (${res.status}) für ${finalPath}: ${msg}`,err); zeigeWarnung(`OneDrive Laden Fehler (${res.status}): ${msg}`);}}catch(e){console.error('OneDrive Laden Exception:',e);zeigeWarnung("OneDrive Laden Fehler: "+e.message);}}
+async function speichereIdeenAlsDatei(){ try{ const ideen = JSON.parse(localStorage.getItem("ideen")||"[]"); const benutzerData = JSON.parse(localStorage.getItem("benutzerliste")||"[]"); const kategorienData = JSON.parse(localStorage.getItem("kategorien")||"[]"); const nummer = localStorage.getItem("naechsteVorgangsnummer")||"1"; const combinedData = { ideen, benutzerliste: benutzerData, kategorien: kategorienData, naechsteVorgangsnummer: nummer }; const dataToSave = JSON.stringify(combinedData, null, 2); if(window.showSaveFilePicker){ fileHandle = await window.showSaveFilePicker({ suggestedName: "ideen.json", types: [{ description: "JSON-Dateien", accept: { "application/json": [".json"] } }] }); const writable = await fileHandle.createWritable(); await writable.write(dataToSave); await writable.close(); zeigeWarnung("Datei lokal gespeichert!", 'success'); istGespeichert = true; } else { const blob = new Blob([dataToSave], { type: "application/json" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "ideen.json"; link.click(); URL.revokeObjectURL(url); zeigeWarnung("Datei-Download gestartet.", 'success'); istGespeichert = true; }} catch(e) { if(e.name !== "AbortError") { zeigeWarnung("Fehler beim lokalen Speichern: " + e.message); } else { console.log("Lokales Speichern abgebrochen."); }}}
+async function ladeIdeenAusDatei(){ try{ let fileContent; if(window.showOpenFilePicker){ [fileHandle] = await window.showOpenFilePicker({ types: [{ description: "JSON-Dateien", accept: { "application/json": [".json"] } }] }); const file = await fileHandle.getFile(); fileContent = await file.text(); } else { const input = document.createElement('input'); input.type = 'file'; input.accept = '.json'; await new Promise((resolve, reject) => { input.onchange = async (e) => { if (e.target.files && e.target.files.length > 0) { const file = e.target.files[0]; const reader = new FileReader(); reader.onload = (event) => { fileContent = event.target.result; resolve(); }; reader.onerror = (error) => reject(error); reader.readAsText(file); } else { reject(new Error("Keine Datei ausgewählt")); } }; input.click(); }); } if (!fileContent) { throw new Error("Kein Dateiinhalt geladen."); } const loadedData = JSON.parse(fileContent); let ideen = [], benutzerliste = [], kategorienAusDatei = null, nummer = 1; if (loadedData && typeof loadedData === 'object' && Array.isArray(loadedData.ideen)) { ideen = loadedData.ideen; benutzerliste = Array.isArray(loadedData.benutzerliste) ? loadedData.benutzerliste : []; kategorienAusDatei = Array.isArray(loadedData.kategorien) ? loadedData.kategorien : null; nummer = parseInt(loadedData.naechsteVorgangsnummer, 10) || 1; } else if (Array.isArray(loadedData)) { ideen = loadedData; benutzerliste = []; kategorienAusDatei = null; nummer = 1; } else { throw new Error("Ungültiges Dateiformat"); } localStorage.setItem("ideen", JSON.stringify(ideen)); localStorage.setItem("benutzerliste", JSON.stringify(benutzerliste)); if (kategorienAusDatei !== null) { localStorage.setItem("kategorien", JSON.stringify(kategorienAusDatei)); } localStorage.setItem("naechsteVorgangsnummer", nummer.toString()); ausgewaehlt = []; initialisiereKategorien(); initialisiereBenutzer(); initialisiereVorgangsnummer(); ensureIdeasHaveIds(); aktualisiereMandantenFilterDropdown(); zeigeIdeen(); zeigeWarnung(`Daten lokal geladen!`, 'success'); istGespeichert = true; } catch(e) { if(e.name !== "AbortError" && e.message !== "Keine Datei ausgewählt" && e.message !== "Kein Dateiinhalt geladen.") { zeigeWarnung("Fehler beim lokalen Laden: " + e.message); } else { console.log("Lokales Laden abgebrochen."); }}}
 /* --- END BLOCK 7 --- */
 
-/* --- START BLOCK 8: Init & Listeners --- */
+/* --- START BLOCK 8: Init & Listeners (Angepasst für Migration) --- */
 document.getElementById("ideeText").addEventListener("input",()=>{istGespeichert=!1});
 document.getElementById("ideeDetails").addEventListener("input",()=>{istGespeichert=!1});
 document.getElementById("mandantennummer").addEventListener("input",()=>{istGespeichert=!1});
@@ -855,7 +714,6 @@ document.getElementById("neueKategorie").addEventListener("input",()=>{istGespei
 document.getElementById("benutzer").addEventListener("change",()=>{istGespeichert=!1});
 document.getElementById("neuerBenutzer").addEventListener("input",()=>{istGespeichert=!1});
 document.getElementById("dateien").addEventListener("change",function(e){
-    // Vorschau beim Auswählen von Dateien - diese wird beim Speichern nicht persistiert
     const v=document.getElementById("dateiVorschau");
     v.innerHTML="Ausgewählte Dateien (werden beim Speichern hinzugefügt):<br>";
     Array.from(e.target.files).forEach(file=>{
@@ -865,11 +723,15 @@ document.getElementById("dateien").addEventListener("change",function(e){
 });
 window.addEventListener("beforeunload",function(e){if(!istGespeichert){const msg="Ungespeicherte Änderungen! Seite wirklich verlassen?";e.preventDefault();e.returnValue=msg;return msg;}});
 
-// Funktion zur Datenmigration
+// Funktion zur Datenmigration (inkl. Beschr.-Level und Anhang-Felder)
 function ensureIdeasHaveIds() {
     let ideen = [];
     try {
-        ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+        const storedIdeen = localStorage.getItem("ideen");
+        // Nur parsen, wenn etwas vorhanden ist, um "[]" nicht fälschlicherweise als null zu behandeln
+        if (storedIdeen) {
+            ideen = JSON.parse(storedIdeen);
+        }
     } catch(e) {
         console.error("Fehler beim Parsen von 'ideen' aus localStorage:", e);
         localStorage.removeItem("ideen"); // Fehlerhafte Daten entfernen
@@ -877,111 +739,130 @@ function ensureIdeasHaveIds() {
     }
 
     let changed = false;
-    if (!Array.isArray(ideen)) { 
-        ideen = []; 
-        changed = true; 
+    // Sicherstellen, dass 'ideen' immer ein Array ist
+    if (!Array.isArray(ideen)) {
+        ideen = [];
+        changed = true; // Änderung, da Struktur korrigiert wurde
         console.warn("'ideen' im localStorage war kein Array, wurde zurückgesetzt.");
     }
 
-    ideen.forEach(idee => {
-        // Idee-ID sicherstellen
-        if (!idee.id) { idee.id = generateUUID(); changed = true; }
-        
-        // Beschreibungs-Array sicherstellen und Format prüfen/migrieren
-        if (!Array.isArray(idee.beschreibungen)) { 
+    // Iteriere durch jede Idee und stelle Datenintegrität sicher
+    ideen.forEach((idee, index) => {
+        // Überspringe null/undefined Einträge im Array selbst
+        if (!idee || typeof idee !== 'object') {
+             console.warn(`Ungültiger Eintrag bei Index ${index} im Ideen-Array entfernt.`);
+             // Markiere zur Entfernung (direktes Splice in forEach ist heikel)
+             ideen[index] = null; // Markieren
+             changed = true;
+             return; // Nächste Iteration
+        }
+
+        // --- ID ---
+        if (!idee.id || typeof idee.id !== 'string') { // Auch Typ prüfen
+            idee.id = generateUUID();
+            changed = true;
+        }
+
+        // --- Beschreibungen ---
+        if (!Array.isArray(idee.beschreibungen)) {
             idee.beschreibungen = []; changed = true;
         } else {
-            // Alte String-Arrays zu Objekt-Arrays migrieren
-            if (idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') { 
-                idee.beschreibungen = idee.beschreibungen.map(text => ({ text: text, timestamp: new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9) })); 
-                changed = true; 
+            // Alte String-Arrays migrieren
+            if (idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
+                idee.beschreibungen = idee.beschreibungen.map(text => ({ text: text, timestamp: new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9), level: 0 }));
+                changed = true;
+            } else {
+                // Bestehende Objekte prüfen
+                const originalLengthDesc = idee.beschreibungen.length;
+                 // Filtere ungültige Einträge (null, kein Objekt, kein Text)
+                 idee.beschreibungen = idee.beschreibungen.filter(b => b && typeof b === 'object' && typeof b.text === 'string');
+                 // Prüfe/Setze Timestamp und Level für valide Einträge
+                idee.beschreibungen.forEach(b => {
+                    if (!b.timestamp || typeof b.timestamp !== 'string') {
+                        b.timestamp = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9);
+                        changed = true;
+                    }
+                    if (typeof b.level !== 'number' || b.level < 0) {
+                        b.level = 0; // Standard-Level
+                        changed = true;
+                    }
+                });
+                if (idee.beschreibungen.length < originalLengthDesc) { changed = true; console.log(`Ungültige Beschreibungseinträge für Idee ${idee.id} entfernt.`); }
             }
-            // Zeitstempel in Beschreibungen sicherstellen/validieren
-             const originalLengthDesc = idee.beschreibungen.length;
-             idee.beschreibungen = idee.beschreibungen.filter(b => b && typeof b.text === 'string'); // Nur valide Objekte behalten
-             idee.beschreibungen.forEach(b => { 
-                 if (!b.timestamp) { 
-                     b.timestamp = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); 
-                     changed = true; 
-                 } else { 
-                    // Einfache Validierung (grobe Prüfung, keine tiefe Datumsanalyse)
-                     let bts = b.timestamp; 
-                     if (typeof bts !== 'string' || bts.length < 10) { // Sehr einfache Prüfung
-                         b.timestamp = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); 
-                         changed = true; 
-                         console.warn("Ungültiger Beschreibung-Timestamp ersetzt:", b);
-                     }
-                 } 
-             });
-              if (idee.beschreibungen.length < originalLengthDesc) { changed = true; console.log("Ungültige Beschreibungseinträge entfernt."); }
         }
-        
-        // Standardwerte für optionale Felder sicherstellen
+
+        // --- Optionale Felder ---
         if (idee.benutzer === undefined) { idee.benutzer = ""; changed = true; }
         if (idee.mandantennummer === undefined) { idee.mandantennummer = ""; changed = true; }
         if (idee.firmenname === undefined) { idee.firmenname = ""; changed = true; }
-        if (idee.erledigt === undefined) { idee.erledigt = false; changed = true; }
+        if (typeof idee.erledigt !== 'boolean') { idee.erledigt = false; changed = true; }
         if (idee.vorgangsnummer === undefined) { idee.vorgangsnummer = null; changed = true; }
-        if (idee.prioritaet === undefined) { idee.prioritaet = ""; changed = true; } // Priorität ggf. initialisieren
+        if (idee.prioritaet === undefined) { idee.prioritaet = ""; changed = true; }
 
-        // Zeitstempel der Idee sicherstellen/validieren
-        if (!idee.timestamp) { 
-            idee.timestamp = new Date().toISOString(); changed = true; 
-        } else { 
-             let ts=idee.timestamp; if(typeof ts==='string'&&ts.includes('_')){ts=ts.split('_')[0];} 
-             try{if(isNaN(new Date(ts).getTime())){idee.timestamp=new Date().toISOString(); changed=true;}}
-             catch(e){idee.timestamp=new Date().toISOString(); changed=true;} 
-        }
-
-        // *** NEU: Migration für Anhänge ***
-        if (!Array.isArray(idee.dateien)) {
-            idee.dateien = [];
-            changed = true;
+        // --- Timestamp der Idee ---
+        if (!idee.timestamp || typeof idee.timestamp !== 'string') {
+             idee.timestamp = new Date().toISOString(); changed = true;
         } else {
-            idee.dateien.forEach(datei => {
-                if (!datei || typeof datei !== 'object') return; // Überspringe ungültige Einträge
-
-                if (!datei.id) { // Wenn Anhang noch keine ID hat
-                    datei.id = generateUUID();
-                    changed = true;
-                }
-                if (typeof datei.sichtbar !== 'boolean') { // Wenn 'sichtbar' nicht existiert oder kein boolean ist
-                    datei.sichtbar = true; // Standardmäßig sichtbar machen
-                    changed = true;
-                }
-                // Stelle sicher, dass 'link' definiert ist, auch wenn null
-                if (datei.link === undefined) {
-                    datei.link = null;
-                    changed = true;
-                }
-                 // Entferne temporäre Felder wie 'data' und 'pfad', falls sie gespeichert wurden
-                 if (datei.data) { delete datei.data; changed = true; }
-                 if (datei.pfad) { delete datei.pfad; changed = true; }
-            });
-             // Entferne ungültige Einträge aus dem Array (z.B. null, undefined)
-             const originalLengthFiles = idee.dateien.length;
-             idee.dateien = idee.dateien.filter(d => d && typeof d === 'object' && d.id);
-             if (idee.dateien.length < originalLengthFiles) { changed = true; console.log("Ungültige Anhangseinträge entfernt."); }
+             let ts=idee.timestamp; if(ts.includes('_')){ts=ts.split('_')[0];}
+             try{if(isNaN(new Date(ts).getTime())){idee.timestamp=new Date().toISOString(); changed=true;}}
+             catch(e){idee.timestamp=new Date().toISOString(); changed=true;}
         }
-        // *** ENDE NEU ***
+
+        // --- Anhänge ---
+        if (!Array.isArray(idee.dateien)) {
+            idee.dateien = []; changed = true;
+        } else {
+            const originalLengthFiles = idee.dateien.length;
+             // Filtere ungültige Einträge und stelle Felder sicher
+             idee.dateien = idee.dateien.filter(d => d && typeof d === 'object'); // Nur Objekte
+             idee.dateien.forEach(datei => {
+                if (!datei.id || typeof datei.id !== 'string') { datei.id = generateUUID(); changed = true; }
+                if (typeof datei.sichtbar !== 'boolean') { datei.sichtbar = true; changed = true; }
+                if (datei.link === undefined) { datei.link = null; changed = true; } // Sicherstellen, dass link existiert (ggf. null)
+                // Entferne temporäre Felder
+                if (datei.data) { delete datei.data; changed = true; }
+                if (datei.pfad) { delete datei.pfad; changed = true; }
+            });
+            if (idee.dateien.length < originalLengthFiles) { changed = true; console.log(`Ungültige Anhangseinträge für Idee ${idee.id} entfernt.`); }
+        }
     });
 
-    if (changed) { 
-        console.log("Datenmigration angewendet (inkl. Anhänge)."); 
-        localStorage.setItem("ideen", JSON.stringify(ideen)); 
+    // Filtere null-markierte Ideen aus dem Hauptarray (falls welche übersprungen wurden)
+    const initialLength = ideen.length;
+    ideen = ideen.filter(idee => idee !== null);
+    if (ideen.length < initialLength) {
+        changed = true;
+        console.warn("Einige ungültige Einträge wurden aus dem Haupt-Ideen-Array entfernt.");
     }
-    // Auswahl hier NICHT zurücksetzen, damit sie nach dem Laden einer Datei erhalten bleibt
-    // ausgewaehlt = []; 
+
+
+    if (changed) {
+        console.log("Datenmigration abgeschlossen.");
+        try {
+            localStorage.setItem("ideen", JSON.stringify(ideen));
+            console.log("Migrierte Ideen im localStorage gespeichert.");
+        } catch (e) {
+            console.error("Fehler beim Speichern der migrierten Ideen:", e);
+            zeigeWarnung("Speicherfehler nach Datenmigration!");
+        }
+    } else {
+        console.log("Keine Datenmigration notwendig.");
+    }
 }
 
 // Initialisierungsaufrufe beim Laden der Seite
-initialisiereKategorien();
-initialisiereBenutzer();
-initialisiereVorgangsnummer();
-ensureIdeasHaveIds(); // Migriert Daten VOR der ersten Anzeige
-aktualisiereMandantenFilterDropdown();
-zeigeIdeen(); // Zeigt Ideen NACH der Migration an
-pruebeLoginHinweis();
+try {
+    initialisiereKategorien();
+    initialisiereBenutzer();
+    initialisiereVorgangsnummer();
+    ensureIdeasHaveIds(); // Daten VOR der ersten Anzeige migrieren/prüfen
+    aktualisiereMandantenFilterDropdown();
+    zeigeIdeen(); // Ideen NACH der Migration/Prüfung anzeigen
+    pruebeLoginHinweis();
+} catch (initError) {
+    console.error("Fehler während der Initialisierung:", initError);
+    zeigeWarnung("Ein Fehler ist beim Starten der App aufgetreten. Bitte die Seite neu laden oder den Speicher löschen.", "warnung");
+}
 /* --- END BLOCK 8 --- */
 </script>
 </body>
