@@ -22,7 +22,7 @@ button:disabled { cursor: not-allowed; opacity: 0.6; } /* Style für deaktiviert
 .idee-content h3,.idee-content p,.idee-content small{max-width:100%;overflow-wrap:break-word;word-break:break-word;font-size:1em;}
 .idee.erledigt .idee-content h3,.idee.erledigt .idee-content p,.idee.erledigt .idee-content small{text-decoration:line-through;color:#888;}
 .beschreibung-historie{margin:8px 0 12px 0;}
-.beschreibung-item{ /* Basis-Styling bleibt, Einrückung per Inline-Style */
+.beschreibung-item{ /* Basis-Styling, Einrückung per Inline-Style */
     margin:4px 0 4px 0;
     padding:6px 8px;
     background:#f8f8f8;
@@ -31,7 +31,8 @@ button:disabled { cursor: not-allowed; opacity: 0.6; } /* Style für deaktiviert
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-sizing: border-box; /* Wichtig bei Breitenänderung durch Margin */
+    box-sizing: border-box; /* Wichtig bei Breitenänderung */
+    transition: opacity 0.3s ease; /* Übergang für Ausblenden */
 }
 .beschreibung-text-zeit { flex-grow: 1; margin-right: 10px; overflow-wrap: break-word; word-break: break-word; }
 .beschreibung-zeit{color:#666;font-size:0.9em;margin-bottom:2px;display:block;}
@@ -95,6 +96,33 @@ button:disabled { cursor: not-allowed; opacity: 0.6; } /* Style für deaktiviert
     border-radius: 3px !important;
     cursor: pointer;
 }
+/* Regeln für veraltete Beschreibungen */
+.beschreibung-veraltet {
+    opacity: 0.6; /* Gesamten Eintrag etwas ausblenden */
+}
+.beschreibung-veraltet .beschreibung-text-zeit {
+    color: grey; /* Textfarbe ändern */
+    /* Optional: text-decoration: line-through; */ /* Text durchstreichen? */
+}
+.toggle-beschreibung-sichtbarkeit-btn {
+    /* Ähnlich wie andere kleine Buttons */
+    padding: 1px 4px !important;
+    font-size: 0.8em !important;
+    margin-left: 3px !important; /* Abstand zu anderen Buttons */
+    line-height: 1 !important;
+    min-width: auto !important;
+    width: auto !important;
+    margin-top: 0 !important;
+    vertical-align: middle !important;
+    border-radius: 3px !important;
+    border: 1px solid #ccc !important;
+    background: #f0f0f0 !important;
+    cursor: pointer;
+    height: 24px !important; /* Passend zu anderen Buttons */
+    display: flex; /* Stellt sicher, dass Icon zentriert ist */
+    align-items: center;
+    justify-content: center;
+}
 /* --- ENDE HINZUGEFÜGTE CSS REGELN --- */
 
 @media (max-width:600px){
@@ -104,9 +132,9 @@ button:disabled { cursor: not-allowed; opacity: 0.6; } /* Style für deaktiviert
     .idee{flex-direction:column;}
     .idee-checkbox{margin-left:0;margin-top:10px;}
     .idee-content,.idee-actions,.datei-link,.datei-info,.datei-vorschau,.idee-checkbox{max-width:100vw;}
-    .beschreibung-item { flex-direction: column; align-items: flex-start; width: 100% !important; margin-left: 0 !important; /* Volle Breite, keine linke Margin in Mobil */ padding-left: 8px; } /* padding statt margin für Einrückung? Oder hier kein Einrücken? */
+    .beschreibung-item { flex-direction: column; align-items: flex-start; width: 100% !important; margin-left: 0 !important; padding-left: 8px; } /* Volle Breite, keine linke Margin, Innenabstand */
     .beschreibung-text-zeit { margin-right: 0; margin-bottom: 5px; width: 100%; }
-    .beschreibung-item-actions { margin-top: 5px; width: 100%; justify-content: flex-start; } /* Buttons linksbündig */
+    .beschreibung-item-actions { margin-top: 5px; width: 100%; justify-content: flex-start; flex-wrap: wrap; } /* Buttons linksbündig, Umbruch erlauben */
     #warnung { position: static; transform: none; left: auto; max-width: 100%; }
     .toggle-anhang-sichtbarkeit-btn { float: right; }
 }
@@ -166,32 +194,20 @@ function zeigeWarnung(msg,type='warning'){const w=document.getElementById("warnu
 
 function initialisiereKategorien(){
     let loadedKategorien = null;
-    try {
-        loadedKategorien = JSON.parse(localStorage.getItem("kategorien"));
-    } catch (e) { console.error("Fehler beim Parsen der Kategorien:", e); localStorage.removeItem("kategorien"); }
+    try { loadedKategorien = JSON.parse(localStorage.getItem("kategorien")); } catch (e) { console.error("Fehler beim Parsen der Kategorien:", e); localStorage.removeItem("kategorien"); }
     let kategorienHabenSichGeaendert = false;
-    if (!Array.isArray(loadedKategorien)) {
-         kategorien = [...standardKategorien];
-         kategorienHabenSichGeaendert = true;
-         console.log("Standardkategorien initialisiert.");
-    } else {
-         kategorien = loadedKategorien;
-    }
+    if (!Array.isArray(loadedKategorien)) { kategorien = [...standardKategorien]; kategorienHabenSichGeaendert = true; console.log("Standardkategorien initialisiert."); } else { kategorien = loadedKategorien; }
     if (kategorienHabenSichGeaendert) { localStorage.setItem("kategorien", JSON.stringify(kategorien)); }
-    const selectKategorie = document.getElementById("kategorie");
-    selectKategorie.innerHTML = '<option value="">-- Kategorie --</option>';
-    if (Array.isArray(kategorien)) { kategorien.forEach(katName => selectKategorie.add(new Option(katName, katName))); }
-    const filterSelectKategorie = document.getElementById("filterKategorie");
-    filterSelectKategorie.innerHTML = '<option value="" class="filter-option-alle">🎯 Alle Ideen</option>';
-    if (Array.isArray(kategorien)) { kategorien.forEach(katName => filterSelectKategorie.add(new Option(katName, katName))); }
+    const selectKategorie = document.getElementById("kategorie"); selectKategorie.innerHTML = '<option value="">-- Kategorie --</option>'; if (Array.isArray(kategorien)) { kategorien.forEach(katName => selectKategorie.add(new Option(katName, katName))); }
+    const filterSelectKategorie = document.getElementById("filterKategorie"); filterSelectKategorie.innerHTML = '<option value="" class="filter-option-alle">🎯 Alle Ideen</option>'; if (Array.isArray(kategorien)) { kategorien.forEach(katName => filterSelectKategorie.add(new Option(katName, katName))); }
     console.log("Kategorien initialisiert:", kategorien);
 }
 
 function neueKategorieHinzufuegen(){const input=document.getElementById("neueKategorie");const name=input.value.trim();if(!name){zeigeWarnung("Bitte Kategorienamen eingeben.");return}kategorien=JSON.parse(localStorage.getItem("kategorien")||"[]");if(!Array.isArray(kategorien))kategorien=[...standardKategorien];if(kategorien.includes(name)){zeigeWarnung(`Kategorie "${name}" existiert bereits!`);return}kategorien.push(name);kategorien.sort();localStorage.setItem("kategorien",JSON.stringify(kategorien));saveToOneDrive();initialisiereKategorien();input.value="";input.focus();zeigeWarnung(`Kategorie "${name}" hinzugefügt.`,'success');istGespeichert=!1}
-function kategorieLoeschen(){const sel=document.getElementById("kategorie");const name=sel.value;const noDel=["Aufgaben","Projekte","Privat","Arbeit","Später"];if(!name||name===""){zeigeWarnung("Bitte Kategorie zum Löschen wählen.");return}if(noDel.includes(name)){zeigeWarnung(`Standardkategorie "${name}" kann nicht gelöscht werden.`);return}kategorien=JSON.parse(localStorage.getItem("kategorien")||"[]");if(!Array.isArray(kategorien))kategorien=[];if(!kategorien.includes(name)){zeigeWarnung(`Kategorie "${name}" nicht gefunden.`);return}const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const count=ideen.filter(i=>i&&i.kategorie===name).length;let msg=`Kategorie "${name}" wirklich löschen?`;if(count>0)msg+=` ${count} Notiz(en) verlieren diese Kategorie.`;if(!confirm(msg))return;const idx=kategorien.indexOf(name);if(idx>-1){kategorien.splice(idx,1);localStorage.setItem("kategorien",JSON.stringify(kategorien));saveToOneDrive();let changed=!1;ideen.forEach(i=>{if(i&&i.kategorie===name){i.kategorie="";changed=!0}});if(changed){localStorage.setItem("ideen",JSON.stringify(ideen));saveToOneDrive()}initialisiereKategorien();const fSel=document.getElementById("filterKategorie");if(fSel.value===name)fSel.value="";zeigeWarnung(`Kategorie "${name}" gelöscht.`,'success');zeigeIdeen();istGespeichert=!0}else{zeigeWarnung(`Interner Fehler: Kategorie "${name}" nicht gefunden.`);}} // istGespeichert sollte false sein?
+function kategorieLoeschen(){const sel=document.getElementById("kategorie");const name=sel.value;const noDel=["Aufgaben","Projekte","Privat","Arbeit","Später"];if(!name||name===""){zeigeWarnung("Bitte Kategorie zum Löschen wählen.");return}if(noDel.includes(name)){zeigeWarnung(`Standardkategorie "${name}" kann nicht gelöscht werden.`);return}kategorien=JSON.parse(localStorage.getItem("kategorien")||"[]");if(!Array.isArray(kategorien))kategorien=[];if(!kategorien.includes(name)){zeigeWarnung(`Kategorie "${name}" nicht gefunden.`);return}const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const count=ideen.filter(i=>i&&i.kategorie===name).length;let msg=`Kategorie "${name}" wirklich löschen?`;if(count>0)msg+=` ${count} Notiz(en) verlieren diese Kategorie.`;if(!confirm(msg))return;const idx=kategorien.indexOf(name);if(idx>-1){kategorien.splice(idx,1);localStorage.setItem("kategorien",JSON.stringify(kategorien));saveToOneDrive();let changed=!1;ideen.forEach(i=>{if(i&&i.kategorie===name){i.kategorie="";changed=!0}});if(changed){localStorage.setItem("ideen",JSON.stringify(ideen));saveToOneDrive()}initialisiereKategorien();const fSel=document.getElementById("filterKategorie");if(fSel.value===name)fSel.value="";zeigeWarnung(`Kategorie "${name}" gelöscht.`,'success');zeigeIdeen();istGespeichert=false;}else{zeigeWarnung(`Interner Fehler: Kategorie "${name}" nicht gefunden.`);}}
 function initialisiereBenutzer(){benutzerliste=JSON.parse(localStorage.getItem("benutzerliste")||"[]");if(!Array.isArray(benutzerliste)){benutzerliste=[];localStorage.setItem("benutzerliste","[]")}const sel=document.getElementById("benutzer");sel.innerHTML='<option value="">-- Benutzer --</option>';benutzerliste.forEach(b=>sel.add(new Option(b,b)));const fSel=document.getElementById("filterBenutzer");fSel.innerHTML='<option value="">👤 Alle Benutzer</option>';benutzerliste.forEach(b=>fSel.add(new Option(b,b)))}
 function neuenBenutzerHinzufuegen(){const input=document.getElementById("neuerBenutzer");const name=input.value.trim();if(!name){zeigeWarnung("Bitte Benutzernamen eingeben.");return}benutzerliste=JSON.parse(localStorage.getItem("benutzerliste")||"[]");if(!Array.isArray(benutzerliste))benutzerliste=[];if(benutzerliste.includes(name)){zeigeWarnung(`Benutzer "${name}" existiert bereits!`);return}benutzerliste.push(name);benutzerliste.sort();localStorage.setItem("benutzerliste",JSON.stringify(benutzerliste));saveToOneDrive();aktualisiereBenutzerDropdowns();input.value="";input.focus();zeigeWarnung(`Benutzer "${name}" hinzugefügt.`,'success');istGespeichert=!1}
-function benutzerLoeschen(){const sel=document.getElementById("benutzer");const name=sel.value;if(!name||name===""){zeigeWarnung("Bitte Benutzer zum Löschen wählen.");return}benutzerliste=JSON.parse(localStorage.getItem("benutzerliste")||"[]");if(!Array.isArray(benutzerliste))benutzerliste=[];if(!benutzerliste.includes(name)){zeigeWarnung(`Benutzer "${name}" nicht gefunden.`);return}if(!confirm(`Benutzer "${name}" WIRKLICH löschen? ALLE Notizen dieses Benutzers werden gelöscht!`))return;const idx=benutzerliste.indexOf(name);if(idx>-1){benutzerliste.splice(idx,1);localStorage.setItem("benutzerliste",JSON.stringify(benutzerliste));saveToOneDrive();let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const len=ideen.length;const origIdeen=JSON.parse(localStorage.getItem("ideen")||"[]");ideen=ideen.filter(i=>i&&i.benutzer!==name);const deletedCount=len-ideen.length;if(deletedCount>0){localStorage.setItem("ideen",JSON.stringify(ideen));saveToOneDrive();const remM=new Set(ideen.filter(i=>i).map(i=>(i.mandantennummer||"").toLowerCase()).filter(m=>m!==""));const allM=new Set(origIdeen.filter(i=>i).map(i=>(i.mandantennummer||"").toLowerCase()).filter(m=>m!==""));let updM=!1;allM.forEach(m=>{if(!remM.has(m))updM=!0});if(updM)aktualisiereMandantenFilterDropdown()}aktualisiereBenutzerDropdowns();if(filterBenutzerValue===name){filterBenutzerValue="";document.getElementById("filterBenutzer").value=""}if(bearbeiteId!==null&&!ideen.some(i=>i&&i.id===bearbeiteId)){abbrechenBearbeiten()}if(beschreibungFuerId!==null&&!ideen.some(i=>i&&i.id===beschreibungFuerId)){beschreibungAbbrechen()}zeigeWarnung(`Benutzer "${name}" und ${deletedCount} Notiz(en) gelöscht.`,'success');zeigeIdeen();istGespeichert=!0}else{zeigeWarnung(`Interner Fehler: Benutzer "${name}" nicht gefunden.`);}} // istGespeichert sollte false sein?
+function benutzerLoeschen(){const sel=document.getElementById("benutzer");const name=sel.value;if(!name||name===""){zeigeWarnung("Bitte Benutzer zum Löschen wählen.");return}benutzerliste=JSON.parse(localStorage.getItem("benutzerliste")||"[]");if(!Array.isArray(benutzerliste))benutzerliste=[];if(!benutzerliste.includes(name)){zeigeWarnung(`Benutzer "${name}" nicht gefunden.`);return}if(!confirm(`Benutzer "${name}" WIRKLICH löschen? ALLE Notizen dieses Benutzers werden gelöscht!`))return;const idx=benutzerliste.indexOf(name);if(idx>-1){benutzerliste.splice(idx,1);localStorage.setItem("benutzerliste",JSON.stringify(benutzerliste));saveToOneDrive();let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const len=ideen.length;const origIdeen=JSON.parse(localStorage.getItem("ideen")||"[]");ideen=ideen.filter(i=>i&&i.benutzer!==name);const deletedCount=len-ideen.length;if(deletedCount>0){localStorage.setItem("ideen",JSON.stringify(ideen));saveToOneDrive();const remM=new Set(ideen.filter(i=>i).map(i=>(i.mandantennummer||"").toLowerCase()).filter(m=>m!==""));const allM=new Set(origIdeen.filter(i=>i).map(i=>(i.mandantennummer||"").toLowerCase()).filter(m=>m!==""));let updM=!1;allM.forEach(m=>{if(!remM.has(m))updM=!0});if(updM)aktualisiereMandantenFilterDropdown()}aktualisiereBenutzerDropdowns();if(filterBenutzerValue===name){filterBenutzerValue="";document.getElementById("filterBenutzer").value=""}if(bearbeiteId!==null&&!ideen.some(i=>i&&i.id===bearbeiteId)){abbrechenBearbeiten()}if(beschreibungFuerId!==null&&!ideen.some(i=>i&&i.id===beschreibungFuerId)){beschreibungAbbrechen()}zeigeWarnung(`Benutzer "${name}" und ${deletedCount} Notiz(en) gelöscht.`,'success');zeigeIdeen();istGespeichert=false;}else{zeigeWarnung(`Interner Fehler: Benutzer "${name}" nicht gefunden.`);}}
 function aktualisiereBenutzerDropdowns(){initialisiereBenutzer()}
 function aktualisiereMandantenFilterDropdown(){const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const set=new Set(ideen.filter(i=>i).map(i=>(i.mandantennummer||"").trim()).filter(m=>m!==""));const list=Array.from(set).sort();const sel=document.getElementById("filterMandant");const current=sel.value;sel.innerHTML='<option value="">🏢 Alle Mandanten</option>';list.forEach(m=>sel.add(new Option(m,m)));if(current&&list.includes(current)){sel.value=current;filterMandantValue=current}else{sel.value="";filterMandantValue=""}}
 function initialisiereVorgangsnummer(){const saved=localStorage.getItem("naechsteVorgangsnummer");naechsteVorgangsnummer=saved?parseInt(saved,10):1;if(isNaN(naechsteVorgangsnummer)||naechsteVorgangsnummer<1){naechsteVorgangsnummer=1;localStorage.setItem("naechsteVorgangsnummer",naechsteVorgangsnummer.toString())}zeigeNaechsteNummer()}
@@ -217,10 +233,9 @@ async function speichereIdee() {
             try {
                 neuHochgeladeneDateien = await Promise.all(Array.from(fileInput.files).map(async f => {
                     const link = await uploadToOneDrive(f);
-                    // Stelle sicher, dass link zurückgegeben wird, auch wenn null
                     return { id: generateUUID(), name: f.name, link: link, type: f.type, sichtbar: true };
                 }));
-                neuHochgeladeneDateien = neuHochgeladeneDateien.filter(f => f.link !== null); // Nur erfolgreiche Uploads
+                neuHochgeladeneDateien = neuHochgeladeneDateien.filter(f => f.link !== null);
                 zeigeWarnung("Upload fertig.", 'success');
             } catch (e) {
                 zeigeWarnung("Upload Fehler: " + e.message);
@@ -228,12 +243,7 @@ async function speichereIdee() {
             }
         } else { // Lokale Dateien
             neuHochgeladeneDateien = Array.from(fileInput.files).map(f => ({
-                id: generateUUID(),
-                name: f.name,
-                // data: URL.createObjectURL(f), // Nicht speichern
-                type: f.type,
-                sichtbar: true,
-                isLocal: true // Kennzeichnung für lokale Datei (wird nicht gespeichert)
+                id: generateUUID(), name: f.name, type: f.type, sichtbar: true, isLocal: true
             }));
         }
     }
@@ -244,12 +254,8 @@ async function speichereIdee() {
         const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
         const idee = ideen.find(i => i && i.id === bearbeiteId);
         if (idee && idee.dateien) {
-            // Behalte alte Dateien, die NICHT durch neue (gleicher Name) ersetzt werden
-             finaleDateiliste = idee.dateien.filter(alt =>
-                alt && alt.id && !neuHochgeladeneDateien.some(neu => neu.name === alt.name)
-            );
+             finaleDateiliste = idee.dateien.filter(alt => alt && alt.id && !neuHochgeladeneDateien.some(neu => neu.name === alt.name));
         }
-         // Füge die neuen Dateien hinzu
         finaleDateiliste = finaleDateiliste.concat(neuHochgeladeneDateien);
     } else { // Neue Idee
         finaleDateiliste = neuHochgeladeneDateien;
@@ -257,7 +263,7 @@ async function speichereIdee() {
 
     // 3. Idee speichern
     saveIdeeObjekt(text, finaleDateiliste);
-    fileInput.value = ""; // Input zurücksetzen
+    fileInput.value = "";
 }
 
 function saveIdeeObjekt(text, dateien) {
@@ -268,12 +274,8 @@ function saveIdeeObjekt(text, dateien) {
     const firma = document.getElementById("firmenname").value.trim();
     const user = document.getElementById("benutzer").value;
 
-    // Nur relevante Felder für Speicherung aufbereiten
-    const prozessierteDateien = dateien.filter(d => d && d.id).map(d => ({ // Filtere ungültige raus
-        id: d.id,
-        name: d.name,
-        link: d.link || null, // Nur OneDrive-Link speichern
-        type: d.type,
+    const prozessierteDateien = dateien.filter(d => d && d.id).map(d => ({
+        id: d.id, name: d.name, link: d.link || null, type: d.type,
         sichtbar: typeof d.sichtbar === 'boolean' ? d.sichtbar : true
     }));
 
@@ -281,46 +283,32 @@ function saveIdeeObjekt(text, dateien) {
         const idx = ideen.findIndex(i => i && i.id === bearbeiteId);
         if (idx !== -1) {
             const old = ideen[idx];
-            ideen[idx] = {
-                ...old, text, details, kategorie: kat, prioritaet, mandantennummer: mnr,
-                firmenname: firma, benutzer: user, dateien: prozessierteDateien
-            };
+            ideen[idx] = { ...old, text, details, kategorie: kat, prioritaet, mandantennummer: mnr, firmenname: firma, benutzer: user, dateien: prozessierteDateien };
             localStorage.setItem("ideen", JSON.stringify(ideen));
-            bearbeiteId = null;
-            document.getElementById("speichernBtn").textContent = "💾 Speichern";
-            document.getElementById("abbrechenBtn").style.display = "none";
+            bearbeiteId = null; document.getElementById("speichernBtn").textContent = "💾 Speichern"; document.getElementById("abbrechenBtn").style.display = "none";
         } else { zeigeWarnung("Fehler: Idee nicht gefunden."); return; }
     } else {
         const num = naechsteVorgangsnummer;
-        const neu = {
-            id: generateUUID(), vorgangsnummer: num, text, details, kategorie: kat, prioritaet,
-            mandantennummer: mnr, firmenname: firma, benutzer: user, dateien: prozessierteDateien,
-            timestamp: new Date().toISOString(), erledigt: false, beschreibungen: []
-        };
+        const neu = { id: generateUUID(), vorgangsnummer: num, text, details, kategorie: kat, prioritaet, mandantennummer: mnr, firmenname: firma, benutzer: user, dateien: prozessierteDateien, timestamp: new Date().toISOString(), erledigt: false, beschreibungen: [] };
         ideen.push(neu);
         localStorage.setItem("ideen", JSON.stringify(ideen));
-        naechsteVorgangsnummer++;
-        localStorage.setItem("naechsteVorgangsnummer", naechsteVorgangsnummer.toString());
-        zeigeNaechsteNummer();
+        naechsteVorgangsnummer++; localStorage.setItem("naechsteVorgangsnummer", naechsteVorgangsnummer.toString()); zeigeNaechsteNummer();
     }
-    aktualisiereMandantenFilterDropdown();
-    zeigeIdeen();
-    document.getElementById("ideeText").value = ""; document.getElementById("ideeDetails").value = "";
-    document.getElementById("mandantennummer").value = ""; document.getElementById("firmenname").value = "";
-    document.getElementById("dateiVorschau").innerHTML = "";
+    aktualisiereMandantenFilterDropdown(); zeigeIdeen();
+    document.getElementById("ideeText").value = ""; document.getElementById("ideeDetails").value = ""; document.getElementById("mandantennummer").value = ""; document.getElementById("firmenname").value = ""; document.getElementById("dateiVorschau").innerHTML = "";
     setzePrioritaet(""); document.getElementById("benutzer").value = ""; document.getElementById("kategorie").value = "";
     istGespeichert = false; // Änderungen gemacht
     saveToOneDrive();
 }
 /* --- END BLOCK 5a --- */
 
-/* --- START BLOCK 5b: Display Ideas (Angepasst für Anhang-Sichtbarkeit & Beschr.-Einrückung) --- */
+/* --- START BLOCK 5b: Display Ideas (Angepasst für Anhang-Sichtbarkeit & Beschr.-Einrückung/Sichtbarkeit) --- */
 function zeigeIdeen() {
     let fIdeen = [];
     try { fIdeen = JSON.parse(localStorage.getItem("ideen") || "[]"); } catch(e) { console.error("Fehler beim Laden der Ideen:", e); localStorage.removeItem("ideen"); fIdeen = []; }
-    if (!Array.isArray(fIdeen)) fIdeen = []; // Sicherstellen, dass es ein Array ist
+    if (!Array.isArray(fIdeen)) fIdeen = [];
 
-    let filtered = fIdeen.filter(i => i && i.id); // Nur valide Ideen berücksichtigen
+    let filtered = fIdeen.filter(i => i && i.id);
 
     // Filterlogik
     const fKat=document.getElementById("filterKategorie")?.value;if(fKat)filtered=filtered.filter(i=>i.kategorie===fKat);
@@ -338,50 +326,36 @@ function zeigeIdeen() {
         let datum = getFormattedDate(idee.timestamp);
         const vNumHtml = idee.vorgangsnummer ? `<div class="vorgangsnummer-anzeige-liste">Vorgang: <b>${idee.vorgangsnummer}</b></div>` : '';
 
-        // Anhänge HTML (mit Sichtbarkeits-Toggle)
+        // Anhänge HTML
         let dateiHtml = "";
         if (idee.dateien && idee.dateien.length > 0) {
             dateiHtml = idee.dateien.filter(f => f && f.id).map(f => {
-                const url = f.link || '#';
-                const istSichtbar = f.sichtbar === true;
-                const anhangKlasse = istSichtbar ? "" : " anhang-veraltet";
-                const anhangPraefix = istSichtbar ? "" : "[Veraltet] ";
-                const icon = f.link ? '🌐' : '📎';
-                const buttonSymbol = istSichtbar ? '👁️' : '🙈';
-                const buttonTitle = istSichtbar ? 'Anhang ausblenden' : 'Anhang einblenden';
+                const url = f.link || '#'; const istSichtbar = f.sichtbar === true; const anhangKlasse = istSichtbar ? "" : " anhang-veraltet"; const anhangPraefix = istSichtbar ? "" : "[Veraltet] ";
+                const icon = f.link ? '🌐' : '📎'; const buttonSymbol = istSichtbar ? '👁️' : '🙈'; const buttonTitle = istSichtbar ? 'Anhang ausblenden' : 'Anhang einblenden';
                 return `<div class="anhang-eintrag${anhangKlasse}" style="margin-bottom: 3px; display: flex; align-items: center;">
-                            <a class="datei-link" href="${url}" target="_blank" title="${f.name || ''}">
-                                ${icon} ${anhangPraefix}${f.name || 'Unbekannt'}
-                            </a>
+                            <a class="datei-link" href="${url}" target="_blank" title="${f.name || ''}">${icon} ${anhangPraefix}${f.name || 'Unbekannt'}</a>
                             <span class="datei-info" style="font-size:0.8em; color: #555; margin-left: 5px;"> (${f.link ? 'OneDrive' : 'Lokal'})</span>
-                            <button class="toggle-anhang-sichtbarkeit-btn" title="${buttonTitle}" onclick="toggleAnhangSichtbarkeit('${id}', '${f.id}')">
-                                ${buttonSymbol}
-                            </button>
+                            <button class="toggle-anhang-sichtbarkeit-btn" title="${buttonTitle}" onclick="toggleAnhangSichtbarkeit('${id}', '${f.id}')">${buttonSymbol}</button>
                         </div>`;
             }).join("");
-            if (dateiHtml) {
-                 dateiHtml = `<div class="anhaenge-liste" style="margin-top: 8px; display: flex; flex-direction: column; align-items: flex-start;"><b>Anhänge:</b>${dateiHtml}</div>`;
-            }
+            if (dateiHtml) { dateiHtml = `<div class="anhaenge-liste" style="margin-top: 8px; display: flex; flex-direction: column; align-items: flex-start;"><b>Anhänge:</b>${dateiHtml}</div>`; }
         }
 
-        // Beschreibungshistorie HTML (mit Einrückung und Sortierbuttons)
+        // Beschreibungshistorie HTML
         const beschreibungenHtml = idee.beschreibungen?.length ? `<div class="beschreibung-historie"><b>Weitere Beschr.:</b>${
             idee.beschreibungen.filter(b => b && b.text !== undefined).map(b => {
-                let btsText = getFormattedDate(b.timestamp);
-                const indentLevel = b.level || 0;
-                const indentMargin = indentLevel * 20;
-                const itemWidth = `calc(100% - ${indentMargin}px)`;
-                return `<div class="beschreibung-item" style="margin-left: ${indentMargin}px; width: ${itemWidth};">
-                            <div class="beschreibung-text-zeit">
-                                <span class="beschreibung-zeit">${btsText}</span>
-                                ${b.text}
-                            </div>
+                let btsText = getFormattedDate(b.timestamp); const indentLevel = b.level || 0; const indentMargin = indentLevel * 20; const itemWidth = `calc(100% - ${indentMargin}px)`;
+                const istSichtbar = b.sichtbar === true; const beschreibungKlasse = istSichtbar ? "" : " beschreibung-veraltet"; const sichtbarkeitButtonSymbol = istSichtbar ? '👁️' : '🙈';
+                const sichtbarkeitButtonTitle = istSichtbar ? 'Beschreibung ausblenden' : 'Beschreibung einblenden'; const praefix = istSichtbar ? "" : "[Ausgeblendet] ";
+                return `<div class="beschreibung-item${beschreibungKlasse}" style="margin-left: ${indentMargin}px; width: ${itemWidth};">
+                            <div class="beschreibung-text-zeit"><span class="beschreibung-zeit">${btsText}</span>${praefix}${b.text}</div>
                             <div class="beschreibung-item-actions">
                                 <button class="edit-beschreibung-btn" title="Bearbeiten" onclick="bearbeiteEinzelneBeschreibung('${id}','${b.timestamp}')">✏️</button>
                                 <button class="move-beschreibung-btn" title="Nach oben" onclick="verschiebeBeschreibung('${id}','${b.timestamp}', -1)">⬆️</button>
                                 <button class="move-beschreibung-btn" title="Nach unten" onclick="verschiebeBeschreibung('${id}','${b.timestamp}', 1)">⬇️</button>
                                 <button class="move-beschreibung-btn" title="Ausrücken" onclick="aendereEinrueckungBeschreibung('${id}','${b.timestamp}', -1)" ${indentLevel === 0 ? 'disabled' : ''}>⬅️</button>
                                 <button class="move-beschreibung-btn" title="Einrücken" onclick="aendereEinrueckungBeschreibung('${id}','${b.timestamp}', 1)">➡️</button>
+                                <button class="toggle-beschreibung-sichtbarkeit-btn" title="${sichtbarkeitButtonTitle}" onclick="toggleBeschreibungSichtbarkeit('${id}', '${b.timestamp}')">${sichtbarkeitButtonSymbol}</button>
                             </div>
                         </div>`;
             }).join("")
@@ -390,23 +364,12 @@ function zeigeIdeen() {
         // Komplette Idee HTML
         return `<div class="idee${erledigt ? ' erledigt' : ''}">
                   <div class="idee-content">
-                    ${vNumHtml}
-                    <h3>${idee.text || 'Ohne Titel'}</h3>
-                    <p>${idee.details || ""}</p>
-                    ${idee.benutzer ? `<div>Zust.: <b>${idee.benutzer}</b></div>` : ""}
-                    ${idee.mandantennummer ? `<div>Mandant: <b>${idee.mandantennummer}</b></div>` : ""}
-                    ${idee.firmenname ? `<div>Firma: <b>${idee.firmenname}</b></div>` : ""}
+                    ${vNumHtml}<h3>${idee.text || 'Ohne Titel'}</h3><p>${idee.details || ""}</p>
+                    ${idee.benutzer ? `<div>Zust.: <b>${idee.benutzer}</b></div>` : ""} ${idee.mandantennummer ? `<div>Mandant: <b>${idee.mandantennummer}</b></div>` : ""} ${idee.firmenname ? `<div>Firma: <b>${idee.firmenname}</b></div>` : ""}
                     ${beschreibungenHtml}
                     <small>${idee.kategorie || '-'} | ${idee.prioritaet || "-"} | ${datum}</small>
                     ${dateiHtml}
-                    <div class="idee-actions">
-                      <button onclick="verschiebeIdee('${id}',-1)">⬆️</button>
-                      <button onclick="verschiebeIdee('${id}',1)">⬇️</button>
-                      <button onclick="bearbeiteIdee('${id}')">✏️</button>
-                      <button onclick="toggleErledigt('${id}')">${erledigt ? "↩️" : "✔️"}</button>
-                      <button onclick="loescheIdee('${id}')">🗑️</button>
-                      <button onclick="zeigeBeschreibungDialog('${id}')">+ Beschr</button>
-                    </div>
+                    <div class="idee-actions"><button onclick="verschiebeIdee('${id}',-1)">⬆️</button><button onclick="verschiebeIdee('${id}',1)">⬇️</button><button onclick="bearbeiteIdee('${id}')">✏️</button><button onclick="toggleErledigt('${id}')">${erledigt ? "↩️" : "✔️"}</button><button onclick="loescheIdee('${id}')">🗑️</button><button onclick="zeigeBeschreibungDialog('${id}')">+ Beschr</button></div>
                   </div>
                   <input type="checkbox" class="idee-checkbox" onchange="toggleAuswahl('${id}',this)" ${ausgewaehlt.includes(id) ? "checked" : ""}>
                 </div>`;
@@ -420,13 +383,13 @@ function zeigeIdeen() {
 
 /* --- START BLOCK 5c: Idea Actions (Unverändert) --- */
 function toggleErledigt(id){let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idx=ideen.findIndex(i=>i&&i.id===id);if(idx!==-1){ideen[idx].erledigt=!(ideen[idx].erledigt||!1);localStorage.setItem("ideen",JSON.stringify(ideen));zeigeIdeen();istGespeichert=!1;saveToOneDrive()}}
-function bearbeiteIdee(id){const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idee=ideen.find(i=>i&&i.id===id);if(!idee){zeigeWarnung("Fehler: Idee nicht gefunden.");return}document.getElementById("ideeText").value=idee.text;document.getElementById("ideeDetails").value=idee.details||"";document.getElementById("kategorie").value=idee.kategorie||"";document.getElementById("mandantennummer").value=idee.mandantennummer||"";document.getElementById("firmenname").value=idee.firmenname||"";document.getElementById("benutzer").value=idee.benutzer||"";setzePrioritaet(idee.prioritaet||"");bearbeiteId=id;const v=document.getElementById("dateiVorschau");v.innerHTML="";if(idee.dateien){idee.dateien.filter(f=>f&&f.id).forEach(f=>{const url=f.link;if(url){v.innerHTML+=`<div style="display:inline-block;margin:5px;text-align:center;max-width:150px;vertical-align:top;"><a href="${url}" target="_blank" title="${f.name}">${f.type?.startsWith("image/")?'<img src="'+url+'" style="max-height:80px;display:block;margin:auto;object-fit:cover;">':''}${f.type==="application/pdf"?'<iframe src="'+url+'" style="width:100%;height:80px;border:1px solid #ccc;"></iframe>':''}${!f.type?.startsWith("image/")&&f.type!=="application/pdf"?'<span style="font-size:2em;display:block;">'+(f.link?'🌐':'📎')+'</span>':''}<span style="font-size:.8em;word-break:break-all;display:block;">${f.name}</span></a><div style="font-size:.7em;color:grey;">${f.link?'OneDrive':'Lokal'} (${f.sichtbar?'Sichtbar':'Veraltet'})</div></div>`}})}document.getElementById("speichernBtn").textContent="💾 Aktualisieren";document.getElementById("abbrechenBtn").style.display="";istGespeichert=!1}
+function bearbeiteIdee(id){const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idee=ideen.find(i=>i&&i.id===id);if(!idee){zeigeWarnung("Fehler: Idee nicht gefunden.");return}document.getElementById("ideeText").value=idee.text;document.getElementById("ideeDetails").value=idee.details||"";document.getElementById("kategorie").value=idee.kategorie||"";document.getElementById("mandantennummer").value=idee.mandantennummer||"";document.getElementById("firmenname").value=idee.firmenname||"";document.getElementById("benutzer").value=idee.benutzer||"";setzePrioritaet(idee.prioritaet||"");bearbeiteId=id;const v=document.getElementById("dateiVorschau");v.innerHTML="";if(idee.dateien){idee.dateien.filter(f=>f&&f.id).forEach(f=>{const url=f.link;if(url){const istVeraltet = f.sichtbar===false; v.innerHTML+=`<div style="display:inline-block;margin:5px;text-align:center;max-width:150px;vertical-align:top; ${istVeraltet?'opacity:0.6;':''}"><a href="${url}" target="_blank" title="${f.name}" style="${istVeraltet?'text-decoration:line-through;':''}">${f.type?.startsWith("image/")?'<img src="'+url+'" style="max-height:80px;display:block;margin:auto;object-fit:cover;">':''}${f.type==="application/pdf"?'<iframe src="'+url+'" style="width:100%;height:80px;border:1px solid #ccc;"></iframe>':''}${!f.type?.startsWith("image/")&&f.type!=="application/pdf"?'<span style="font-size:2em;display:block;">'+(f.link?'🌐':'📎')+'</span>':''}<span style="font-size:.8em;word-break:break-all;display:block;">${f.name}</span></a><div style="font-size:.7em;color:grey;">${f.link?'OneDrive':'Lokal'} (${f.sichtbar?'Sichtbar':'Veraltet'})</div></div>`}})}document.getElementById("speichernBtn").textContent="💾 Aktualisieren";document.getElementById("abbrechenBtn").style.display="";istGespeichert=!1} // Hinweis: Lokale Dateivorschau hier nicht implementiert.
 function abbrechenBearbeiten(){bearbeiteId=null;document.getElementById("ideeText").value="";document.getElementById("ideeDetails").value="";document.getElementById("mandantennummer").value="";document.getElementById("firmenname").value="";document.getElementById("dateien").value="";document.getElementById("dateiVorschau").innerHTML="";document.getElementById("speichernBtn").textContent="💾 Speichern";document.getElementById("abbrechenBtn").style.display="none";setzePrioritaet("");document.getElementById("benutzer").value="";document.getElementById("kategorie").value="";istGespeichert=!0}
 function verschiebeIdee(id,dir){let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idx=ideen.findIndex(i=>i&&i.id===id);if(idx===-1)return;const targetIdx=idx+dir;if(targetIdx>=0&&targetIdx<ideen.length){[ideen[idx],ideen[targetIdx]]=[ideen[targetIdx],ideen[idx]];localStorage.setItem("ideen",JSON.stringify(ideen));zeigeIdeen();istGespeichert=!1;saveToOneDrive()}}
 function loescheIdee(id){if(!confirm("Wirklich löschen?"))return;let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idx=ideen.findIndex(i=>i&&i.id===id);if(idx!==-1){const del=ideen[idx];ideen.splice(idx,1);localStorage.setItem("ideen",JSON.stringify(ideen));const mExists=ideen.some(i=>i&&i.mandantennummer&&(i.mandantennummer||"").toLowerCase()===(del.mandantennummer||"").toLowerCase());const uExists=ideen.some(i=>i&&i.benutzer&&(i.benutzer||"").toLowerCase()===(del.benutzer||"").toLowerCase());if(!mExists&&del.mandantennummer)aktualisiereMandantenFilterDropdown();if(!uExists&&del.benutzer)aktualisiereBenutzerDropdowns();ausgewaehlt=ausgewaehlt.filter(i=>i!==id);if(bearbeiteId===id)abbrechenBearbeiten();if(beschreibungFuerId===id)beschreibungAbbrechen();zeigeIdeen();istGespeichert=false;saveToOneDrive()}else{zeigeWarnung("Fehler: Idee nicht gefunden.");}}
 /* --- END BLOCK 5c --- */
 
-/* --- START BLOCK 5d (Mit neuen Funktionen für Anhänge/Beschreibungen) --- */
+/* --- START BLOCK 5d (Mit allen neuen Funktionen) --- */
 function zeigeBeschreibungDialog(id,ts=null){beschreibungFuerId=id;beschreibungZuBearbeitenderTimestamp=ts;const area=document.getElementById("beschreibungText");if(ts!==null){const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idee=ideen.find(i=>i&&i.id===id);const desc=idee?.beschreibungen?.find(b=>b&&b.timestamp===ts);if(desc)area.value=desc.text;else{zeigeWarnung("Fehler: Beschreibung nicht gefunden.");beschreibungAbbrechen();return}}else{area.value=""}document.getElementById("beschreibungDialog").style.display="block";area.focus();istGespeichert=!1}
 function beschreibungAbbrechen(){document.getElementById("beschreibungDialog").style.display="none";beschreibungFuerId=null;beschreibungZuBearbeitenderTimestamp=null;document.getElementById("beschreibungText").value=""}
 
@@ -435,30 +398,27 @@ function beschreibungSpeichern(){
     let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");
     const idx=ideen.findIndex(i=>i&&i.id===beschreibungFuerId);
     if(idx!==-1){
-        if(beschreibungZuBearbeitenderTimestamp!==null){
+        if(beschreibungZuBearbeitenderTimestamp!==null){ // Bearbeiten
             if (!ideen[idx].beschreibungen) ideen[idx].beschreibungen = [];
             const dIdx=ideen[idx].beschreibungen.findIndex(b=>b&&b.timestamp===beschreibungZuBearbeitenderTimestamp);
             if(dIdx!==-1) { ideen[idx].beschreibungen[dIdx].text=t; }
             else { zeigeWarnung("Fehler: Beschreibung zum Bearbeiten nicht gefunden."); }
-        } else {
+        } else { // Neu
             const ts=new Date().toISOString()+'_'+Math.random().toString(36).substr(2,9);
             if(!ideen[idx].beschreibungen) ideen[idx].beschreibungen=[];
-            ideen[idx].beschreibungen.push({text:t, timestamp:ts, level: 0}); // Mit level: 0
+            ideen[idx].beschreibungen.push({text:t, timestamp:ts, level: 0, sichtbar: true}); // Mit level und sichtbar
         }
         localStorage.setItem("ideen",JSON.stringify(ideen));
         zeigeIdeen();
     } else { zeigeWarnung("Fehler: Idee nicht gefunden."); }
-    beschreibungAbbrechen();
-    istGespeichert=false; // Änderung!
-    saveToOneDrive();
+    beschreibungAbbrechen(); istGespeichert=false; saveToOneDrive();
 }
 
 function bearbeiteEinzelneBeschreibung(id,ts){if(ts)zeigeBeschreibungDialog(id,ts);else zeigeWarnung("Interner Fehler: Timestamp fehlt.")}
 function toggleAuswahl(id,box){console.log("toggleAuswahl:",id,"Checked:",box.checked);if(box.checked){if(!ausgewaehlt.includes(id))ausgewaehlt.push(id)}else{ausgewaehlt=ausgewaehlt.filter(i=>i!==id)}console.log("Auswahl:",ausgewaehlt)}
-function ausgewaehlteNotizenLoeschen(){if(ausgewaehlt.length===0){zeigeWarnung("Keine Notizen ausgewählt.");return}if(!confirm(`Wirklich ${ausgewaehlt.length} Notiz(en) löschen?`))return;let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const delM=new Set();const delU=new Set();ideen.filter(i=>i&&ausgewaehlt.includes(i.id)).forEach(i=>{if(i.mandantennummer)delM.add((i.mandantennummer).toLowerCase());if(i.benutzer)delU.add((i.benutzer).toLowerCase())});const newList=ideen.filter(i=>!i || !ausgewaehlt.includes(i.id));localStorage.setItem("ideen",JSON.stringify(newList));const remM=new Set(newList.filter(i=>i).map(i=>(i.mandantennummer||"").toLowerCase()).filter(m=>m!==""));const remU=new Set(newList.filter(i=>i).map(i=>(i.benutzer||"").toLowerCase()).filter(b=>b!==""));let uM=!1;delM.forEach(m=>{if(!remM.has(m))uM=!0});let uU=!1;delU.forEach(u=>{if(!remU.has(u))uU=!0});if(uM)aktualisiereMandantenFilterDropdown();if(uU)aktualisiereBenutzerDropdowns();if(bearbeiteId!==null&&ausgewaehlt.includes(bearbeiteId))abbrechenBearbeiten();if(beschreibungFuerId!==null&&ausgewaehlt.includes(beschreibungFuerId))beschreibungAbbrechen();ausgewaehlt=[];zeigeIdeen();istGespeichert=false;saveToOneDrive()} // Änderung!
-function alleIdeenLoeschen(){if(!confirm("Wirklich ALLE Ideen, Kategorien, Benutzer etc. löschen?"))return;localStorage.removeItem("ideen"); localStorage.removeItem("kategorien"); localStorage.removeItem("benutzerliste"); localStorage.removeItem("naechsteVorgangsnummer"); naechsteVorgangsnummer=1; kategorien = []; benutzerliste = []; zeigeNaechsteNummer(); initialisiereKategorien(); initialisiereBenutzer(); aktualisiereMandantenFilterDropdown(); ausgewaehlt=[];bearbeiteId=null;beschreibungFuerId=null;beschreibungZuBearbeitenderTimestamp=null;zeigeIdeen();abbrechenBearbeiten();istGespeichert=true;saveToOneDrive()} // Nach komplettem Löschen ist der Stand "gespeichert"
+function ausgewaehlteNotizenLoeschen(){if(ausgewaehlt.length===0){zeigeWarnung("Keine Notizen ausgewählt.");return}if(!confirm(`Wirklich ${ausgewaehlt.length} Notiz(en) löschen?`))return;let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const delM=new Set();const delU=new Set();ideen.filter(i=>i&&ausgewaehlt.includes(i.id)).forEach(i=>{if(i.mandantennummer)delM.add((i.mandantennummer).toLowerCase());if(i.benutzer)delU.add((i.benutzer).toLowerCase())});const newList=ideen.filter(i=>!i || !ausgewaehlt.includes(i.id));localStorage.setItem("ideen",JSON.stringify(newList));const remM=new Set(newList.filter(i=>i).map(i=>(i.mandantennummer||"").toLowerCase()).filter(m=>m!==""));const remU=new Set(newList.filter(i=>i).map(i=>(i.benutzer||"").toLowerCase()).filter(b=>b!==""));let uM=!1;delM.forEach(m=>{if(!remM.has(m))uM=!0});let uU=!1;delU.forEach(u=>{if(!remU.has(u))uU=!0});if(uM)aktualisiereMandantenFilterDropdown();if(uU)aktualisiereBenutzerDropdowns();if(bearbeiteId!==null&&ausgewaehlt.includes(bearbeiteId))abbrechenBearbeiten();if(beschreibungFuerId!==null&&ausgewaehlt.includes(beschreibungFuerId))beschreibungAbbrechen();ausgewaehlt=[];zeigeIdeen();istGespeichert=false;saveToOneDrive()}
+function alleIdeenLoeschen(){if(!confirm("Wirklich ALLE Ideen, Kategorien, Benutzer etc. löschen?"))return;localStorage.removeItem("ideen"); localStorage.removeItem("kategorien"); localStorage.removeItem("benutzerliste"); localStorage.removeItem("naechsteVorgangsnummer"); naechsteVorgangsnummer=1; kategorien = []; benutzerliste = []; zeigeNaechsteNummer(); initialisiereKategorien(); initialisiereBenutzer(); aktualisiereMandantenFilterDropdown(); ausgewaehlt=[];bearbeiteId=null;beschreibungFuerId=null;beschreibungZuBearbeitenderTimestamp=null;zeigeIdeen();abbrechenBearbeiten();istGespeichert=true;saveToOneDrive()}
 
-// Funktion zum Umschalten der Anhang-Sichtbarkeit
 function toggleAnhangSichtbarkeit(ideeId, anhangId) {
     if (!ideeId || !anhangId) { console.error("toggleAnhangSichtbarkeit: IDs fehlen."); return; }
     let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
@@ -473,7 +433,6 @@ function toggleAnhangSichtbarkeit(ideeId, anhangId) {
     console.log(`Sichtbarkeit Anhang ${anhangId} -> ${ideen[ideeIndex].dateien[anhangIndex].sichtbar}`);
 }
 
-// Funktion zum Verschieben von Beschreibungen (vertikal)
 function verschiebeBeschreibung(ideeId, beschreibungTimestamp, richtung) {
     if (!ideeId || !beschreibungTimestamp || (richtung !== -1 && richtung !== 1)) { console.error("Ungültige Argumente"); return; }
     let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
@@ -484,14 +443,13 @@ function verschiebeBeschreibung(ideeId, beschreibungTimestamp, richtung) {
     const currentIndex = beschreibungen.findIndex(b => b && b.timestamp === beschreibungTimestamp);
     if (currentIndex === -1) return zeigeWarnung("Beschreibung nicht gefunden.");
     const targetIndex = currentIndex + richtung;
-    if (targetIndex < 0 || targetIndex >= beschreibungen.length) { return; } // Grenze erreicht
+    if (targetIndex < 0 || targetIndex >= beschreibungen.length) { return; }
     [beschreibungen[currentIndex], beschreibungen[targetIndex]] = [beschreibungen[targetIndex], beschreibungen[currentIndex]];
     localStorage.setItem("ideen", JSON.stringify(ideen));
     zeigeIdeen(); istGespeichert = false; saveToOneDrive();
     console.log(`Beschreibung ${beschreibungTimestamp} verschoben.`);
 }
 
-// Funktion zum Ändern der Einrückung von Beschreibungen (horizontal)
 function aendereEinrueckungBeschreibung(ideeId, beschreibungTimestamp, richtung) {
     if (!ideeId || !beschreibungTimestamp || (richtung !== -1 && richtung !== 1)) { console.error("Ungültige Argumente"); return; }
     let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
@@ -502,23 +460,37 @@ function aendereEinrueckungBeschreibung(ideeId, beschreibungTimestamp, richtung)
     if (beschrIndex === -1) return zeigeWarnung("Beschreibung nicht gefunden.");
     const aktuellesLevel = ideen[ideeIndex].beschreibungen[beschrIndex].level || 0;
     let neuesLevel = aktuellesLevel + richtung;
-    const maxLevel = 5; // Max Tiefe
+    const maxLevel = 5;
     if (neuesLevel < 0) neuesLevel = 0;
     if (neuesLevel > maxLevel) neuesLevel = maxLevel;
-    if (aktuellesLevel === neuesLevel) { return; } // Nichts zu tun
+    if (aktuellesLevel === neuesLevel) { return; }
     ideen[ideeIndex].beschreibungen[beschrIndex].level = neuesLevel;
     localStorage.setItem("ideen", JSON.stringify(ideen));
     zeigeIdeen(); istGespeichert = false; saveToOneDrive();
     console.log(`Einrückung für ${beschreibungTimestamp} -> Level ${neuesLevel}`);
 }
+
+function toggleBeschreibungSichtbarkeit(ideeId, beschreibungTimestamp) {
+    if (!ideeId || !beschreibungTimestamp) { console.error("toggleBeschreibungSichtbarkeit: IDs fehlen."); return; }
+    let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+    const ideeIndex = ideen.findIndex(i => i && i.id === ideeId);
+    if (ideeIndex === -1) { zeigeWarnung("Fehler: Idee nicht gefunden."); return; }
+    if (!Array.isArray(ideen[ideeIndex].beschreibungen)) { return; }
+    const beschrIndex = ideen[ideeIndex].beschreibungen.findIndex(b => b && b.timestamp === beschreibungTimestamp);
+    if (beschrIndex === -1) { zeigeWarnung("Fehler: Beschreibung nicht gefunden."); return; }
+    ideen[ideeIndex].beschreibungen[beschrIndex].sichtbar = !(ideen[ideeIndex].beschreibungen[beschrIndex].sichtbar === true);
+    localStorage.setItem("ideen", JSON.stringify(ideen));
+    zeigeIdeen(); istGespeichert = false; saveToOneDrive();
+    console.log(`Sichtbarkeit Beschreibung ${beschreibungTimestamp} -> ${ideen[ideeIndex].beschreibungen[beschrIndex].sichtbar}`);
+}
 /* --- END BLOCK 5d --- */
 
-/* --- START BLOCK 6: Export (Angepasst für Sichtbarkeit/Einrückung) --- */
+/* --- START BLOCK 6 (Angepasst für Beschreibung Sichtbarkeit/Einrückung) --- */
 // Helferfunktion getFormattedDate bleibt gleich
 function getFormattedDate(timestamp) { if (timestamp) { let ts = timestamp; if (typeof ts === 'string' && ts.includes('_')) { ts = ts.split('_')[0]; } try { const d = new Date(ts); if (!isNaN(d.getTime())) { return d.toLocaleString("de-DE", { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }); } } catch (e) { } } return 'N/A'; }
 
 // Robuste Funktion getExportIdeen bleibt gleich
-function getExportIdeen() { let resultIdeen = []; try { let ideen = []; try { ideen = JSON.parse(localStorage.getItem("ideen") || "[]"); if (!Array.isArray(ideen)) { console.error("localStorage 'ideen' war kein Array."); ideen = []; localStorage.setItem("ideen", "[]"); } } catch (e) { console.error("Fehler beim Parsen von 'ideen':", e); localStorage.removeItem("ideen"); ideen = []; } const aktuellAusgewaehlteCheckboxes = Array.from(document.querySelectorAll('.idee-checkbox:checked')); let aktuellAusgewaehlteIDs = []; if (aktuellAusgewaehlteCheckboxes.length > 0) { aktuellAusgewaehlteIDs = aktuellAusgewaehlteCheckboxes.map(cb => { try { let parentIdeeDiv = cb.closest('.idee'); if (parentIdeeDiv) { const buttonsMitId = parentIdeeDiv.querySelectorAll('button[onclick*="loescheIdee("], button[onclick*="bearbeiteIdee("], button[onclick*="toggleErledigt("]'); for(let btn of buttonsMitId) { if (btn.onclick) { const match = btn.onclick.toString().match(/\('([^']+)'\)/); if (match && match[1]) return match[1]; } } } } catch (e) { console.error("Error extracting ID:", e, cb); } return null; }).filter(id => id !== null); if (aktuellAusgewaehlteIDs.length > 0) { console.log("Export basierend auf Auswahl:", aktuellAusgewaehlteIDs); resultIdeen = ideen.filter(i => i && i.id && aktuellAusgewaehlteIDs.includes(i.id)); } else { console.warn("Checkboxen gecheckt, aber keine IDs gefunden."); resultIdeen = []; } } else { console.log("Export basierend auf globalen Filtern."); let fIdeen = [...ideen.filter(i=>i&&i.id)]; /* Start with valid ideas */ const fKat = document.getElementById("filterKategorie")?.value; if (fKat) fIdeen = fIdeen.filter(i => i.kategorie === fKat); const fMdt = document.getElementById("filterMandant")?.value; if (fMdt) fIdeen = fIdeen.filter(i => (i.mandantennummer || "").toLowerCase() === fMdt.toLowerCase()); const fUser = document.getElementById("filterBenutzer")?.value; if (fUser) fIdeen = fIdeen.filter(i => (i.benutzer || "").toLowerCase() === fUser.toLowerCase()); const fArchiv = document.getElementById("filterArchiv")?.value; if (fArchiv === "nicht_erledigt") fIdeen = fIdeen.filter(i => !(i.erledigt || false)); else if (fArchiv === "erledigt") fIdeen = fIdeen.filter(i => (i.erledigt || false)); const sort=document.getElementById("sortierung")?.value; if(sort && sort!=="standard"){ fIdeen.sort((a,b)=>{ if (!a || !b) return 0; if(sort==="prio"){ const p={"Hoch":3,"Mittel":2,"Niedrig":1}; return(p[b.prioritaet]||0)-(p[a.prioritaet]||0); } let tA=-Infinity,tB=-Infinity; try{tA=new Date(a.timestamp?.split('_')[0]).getTime();if(isNaN(tA))tA=(sort==="neu"?-Infinity:Infinity)}catch(e){tA=(sort==="neu"?-Infinity:Infinity)} try{tB=new Date(b.timestamp?.split('_')[0]).getTime();if(isNaN(tB))tB=(sort==="neu"?-Infinity:Infinity)}catch(e){tB=(sort==="neu"?-Infinity:Infinity)} if(sort==="neu")return tB-tA; if(sort==="alt")return tA-tB; return 0; }); } resultIdeen = fIdeen; } } catch (error) { console.error("Schwerer Fehler in getExportIdeen:", error); zeigeWarnung("Fehler beim Ermitteln der Ideen.", "warnung"); resultIdeen = []; } if (!Array.isArray(resultIdeen)) { console.error("getExportIdeen hat KEIN Array zurückgegeben!"); return []; } return resultIdeen; }
+function getExportIdeen() { let resultIdeen = []; try { let ideen = []; try { ideen = JSON.parse(localStorage.getItem("ideen") || "[]"); if (!Array.isArray(ideen)) { console.error("localStorage 'ideen' war kein Array."); ideen = []; localStorage.setItem("ideen", "[]"); } } catch (e) { console.error("Fehler beim Parsen von 'ideen':", e); localStorage.removeItem("ideen"); ideen = []; } const aktuellAusgewaehlteCheckboxes = Array.from(document.querySelectorAll('.idee-checkbox:checked')); let aktuellAusgewaehlteIDs = []; if (aktuellAusgewaehlteCheckboxes.length > 0) { aktuellAusgewaehlteIDs = aktuellAusgewaehlteCheckboxes.map(cb => { try { let parentIdeeDiv = cb.closest('.idee'); if (parentIdeeDiv) { const buttonsMitId = parentIdeeDiv.querySelectorAll('button[onclick*="loescheIdee("], button[onclick*="bearbeiteIdee("], button[onclick*="toggleErledigt("]'); for(let btn of buttonsMitId) { if (btn.onclick) { const match = btn.onclick.toString().match(/\('([^']+)'\)/); if (match && match[1]) return match[1]; } } } } catch (e) { console.error("Error extracting ID:", e, cb); } return null; }).filter(id => id !== null); if (aktuellAusgewaehlteIDs.length > 0) { console.log("Export basierend auf Auswahl:", aktuellAusgewaehlteIDs); resultIdeen = ideen.filter(i => i && i.id && aktuellAusgewaehlteIDs.includes(i.id)); } else { console.warn("Checkboxen gecheckt, aber keine IDs gefunden."); resultIdeen = []; } } else { console.log("Export basierend auf globalen Filtern."); let fIdeen = [...ideen.filter(i=>i&&i.id)]; const fKat = document.getElementById("filterKategorie")?.value; if (fKat) fIdeen = fIdeen.filter(i => i.kategorie === fKat); const fMdt = document.getElementById("filterMandant")?.value; if (fMdt) fIdeen = fIdeen.filter(i => (i.mandantennummer || "").toLowerCase() === fMdt.toLowerCase()); const fUser = document.getElementById("filterBenutzer")?.value; if (fUser) fIdeen = fIdeen.filter(i => (i.benutzer || "").toLowerCase() === fUser.toLowerCase()); const fArchiv = document.getElementById("filterArchiv")?.value; if (fArchiv === "nicht_erledigt") fIdeen = fIdeen.filter(i => !(i.erledigt || false)); else if (fArchiv === "erledigt") fIdeen = fIdeen.filter(i => (i.erledigt || false)); const sort=document.getElementById("sortierung")?.value; if(sort && sort!=="standard"){ fIdeen.sort((a,b)=>{ if (!a || !b) return 0; if(sort==="prio"){ const p={"Hoch":3,"Mittel":2,"Niedrig":1}; return(p[b.prioritaet]||0)-(p[a.prioritaet]||0); } let tA=-Infinity,tB=-Infinity; try{tA=new Date(a.timestamp?.split('_')[0]).getTime();if(isNaN(tA))tA=(sort==="neu"?-Infinity:Infinity)}catch(e){tA=(sort==="neu"?-Infinity:Infinity)} try{tB=new Date(b.timestamp?.split('_')[0]).getTime();if(isNaN(tB))tB=(sort==="neu"?-Infinity:Infinity)}catch(e){tB=(sort==="neu"?-Infinity:Infinity)} if(sort==="neu")return tB-tA; if(sort==="alt")return tA-tB; return 0; }); } resultIdeen = fIdeen; } } catch (error) { console.error("Schwerer Fehler in getExportIdeen:", error); zeigeWarnung("Fehler beim Ermitteln der Ideen.", "warnung"); resultIdeen = []; } if (!Array.isArray(resultIdeen)) { console.error("getExportIdeen hat KEIN Array zurückgegeben!"); return []; } return resultIdeen; }
 
 // --- Text-Export mit Einrückung & Sichtbarkeit ---
 function exportiereAlsText() {
@@ -540,8 +512,9 @@ function exportiereAlsText() {
              textContent += `\nWeitere Beschreibungen:\n`;
              idee.beschreibungen.forEach(b => {
                 if (b && b.text !== undefined) {
-                    const indentSpaces = "  ".repeat(b.level || 0); // Einrückung
-                    textContent += `${indentSpaces}- [${getFormattedDate(b.timestamp)}] ${b.text}\n`;
+                    const indentSpaces = "  ".repeat(b.level || 0);
+                    const praefix = b.sichtbar === false ? "[Ausgeblendet] " : ""; // Präfix für Beschreibung
+                    textContent += `${indentSpaces}- [${getFormattedDate(b.timestamp)}] ${praefix}${b.text}\n`;
                 }
              });
         }
@@ -550,7 +523,7 @@ function exportiereAlsText() {
             textContent += `\nAnhänge:\n`;
             idee.dateien.forEach(f => {
                  if (!f || !f.id) return;
-                const praefix = f.sichtbar === false ? "[Veraltet] " : ""; // Präfix
+                const praefix = f.sichtbar === false ? "[Veraltet] " : ""; // Präfix für Anhang
                 textContent += `  - Name: ${praefix}${f.name || 'Unbekannt'}\n`;
                 if (f.link) { textContent += `    Link: ${f.link}\n`; }
                 else { textContent += `    (Lokale Datei)\n`; }
@@ -582,20 +555,23 @@ function exportiereAlsPDF() {
         if (idee.benutzer || idee.mandantennummer || idee.firmenname) yPosition += (sectionSpacing / 2) ;
         if (idee.details) { checkAddPage(sectionSpacing + defaultLineSpacing); addWrappedText("Beschreibung:", leftMargin, contentWidth, { fontSize: 11, fontStyle: 'bold', lineHeight: 6 }); addWrappedText(idee.details, leftMargin, contentWidth, { fontSize: 10, lineHeight: defaultLineSpacing }); yPosition += (sectionSpacing / 2); }
 
-        // Beschreibungen mit Einrückung im PDF
+        // Beschreibungen mit Einrückung & Sichtbarkeit im PDF
         if (idee.beschreibungen && idee.beschreibungen.length > 0) {
              checkAddPage(sectionSpacing + defaultLineSpacing);
              addWrappedText("Weitere Beschreibungen:", leftMargin, contentWidth, { fontSize: 11, fontStyle: 'bold', lineHeight: 6 });
              idee.beschreibungen.forEach(b => {
                 if (b && b.text !== undefined) {
                     checkAddPage(defaultLineSpacing);
-                    const indentMM = (b.level || 0) * 5; // 5mm pro Stufe
+                    const indentMM = (b.level || 0) * 5;
                     const startX = leftMargin + 5 + indentMM;
                     const maxWidth = contentWidth - 5 - indentMM;
+                    const praefix = b.sichtbar === false ? "[Ausgeblendet] " : ""; // Präfix
+                    const textToDisplay = `- [${getFormattedDate(b.timestamp)}] ${praefix}${b.text}`;
+                    const textColor = b.sichtbar === false ? [128, 128, 128] : [0, 0, 0]; // Grau oder Schwarz
                     if (maxWidth > 0) {
-                        addWrappedText(`- [${getFormattedDate(b.timestamp)}] ${b.text}`, startX, maxWidth, { fontSize: 10, lineHeight: defaultLineSpacing });
+                        addWrappedText(textToDisplay, startX, maxWidth, { fontSize: 10, lineHeight: defaultLineSpacing, color: textColor });
                     } else {
-                        addWrappedText(`- [${getFormattedDate(b.timestamp)}] ${b.text}`, leftMargin + 5, contentWidth - 5, { fontSize: 10, lineHeight: defaultLineSpacing });
+                        addWrappedText(textToDisplay, leftMargin + 5, contentWidth - 5, { fontSize: 10, lineHeight: defaultLineSpacing, color: textColor });
                     }
                 }
              });
@@ -641,13 +617,14 @@ async function teilePerEmail(){
              `Weitere Beschreibungen:\n${
                  idee.beschreibungen.filter(b => b && b.text !== undefined).map(b => {
                      const indentSpacesMail = "  ".repeat(b.level || 0); // Einrückung
-                     return `${indentSpacesMail}  - [${getFormattedDate(b.timestamp)}] ${b.text}`;
+                     const praefix = b.sichtbar === false ? "[Ausgeblendet] " : ""; // Präfix
+                     return `${indentSpacesMail}  - [${getFormattedDate(b.timestamp)}] ${praefix}${b.text}`;
                  }).join("\n")
              }\n` : "";
          let anhaengeText = "Keine";
          if (idee.dateien && idee.dateien.length > 0) {
              anhaengeText = idee.dateien.filter(f => f && f.id).map(f => {
-                 const praefix = f.sichtbar === false ? "[Veraltet] " : "";
+                 const praefix = f.sichtbar === false ? "[Veraltet] " : ""; // Präfix
                  return f.link ? `${praefix}${f.name || 'Unbekannt'} (${f.link})` : `${praefix}${f.name || 'Unbekannt'} (Lokal)`;
              }).join(", ");
          }
@@ -659,7 +636,7 @@ async function teilePerEmail(){
 
     const exportTimestamp = new Date().toLocaleString("de-DE"); const weitergeleitetText = `\n\n[Notiz(en) markiert als: Weitergeleitet an ${recipientInfo} am ${exportTimestamp}]`; text += weitergeleitetText; text += "\n\n[Anhänge ggf. manuell hinzufügen...]"; console.log("E-Mail: Text:", text);
     const subject = encodeURIComponent(`Ideen-Export (${ideenToExport.length} Notiz${ideenToExport.length > 1 ? 'en':''})`); const body = encodeURIComponent(text); const recipient = recipientInput.includes('@') ? encodeURIComponent(recipientInput.trim()) : ''; const mailto = `mailto:${recipient}?subject=${subject}&body=${body}`; try { window.location.href = mailto; } catch (e) { console.error("Mailto Fehler:", e); zeigeWarnung("Fehler Mail-Programm: " + e.message); }
-    await new Promise(resolve => setTimeout(resolve, 100)); let ideenImSpeicher = JSON.parse(localStorage.getItem("ideen") || "[]"); let changed = false; const ausgewaehlteIDsFuerMail = ideenToExport.map(i => i.id); ideenImSpeicher.forEach(idee => { if (idee && idee.id && ausgewaehlteIDsFuerMail.includes(idee.id)) { const desc = `Weitergeleitet via E-Mail an: ${recipientInfo} am ${exportTimestamp}`; if (!idee.beschreibungen){idee.beschreibungen = [];} const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); idee.beschreibungen.push({ text: desc, timestamp: ts, level: 0 }); changed = true; }}); if (changed) { localStorage.setItem("ideen", JSON.stringify(ideenImSpeicher)); zeigeIdeen(); istGespeichert = false; await saveToOneDrive(); console.log("E-Mail Export-Info gespeichert."); }
+    await new Promise(resolve => setTimeout(resolve, 100)); let ideenImSpeicher = JSON.parse(localStorage.getItem("ideen") || "[]"); let changed = false; const ausgewaehlteIDsFuerMail = ideenToExport.map(i => i.id); ideenImSpeicher.forEach(idee => { if (idee && idee.id && ausgewaehlteIDsFuerMail.includes(idee.id)) { const desc = `Weitergeleitet via E-Mail an: ${recipientInfo} am ${exportTimestamp}`; if (!idee.beschreibungen){idee.beschreibungen = [];} const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); idee.beschreibungen.push({ text: desc, timestamp: ts, level: 0, sichtbar: true }); changed = true; }}); if (changed) { localStorage.setItem("ideen", JSON.stringify(ideenImSpeicher)); zeigeIdeen(); istGespeichert = false; await saveToOneDrive(); console.log("E-Mail Export-Info gespeichert."); }
 }
 
 // --- WhatsApp Export mit Einrückung & Sichtbarkeit ---
@@ -675,13 +652,14 @@ async function teilePerWhatsApp(){
              `\n*Weitere Beschreibungen:*\n${
                  idee.beschreibungen.filter(b => b && b.text !== undefined).map(b => {
                      const indentSpacesWA = "  ".repeat(b.level || 0); // Einrückung
-                     return `${indentSpacesWA}  - _[${getFormattedDate(b.timestamp)}]_ ${b.text}`;
+                     const praefix = b.sichtbar === false ? "[Ausgeblendet] " : ""; // Präfix
+                     return `${indentSpacesWA}  - _[${getFormattedDate(b.timestamp)}]_ ${praefix}${b.text}`;
                  }).join("\n")
              }` : "";
         let anhaengeTextForWhatsApp = "\n📎 Anhänge: Keine";
         if (idee.dateien && idee.dateien.length > 0) {
             anhaengeTextForWhatsApp = `\n📎 *Anhänge:*\n${idee.dateien.filter(f => f && f.id).map(f => {
-                const praefix = f.sichtbar === false ? "[Veraltet] " : "";
+                const praefix = f.sichtbar === false ? "[Veraltet] " : ""; // Präfix
                 return `  - ${praefix}${f.name || 'Unbekannt'} ${f.link ? `(${f.link})` : '(Lokal)'}`;
             }).join("\n")}`;
         }
@@ -692,7 +670,7 @@ async function teilePerWhatsApp(){
     }).filter(s => s !== "").join("\n\n------------------------------------\n\n");
 
      const exportTimestamp = new Date().toLocaleString("de-DE"); const weitergeleitetText = `\n\n_[Notiz(en) markiert als: Weitergeleitet an ${recipientInfo} am ${exportTimestamp}]_`; text += weitergeleitetText; console.log("WhatsApp: Finaler Text:", text); const waLink = `https://wa.me/?text=${encodeURIComponent(text)}`; try { const waWindow = window.open(waLink,"_blank"); if (!waWindow) { zeigeWarnung("WhatsApp konnte nicht geöffnet werden.", "warning"); } else { console.log("WhatsApp: Link geöffnet."); } } catch (e) { console.error("WhatsApp Fehler:", e); zeigeWarnung("Fehler WhatsApp: " + e.message); }
-     await new Promise(resolve => setTimeout(resolve, 100)); let ideenImSpeicher = JSON.parse(localStorage.getItem("ideen") || "[]"); let changed = false; const ausgewaehlteIDsFuerWA = ideenToExport.map(i => i.id); ideenImSpeicher.forEach(idee => { if (idee && idee.id && ausgewaehlteIDsFuerWA.includes(idee.id)) { const desc = `Weitergeleitet via WhatsApp an: ${recipientInfo} am ${exportTimestamp}`; if (!idee.beschreibungen){idee.beschreibungen = [];} const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); idee.beschreibungen.push({ text: desc, timestamp: ts, level: 0 }); changed = true; }}); if (changed) { localStorage.setItem("ideen", JSON.stringify(ideenImSpeicher)); zeigeIdeen(); istGespeichert = false; await saveToOneDrive(); console.log("WhatsApp Export-Info gespeichert."); }
+     await new Promise(resolve => setTimeout(resolve, 100)); let ideenImSpeicher = JSON.parse(localStorage.getItem("ideen") || "[]"); let changed = false; const ausgewaehlteIDsFuerWA = ideenToExport.map(i => i.id); ideenImSpeicher.forEach(idee => { if (idee && idee.id && ausgewaehlteIDsFuerWA.includes(idee.id)) { const desc = `Weitergeleitet via WhatsApp an: ${recipientInfo} am ${exportTimestamp}`; if (!idee.beschreibungen){idee.beschreibungen = [];} const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); idee.beschreibungen.push({ text: desc, timestamp: ts, level: 0, sichtbar: true }); changed = true; }}); if (changed) { localStorage.setItem("ideen", JSON.stringify(ideenImSpeicher)); zeigeIdeen(); istGespeichert = false; await saveToOneDrive(); console.log("WhatsApp Export-Info gespeichert."); }
 }
 /* --- END BLOCK 6 --- */
 
@@ -723,145 +701,80 @@ document.getElementById("dateien").addEventListener("change",function(e){
 });
 window.addEventListener("beforeunload",function(e){if(!istGespeichert){const msg="Ungespeicherte Änderungen! Seite wirklich verlassen?";e.preventDefault();e.returnValue=msg;return msg;}});
 
-// Funktion zur Datenmigration (inkl. Beschr.-Level und Anhang-Felder)
+// Funktion zur Datenmigration (inkl. Beschr.-Level/Sichtbarkeit und Anhang-Felder)
 function ensureIdeasHaveIds() {
     let ideen = [];
     try {
         const storedIdeen = localStorage.getItem("ideen");
-        // Nur parsen, wenn etwas vorhanden ist, um "[]" nicht fälschlicherweise als null zu behandeln
-        if (storedIdeen) {
-            ideen = JSON.parse(storedIdeen);
-        }
-    } catch(e) {
-        console.error("Fehler beim Parsen von 'ideen' aus localStorage:", e);
-        localStorage.removeItem("ideen"); // Fehlerhafte Daten entfernen
-        ideen = [];
-    }
+        if (storedIdeen) { ideen = JSON.parse(storedIdeen); }
+    } catch(e) { console.error("Fehler beim Parsen von 'ideen' aus localStorage:", e); localStorage.removeItem("ideen"); ideen = []; }
 
     let changed = false;
-    // Sicherstellen, dass 'ideen' immer ein Array ist
-    if (!Array.isArray(ideen)) {
-        ideen = [];
-        changed = true; // Änderung, da Struktur korrigiert wurde
-        console.warn("'ideen' im localStorage war kein Array, wurde zurückgesetzt.");
-    }
+    if (!Array.isArray(ideen)) { ideen = []; changed = true; console.warn("'ideen' im localStorage war kein Array."); }
 
-    // Iteriere durch jede Idee und stelle Datenintegrität sicher
-    ideen.forEach((idee, index) => {
-        // Überspringe null/undefined Einträge im Array selbst
-        if (!idee || typeof idee !== 'object') {
-             console.warn(`Ungültiger Eintrag bei Index ${index} im Ideen-Array entfernt.`);
-             // Markiere zur Entfernung (direktes Splice in forEach ist heikel)
-             ideen[index] = null; // Markieren
-             changed = true;
-             return; // Nächste Iteration
-        }
+    const initialIdeenLength = ideen.length;
+    ideen = ideen.filter(idee => idee && typeof idee === 'object' && idee.id);
+    if (ideen.length < initialIdeenLength) { changed = true; console.warn("Ungültige Ideen-Einträge entfernt."); }
 
-        // --- ID ---
-        if (!idee.id || typeof idee.id !== 'string') { // Auch Typ prüfen
-            idee.id = generateUUID();
-            changed = true;
-        }
-
-        // --- Beschreibungen ---
-        if (!Array.isArray(idee.beschreibungen)) {
-            idee.beschreibungen = []; changed = true;
-        } else {
-            // Alte String-Arrays migrieren
+    ideen.forEach(idee => {
+        // Beschreibungen migrieren
+        if (!Array.isArray(idee.beschreibungen)) { idee.beschreibungen = []; changed = true; }
+        else {
             if (idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
-                idee.beschreibungen = idee.beschreibungen.map(text => ({ text: text, timestamp: new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9), level: 0 }));
-                changed = true;
+                 idee.beschreibungen = idee.beschreibungen.map(text => ({ text: text, timestamp: new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9), level: 0, sichtbar: true }));
+                 changed = true;
             } else {
-                // Bestehende Objekte prüfen
                 const originalLengthDesc = idee.beschreibungen.length;
-                 // Filtere ungültige Einträge (null, kein Objekt, kein Text)
-                 idee.beschreibungen = idee.beschreibungen.filter(b => b && typeof b === 'object' && typeof b.text === 'string');
-                 // Prüfe/Setze Timestamp und Level für valide Einträge
+                idee.beschreibungen = idee.beschreibungen.filter(b => b && typeof b === 'object' && typeof b.text === 'string');
                 idee.beschreibungen.forEach(b => {
-                    if (!b.timestamp || typeof b.timestamp !== 'string') {
-                        b.timestamp = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9);
-                        changed = true;
-                    }
-                    if (typeof b.level !== 'number' || b.level < 0) {
-                        b.level = 0; // Standard-Level
-                        changed = true;
-                    }
+                    if (!b.timestamp || typeof b.timestamp !== 'string') { b.timestamp = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); changed = true; }
+                    if (typeof b.level !== 'number' || b.level < 0) { b.level = 0; changed = true; }
+                    if (typeof b.sichtbar !== 'boolean') { b.sichtbar = true; changed = true; }
                 });
                 if (idee.beschreibungen.length < originalLengthDesc) { changed = true; console.log(`Ungültige Beschreibungseinträge für Idee ${idee.id} entfernt.`); }
             }
         }
 
-        // --- Optionale Felder ---
+        // Anhänge migrieren
+        if (!Array.isArray(idee.dateien)) { idee.dateien = []; changed = true; }
+        else {
+            const originalLengthFiles = idee.dateien.length;
+            idee.dateien = idee.dateien.filter(d => d && typeof d === 'object');
+            idee.dateien.forEach(datei => {
+                if (!datei.id || typeof datei.id !== 'string') { datei.id = generateUUID(); changed = true; }
+                if (typeof datei.sichtbar !== 'boolean') { datei.sichtbar = true; changed = true; }
+                if (datei.link === undefined) { datei.link = null; changed = true; }
+                if (datei.data) { delete datei.data; changed = true; }
+                if (datei.pfad) { delete datei.pfad; changed = true; }
+            });
+             if (idee.dateien.length < originalLengthFiles) { changed = true; console.log(`Ungültige Anhangseinträge für Idee ${idee.id} entfernt.`); }
+        }
+
+        // Andere Felder
         if (idee.benutzer === undefined) { idee.benutzer = ""; changed = true; }
         if (idee.mandantennummer === undefined) { idee.mandantennummer = ""; changed = true; }
         if (idee.firmenname === undefined) { idee.firmenname = ""; changed = true; }
         if (typeof idee.erledigt !== 'boolean') { idee.erledigt = false; changed = true; }
         if (idee.vorgangsnummer === undefined) { idee.vorgangsnummer = null; changed = true; }
         if (idee.prioritaet === undefined) { idee.prioritaet = ""; changed = true; }
-
-        // --- Timestamp der Idee ---
-        if (!idee.timestamp || typeof idee.timestamp !== 'string') {
-             idee.timestamp = new Date().toISOString(); changed = true;
-        } else {
-             let ts=idee.timestamp; if(ts.includes('_')){ts=ts.split('_')[0];}
-             try{if(isNaN(new Date(ts).getTime())){idee.timestamp=new Date().toISOString(); changed=true;}}
-             catch(e){idee.timestamp=new Date().toISOString(); changed=true;}
-        }
-
-        // --- Anhänge ---
-        if (!Array.isArray(idee.dateien)) {
-            idee.dateien = []; changed = true;
-        } else {
-            const originalLengthFiles = idee.dateien.length;
-             // Filtere ungültige Einträge und stelle Felder sicher
-             idee.dateien = idee.dateien.filter(d => d && typeof d === 'object'); // Nur Objekte
-             idee.dateien.forEach(datei => {
-                if (!datei.id || typeof datei.id !== 'string') { datei.id = generateUUID(); changed = true; }
-                if (typeof datei.sichtbar !== 'boolean') { datei.sichtbar = true; changed = true; }
-                if (datei.link === undefined) { datei.link = null; changed = true; } // Sicherstellen, dass link existiert (ggf. null)
-                // Entferne temporäre Felder
-                if (datei.data) { delete datei.data; changed = true; }
-                if (datei.pfad) { delete datei.pfad; changed = true; }
-            });
-            if (idee.dateien.length < originalLengthFiles) { changed = true; console.log(`Ungültige Anhangseinträge für Idee ${idee.id} entfernt.`); }
-        }
+        if (!idee.timestamp || typeof idee.timestamp !== 'string') { idee.timestamp = new Date().toISOString(); changed = true; }
     });
-
-    // Filtere null-markierte Ideen aus dem Hauptarray (falls welche übersprungen wurden)
-    const initialLength = ideen.length;
-    ideen = ideen.filter(idee => idee !== null);
-    if (ideen.length < initialLength) {
-        changed = true;
-        console.warn("Einige ungültige Einträge wurden aus dem Haupt-Ideen-Array entfernt.");
-    }
-
 
     if (changed) {
         console.log("Datenmigration abgeschlossen.");
-        try {
-            localStorage.setItem("ideen", JSON.stringify(ideen));
-            console.log("Migrierte Ideen im localStorage gespeichert.");
-        } catch (e) {
-            console.error("Fehler beim Speichern der migrierten Ideen:", e);
-            zeigeWarnung("Speicherfehler nach Datenmigration!");
-        }
-    } else {
-        console.log("Keine Datenmigration notwendig.");
-    }
+        try { localStorage.setItem("ideen", JSON.stringify(ideen)); console.log("Migrierte Ideen im localStorage gespeichert."); }
+        catch (e) { console.error("Fehler beim Speichern der migrierten Ideen:", e); zeigeWarnung("Speicherfehler nach Datenmigration!"); }
+    } else { console.log("Keine Datenmigration notwendig."); }
 }
 
-// Initialisierungsaufrufe beim Laden der Seite
+// Initialisierungsaufrufe
 try {
-    initialisiereKategorien();
-    initialisiereBenutzer();
-    initialisiereVorgangsnummer();
-    ensureIdeasHaveIds(); // Daten VOR der ersten Anzeige migrieren/prüfen
-    aktualisiereMandantenFilterDropdown();
-    zeigeIdeen(); // Ideen NACH der Migration/Prüfung anzeigen
-    pruebeLoginHinweis();
+    initialisiereKategorien(); initialisiereBenutzer(); initialisiereVorgangsnummer();
+    ensureIdeasHaveIds(); // Migriert Daten VOR der ersten Anzeige
+    aktualisiereMandantenFilterDropdown(); zeigeIdeen(); pruebeLoginHinweis();
 } catch (initError) {
     console.error("Fehler während der Initialisierung:", initError);
-    zeigeWarnung("Ein Fehler ist beim Starten der App aufgetreten. Bitte die Seite neu laden oder den Speicher löschen.", "warnung");
+    zeigeWarnung("Ein Fehler ist beim Starten der App aufgetreten.", "warnung");
 }
 /* --- END BLOCK 8 --- */
 </script>
