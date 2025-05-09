@@ -36,7 +36,7 @@ button:disabled { cursor: not-allowed; opacity: 0.6; } /* Style für deaktiviert
 }
 .beschreibung-text-zeit { flex-grow: 1; margin-right: 10px; overflow-wrap: break-word; word-break: break-word; }
 .beschreibung-zeit{color:#666;font-size:0.9em;margin-bottom:2px;display:block;}
-.beschreibung-eingabe{margin:10px 0;background:#f9f9f9;border-left:3px solid #bbb;padding:8px;}
+.beschreibung-eingabe, .erinnerung-dialog-content {margin:10px 0;background:#f9f9f9;border-left:3px solid #bbb;padding:15px; border-radius: 5px;}
 .idee-checkbox{margin-left:10px;margin-top:5px;min-width:28px;min-height:28px;}
 .idee-actions{margin-top:10px;display:flex;gap:5px;flex-wrap:wrap;}
 .idee-actions button{width:auto;min-width:44px;padding:6px 10px;font-size:0.95em;}
@@ -102,10 +102,8 @@ button:disabled { cursor: not-allowed; opacity: 0.6; } /* Style für deaktiviert
 }
 .beschreibung-veraltet .beschreibung-text-zeit {
     color: grey; /* Textfarbe ändern */
-    /* Optional: text-decoration: line-through; */ /* Text durchstreichen? */
 }
 .toggle-beschreibung-sichtbarkeit-btn {
-    /* Ähnlich wie andere kleine Buttons */
     padding: 1px 4px !important;
     font-size: 0.8em !important;
     margin-left: 3px !important; /* Abstand zu anderen Buttons */
@@ -125,6 +123,15 @@ button:disabled { cursor: not-allowed; opacity: 0.6; } /* Style für deaktiviert
 }
 /* --- ENDE HINZUGEFÜGTE CSS REGELN --- */
 
+.erinnerung-info { font-size: 0.85em; color: #0078d4; margin-top: 5px; }
+.erinnerung-dialog-content label { display: block; margin-top:10px; font-weight: bold;}
+.erinnerung-dialog-content input[type="datetime-local"],
+.erinnerung-dialog-content select,
+.erinnerung-dialog-content input[type="number"] { width: calc(100% - 22px); }
+.erinnerung-dialog-content .checkbox-label { display: inline-block; font-weight: normal; margin-left: 5px;}
+.erinnerung-dialog-content input[type="checkbox"] { width: auto; display: inline-block; margin-right: 5px; vertical-align: middle;}
+
+
 @media (max-width:600px){
     input,select,textarea,button{width:100vw;min-width:0;max-width:100vw;}
     .buttons,.top-actions,.filter-bar{flex-direction:column;gap:0;}
@@ -137,6 +144,9 @@ button:disabled { cursor: not-allowed; opacity: 0.6; } /* Style für deaktiviert
     .beschreibung-item-actions { margin-top: 5px; width: 100%; justify-content: flex-start; flex-wrap: wrap; } /* Buttons linksbündig, Umbruch erlauben */
     #warnung { position: static; transform: none; left: auto; max-width: 100%; }
     .toggle-anhang-sichtbarkeit-btn { float: right; }
+    .erinnerung-dialog-content input[type="datetime-local"],
+    .erinnerung-dialog-content select,
+    .erinnerung-dialog-content input[type="number"] { width: 100%; }
 }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -174,17 +184,60 @@ button:disabled { cursor: not-allowed; opacity: 0.6; } /* Style für deaktiviert
 <div id="ideenListe"></div>
 <div id="beschreibungDialog" style="display:none;" class="beschreibung-eingabe"> <textarea id="beschreibungText" placeholder="Weitere Beschreibung" rows="2"></textarea> <button onclick="beschreibungSpeichern()">💾 Speichern</button> <button onclick="beschreibungAbbrechen()">❌ Abbrechen</button> </div>
 
+<div id="erinnerungDialog" style="display:none;" class="erinnerung-dialog-content">
+    <h3>Erinnerung einstellen</h3>
+    <label for="erinnerungTerminInput">Termin (Datum und Uhrzeit):</label>
+    <input type="datetime-local" id="erinnerungTerminInput" />
+
+    <label for="erinnerungIntervallTypSelect">Intervall:</label>
+    <select id="erinnerungIntervallTypSelect" onchange="toggleErinnerungIntervallWert()">
+        <option value="einmalig">Einmalig</option>
+        <option value="tage">Alle X Tage</option>
+        <option value="woechentlich">Wöchentlich</option>
+        <option value="monatlich">Monatlich</option>
+        <option value="vierteljaehrlich">Vierteljährlich</option>
+        <option value="jaehrlich">Jährlich</option>
+    </select>
+    <div id="erinnerungIntervallWertContainer" style="display:none;">
+      <label for="erinnerungIntervallWertInput">Anzahl Tage:</label>
+      <input type="number" id="erinnerungIntervallWertInput" min="1" value="1" />
+    </div>
+
+    <input type="checkbox" id="erinnerungVorabCheckbox" onchange="toggleErinnerungVorabDetails()">
+    <label for="erinnerungVorabCheckbox" class="checkbox-label">Vorab-Erinnerung</label>
+
+    <div id="erinnerungVorabDetailsContainer" style="display:none;">
+        <label for="erinnerungVorabWertInput">Vorab-Wert:</label>
+        <input type="number" id="erinnerungVorabWertInput" min="1" value="10"/>
+        <label for="erinnerungVorabEinheitSelect">Vorab-Einheit:</label>
+        <select id="erinnerungVorabEinheitSelect">
+            <option value="minuten">Minute(n)</option>
+            <option value="stunden">Stunde(n)</option>
+            <option value="tage">Tag(e)</option>
+            <option value="wochen">Woche(n)</option>
+        </select>
+    </div>
+    <div class="buttons">
+        <button onclick="erinnerungSpeichern()">💾 Speichern</button>
+        <button onclick="erinnerungLoeschen()">🗑️ Löschen</button>
+        <button onclick="erinnerungAbbrechen()">❌ Abbrechen</button>
+    </div>
+</div>
+
+
 <script>
 console.log("Script started");
 /* --- START BLOCK 4: Script Start, Variables & Initializers --- */
 const msalConfig={auth:{clientId:"ddf69193-7eab-4847-a995-b6c08f0df9ae",authority:"https://login.microsoftonline.com/683748a6-faf7-45ef-9da3-10e903da0b00",knownAuthorities:["login.microsoftonline.com"],redirectUri:"https://ecki-android.github.io"}};
 let accessToken=null, msalInstance=null, prioritaet="", bearbeiteId=null, ausgewaehlt=[], fileHandle=null, beschreibungFuerId=null, beschreibungZuBearbeitenderTimestamp=null, istGespeichert=!0;
+let erinnerungFuerId = null;
 const standardKategorien=["Aufgaben","Projekte","Privat","Arbeit","Später"];
 let kategorien=[];
 let benutzerliste=[];
 let filterMandantValue="";
 let filterBenutzerValue="";
 let naechsteVorgangsnummer=1;
+let benachrichtigungsIntervallId = null; // NEU: Für Browser-Benachrichtigungen
 
 function generateUUID(){return'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0,v=c=='x'?r:(r&0x3|0x8);return v.toString(16)})}
 function pruebeLoginHinweis(){document.getElementById("loginHinweis").style.display=accessToken?"none":"block"}
@@ -196,11 +249,10 @@ function initialisiereKategorien(){
     let loadedKategorien = null;
     try { loadedKategorien = JSON.parse(localStorage.getItem("kategorien")); } catch (e) { console.error("Fehler beim Parsen der Kategorien:", e); localStorage.removeItem("kategorien"); }
     let kategorienHabenSichGeaendert = false;
-    if (!Array.isArray(loadedKategorien)) { kategorien = [...standardKategorien]; kategorienHabenSichGeaendert = true; console.log("Standardkategorien initialisiert."); } else { kategorien = loadedKategorien; }
+    if (!Array.isArray(loadedKategorien)) { kategorien = [...standardKategorien]; kategorienHabenSichGeaendert = true; } else { kategorien = loadedKategorien; }
     if (kategorienHabenSichGeaendert) { localStorage.setItem("kategorien", JSON.stringify(kategorien)); }
     const selectKategorie = document.getElementById("kategorie"); selectKategorie.innerHTML = '<option value="">-- Kategorie --</option>'; if (Array.isArray(kategorien)) { kategorien.forEach(katName => selectKategorie.add(new Option(katName, katName))); }
     const filterSelectKategorie = document.getElementById("filterKategorie"); filterSelectKategorie.innerHTML = '<option value="" class="filter-option-alle">🎯 Alle Ideen</option>'; if (Array.isArray(kategorien)) { kategorien.forEach(katName => filterSelectKategorie.add(new Option(katName, katName))); }
-    console.log("Kategorien initialisiert:", kategorien);
 }
 
 function neueKategorieHinzufuegen(){const input=document.getElementById("neueKategorie");const name=input.value.trim();if(!name){zeigeWarnung("Bitte Kategorienamen eingeben.");return}kategorien=JSON.parse(localStorage.getItem("kategorien")||"[]");if(!Array.isArray(kategorien))kategorien=[...standardKategorien];if(kategorien.includes(name)){zeigeWarnung(`Kategorie "${name}" existiert bereits!`);return}kategorien.push(name);kategorien.sort();localStorage.setItem("kategorien",JSON.stringify(kategorien));saveToOneDrive();initialisiereKategorien();input.value="";input.focus();zeigeWarnung(`Kategorie "${name}" hinzugefügt.`,'success');istGespeichert=!1}
@@ -217,7 +269,7 @@ function filterNachBenutzer(){filterBenutzerValue=document.getElementById("filte
 function setzePrioritaet(p){prioritaet=p;["prioHoch","prioMittel","prioNiedrig"].forEach(id=>document.getElementById(id).classList.remove("selected"));if(p)document.getElementById(`prio${p}`).classList.add("selected");istGespeichert=!1}
 /* --- END BLOCK 4 --- */
 
-/* --- START BLOCK 5a: Save Idea (Angepasst für Anhang-ID/Sichtbarkeit) --- */
+/* --- START BLOCK 5a: Save Idea --- */
 async function speichereIdee() {
     const text = document.getElementById("ideeText").value.trim();
     if (!text) return zeigeWarnung("Titel ist erforderlich!");
@@ -226,9 +278,8 @@ async function speichereIdee() {
     const fileInput = document.getElementById("dateien");
     let neuHochgeladeneDateien = [];
 
-    // 1. Neue Dateien verarbeiten
     if (fileInput.files.length > 0) {
-        if (accessToken) { // OneDrive
+        if (accessToken) {
             zeigeWarnung("Lade Dateien hoch...", 'info');
             try {
                 neuHochgeladeneDateien = await Promise.all(Array.from(fileInput.files).map(async f => {
@@ -241,27 +292,24 @@ async function speichereIdee() {
                 zeigeWarnung("Upload Fehler: " + e.message);
                 neuHochgeladeneDateien = [];
             }
-        } else { // Lokale Dateien
+        } else {
             neuHochgeladeneDateien = Array.from(fileInput.files).map(f => ({
                 id: generateUUID(), name: f.name, type: f.type, sichtbar: true, isLocal: true
             }));
         }
     }
 
-    // 2. Dateiliste zusammenstellen
     let finaleDateiliste = [];
-    if (bearbeiteId !== null) { // Beim Bearbeiten
+    if (bearbeiteId !== null) {
         const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
         const idee = ideen.find(i => i && i.id === bearbeiteId);
         if (idee && idee.dateien) {
              finaleDateiliste = idee.dateien.filter(alt => alt && alt.id && !neuHochgeladeneDateien.some(neu => neu.name === alt.name));
         }
         finaleDateiliste = finaleDateiliste.concat(neuHochgeladeneDateien);
-    } else { // Neue Idee
+    } else {
         finaleDateiliste = neuHochgeladeneDateien;
     }
-
-    // 3. Idee speichern
     saveIdeeObjekt(text, finaleDateiliste);
     fileInput.value = "";
 }
@@ -283,13 +331,19 @@ function saveIdeeObjekt(text, dateien) {
         const idx = ideen.findIndex(i => i && i.id === bearbeiteId);
         if (idx !== -1) {
             const old = ideen[idx];
-            ideen[idx] = { ...old, text, details, kategorie: kat, prioritaet, mandantennummer: mnr, firmenname: firma, benutzer: user, dateien: prozessierteDateien };
+            const erinnerung = old.erinnerung || getDefaultErinnerung(text, old.vorgangsnummer);
+            erinnerung.titel = text;
+            erinnerung.vorgangsnummer = old.vorgangsnummer;
+
+            ideen[idx] = { ...old, text, details, kategorie: kat, prioritaet, mandantennummer: mnr, firmenname: firma, benutzer: user, dateien: prozessierteDateien, erinnerung: erinnerung };
             localStorage.setItem("ideen", JSON.stringify(ideen));
             bearbeiteId = null; document.getElementById("speichernBtn").textContent = "💾 Speichern"; document.getElementById("abbrechenBtn").style.display = "none";
         } else { zeigeWarnung("Fehler: Idee nicht gefunden."); return; }
     } else {
         const num = naechsteVorgangsnummer;
-        const neu = { id: generateUUID(), vorgangsnummer: num, text, details, kategorie: kat, prioritaet, mandantennummer: mnr, firmenname: firma, benutzer: user, dateien: prozessierteDateien, timestamp: new Date().toISOString(), erledigt: false, beschreibungen: [] };
+        const erinnerung = getDefaultErinnerung(text, num);
+
+        const neu = { id: generateUUID(), vorgangsnummer: num, text, details, kategorie: kat, prioritaet, mandantennummer: mnr, firmenname: firma, benutzer: user, dateien: prozessierteDateien, timestamp: new Date().toISOString(), erledigt: false, beschreibungen: [], erinnerung: erinnerung };
         ideen.push(neu);
         localStorage.setItem("ideen", JSON.stringify(ideen));
         naechsteVorgangsnummer++; localStorage.setItem("naechsteVorgangsnummer", naechsteVorgangsnummer.toString()); zeigeNaechsteNummer();
@@ -297,12 +351,12 @@ function saveIdeeObjekt(text, dateien) {
     aktualisiereMandantenFilterDropdown(); zeigeIdeen();
     document.getElementById("ideeText").value = ""; document.getElementById("ideeDetails").value = ""; document.getElementById("mandantennummer").value = ""; document.getElementById("firmenname").value = ""; document.getElementById("dateiVorschau").innerHTML = "";
     setzePrioritaet(""); document.getElementById("benutzer").value = ""; document.getElementById("kategorie").value = "";
-    istGespeichert = false; // Änderungen gemacht
+    istGespeichert = false;
     saveToOneDrive();
 }
 /* --- END BLOCK 5a --- */
 
-/* --- START BLOCK 5b: Display Ideas (Angepasst für Anhang-Sichtbarkeit & Beschr.-Einrückung/Sichtbarkeit) --- */
+/* --- START BLOCK 5b: Display Ideas --- */
 function zeigeIdeen() {
     let fIdeen = [];
     try { fIdeen = JSON.parse(localStorage.getItem("ideen") || "[]"); } catch(e) { console.error("Fehler beim Laden der Ideen:", e); localStorage.removeItem("ideen"); fIdeen = []; }
@@ -310,13 +364,11 @@ function zeigeIdeen() {
 
     let filtered = fIdeen.filter(i => i && i.id);
 
-    // Filterlogik
     const fKat=document.getElementById("filterKategorie")?.value;if(fKat)filtered=filtered.filter(i=>i.kategorie===fKat);
     filterMandantValue=document.getElementById("filterMandant")?.value;if(filterMandantValue)filtered=filtered.filter(i=>(i.mandantennummer||"").toLowerCase()===filterMandantValue.toLowerCase());
     filterBenutzerValue=document.getElementById("filterBenutzer")?.value;if(filterBenutzerValue)filtered=filtered.filter(i=>(i.benutzer||"").toLowerCase()===filterBenutzerValue.toLowerCase());
     const fArchiv=document.getElementById("filterArchiv")?.value;if(fArchiv==="nicht_erledigt")filtered=filtered.filter(i=>!(i.erledigt||false));else if(fArchiv==="erledigt")filtered=filtered.filter(i=>(i.erledigt||false));
 
-    // Sortierlogik
     const sort=document.getElementById("sortierung")?.value;if(sort && sort!=="standard"){filtered.sort((a,b)=>{if (!a || !b) return 0; if(sort==="prio"){const p={"Hoch":3,"Mittel":2,"Niedrig":1};return(p[b.prioritaet]||0)-(p[a.prioritaet]||0)}let tA=-Infinity,tB=-Infinity;try{tA=new Date(a.timestamp?.split('_')[0]).getTime();if(isNaN(tA))tA=(sort==="neu"?-Infinity:Infinity)}catch(e){tA=(sort==="neu"?-Infinity:Infinity)}try{tB=new Date(b.timestamp?.split('_')[0]).getTime();if(isNaN(tB))tB=(sort==="neu"?-Infinity:Infinity)}catch(e){tB=(sort==="neu"?-Infinity:Infinity)}if(sort==="neu")return tB-tA;if(sort==="alt")return tA-tB;return 0})}
 
     const listDiv = document.getElementById("ideenListe");
@@ -326,7 +378,6 @@ function zeigeIdeen() {
         let datum = getFormattedDate(idee.timestamp);
         const vNumHtml = idee.vorgangsnummer ? `<div class="vorgangsnummer-anzeige-liste">Vorgang: <b>${idee.vorgangsnummer}</b></div>` : '';
 
-        // Anhänge HTML
         let dateiHtml = "";
         if (idee.dateien && idee.dateien.length > 0) {
             dateiHtml = idee.dateien.filter(f => f && f.id).map(f => {
@@ -341,7 +392,6 @@ function zeigeIdeen() {
             if (dateiHtml) { dateiHtml = `<div class="anhaenge-liste" style="margin-top: 8px; display: flex; flex-direction: column; align-items: flex-start;"><b>Anhänge:</b>${dateiHtml}</div>`; }
         }
 
-        // Beschreibungshistorie HTML
         const beschreibungenHtml = idee.beschreibungen?.length ? `<div class="beschreibung-historie"><b>Weitere Beschr.:</b>${
             idee.beschreibungen.filter(b => b && b.text !== undefined).map(b => {
                 let btsText = getFormattedDate(b.timestamp); const indentLevel = b.level || 0; const indentMargin = indentLevel * 20; const itemWidth = `calc(100% - ${indentMargin}px)`;
@@ -361,35 +411,69 @@ function zeigeIdeen() {
             }).join("")
         }</div>` : "";
 
-        // Komplette Idee HTML
+        let erinnerungHtml = "";
+        if (idee.erinnerung && idee.erinnerung.aktiv) {
+            let erinnerungText = `🔔 Erinnerung: ${getFormattedDate(idee.erinnerung.termin)}`;
+            if (idee.erinnerung.intervallTyp !== 'einmalig') {
+                erinnerungText += `, Intervall: ${idee.erinnerung.intervallTyp}`;
+                if(idee.erinnerung.intervallTyp === 'tage' && idee.erinnerung.intervallWert) {
+                    erinnerungText += ` (${idee.erinnerung.intervallWert} Tage)`;
+                }
+            }
+            erinnerungHtml = `<div class="erinnerung-info">${erinnerungText}</div>`;
+        } else if (idee.erinnerung && !idee.erinnerung.aktiv && idee.erinnerung.termin) {
+             erinnerungHtml = `<div class="erinnerung-info" style="opacity:0.6;">🔔 Erinnerung (inaktiv): ${getFormattedDate(idee.erinnerung.termin)}</div>`;
+        }
+
+
         return `<div class="idee${erledigt ? ' erledigt' : ''}">
                   <div class="idee-content">
                     ${vNumHtml}<h3>${idee.text || 'Ohne Titel'}</h3><p>${idee.details || ""}</p>
                     ${idee.benutzer ? `<div>Zust.: <b>${idee.benutzer}</b></div>` : ""} ${idee.mandantennummer ? `<div>Mandant: <b>${idee.mandantennummer}</b></div>` : ""} ${idee.firmenname ? `<div>Firma: <b>${idee.firmenname}</b></div>` : ""}
                     ${beschreibungenHtml}
                     <small>${idee.kategorie || '-'} | ${idee.prioritaet || "-"} | ${datum}</small>
+                    ${erinnerungHtml}
                     ${dateiHtml}
-                    <div class="idee-actions"><button onclick="verschiebeIdee('${id}',-1)">⬆️</button><button onclick="verschiebeIdee('${id}',1)">⬇️</button><button onclick="bearbeiteIdee('${id}')">✏️</button><button onclick="toggleErledigt('${id}')">${erledigt ? "↩️" : "✔️"}</button><button onclick="loescheIdee('${id}')">🗑️</button><button onclick="zeigeBeschreibungDialog('${id}')">+ Beschr</button></div>
+                    <div class="idee-actions">
+                        <button onclick="verschiebeIdee('${id}',-1)">⬆️</button>
+                        <button onclick="verschiebeIdee('${id}',1)">⬇️</button>
+                        <button onclick="bearbeiteIdee('${id}')">✏️</button>
+                        <button onclick="toggleErledigt('${id}')">${erledigt ? "↩️" : "✔️"}</button>
+                        <button onclick="loescheIdee('${id}')">🗑️</button>
+                        <button onclick="zeigeBeschreibungDialog('${id}')">+ Beschr</button>
+                        <button onclick="zeigeErinnerungDialog('${id}')">🔔 Erinnerung</button>
+                    </div>
                   </div>
                   <input type="checkbox" class="idee-checkbox" onchange="toggleAuswahl('${id}',this)" ${ausgewaehlt.includes(id) ? "checked" : ""}>
                 </div>`;
     }).join("");
 
-    // UI-Zustand prüfen
     if (bearbeiteId !== null && !filtered.some(i => i && i.id === bearbeiteId)) abbrechenBearbeiten();
     if (beschreibungFuerId !== null && !filtered.some(i => i && i.id === beschreibungFuerId)) beschreibungAbbrechen();
+    if (erinnerungFuerId !== null && !filtered.some(i => i && i.id === erinnerungFuerId)) erinnerungAbbrechen();
 }
 /* --- END BLOCK 5b --- */
 
-/* --- START BLOCK 5c: Idea Actions (Unverändert) --- */
-function toggleErledigt(id){let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idx=ideen.findIndex(i=>i&&i.id===id);if(idx!==-1){ideen[idx].erledigt=!(ideen[idx].erledigt||!1);localStorage.setItem("ideen",JSON.stringify(ideen));zeigeIdeen();istGespeichert=!1;saveToOneDrive()}}
-function bearbeiteIdee(id){const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idee=ideen.find(i=>i&&i.id===id);if(!idee){zeigeWarnung("Fehler: Idee nicht gefunden.");return}document.getElementById("ideeText").value=idee.text;document.getElementById("ideeDetails").value=idee.details||"";document.getElementById("kategorie").value=idee.kategorie||"";document.getElementById("mandantennummer").value=idee.mandantennummer||"";document.getElementById("firmenname").value=idee.firmenname||"";document.getElementById("benutzer").value=idee.benutzer||"";setzePrioritaet(idee.prioritaet||"");bearbeiteId=id;const v=document.getElementById("dateiVorschau");v.innerHTML="";if(idee.dateien){idee.dateien.filter(f=>f&&f.id).forEach(f=>{const url=f.link;if(url){const istVeraltet = f.sichtbar===false; v.innerHTML+=`<div style="display:inline-block;margin:5px;text-align:center;max-width:150px;vertical-align:top; ${istVeraltet?'opacity:0.6;':''}"><a href="${url}" target="_blank" title="${f.name}" style="${istVeraltet?'text-decoration:line-through;':''}">${f.type?.startsWith("image/")?'<img src="'+url+'" style="max-height:80px;display:block;margin:auto;object-fit:cover;">':''}${f.type==="application/pdf"?'<iframe src="'+url+'" style="width:100%;height:80px;border:1px solid #ccc;"></iframe>':''}${!f.type?.startsWith("image/")&&f.type!=="application/pdf"?'<span style="font-size:2em;display:block;">'+(f.link?'🌐':'📎')+'</span>':''}<span style="font-size:.8em;word-break:break-all;display:block;">${f.name}</span></a><div style="font-size:.7em;color:grey;">${f.link?'OneDrive':'Lokal'} (${f.sichtbar?'Sichtbar':'Veraltet'})</div></div>`}})}document.getElementById("speichernBtn").textContent="💾 Aktualisieren";document.getElementById("abbrechenBtn").style.display="";istGespeichert=!1} // Hinweis: Lokale Dateivorschau hier nicht implementiert.
+/* --- START BLOCK 5c: Idea Actions --- */
+function toggleErledigt(id){
+    let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");
+    const idx=ideen.findIndex(i=>i&&i.id===id);
+    if(idx!==-1){
+        ideen[idx].erledigt=!(ideen[idx].erledigt||!1);
+        if(ideen[idx].erledigt && ideen[idx].erinnerung && ideen[idx].erinnerung.aktiv) {
+            ideen[idx].erinnerung.aktiv = false;
+        }
+        localStorage.setItem("ideen",JSON.stringify(ideen));
+        zeigeIdeen();istGespeichert=!1;saveToOneDrive();
+    }
+}
+function bearbeiteIdee(id){const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idee=ideen.find(i=>i&&i.id===id);if(!idee){zeigeWarnung("Fehler: Idee nicht gefunden.");return}document.getElementById("ideeText").value=idee.text;document.getElementById("ideeDetails").value=idee.details||"";document.getElementById("kategorie").value=idee.kategorie||"";document.getElementById("mandantennummer").value=idee.mandantennummer||"";document.getElementById("firmenname").value=idee.firmenname||"";document.getElementById("benutzer").value=idee.benutzer||"";setzePrioritaet(idee.prioritaet||"");bearbeiteId=id;const v=document.getElementById("dateiVorschau");v.innerHTML="";if(idee.dateien){idee.dateien.filter(f=>f&&f.id).forEach(f=>{const url=f.link;if(url){const istVeraltet = f.sichtbar===false; v.innerHTML+=`<div style="display:inline-block;margin:5px;text-align:center;max-width:150px;vertical-align:top; ${istVeraltet?'opacity:0.6;':''}"><a href="${url}" target="_blank" title="${f.name}" style="${istVeraltet?'text-decoration:line-through;':''}">${f.type?.startsWith("image/")?'<img src="'+url+'" style="max-height:80px;display:block;margin:auto;object-fit:cover;">':''}${f.type==="application/pdf"?'<iframe src="'+url+'" style="width:100%;height:80px;border:1px solid #ccc;"></iframe>':''}${!f.type?.startsWith("image/")&&f.type!=="application/pdf"?'<span style="font-size:2em;display:block;">'+(f.link?'🌐':'📎')+'</span>':''}<span style="font-size:.8em;word-break:break-all;display:block;">${f.name}</span></a><div style="font-size:.7em;color:grey;">${f.link?'OneDrive':'Lokal'} (${f.sichtbar?'Sichtbar':'Veraltet'})</div></div>`}})}document.getElementById("speichernBtn").textContent="💾 Aktualisieren";document.getElementById("abbrechenBtn").style.display="";istGespeichert=!1}
 function abbrechenBearbeiten(){bearbeiteId=null;document.getElementById("ideeText").value="";document.getElementById("ideeDetails").value="";document.getElementById("mandantennummer").value="";document.getElementById("firmenname").value="";document.getElementById("dateien").value="";document.getElementById("dateiVorschau").innerHTML="";document.getElementById("speichernBtn").textContent="💾 Speichern";document.getElementById("abbrechenBtn").style.display="none";setzePrioritaet("");document.getElementById("benutzer").value="";document.getElementById("kategorie").value="";istGespeichert=!0}
 function verschiebeIdee(id,dir){let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idx=ideen.findIndex(i=>i&&i.id===id);if(idx===-1)return;const targetIdx=idx+dir;if(targetIdx>=0&&targetIdx<ideen.length){[ideen[idx],ideen[targetIdx]]=[ideen[targetIdx],ideen[idx]];localStorage.setItem("ideen",JSON.stringify(ideen));zeigeIdeen();istGespeichert=!1;saveToOneDrive()}}
-function loescheIdee(id){if(!confirm("Wirklich löschen?"))return;let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idx=ideen.findIndex(i=>i&&i.id===id);if(idx!==-1){const del=ideen[idx];ideen.splice(idx,1);localStorage.setItem("ideen",JSON.stringify(ideen));const mExists=ideen.some(i=>i&&i.mandantennummer&&(i.mandantennummer||"").toLowerCase()===(del.mandantennummer||"").toLowerCase());const uExists=ideen.some(i=>i&&i.benutzer&&(i.benutzer||"").toLowerCase()===(del.benutzer||"").toLowerCase());if(!mExists&&del.mandantennummer)aktualisiereMandantenFilterDropdown();if(!uExists&&del.benutzer)aktualisiereBenutzerDropdowns();ausgewaehlt=ausgewaehlt.filter(i=>i!==id);if(bearbeiteId===id)abbrechenBearbeiten();if(beschreibungFuerId===id)beschreibungAbbrechen();zeigeIdeen();istGespeichert=false;saveToOneDrive()}else{zeigeWarnung("Fehler: Idee nicht gefunden.");}}
+function loescheIdee(id){if(!confirm("Wirklich löschen?"))return;let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idx=ideen.findIndex(i=>i&&i.id===id);if(idx!==-1){const del=ideen[idx];ideen.splice(idx,1);localStorage.setItem("ideen",JSON.stringify(ideen));const mExists=ideen.some(i=>i&&i.mandantennummer&&(i.mandantennummer||"").toLowerCase()===(del.mandantennummer||"").toLowerCase());const uExists=ideen.some(i=>i&&i.benutzer&&(i.benutzer||"").toLowerCase()===(del.benutzer||"").toLowerCase());if(!mExists&&del.mandantennummer)aktualisiereMandantenFilterDropdown();if(!uExists&&del.benutzer)aktualisiereBenutzerDropdowns();ausgewaehlt=ausgewaehlt.filter(i=>i!==id);if(bearbeiteId===id)abbrechenBearbeiten();if(beschreibungFuerId===id)beschreibungAbbrechen(); if(erinnerungFuerId===id)erinnerungAbbrechen(); zeigeIdeen();istGespeichert=false;saveToOneDrive()}else{zeigeWarnung("Fehler: Idee nicht gefunden.");}}
 /* --- END BLOCK 5c --- */
 
-/* --- START BLOCK 5d (Mit allen neuen Funktionen) --- */
+/* --- START BLOCK 5d (Mit allen neuen Funktionen & Erinnerungsfunktionen) --- */
 function zeigeBeschreibungDialog(id,ts=null){beschreibungFuerId=id;beschreibungZuBearbeitenderTimestamp=ts;const area=document.getElementById("beschreibungText");if(ts!==null){const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idee=ideen.find(i=>i&&i.id===id);const desc=idee?.beschreibungen?.find(b=>b&&b.timestamp===ts);if(desc)area.value=desc.text;else{zeigeWarnung("Fehler: Beschreibung nicht gefunden.");beschreibungAbbrechen();return}}else{area.value=""}document.getElementById("beschreibungDialog").style.display="block";area.focus();istGespeichert=!1}
 function beschreibungAbbrechen(){document.getElementById("beschreibungDialog").style.display="none";beschreibungFuerId=null;beschreibungZuBearbeitenderTimestamp=null;document.getElementById("beschreibungText").value=""}
 
@@ -398,15 +482,15 @@ function beschreibungSpeichern(){
     let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");
     const idx=ideen.findIndex(i=>i&&i.id===beschreibungFuerId);
     if(idx!==-1){
-        if(beschreibungZuBearbeitenderTimestamp!==null){ // Bearbeiten
+        if(beschreibungZuBearbeitenderTimestamp!==null){
             if (!ideen[idx].beschreibungen) ideen[idx].beschreibungen = [];
             const dIdx=ideen[idx].beschreibungen.findIndex(b=>b&&b.timestamp===beschreibungZuBearbeitenderTimestamp);
             if(dIdx!==-1) { ideen[idx].beschreibungen[dIdx].text=t; }
             else { zeigeWarnung("Fehler: Beschreibung zum Bearbeiten nicht gefunden."); }
-        } else { // Neu
+        } else {
             const ts=new Date().toISOString()+'_'+Math.random().toString(36).substr(2,9);
             if(!ideen[idx].beschreibungen) ideen[idx].beschreibungen=[];
-            ideen[idx].beschreibungen.push({text:t, timestamp:ts, level: 0, sichtbar: true}); // Mit level und sichtbar
+            ideen[idx].beschreibungen.push({text:t, timestamp:ts, level: 0, sichtbar: true});
         }
         localStorage.setItem("ideen",JSON.stringify(ideen));
         zeigeIdeen();
@@ -415,12 +499,12 @@ function beschreibungSpeichern(){
 }
 
 function bearbeiteEinzelneBeschreibung(id,ts){if(ts)zeigeBeschreibungDialog(id,ts);else zeigeWarnung("Interner Fehler: Timestamp fehlt.")}
-function toggleAuswahl(id,box){console.log("toggleAuswahl:",id,"Checked:",box.checked);if(box.checked){if(!ausgewaehlt.includes(id))ausgewaehlt.push(id)}else{ausgewaehlt=ausgewaehlt.filter(i=>i!==id)}console.log("Auswahl:",ausgewaehlt)}
-function ausgewaehlteNotizenLoeschen(){if(ausgewaehlt.length===0){zeigeWarnung("Keine Notizen ausgewählt.");return}if(!confirm(`Wirklich ${ausgewaehlt.length} Notiz(en) löschen?`))return;let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const delM=new Set();const delU=new Set();ideen.filter(i=>i&&ausgewaehlt.includes(i.id)).forEach(i=>{if(i.mandantennummer)delM.add((i.mandantennummer).toLowerCase());if(i.benutzer)delU.add((i.benutzer).toLowerCase())});const newList=ideen.filter(i=>!i || !ausgewaehlt.includes(i.id));localStorage.setItem("ideen",JSON.stringify(newList));const remM=new Set(newList.filter(i=>i).map(i=>(i.mandantennummer||"").toLowerCase()).filter(m=>m!==""));const remU=new Set(newList.filter(i=>i).map(i=>(i.benutzer||"").toLowerCase()).filter(b=>b!==""));let uM=!1;delM.forEach(m=>{if(!remM.has(m))uM=!0});let uU=!1;delU.forEach(u=>{if(!remU.has(u))uU=!0});if(uM)aktualisiereMandantenFilterDropdown();if(uU)aktualisiereBenutzerDropdowns();if(bearbeiteId!==null&&ausgewaehlt.includes(bearbeiteId))abbrechenBearbeiten();if(beschreibungFuerId!==null&&ausgewaehlt.includes(beschreibungFuerId))beschreibungAbbrechen();ausgewaehlt=[];zeigeIdeen();istGespeichert=false;saveToOneDrive()}
-function alleIdeenLoeschen(){if(!confirm("Wirklich ALLE Ideen, Kategorien, Benutzer etc. löschen?"))return;localStorage.removeItem("ideen"); localStorage.removeItem("kategorien"); localStorage.removeItem("benutzerliste"); localStorage.removeItem("naechsteVorgangsnummer"); naechsteVorgangsnummer=1; kategorien = []; benutzerliste = []; zeigeNaechsteNummer(); initialisiereKategorien(); initialisiereBenutzer(); aktualisiereMandantenFilterDropdown(); ausgewaehlt=[];bearbeiteId=null;beschreibungFuerId=null;beschreibungZuBearbeitenderTimestamp=null;zeigeIdeen();abbrechenBearbeiten();istGespeichert=true;saveToOneDrive()}
+function toggleAuswahl(id,box){if(box.checked){if(!ausgewaehlt.includes(id))ausgewaehlt.push(id)}else{ausgewaehlt=ausgewaehlt.filter(i=>i!==id)}}
+function ausgewaehlteNotizenLoeschen(){if(ausgewaehlt.length===0){zeigeWarnung("Keine Notizen ausgewählt.");return}if(!confirm(`Wirklich ${ausgewaehlt.length} Notiz(en) löschen?`))return;let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const delM=new Set();const delU=new Set();ideen.filter(i=>i&&ausgewaehlt.includes(i.id)).forEach(i=>{if(i.mandantennummer)delM.add((i.mandantennummer).toLowerCase());if(i.benutzer)delU.add((i.benutzer).toLowerCase())});const newList=ideen.filter(i=>!i || !ausgewaehlt.includes(i.id));localStorage.setItem("ideen",JSON.stringify(newList));const remM=new Set(newList.filter(i=>i).map(i=>(i.mandantennummer||"").toLowerCase()).filter(m=>m!==""));const remU=new Set(newList.filter(i=>i).map(i=>(i.benutzer||"").toLowerCase()).filter(b=>b!==""));let uM=!1;delM.forEach(m=>{if(!remM.has(m))uM=!0});let uU=!1;delU.forEach(u=>{if(!remU.has(u))uU=!0});if(uM)aktualisiereMandantenFilterDropdown();if(uU)aktualisiereBenutzerDropdowns();if(bearbeiteId!==null&&ausgewaehlt.includes(bearbeiteId))abbrechenBearbeiten();if(beschreibungFuerId!==null&&ausgewaehlt.includes(beschreibungFuerId))beschreibungAbbrechen(); if(erinnerungFuerId!==null&&ausgewaehlt.includes(erinnerungFuerId))erinnerungAbbrechen(); ausgewaehlt=[];zeigeIdeen();istGespeichert=false;saveToOneDrive()}
+function alleIdeenLoeschen(){if(!confirm("Wirklich ALLE Ideen, Kategorien, Benutzer etc. löschen?"))return;localStorage.removeItem("ideen"); localStorage.removeItem("kategorien"); localStorage.removeItem("benutzerliste"); localStorage.removeItem("naechsteVorgangsnummer"); naechsteVorgangsnummer=1; kategorien = []; benutzerliste = []; zeigeNaechsteNummer(); initialisiereKategorien(); initialisiereBenutzer(); aktualisiereMandantenFilterDropdown(); ausgewaehlt=[];bearbeiteId=null;beschreibungFuerId=null;beschreibungZuBearbeitenderTimestamp=null; erinnerungFuerId=null; zeigeIdeen();abbrechenBearbeiten();istGespeichert=true;saveToOneDrive()}
 
 function toggleAnhangSichtbarkeit(ideeId, anhangId) {
-    if (!ideeId || !anhangId) { console.error("toggleAnhangSichtbarkeit: IDs fehlen."); return; }
+    if (!ideeId || !anhangId) { return; }
     let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
     const ideeIndex = ideen.findIndex(i => i && i.id === ideeId);
     if (ideeIndex === -1) { zeigeWarnung("Fehler: Idee nicht gefunden."); return; }
@@ -430,11 +514,10 @@ function toggleAnhangSichtbarkeit(ideeId, anhangId) {
     ideen[ideeIndex].dateien[anhangIndex].sichtbar = !(ideen[ideeIndex].dateien[anhangIndex].sichtbar === true);
     localStorage.setItem("ideen", JSON.stringify(ideen));
     zeigeIdeen(); istGespeichert = false; saveToOneDrive();
-    console.log(`Sichtbarkeit Anhang ${anhangId} -> ${ideen[ideeIndex].dateien[anhangIndex].sichtbar}`);
 }
 
 function verschiebeBeschreibung(ideeId, beschreibungTimestamp, richtung) {
-    if (!ideeId || !beschreibungTimestamp || (richtung !== -1 && richtung !== 1)) { console.error("Ungültige Argumente"); return; }
+    if (!ideeId || !beschreibungTimestamp || (richtung !== -1 && richtung !== 1)) { return; }
     let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
     const ideeIndex = ideen.findIndex(i => i && i.id === ideeId);
     if (ideeIndex === -1) return zeigeWarnung("Idee nicht gefunden.");
@@ -447,11 +530,10 @@ function verschiebeBeschreibung(ideeId, beschreibungTimestamp, richtung) {
     [beschreibungen[currentIndex], beschreibungen[targetIndex]] = [beschreibungen[targetIndex], beschreibungen[currentIndex]];
     localStorage.setItem("ideen", JSON.stringify(ideen));
     zeigeIdeen(); istGespeichert = false; saveToOneDrive();
-    console.log(`Beschreibung ${beschreibungTimestamp} verschoben.`);
 }
 
 function aendereEinrueckungBeschreibung(ideeId, beschreibungTimestamp, richtung) {
-    if (!ideeId || !beschreibungTimestamp || (richtung !== -1 && richtung !== 1)) { console.error("Ungültige Argumente"); return; }
+    if (!ideeId || !beschreibungTimestamp || (richtung !== -1 && richtung !== 1)) { return; }
     let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
     const ideeIndex = ideen.findIndex(i => i && i.id === ideeId);
     if (ideeIndex === -1) return zeigeWarnung("Idee nicht gefunden.");
@@ -467,11 +549,10 @@ function aendereEinrueckungBeschreibung(ideeId, beschreibungTimestamp, richtung)
     ideen[ideeIndex].beschreibungen[beschrIndex].level = neuesLevel;
     localStorage.setItem("ideen", JSON.stringify(ideen));
     zeigeIdeen(); istGespeichert = false; saveToOneDrive();
-    console.log(`Einrückung für ${beschreibungTimestamp} -> Level ${neuesLevel}`);
 }
 
 function toggleBeschreibungSichtbarkeit(ideeId, beschreibungTimestamp) {
-    if (!ideeId || !beschreibungTimestamp) { console.error("toggleBeschreibungSichtbarkeit: IDs fehlen."); return; }
+    if (!ideeId || !beschreibungTimestamp) { return; }
     let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
     const ideeIndex = ideen.findIndex(i => i && i.id === ideeId);
     if (ideeIndex === -1) { zeigeWarnung("Fehler: Idee nicht gefunden."); return; }
@@ -481,18 +562,140 @@ function toggleBeschreibungSichtbarkeit(ideeId, beschreibungTimestamp) {
     ideen[ideeIndex].beschreibungen[beschrIndex].sichtbar = !(ideen[ideeIndex].beschreibungen[beschrIndex].sichtbar === true);
     localStorage.setItem("ideen", JSON.stringify(ideen));
     zeigeIdeen(); istGespeichert = false; saveToOneDrive();
-    console.log(`Sichtbarkeit Beschreibung ${beschreibungTimestamp} -> ${ideen[ideeIndex].beschreibungen[beschrIndex].sichtbar}`);
+}
+
+function getDefaultErinnerung(titel = "", vorgangsnummer = null) {
+    return {
+        aktiv: false, termin: null, intervallTyp: 'einmalig', intervallWert: null,
+        vorabErinnerungAktiv: false, vorabWert: 10, vorabEinheit: 'minuten',
+        titel: titel, vorgangsnummer: vorgangsnummer
+    };
+}
+
+function zeigeErinnerungDialog(id) {
+    erinnerungFuerId = id;
+    const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+    const idee = ideen.find(i => i && i.id === id);
+
+    if (!idee) { zeigeWarnung("Fehler: Idee für Erinnerung nicht gefunden."); erinnerungAbbrechen(); return; }
+    if (idee.erledigt) { zeigeWarnung("Erinnerungen können nicht für erledigte Notizen eingestellt werden.", "info"); return; }
+
+    const erinnerung = idee.erinnerung || getDefaultErinnerung(idee.text, idee.vorgangsnummer);
+
+    document.getElementById("erinnerungTerminInput").value = erinnerung.termin ? erinnerung.termin.substring(0, 16) : "";
+    document.getElementById("erinnerungIntervallTypSelect").value = erinnerung.intervallTyp || 'einmalig';
+    document.getElementById("erinnerungIntervallWertInput").value = erinnerung.intervallWert || 1;
+    document.getElementById("erinnerungVorabCheckbox").checked = erinnerung.vorabErinnerungAktiv || false;
+    document.getElementById("erinnerungVorabWertInput").value = erinnerung.vorabWert || 10;
+    document.getElementById("erinnerungVorabEinheitSelect").value = erinnerung.vorabEinheit || 'minuten';
+
+    toggleErinnerungIntervallWert();
+    toggleErinnerungVorabDetails();
+
+    document.getElementById("erinnerungDialog").style.display = "block";
+    document.getElementById("erinnerungTerminInput").focus();
+    istGespeichert = false;
+}
+
+function erinnerungAbbrechen() {
+    document.getElementById("erinnerungDialog").style.display = "none";
+    erinnerungFuerId = null;
+    document.getElementById("erinnerungTerminInput").value = "";
+    document.getElementById("erinnerungIntervallTypSelect").value = "einmalig";
+    document.getElementById("erinnerungIntervallWertInput").value = "1";
+    document.getElementById("erinnerungVorabCheckbox").checked = false;
+    document.getElementById("erinnerungVorabWertInput").value = "10";
+    document.getElementById("erinnerungVorabEinheitSelect").value = "minuten";
+    toggleErinnerungIntervallWert();
+    toggleErinnerungVorabDetails();
+}
+
+function erinnerungSpeichern() {
+    if (!erinnerungFuerId) return;
+    const terminValue = document.getElementById("erinnerungTerminInput").value;
+    if (!terminValue) { zeigeWarnung("Bitte geben Sie einen Termin für die Erinnerung an."); return; }
+    const termin = new Date(terminValue).toISOString();
+    const intervallTyp = document.getElementById("erinnerungIntervallTypSelect").value;
+    const intervallWert = intervallTyp === 'tage' ? parseInt(document.getElementById("erinnerungIntervallWertInput").value, 10) : null;
+    const vorabErinnerungAktiv = document.getElementById("erinnerungVorabCheckbox").checked;
+    const vorabWert = vorabErinnerungAktiv ? parseInt(document.getElementById("erinnerungVorabWertInput").value, 10) : null;
+    const vorabEinheit = vorabErinnerungAktiv ? document.getElementById("erinnerungVorabEinheitSelect").value : null;
+
+    if (intervallTyp === 'tage' && (!intervallWert || intervallWert < 1)) { zeigeWarnung("Bitte eine gültige Anzahl von Tagen angeben."); return; }
+    if (vorabErinnerungAktiv && (!vorabWert || vorabWert < 1)) { zeigeWarnung("Bitte einen gültigen Wert für die Vorab-Erinnerung angeben."); return; }
+
+    // NEU: Hinweis oder Berechtigungsanfrage für Benachrichtigungen
+    if (Notification.permission === "default") {
+        zeigeWarnung("Um Benachrichtigungen zu erhalten, bitte diese im Browser erlauben.", "info");
+        // Optional: initialisiereUndStarteBenachrichtigungspruefung(); // um direkt anzufragen
+    } else if (Notification.permission === "denied") {
+        zeigeWarnung("Benachrichtigungen sind blockiert. Sie werden nicht per Browser-Notification erinnert.", "warnung");
+    }
+
+    let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+    const ideeIndex = ideen.findIndex(i => i && i.id === erinnerungFuerId);
+
+    if (ideeIndex !== -1) {
+        const idee = ideen[ideeIndex];
+        if (idee.erledigt) { zeigeWarnung("Erinnerung kann nicht gespeichert werden (Notiz erledigt).", "info"); erinnerungAbbrechen(); return; }
+        ideen[ideeIndex].erinnerung = {
+            aktiv: true, termin: termin, intervallTyp: intervallTyp, intervallWert: intervallWert,
+            vorabErinnerungAktiv: vorabErinnerungAktiv, vorabWert: vorabWert, vorabEinheit: vorabEinheit,
+            titel: idee.text, vorgangsnummer: idee.vorgangsnummer
+        };
+        localStorage.setItem("ideen", JSON.stringify(ideen));
+        zeigeWarnung("Erinnerung gespeichert.", "success");
+        zeigeIdeen(); saveToOneDrive();
+    } else { zeigeWarnung("Fehler: Idee zum Speichern der Erinnerung nicht gefunden."); }
+    erinnerungAbbrechen(); istGespeichert = false;
+}
+
+function erinnerungLoeschen() {
+    if (!erinnerungFuerId) return;
+    if (!confirm("Möchten Sie diese Erinnerung wirklich löschen?")) return;
+    let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+    const ideeIndex = ideen.findIndex(i => i && i.id === erinnerungFuerId);
+    if (ideeIndex !== -1) {
+        ideen[ideeIndex].erinnerung = getDefaultErinnerung(ideen[ideeIndex].text, ideen[ideeIndex].vorgangsnummer);
+        localStorage.setItem("ideen", JSON.stringify(ideen));
+        zeigeWarnung("Erinnerung gelöscht.", "success");
+        zeigeIdeen(); saveToOneDrive();
+    } else { zeigeWarnung("Fehler: Idee zum Löschen der Erinnerung nicht gefunden."); }
+    erinnerungAbbrechen(); istGespeichert = false;
+}
+
+function toggleErinnerungIntervallWert() {
+    const typ = document.getElementById("erinnerungIntervallTypSelect").value;
+    document.getElementById("erinnerungIntervallWertContainer").style.display = (typ === 'tage') ? 'block' : 'none';
+}
+
+function toggleErinnerungVorabDetails() {
+    const checked = document.getElementById("erinnerungVorabCheckbox").checked;
+    document.getElementById("erinnerungVorabDetailsContainer").style.display = checked ? 'block' : 'none';
 }
 /* --- END BLOCK 5d --- */
 
-/* --- START BLOCK 6 (Angepasst für Beschreibung Sichtbarkeit/Einrückung) --- */
-// Helferfunktion getFormattedDate bleibt gleich
+/* --- START BLOCK 6 (Angepasst für Erinnerung und neue E-Mail Funktion) --- */
 function getFormattedDate(timestamp) { if (timestamp) { let ts = timestamp; if (typeof ts === 'string' && ts.includes('_')) { ts = ts.split('_')[0]; } try { const d = new Date(ts); if (!isNaN(d.getTime())) { return d.toLocaleString("de-DE", { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }); } } catch (e) { } } return 'N/A'; }
+function getExportIdeen() { let resultIdeen = []; try { let ideen = []; try { ideen = JSON.parse(localStorage.getItem("ideen") || "[]"); if (!Array.isArray(ideen)) { ideen = []; localStorage.setItem("ideen", "[]"); } } catch (e) { localStorage.removeItem("ideen"); ideen = []; } const aktuellAusgewaehlteCheckboxes = Array.from(document.querySelectorAll('.idee-checkbox:checked')); let aktuellAusgewaehlteIDs = []; if (aktuellAusgewaehlteCheckboxes.length > 0) { aktuellAusgewaehlteIDs = aktuellAusgewaehlteCheckboxes.map(cb => { try { let parentIdeeDiv = cb.closest('.idee'); if (parentIdeeDiv) { const buttonsMitId = parentIdeeDiv.querySelectorAll('button[onclick*="loescheIdee("], button[onclick*="bearbeiteIdee("], button[onclick*="toggleErledigt("]'); for(let btn of buttonsMitId) { if (btn.onclick) { const match = btn.onclick.toString().match(/\('([^']+)'\)/); if (match && match[1]) return match[1]; } } } } catch (e) { } return null; }).filter(id => id !== null); if (aktuellAusgewaehlteIDs.length > 0) { resultIdeen = ideen.filter(i => i && i.id && aktuellAusgewaehlteIDs.includes(i.id)); } else { resultIdeen = []; } } else { let fIdeen = [...ideen.filter(i=>i&&i.id)]; const fKat = document.getElementById("filterKategorie")?.value; if (fKat) fIdeen = fIdeen.filter(i => i.kategorie === fKat); const fMdt = document.getElementById("filterMandant")?.value; if (fMdt) fIdeen = fIdeen.filter(i => (i.mandantennummer || "").toLowerCase() === fMdt.toLowerCase()); const fUser = document.getElementById("filterBenutzer")?.value; if (fUser) fIdeen = fIdeen.filter(i => (i.benutzer || "").toLowerCase() === fUser.toLowerCase()); const fArchiv = document.getElementById("filterArchiv")?.value; if (fArchiv === "nicht_erledigt") fIdeen = fIdeen.filter(i => !(i.erledigt || false)); else if (fArchiv === "erledigt") fIdeen = fIdeen.filter(i => (i.erledigt || false)); const sort=document.getElementById("sortierung")?.value; if(sort && sort!=="standard"){ fIdeen.sort((a,b)=>{ if (!a || !b) return 0; if(sort==="prio"){ const p={"Hoch":3,"Mittel":2,"Niedrig":1}; return(p[b.prioritaet]||0)-(p[a.prioritaet]||0); } let tA=-Infinity,tB=-Infinity; try{tA=new Date(a.timestamp?.split('_')[0]).getTime();if(isNaN(tA))tA=(sort==="neu"?-Infinity:Infinity)}catch(e){tA=(sort==="neu"?-Infinity:Infinity)} try{tB=new Date(b.timestamp?.split('_')[0]).getTime();if(isNaN(tB))tB=(sort==="neu"?-Infinity:Infinity)}catch(e){tB=(sort==="neu"?-Infinity:Infinity)} if(sort==="neu")return tB-tA; if(sort==="alt")return tA-tB; return 0; }); } resultIdeen = fIdeen; } } catch (error) { resultIdeen = []; } if (!Array.isArray(resultIdeen)) { return []; } return resultIdeen; }
 
-// Robuste Funktion getExportIdeen bleibt gleich
-function getExportIdeen() { let resultIdeen = []; try { let ideen = []; try { ideen = JSON.parse(localStorage.getItem("ideen") || "[]"); if (!Array.isArray(ideen)) { console.error("localStorage 'ideen' war kein Array."); ideen = []; localStorage.setItem("ideen", "[]"); } } catch (e) { console.error("Fehler beim Parsen von 'ideen':", e); localStorage.removeItem("ideen"); ideen = []; } const aktuellAusgewaehlteCheckboxes = Array.from(document.querySelectorAll('.idee-checkbox:checked')); let aktuellAusgewaehlteIDs = []; if (aktuellAusgewaehlteCheckboxes.length > 0) { aktuellAusgewaehlteIDs = aktuellAusgewaehlteCheckboxes.map(cb => { try { let parentIdeeDiv = cb.closest('.idee'); if (parentIdeeDiv) { const buttonsMitId = parentIdeeDiv.querySelectorAll('button[onclick*="loescheIdee("], button[onclick*="bearbeiteIdee("], button[onclick*="toggleErledigt("]'); for(let btn of buttonsMitId) { if (btn.onclick) { const match = btn.onclick.toString().match(/\('([^']+)'\)/); if (match && match[1]) return match[1]; } } } } catch (e) { console.error("Error extracting ID:", e, cb); } return null; }).filter(id => id !== null); if (aktuellAusgewaehlteIDs.length > 0) { console.log("Export basierend auf Auswahl:", aktuellAusgewaehlteIDs); resultIdeen = ideen.filter(i => i && i.id && aktuellAusgewaehlteIDs.includes(i.id)); } else { console.warn("Checkboxen gecheckt, aber keine IDs gefunden."); resultIdeen = []; } } else { console.log("Export basierend auf globalen Filtern."); let fIdeen = [...ideen.filter(i=>i&&i.id)]; const fKat = document.getElementById("filterKategorie")?.value; if (fKat) fIdeen = fIdeen.filter(i => i.kategorie === fKat); const fMdt = document.getElementById("filterMandant")?.value; if (fMdt) fIdeen = fIdeen.filter(i => (i.mandantennummer || "").toLowerCase() === fMdt.toLowerCase()); const fUser = document.getElementById("filterBenutzer")?.value; if (fUser) fIdeen = fIdeen.filter(i => (i.benutzer || "").toLowerCase() === fUser.toLowerCase()); const fArchiv = document.getElementById("filterArchiv")?.value; if (fArchiv === "nicht_erledigt") fIdeen = fIdeen.filter(i => !(i.erledigt || false)); else if (fArchiv === "erledigt") fIdeen = fIdeen.filter(i => (i.erledigt || false)); const sort=document.getElementById("sortierung")?.value; if(sort && sort!=="standard"){ fIdeen.sort((a,b)=>{ if (!a || !b) return 0; if(sort==="prio"){ const p={"Hoch":3,"Mittel":2,"Niedrig":1}; return(p[b.prioritaet]||0)-(p[a.prioritaet]||0); } let tA=-Infinity,tB=-Infinity; try{tA=new Date(a.timestamp?.split('_')[0]).getTime();if(isNaN(tA))tA=(sort==="neu"?-Infinity:Infinity)}catch(e){tA=(sort==="neu"?-Infinity:Infinity)} try{tB=new Date(b.timestamp?.split('_')[0]).getTime();if(isNaN(tB))tB=(sort==="neu"?-Infinity:Infinity)}catch(e){tB=(sort==="neu"?-Infinity:Infinity)} if(sort==="neu")return tB-tA; if(sort==="alt")return tA-tB; return 0; }); } resultIdeen = fIdeen; } } catch (error) { console.error("Schwerer Fehler in getExportIdeen:", error); zeigeWarnung("Fehler beim Ermitteln der Ideen.", "warnung"); resultIdeen = []; } if (!Array.isArray(resultIdeen)) { console.error("getExportIdeen hat KEIN Array zurückgegeben!"); return []; } return resultIdeen; }
+function formatErinnerungForExport(erinnerung) {
+    if (!erinnerung || !erinnerung.termin) return "";
+    let text = `Erinnerung (${erinnerung.aktiv ? 'Aktiv' : 'Inaktiv'}):\n`;
+    text += `  Termin: ${getFormattedDate(erinnerung.termin)}\n`;
+    text += `  Titel (für Erinnerung): ${erinnerung.titel || '-'}\n`;
+    text += `  Vorgangsnr. (für Erinnerung): ${erinnerung.vorgangsnummer || '-'}\n`;
+    text += `  Intervall: ${erinnerung.intervallTyp || 'einmalig'}`;
+    if (erinnerung.intervallTyp === 'tage' && erinnerung.intervallWert) {
+        text += ` (alle ${erinnerung.intervallWert} Tage)`;
+    }
+    text += "\n";
+    if (erinnerung.vorabErinnerungAktiv && erinnerung.vorabWert && erinnerung.vorabEinheit) {
+        text += `  Vorab-Erinnerung: ${erinnerung.vorabWert} ${erinnerung.vorabEinheit} vorher\n`;
+    }
+    return text;
+}
 
-// --- Text-Export mit Einrückung & Sichtbarkeit ---
 function exportiereAlsText() {
     const ideenToExport = getExportIdeen();
     if (ideenToExport.length === 0) { zeigeWarnung("Keine Notizen zum Exportieren.", "info"); return; }
@@ -508,12 +711,16 @@ function exportiereAlsText() {
         if (idee.firmenname) textContent += `Firmenname: ${idee.firmenname}\n`;
         if (idee.details) textContent += `\nBeschreibung:\n${idee.details}\n`;
 
+        if (idee.erinnerung && idee.erinnerung.termin) {
+            textContent += `\n${formatErinnerungForExport(idee.erinnerung)}`;
+        }
+
         if (idee.beschreibungen && idee.beschreibungen.length > 0) {
              textContent += `\nWeitere Beschreibungen:\n`;
              idee.beschreibungen.forEach(b => {
                 if (b && b.text !== undefined) {
                     const indentSpaces = "  ".repeat(b.level || 0);
-                    const praefix = b.sichtbar === false ? "[Ausgeblendet] " : ""; // Präfix für Beschreibung
+                    const praefix = b.sichtbar === false ? "[Ausgeblendet] " : "";
                     textContent += `${indentSpaces}- [${getFormattedDate(b.timestamp)}] ${praefix}${b.text}\n`;
                 }
              });
@@ -523,7 +730,7 @@ function exportiereAlsText() {
             textContent += `\nAnhänge:\n`;
             idee.dateien.forEach(f => {
                  if (!f || !f.id) return;
-                const praefix = f.sichtbar === false ? "[Veraltet] " : ""; // Präfix für Anhang
+                const praefix = f.sichtbar === false ? "[Veraltet] " : "";
                 textContent += `  - Name: ${praefix}${f.name || 'Unbekannt'}\n`;
                 if (f.link) { textContent += `    Link: ${f.link}\n`; }
                 else { textContent += `    (Lokale Datei)\n`; }
@@ -534,10 +741,21 @@ function exportiereAlsText() {
      const blob = new Blob([textContent], { type: "text/plain;charset=utf-8" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "ideen-export.txt"; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); zeigeWarnung("Text-Export gestartet.", "success");
 }
 
-// --- PDF-Export mit Einrückung & Sichtbarkeit ---
-function exportiereAlsPDF() {
+/* --- Hilfsfunktion zum Bereinigen von Dateinamen --- */
+function sanitizeFilename(name) {
+    if (!name) return "Unbenannte_Idee";
+    let sanitized = name.replace(/[\\/:*?"<>|#%&{}]/g, '');
+    sanitized = sanitized.replace(/\s+/g, '_');
+    sanitized = sanitized.replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue');
+    sanitized = sanitized.replace(/Ä/g, 'Ae').replace(/Ö/g, 'Oe').replace(/Ü/g, 'Ue');
+    sanitized = sanitized.replace(/ß/g, 'ss');
+    return sanitized.substring(0, 100);
+}
+
+/* --- Modifizierte Funktion exportiereAlsPDF --- */
+function exportiereAlsPDF(fileName = "ideen-export.pdf") {
     const ideenToExport = getExportIdeen();
-    if (ideenToExport.length === 0) { zeigeWarnung("Keine Notizen zum Exportieren.", "info"); return; }
+    if (ideenToExport.length === 0) { zeigeWarnung("Keine Notizen zum Exportieren.", "info"); return false; } // Rückgabewert für Fehlerfall
     const { jsPDF } = window.jspdf; const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
     doc.setProperties({ title: 'Ideen-Export', subject: 'Exportierte Ideen', author: 'Ideen-App Pro', creator: 'Ideen-App Pro' });
     let yPosition = 15; const leftMargin = 15; const rightMargin = 15; const pageHeight = doc.internal.pageSize.height; const contentWidth = doc.internal.pageSize.width - leftMargin - rightMargin; const defaultLineSpacing = 5; const sectionSpacing = 8; const ideaSpacing = 15; const anhangFontSize = 10; const anhangLineHeight = 5;
@@ -555,7 +773,14 @@ function exportiereAlsPDF() {
         if (idee.benutzer || idee.mandantennummer || idee.firmenname) yPosition += (sectionSpacing / 2) ;
         if (idee.details) { checkAddPage(sectionSpacing + defaultLineSpacing); addWrappedText("Beschreibung:", leftMargin, contentWidth, { fontSize: 11, fontStyle: 'bold', lineHeight: 6 }); addWrappedText(idee.details, leftMargin, contentWidth, { fontSize: 10, lineHeight: defaultLineSpacing }); yPosition += (sectionSpacing / 2); }
 
-        // Beschreibungen mit Einrückung & Sichtbarkeit im PDF
+        if (idee.erinnerung && idee.erinnerung.termin) {
+            checkAddPage(sectionSpacing + defaultLineSpacing * 4);
+            addWrappedText("Erinnerung:", leftMargin, contentWidth, { fontSize: 11, fontStyle: 'bold', lineHeight: 6 });
+            const erinnerungTextPDF = formatErinnerungForExport(idee.erinnerung).replace(/\n$/, "");
+            addWrappedText(erinnerungTextPDF, leftMargin + 3, contentWidth - 3, { fontSize: 9, lineHeight: 4 });
+            yPosition += (sectionSpacing / 2);
+        }
+
         if (idee.beschreibungen && idee.beschreibungen.length > 0) {
              checkAddPage(sectionSpacing + defaultLineSpacing);
              addWrappedText("Weitere Beschreibungen:", leftMargin, contentWidth, { fontSize: 11, fontStyle: 'bold', lineHeight: 6 });
@@ -565,9 +790,9 @@ function exportiereAlsPDF() {
                     const indentMM = (b.level || 0) * 5;
                     const startX = leftMargin + 5 + indentMM;
                     const maxWidth = contentWidth - 5 - indentMM;
-                    const praefix = b.sichtbar === false ? "[Ausgeblendet] " : ""; // Präfix
+                    const praefix = b.sichtbar === false ? "[Ausgeblendet] " : "";
                     const textToDisplay = `- [${getFormattedDate(b.timestamp)}] ${praefix}${b.text}`;
-                    const textColor = b.sichtbar === false ? [128, 128, 128] : [0, 0, 0]; // Grau oder Schwarz
+                    const textColor = b.sichtbar === false ? [128, 128, 128] : [0, 0, 0];
                     if (maxWidth > 0) {
                         addWrappedText(textToDisplay, startX, maxWidth, { fontSize: 10, lineHeight: defaultLineSpacing, color: textColor });
                     } else {
@@ -578,7 +803,6 @@ function exportiereAlsPDF() {
              yPosition += (sectionSpacing / 2);
         }
 
-        // PDF ANHÄNGE (mit Sichtbarkeitscheck)
         if (idee.dateien && idee.dateien.length > 0) {
              checkAddPage(sectionSpacing + anhangLineHeight); addWrappedText("Anhänge:", leftMargin, contentWidth, { fontSize: 11, fontStyle: 'bold', lineHeight: 6 });
              let currentX = leftMargin + 5;
@@ -601,88 +825,301 @@ function exportiereAlsPDF() {
         }
         yPosition += ideaSpacing;
     });
-    doc.save("ideen-export.pdf"); zeigeWarnung("PDF-Export gestartet.", "success");
+    doc.save(fileName);
+    return true; // Erfolg
 }
 
-// --- E-Mail Export mit Einrückung & Sichtbarkeit ---
-async function teilePerEmail(){
+/* --- Grundlegend überarbeitete Funktion teilePerEmail --- */
+async function teilePerEmail() {
     const ideenToExport = getExportIdeen();
-    if(ideenToExport.length === 0) { zeigeWarnung("Keine Notizen für Export ausgewählt."); return; }
-    const recipientInput = prompt("An wen soll exportiert werden? E-Mail oder 'ich', 'mandant', 'support', 'andere'"); let recipientInfo = recipientInput ? recipientInput.trim().toLowerCase() : ""; if (!recipientInfo) { zeigeWarnung("Export abgebrochen."); return; } if (!["ich", "mandant", "support"].includes(recipientInfo) && recipientInfo !== "andere" && !recipientInfo.startsWith("andere:")) { recipientInfo = `Direkte Eingabe: ${recipientInput.trim()}`; } else if (recipientInfo === "andere") { const other=prompt("Info für 'andere'?"); if (!other?.trim()){zeigeWarnung("Abgebrochen."); return;} recipientInfo = `Andere: ${other.trim()}`; } console.log("E-Mail: Empfängerinfo:", recipientInfo);
+    if (ideenToExport.length === 0) {
+        zeigeWarnung("Keine Notizen für Export ausgewählt oder Filter aktiv.", "info");
+        return;
+    }
 
-    let text = ideenToExport.map(idee => {
-        if (!idee) return "";
-         let datumText = getFormattedDate(idee.timestamp);
-         const beschreibungenText = idee.beschreibungen && idee.beschreibungen.length ?
-             `Weitere Beschreibungen:\n${
-                 idee.beschreibungen.filter(b => b && b.text !== undefined).map(b => {
-                     const indentSpacesMail = "  ".repeat(b.level || 0); // Einrückung
-                     const praefix = b.sichtbar === false ? "[Ausgeblendet] " : ""; // Präfix
-                     return `${indentSpacesMail}  - [${getFormattedDate(b.timestamp)}] ${praefix}${b.text}`;
-                 }).join("\n")
-             }\n` : "";
-         let anhaengeText = "Keine";
-         if (idee.dateien && idee.dateien.length > 0) {
-             anhaengeText = idee.dateien.filter(f => f && f.id).map(f => {
-                 const praefix = f.sichtbar === false ? "[Veraltet] " : ""; // Präfix
-                 return f.link ? `${praefix}${f.name || 'Unbekannt'} (${f.link})` : `${praefix}${f.name || 'Unbekannt'} (Lokal)`;
-             }).join(", ");
-         }
-         return ( `${idee.erledigt ? '[ERLEDIGT] ' : ''}*${idee.vorgangsnummer ? `[Vorgang ${idee.vorgangsnummer}] ` : ''}${idee.text || 'Ohne Titel'}*\n` +
-                  `Kategorie: ${idee.kategorie||'-'}\n` + `${idee.benutzer?`Zuständig: ${idee.benutzer}\n`:""}` + `Priorität: ${idee.prioritaet||"-"}\n` + `Datum: ${datumText}\n` +
-                  `${idee.mandantennummer?"Mandant: "+idee.mandantennummer+"\n":""}` + `${idee.firmenname?"Firma: "+idee.firmenname+"\n":""}` + `${idee.details?`Beschreibung: ${idee.details}\n`:""}` +
-                  `${beschreibungenText}` + `\nAnhänge: ${anhaengeText}\n` );
-    }).filter(s => s !== "").join("\n\n------------------------------------\n\n");
+    let pdfFileName;
+    let emailSubject;
 
-    const exportTimestamp = new Date().toLocaleString("de-DE"); const weitergeleitetText = `\n\n[Notiz(en) markiert als: Weitergeleitet an ${recipientInfo} am ${exportTimestamp}]`; text += weitergeleitetText; text += "\n\n[Anhänge ggf. manuell hinzufügen...]"; console.log("E-Mail: Text:", text);
-    const subject = encodeURIComponent(`Ideen-Export (${ideenToExport.length} Notiz${ideenToExport.length > 1 ? 'en':''})`); const body = encodeURIComponent(text); const recipient = recipientInput.includes('@') ? encodeURIComponent(recipientInput.trim()) : ''; const mailto = `mailto:${recipient}?subject=${subject}&body=${body}`; try { window.location.href = mailto; } catch (e) { console.error("Mailto Fehler:", e); zeigeWarnung("Fehler Mail-Programm: " + e.message); }
-    await new Promise(resolve => setTimeout(resolve, 100)); let ideenImSpeicher = JSON.parse(localStorage.getItem("ideen") || "[]"); let changed = false; const ausgewaehlteIDsFuerMail = ideenToExport.map(i => i.id); ideenImSpeicher.forEach(idee => { if (idee && idee.id && ausgewaehlteIDsFuerMail.includes(idee.id)) { const desc = `Weitergeleitet via E-Mail an: ${recipientInfo} am ${exportTimestamp}`; if (!idee.beschreibungen){idee.beschreibungen = [];} const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); idee.beschreibungen.push({ text: desc, timestamp: ts, level: 0, sichtbar: true }); changed = true; }}); if (changed) { localStorage.setItem("ideen", JSON.stringify(ideenImSpeicher)); zeigeIdeen(); istGespeichert = false; await saveToOneDrive(); console.log("E-Mail Export-Info gespeichert."); }
+    if (ideenToExport.length === 1) {
+        const idee = ideenToExport[0];
+        const sanitizedTitle = sanitizeFilename(idee.text || 'Unbenannte_Idee');
+        pdfFileName = `Idee_${sanitizedTitle}.pdf`;
+        emailSubject = `Idee: ${idee.text || 'Unbenannte Idee'}`;
+    } else {
+        pdfFileName = `Ideen-Export_(${ideenToExport.length}_Notizen).pdf`;
+        emailSubject = `Ideen-Export (${ideenToExport.length} Notizen)`;
+    }
+
+    try {
+        const pdfErstellt = exportiereAlsPDF(pdfFileName);
+        if (!pdfErstellt) { // Prüfen, ob PDF-Erstellung erfolgreich war
+             zeigeWarnung(`PDF "${pdfFileName}" konnte nicht erstellt werden (keine Notizen).`, 'warnung');
+             return;
+        }
+        zeigeWarnung(`PDF "${pdfFileName}" wurde heruntergeladen. Bitte manuell an die E-Mail anhängen.`, 'success');
+    } catch (e) {
+        zeigeWarnung(`Fehler beim Erstellen der PDF: ${e.message}`, 'warnung');
+        console.error("Fehler beim PDF-Export für E-Mail:", e);
+        return;
+    }
+
+    const recipientInput = prompt("An wen soll die Information gesendet werden (E-Mail-Adresse)? Oder 'ich', 'mandant', 'support', 'andere' für interne Vermerke.");
+    let recipientInfo = recipientInput ? recipientInput.trim().toLowerCase() : "";
+
+    if (!recipientInfo) {
+        zeigeWarnung("E-Mail-Versand abgebrochen, da kein Empfänger angegeben wurde.");
+        return;
+    }
+
+    let recipientEmailAddress = '';
+    if (recipientInput.includes('@')) {
+        recipientEmailAddress = encodeURIComponent(recipientInput.trim());
+    } else {
+        if (!["ich", "mandant", "support"].includes(recipientInfo) && recipientInfo !== "andere" && !recipientInfo.startsWith("andere:")) {
+            recipientInfo = `Direkte Eingabe: ${recipientInput.trim()}`;
+        } else if (recipientInfo === "andere") {
+            const otherDetails = prompt("Zusätzliche Info für den Vermerk bei 'andere'?");
+            if (!otherDetails?.trim()) {
+                zeigeWarnung("Export abgebrochen, da keine Details für 'andere' angegeben wurden.");
+                return;
+            }
+            recipientInfo = `Andere: ${otherDetails.trim()}`;
+        }
+    }
+
+    const emailBody = encodeURIComponent(
+        `Hallo,\n\n` +
+        `anbei die angeforderte Idee/die angeforderten Ideen als PDF-Datei.\n\n` +
+        `Bitte hängen Sie die Datei "${pdfFileName}", die zuvor heruntergeladen wurde, manuell an diese E-Mail an.\n\n` +
+        `Mit freundlichen Grüßen\n` +
+        `Ihre Ideen-App`
+    );
+
+    const mailtoLink = `mailto:${recipientEmailAddress}?subject=${encodeURIComponent(emailSubject)}&body=${emailBody}`;
+    console.log("Generierter Mailto-Link:", mailtoLink);
+
+    try {
+        setTimeout(() => {
+            window.location.href = mailtoLink;
+        }, 100);
+        zeigeWarnung("Versuche, E-Mail-Client zu öffnen...", "info");
+    } catch (e) {
+        console.error("Mailto Fehler:", e);
+        zeigeWarnung(`Fehler beim Öffnen des Mail-Programms: ${e.message}. Sie können den Link manuell aus der Konsole kopieren.`, "warnung");
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 300));
+    let ideenImSpeicher = JSON.parse(localStorage.getItem("ideen") || "[]");
+    let changed = false;
+    const ausgewaehlteIDsFuerMail = ideenToExport.map(i => i.id);
+    const exportTimestamp = new Date().toLocaleString("de-DE");
+
+    ideenImSpeicher.forEach(idee => {
+        if (idee && idee.id && ausgewaehlteIDsFuerMail.includes(idee.id)) {
+            const desc = `Informationen weitergeleitet (PDF-Download für E-Mail '${recipientInfo}') am ${exportTimestamp}. PDF-Name: ${pdfFileName}`;
+            if (!idee.beschreibungen) { idee.beschreibungen = []; }
+            const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9);
+            idee.beschreibungen.push({ text: desc, timestamp: ts, level: 0, sichtbar: true });
+            changed = true;
+        }
+    });
+
+    if (changed) {
+        localStorage.setItem("ideen", JSON.stringify(ideenImSpeicher));
+        zeigeIdeen();
+        istGespeichert = false;
+        await saveToOneDrive();
+    }
 }
 
-// --- WhatsApp Export mit Einrückung & Sichtbarkeit ---
+
 async function teilePerWhatsApp(){
     const ideenToExport = getExportIdeen();
     if(ideenToExport.length === 0) { zeigeWarnung("Bitte wählen Sie Notizen für Export aus."); return; }
-    const recipientInput = prompt("An wen soll exportiert werden? Info oder 'ich', 'mandant', 'support', 'andere'"); let recipientInfo = recipientInput ? recipientInput.trim().toLowerCase() : ""; if (!recipientInfo) { zeigeWarnung("Export abgebrochen."); return; } if (!["ich", "mandant", "support"].includes(recipientInfo) && recipientInfo !== "andere" && !recipientInfo.startsWith("andere:")) { recipientInfo = `Direkte Eingabe: ${recipientInput.trim()}`; } else if (recipientInfo === "andere") { const other=prompt("Info für 'andere'?"); if (!other?.trim()){zeigeWarnung("Abgebrochen."); return;} recipientInfo = `Andere: ${other.trim()}`; } console.log("WhatsApp: Empfängerinfo:", recipientInfo);
+    const recipientInput = prompt("An wen soll exportiert werden? Info oder 'ich', 'mandant', 'support', 'andere'"); let recipientInfo = recipientInput ? recipientInput.trim().toLowerCase() : ""; if (!recipientInfo) { zeigeWarnung("Export abgebrochen."); return; } if (!["ich", "mandant", "support"].includes(recipientInfo) && recipientInfo !== "andere" && !recipientInfo.startsWith("andere:")) { recipientInfo = `Direkte Eingabe: ${recipientInput.trim()}`; } else if (recipientInfo === "andere") { const other=prompt("Info für 'andere'?"); if (!other?.trim()){zeigeWarnung("Abgebrochen."); return;} recipientInfo = `Andere: ${other.trim()}`; }
 
     let text = ideenToExport.map(idee => {
         if (!idee) return "";
          let datumTextWA = getFormattedDate(idee.timestamp);
+         let hauptBeschreibungTextWA = idee.details ? `\n📝 *Beschreibung:*\n${idee.details}\n` : "";
          const beschreibungenText = idee.beschreibungen && idee.beschreibungen.length ?
              `\n*Weitere Beschreibungen:*\n${
                  idee.beschreibungen.filter(b => b && b.text !== undefined).map(b => {
-                     const indentSpacesWA = "  ".repeat(b.level || 0); // Einrückung
-                     const praefix = b.sichtbar === false ? "[Ausgeblendet] " : ""; // Präfix
+                     const indentSpacesWA = "  ".repeat(b.level || 0);
+                     const praefix = b.sichtbar === false ? "[Ausgeblendet] " : "";
                      return `${indentSpacesWA}  - _[${getFormattedDate(b.timestamp)}]_ ${praefix}${b.text}`;
                  }).join("\n")
              }` : "";
         let anhaengeTextForWhatsApp = "\n📎 Anhänge: Keine";
         if (idee.dateien && idee.dateien.length > 0) {
             anhaengeTextForWhatsApp = `\n📎 *Anhänge:*\n${idee.dateien.filter(f => f && f.id).map(f => {
-                const praefix = f.sichtbar === false ? "[Veraltet] " : ""; // Präfix
+                const praefix = f.sichtbar === false ? "[Veraltet] " : "";
                 return `  - ${praefix}${f.name || 'Unbekannt'} ${f.link ? `(${f.link})` : '(Lokal)'}`;
             }).join("\n")}`;
         }
+        let erinnerungTextWA = "";
+        if (idee.erinnerung && idee.erinnerung.termin) {
+            erinnerungTextWA = `\n🔔 *Erinnerung (${idee.erinnerung.aktiv ? 'Aktiv' : 'Inaktiv'})*:\n  Termin: ${getFormattedDate(idee.erinnerung.termin)}\n  Titel: ${idee.erinnerung.titel}\n  VNr.: ${idee.erinnerung.vorgangsnummer}\n  Intervall: ${idee.erinnerung.intervallTyp || 'einmalig'}`;
+            if (idee.erinnerung.intervallTyp === 'tage' && idee.erinnerung.intervallWert) erinnerungTextWA += ` (${idee.erinnerung.intervallWert} T.)`;
+            if (idee.erinnerung.vorabErinnerungAktiv) erinnerungTextWA += `\n  Vorab: ${idee.erinnerung.vorabWert} ${idee.erinnerung.vorabEinheit}`;
+        }
+
         return ( `${idee.erledigt ? '_[ERLEDIGT]_ ' : ''}*${idee.vorgangsnummer ? `[Vorgang ${idee.vorgangsnummer}] ` : ''}${idee.text || 'Ohne Titel'}*\n` +
                  `📁 Kat.: ${idee.kategorie||'-'}\n` + `${idee.benutzer?`🧑‍💻 Zust.: ${idee.benutzer}\n`:""}` + `🔖 Prio: ${idee.prioritaet||"-"}\n` + `📅 ${datumTextWA}\n` +
-                 `${idee.details?`\n📝 *Beschreibung:*\n${idee.details}\n`:""}` + `${idee.mandantennummer?`🏢 Mandant: ${idee.mandantennummer}\n`:""}` + `${idee.firmenname?`🏭 Firma: ${idee.firmenname}\n`:""}` +
+                 `${hauptBeschreibungTextWA}` +
+                 `${idee.mandantennummer?`🏢 Mandant: ${idee.mandantennummer}\n`:""}` + `${idee.firmenname?`🏭 Firma: ${idee.firmenname}\n`:""}` +
+                 `${erinnerungTextWA}` +
                  `${beschreibungenText}` + `${anhaengeTextForWhatsApp}` );
     }).filter(s => s !== "").join("\n\n------------------------------------\n\n");
 
-     const exportTimestamp = new Date().toLocaleString("de-DE"); const weitergeleitetText = `\n\n_[Notiz(en) markiert als: Weitergeleitet an ${recipientInfo} am ${exportTimestamp}]_`; text += weitergeleitetText; console.log("WhatsApp: Finaler Text:", text); const waLink = `https://wa.me/?text=${encodeURIComponent(text)}`; try { const waWindow = window.open(waLink,"_blank"); if (!waWindow) { zeigeWarnung("WhatsApp konnte nicht geöffnet werden.", "warning"); } else { console.log("WhatsApp: Link geöffnet."); } } catch (e) { console.error("WhatsApp Fehler:", e); zeigeWarnung("Fehler WhatsApp: " + e.message); }
-     await new Promise(resolve => setTimeout(resolve, 100)); let ideenImSpeicher = JSON.parse(localStorage.getItem("ideen") || "[]"); let changed = false; const ausgewaehlteIDsFuerWA = ideenToExport.map(i => i.id); ideenImSpeicher.forEach(idee => { if (idee && idee.id && ausgewaehlteIDsFuerWA.includes(idee.id)) { const desc = `Weitergeleitet via WhatsApp an: ${recipientInfo} am ${exportTimestamp}`; if (!idee.beschreibungen){idee.beschreibungen = [];} const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); idee.beschreibungen.push({ text: desc, timestamp: ts, level: 0, sichtbar: true }); changed = true; }}); if (changed) { localStorage.setItem("ideen", JSON.stringify(ideenImSpeicher)); zeigeIdeen(); istGespeichert = false; await saveToOneDrive(); console.log("WhatsApp Export-Info gespeichert."); }
+     const exportTimestamp = new Date().toLocaleString("de-DE"); const weitergeleitetText = `\n\n_[Notiz(en) markiert als: Weitergeleitet an ${recipientInfo} am ${exportTimestamp}]_`; text += weitergeleitetText; const waLink = `https://wa.me/?text=${encodeURIComponent(text)}`; try { const waWindow = window.open(waLink,"_blank"); if (!waWindow) { zeigeWarnung("WhatsApp konnte nicht geöffnet werden.", "warning"); } } catch (e) { console.error("WhatsApp Fehler:", e); zeigeWarnung("Fehler WhatsApp: " + e.message); }
+     await new Promise(resolve => setTimeout(resolve, 100)); let ideenImSpeicher = JSON.parse(localStorage.getItem("ideen") || "[]"); let changed = false; const ausgewaehlteIDsFuerWA = ideenToExport.map(i => i.id); ideenImSpeicher.forEach(idee => { if (idee && idee.id && ausgewaehlteIDsFuerWA.includes(idee.id)) { const desc = `Weitergeleitet via WhatsApp an: ${recipientInfo} am ${exportTimestamp}`; if (!idee.beschreibungen){idee.beschreibungen = [];} const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); idee.beschreibungen.push({ text: desc, timestamp: ts, level: 0, sichtbar: true }); changed = true; }}); if (changed) { localStorage.setItem("ideen", JSON.stringify(ideenImSpeicher)); zeigeIdeen(); istGespeichert = false; await saveToOneDrive(); }
 }
 /* --- END BLOCK 6 --- */
 
+
+/* --- NEUE FUNKTIONEN FÜR BROWSER-BENACHRICHTIGUNGEN --- */
+async function initialisiereUndStarteBenachrichtigungspruefung() {
+    if (!("Notification" in window)) {
+        console.warn("Dieser Browser unterstützt keine Desktop-Benachrichtigungen.");
+        zeigeWarnung("Browser unterstützt keine Benachrichtigungen.", "info");
+        return;
+    }
+
+    if (Notification.permission === "granted") {
+        starteBenachrichtigungspruefung();
+    } else if (Notification.permission !== "denied") {
+        try {
+            const permission = await Notification.requestPermission();
+            if (permission === "granted") {
+                zeigeWarnung("Benachrichtigungen wurden aktiviert!", "success");
+                starteBenachrichtigungspruefung();
+            } else {
+                zeigeWarnung("Benachrichtigungen wurden nicht aktiviert.", "info");
+            }
+        } catch (error) {
+            console.error("Fehler beim Anfordern der Benachrichtigungsberechtigung:", error);
+            zeigeWarnung("Fehler bei Benachrichtigungs-Berechtigung.", "warnung");
+        }
+    } else {
+        zeigeWarnung("Benachrichtigungen sind blockiert. Bitte in den Browser-Einstellungen ändern.", "info");
+    }
+}
+
+function starteBenachrichtigungspruefung() {
+    if (benachrichtigungsIntervallId) {
+        clearInterval(benachrichtigungsIntervallId);
+    }
+    benachrichtigungsIntervallId = setInterval(pruefeUndZeigeBenachrichtigungen, 60000);
+    console.log("Benachrichtigungsprüfung gestartet.");
+    pruefeUndZeigeBenachrichtigungen(); // Einmal sofort ausführen
+}
+
+function pruefeUndZeigeBenachrichtigungen() {
+    if (Notification.permission !== "granted") {
+        return;
+    }
+
+    let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+    if (!Array.isArray(ideen)) return;
+
+    const jetzt = new Date();
+    let aenderungenVorgenommen = false;
+
+    ideen.forEach(idee => {
+        if (idee && idee.erinnerung && idee.erinnerung.aktiv && idee.erinnerung.termin) {
+            const terminDatum = new Date(idee.erinnerung.termin);
+
+            if (terminDatum <= jetzt) {
+                console.log(`Erinnerung fällig für: ${idee.text}`);
+                const titel = idee.erinnerung.titel || idee.text || "Ideen-App Erinnerung";
+                const bodyText = `Ihre Erinnerung für "${titel}" (Vorgang: ${idee.vorgangsnummer || 'N/A'}) ist jetzt fällig.`;
+                
+                try {
+                    const notification = new Notification(titel, {
+                        body: bodyText,
+                        // icon: "./icon.png", // Pfad zu einem Icon anpassen oder weglassen
+                        tag: idee.id + '_' + idee.erinnerung.termin 
+                    });
+
+                    notification.onclick = function() {
+                        window.focus(); 
+                        console.log(`Benachrichtigung für Idee ${idee.id} geklickt.`);
+                        this.close();
+                    };
+                } catch (e) {
+                    console.error("Fehler beim Erstellen der Benachrichtigung:", e);
+                }
+
+                if (idee.erinnerung.intervallTyp === 'einmalig') {
+                    idee.erinnerung.aktiv = false;
+                    console.log(`Einmalige Erinnerung für "${idee.text}" deaktiviert.`);
+                } else {
+                    let naechsterTermin = new Date(terminDatum);
+                    let intervallValid = true;
+                    switch (idee.erinnerung.intervallTyp) {
+                        case 'tage':
+                            if (idee.erinnerung.intervallWert && idee.erinnerung.intervallWert > 0) {
+                                naechsterTermin.setDate(terminDatum.getDate() + parseInt(idee.erinnerung.intervallWert, 10));
+                            } else { intervallValid = false; }
+                            break;
+                        case 'woechentlich':
+                            naechsterTermin.setDate(terminDatum.getDate() + 7);
+                            break;
+                        case 'monatlich':
+                            naechsterTermin.setMonth(terminDatum.getMonth() + 1);
+                            break;
+                        case 'vierteljaehrlich':
+                            naechsterTermin.setMonth(terminDatum.getMonth() + 3);
+                            break;
+                        case 'jaehrlich':
+                            naechsterTermin.setFullYear(terminDatum.getFullYear() + 1);
+                            break;
+                        default:
+                            intervallValid = false;
+                            break;
+                    }
+
+                    if (!intervallValid) {
+                        idee.erinnerung.aktiv = false;
+                        console.warn(`Ungültiger Intervalltyp oder -wert für "${idee.text}", Erinnerung deaktiviert.`);
+                    } else if (idee.erinnerung.aktiv) {
+                        while (naechsterTermin <= jetzt && (idee.erinnerung.intervallTyp === 'tage' && idee.erinnerung.intervallWert > 0)) {
+                           naechsterTermin.setDate(naechsterTermin.getDate() + parseInt(idee.erinnerung.intervallWert, 10));
+                        }
+                         if (naechsterTermin > jetzt) {
+                             idee.erinnerung.termin = naechsterTermin.toISOString();
+                             console.log(`Nächste Erinnerung für "${idee.text}" am: ${idee.erinnerung.termin}`);
+                        } else {
+                            idee.erinnerung.aktiv = false;
+                            console.warn(`Konnte keinen zukünftigen Termin für "${idee.text}" festlegen, Erinnerung deaktiviert.`);
+                        }
+                    }
+                }
+                aenderungenVorgenommen = true;
+            }
+        }
+    });
+
+    if (aenderungenVorgenommen) {
+        localStorage.setItem("ideen", JSON.stringify(ideen));
+        zeigeIdeen(); 
+        saveToOneDrive(); 
+        console.log("Ideenliste nach Benachrichtigungsprüfung aktualisiert.");
+    }
+}
+/* --- ENDE NEUE FUNKTIONEN FÜR BROWSER-BENACHRICHTIGUNGEN --- */
+
+
 /* --- START BLOCK 7: File & OneDrive (Unverändert) --- */
 async function uploadToOneDrive(f){if(!accessToken){zeigeWarnung("Bitte zuerst mit Microsoft anmelden!");return null;}try{const n=`ideenapp/${Date.now()}_${f.name}`;const u=await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${n}:/content`,{method:"PUT",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":f.type},body:f});const d=await u.json();if(!u.ok){throw new Error(`OneDrive Upload Error ${u.status}: ${d?.error?.message||'Unknown'}`);}const s=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${d.id}/createLink`,{method:"POST",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":"application/json"},body:JSON.stringify({type:"view",scope:"anonymous"})});const j=await s.json();if(!s.ok){throw new Error(`OneDrive Link Error ${s.status}: ${j?.error?.message||'Unknown'}`);}return j.link.webUrl;}catch(e){console.error("OneDrive Upload/Link Fehler:",e);zeigeWarnung("OneDrive-Fehler: "+e.message);return null;}}
-async function saveToOneDrive(){ if(!accessToken){ console.log("OneDrive-Speicherung übersprungen."); return; } try { const ideen=JSON.parse(localStorage.getItem("ideen")||"[]"); const benutzer=JSON.parse(localStorage.getItem("benutzerliste")||"[]"); const kategorien=JSON.parse(localStorage.getItem("kategorien")||"[]"); const nummer=localStorage.getItem("naechsteVorgangsnummer")||"1"; const data={ideen,benutzerliste:benutzer,kategorien,naechsteVorgangsnummer:nummer}; const dataStr=JSON.stringify(data,null,2); const path=(document.getElementById("onedrivePath").value.trim()||"/ideenapp/ideen.json"); const finalPath=path.startsWith('/')?path:'/'+path; if(!finalPath||finalPath==='/'){zeigeWarnung("OneDrive Speichern: Ungültiger Pfad.");return;} const url=`https://graph.microsoft.com/v1.0/me/drive/root:${finalPath}:/content`; const res=await fetch(url,{method:"PUT",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":"application/json"},body:dataStr}); if(res.ok){console.log(`OneDrive: Gespeichert in ${finalPath}.`);istGespeichert=true;}else{const err=await res.json().catch(()=>null); const msg=err?.error?.message||res.statusText; console.error(`OneDrive Speichern Fehler (${res.status}) für ${finalPath}: ${msg}`,err); zeigeWarnung(`OneDrive Speichern Fehler: ${msg}`);}}catch(e){console.error('OneDrive Speichern Exception:',e);zeigeWarnung("OneDrive Speichern Fehler: "+e.message);}}
-async function loadFromOneDrive(){ if(!accessToken){ const ok=await handleLogin(); if(!ok||!accessToken){return;} } const path=(document.getElementById("onedrivePath").value.trim()||"/ideenapp/ideen.json"); const finalPath=path.startsWith('/')?path:'/'+path; if(!finalPath||finalPath==='/'){zeigeWarnung("OneDrive Laden: Ungültiger Pfad.");return;} zeigeWarnung(`Lade Daten von OneDrive: ${finalPath}...`,'info'); try{ const url=`https://graph.microsoft.com/v1.0/me/drive/root:${finalPath}:/content`; const res=await fetch(url,{method:"GET",headers:{"Authorization":`Bearer ${accessToken}`}}); if(res.ok){ const content=await res.text(); const loadedData=JSON.parse(content); let ideen=[], benutzerliste=[], kategorienAusDatei=null, nummer=1; if(loadedData&&typeof loadedData==='object'&&Array.isArray(loadedData.ideen)){ ideen=loadedData.ideen; benutzerliste=Array.isArray(loadedData.benutzerliste)?loadedData.benutzerliste:[]; kategorienAusDatei=Array.isArray(loadedData.kategorien)?loadedData.kategorien:null; nummer=parseInt(loadedData.naechsteVorgangsnummer,10)||1; }else if(Array.isArray(loadedData)){ideen=loadedData; benutzerliste=[]; kategorienAusDatei=null; nummer=1;}else{throw new Error("Ungültiges Dateiformat");} localStorage.setItem("ideen",JSON.stringify(ideen)); localStorage.setItem("benutzerliste",JSON.stringify(benutzerliste)); if(kategorienAusDatei!==null){localStorage.setItem("kategorien",JSON.stringify(kategorienAusDatei));} localStorage.setItem("naechsteVorgangsnummer", nummer.toString()); ausgewaehlt=[]; initialisiereKategorien(); initialisiereBenutzer(); initialisiereVorgangsnummer(); ensureIdeasHaveIds(); aktualisiereMandantenFilterDropdown(); zeigeIdeen(); zeigeWarnung(`Daten von OneDrive geladen! (${finalPath})`,'success'); istGespeichert=true; }else if(res.status===404){zeigeWarnung(`Datei nicht gefunden: ${finalPath}.`,'warning');}else{ const err=await res.json().catch(()=>null); const msg=err?.error?.message||res.statusText; console.error(`OneDrive Laden Fehler (${res.status}) für ${finalPath}: ${msg}`,err); zeigeWarnung(`OneDrive Laden Fehler (${res.status}): ${msg}`);}}catch(e){console.error('OneDrive Laden Exception:',e);zeigeWarnung("OneDrive Laden Fehler: "+e.message);}}
-async function speichereIdeenAlsDatei(){ try{ const ideen = JSON.parse(localStorage.getItem("ideen")||"[]"); const benutzerData = JSON.parse(localStorage.getItem("benutzerliste")||"[]"); const kategorienData = JSON.parse(localStorage.getItem("kategorien")||"[]"); const nummer = localStorage.getItem("naechsteVorgangsnummer")||"1"; const combinedData = { ideen, benutzerliste: benutzerData, kategorien: kategorienData, naechsteVorgangsnummer: nummer }; const dataToSave = JSON.stringify(combinedData, null, 2); if(window.showSaveFilePicker){ fileHandle = await window.showSaveFilePicker({ suggestedName: "ideen.json", types: [{ description: "JSON-Dateien", accept: { "application/json": [".json"] } }] }); const writable = await fileHandle.createWritable(); await writable.write(dataToSave); await writable.close(); zeigeWarnung("Datei lokal gespeichert!", 'success'); istGespeichert = true; } else { const blob = new Blob([dataToSave], { type: "application/json" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "ideen.json"; link.click(); URL.revokeObjectURL(url); zeigeWarnung("Datei-Download gestartet.", 'success'); istGespeichert = true; }} catch(e) { if(e.name !== "AbortError") { zeigeWarnung("Fehler beim lokalen Speichern: " + e.message); } else { console.log("Lokales Speichern abgebrochen."); }}}
-async function ladeIdeenAusDatei(){ try{ let fileContent; if(window.showOpenFilePicker){ [fileHandle] = await window.showOpenFilePicker({ types: [{ description: "JSON-Dateien", accept: { "application/json": [".json"] } }] }); const file = await fileHandle.getFile(); fileContent = await file.text(); } else { const input = document.createElement('input'); input.type = 'file'; input.accept = '.json'; await new Promise((resolve, reject) => { input.onchange = async (e) => { if (e.target.files && e.target.files.length > 0) { const file = e.target.files[0]; const reader = new FileReader(); reader.onload = (event) => { fileContent = event.target.result; resolve(); }; reader.onerror = (error) => reject(error); reader.readAsText(file); } else { reject(new Error("Keine Datei ausgewählt")); } }; input.click(); }); } if (!fileContent) { throw new Error("Kein Dateiinhalt geladen."); } const loadedData = JSON.parse(fileContent); let ideen = [], benutzerliste = [], kategorienAusDatei = null, nummer = 1; if (loadedData && typeof loadedData === 'object' && Array.isArray(loadedData.ideen)) { ideen = loadedData.ideen; benutzerliste = Array.isArray(loadedData.benutzerliste) ? loadedData.benutzerliste : []; kategorienAusDatei = Array.isArray(loadedData.kategorien) ? loadedData.kategorien : null; nummer = parseInt(loadedData.naechsteVorgangsnummer, 10) || 1; } else if (Array.isArray(loadedData)) { ideen = loadedData; benutzerliste = []; kategorienAusDatei = null; nummer = 1; } else { throw new Error("Ungültiges Dateiformat"); } localStorage.setItem("ideen", JSON.stringify(ideen)); localStorage.setItem("benutzerliste", JSON.stringify(benutzerliste)); if (kategorienAusDatei !== null) { localStorage.setItem("kategorien", JSON.stringify(kategorienAusDatei)); } localStorage.setItem("naechsteVorgangsnummer", nummer.toString()); ausgewaehlt = []; initialisiereKategorien(); initialisiereBenutzer(); initialisiereVorgangsnummer(); ensureIdeasHaveIds(); aktualisiereMandantenFilterDropdown(); zeigeIdeen(); zeigeWarnung(`Daten lokal geladen!`, 'success'); istGespeichert = true; } catch(e) { if(e.name !== "AbortError" && e.message !== "Keine Datei ausgewählt" && e.message !== "Kein Dateiinhalt geladen.") { zeigeWarnung("Fehler beim lokalen Laden: " + e.message); } else { console.log("Lokales Laden abgebrochen."); }}}
+async function saveToOneDrive(){ if(!accessToken){ return; } try { const ideen=JSON.parse(localStorage.getItem("ideen")||"[]"); const benutzer=JSON.parse(localStorage.getItem("benutzerliste")||"[]"); const kategorien=JSON.parse(localStorage.getItem("kategorien")||"[]"); const nummer=localStorage.getItem("naechsteVorgangsnummer")||"1"; const data={ideen,benutzerliste:benutzer,kategorien,naechsteVorgangsnummer:nummer}; const dataStr=JSON.stringify(data,null,2); const path=(document.getElementById("onedrivePath").value.trim()||"/ideenapp/ideen.json"); const finalPath=path.startsWith('/')?path:'/'+path; if(!finalPath||finalPath==='/'){zeigeWarnung("OneDrive Speichern: Ungültiger Pfad.");return;} const url=`https://graph.microsoft.com/v1.0/me/drive/root:${finalPath}:/content`; const res=await fetch(url,{method:"PUT",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":"application/json"},body:dataStr}); if(res.ok){istGespeichert=true;}else{const err=await res.json().catch(()=>null); const msg=err?.error?.message||res.statusText; zeigeWarnung(`OneDrive Speichern Fehler: ${msg}`);}}catch(e){zeigeWarnung("OneDrive Speichern Fehler: "+e.message);}}
+async function loadFromOneDrive(){ if(!accessToken){ const ok=await handleLogin(); if(!ok||!accessToken){return;} } const path=(document.getElementById("onedrivePath").value.trim()||"/ideenapp/ideen.json"); const finalPath=path.startsWith('/')?path:'/'+path; if(!finalPath||finalPath==='/'){zeigeWarnung("OneDrive Laden: Ungültiger Pfad.");return;} zeigeWarnung(`Lade Daten von OneDrive: ${finalPath}...`,'info'); try{ const url=`https://graph.microsoft.com/v1.0/me/drive/root:${finalPath}:/content`; const res=await fetch(url,{method:"GET",headers:{"Authorization":`Bearer ${accessToken}`}}); if(res.ok){ const content=await res.text(); const loadedData=JSON.parse(content); let ideen=[], benutzerliste=[], kategorienAusDatei=null, nummer=1; if(loadedData&&typeof loadedData==='object'&&Array.isArray(loadedData.ideen)){ ideen=loadedData.ideen; benutzerliste=Array.isArray(loadedData.benutzerliste)?loadedData.benutzerliste:[]; kategorienAusDatei=Array.isArray(loadedData.kategorien)?loadedData.kategorien:null; nummer=parseInt(loadedData.naechsteVorgangsnummer,10)||1; }else if(Array.isArray(loadedData)){ideen=loadedData; benutzerliste=[]; kategorienAusDatei=null; nummer=1;}else{throw new Error("Ungültiges Dateiformat");} localStorage.setItem("ideen",JSON.stringify(ideen)); localStorage.setItem("benutzerliste",JSON.stringify(benutzerliste)); if(kategorienAusDatei!==null){localStorage.setItem("kategorien",JSON.stringify(kategorienAusDatei));} localStorage.setItem("naechsteVorgangsnummer", nummer.toString()); ausgewaehlt=[]; initialisiereKategorien(); initialisiereBenutzer(); initialisiereVorgangsnummer(); ensureIdeasHaveIds(); aktualisiereMandantenFilterDropdown(); zeigeIdeen(); zeigeWarnung(`Daten von OneDrive geladen! (${finalPath})`,'success'); istGespeichert=true; }else if(res.status===404){zeigeWarnung(`Datei nicht gefunden: ${finalPath}.`,'warning');}else{ const err=await res.json().catch(()=>null); const msg=err?.error?.message||res.statusText; zeigeWarnung(`OneDrive Laden Fehler (${res.status}): ${msg}`);}}catch(e){zeigeWarnung("OneDrive Laden Fehler: "+e.message);}}
+async function speichereIdeenAlsDatei(){ try{ const ideen = JSON.parse(localStorage.getItem("ideen")||"[]"); const benutzerData = JSON.parse(localStorage.getItem("benutzerliste")||"[]"); const kategorienData = JSON.parse(localStorage.getItem("kategorien")||"[]"); const nummer = localStorage.getItem("naechsteVorgangsnummer")||"1"; const combinedData = { ideen, benutzerliste: benutzerData, kategorien: kategorienData, naechsteVorgangsnummer: nummer }; const dataToSave = JSON.stringify(combinedData, null, 2); if(window.showSaveFilePicker){ fileHandle = await window.showSaveFilePicker({ suggestedName: "ideen.json", types: [{ description: "JSON-Dateien", accept: { "application/json": [".json"] } }] }); const writable = await fileHandle.createWritable(); await writable.write(dataToSave); await writable.close(); zeigeWarnung("Datei lokal gespeichert!", 'success'); istGespeichert = true; } else { const blob = new Blob([dataToSave], { type: "application/json" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "ideen.json"; link.click(); URL.revokeObjectURL(url); zeigeWarnung("Datei-Download gestartet.", 'success'); istGespeichert = true; }} catch(e) { if(e.name !== "AbortError") { zeigeWarnung("Fehler beim lokalen Speichern: " + e.message); } }}
+async function ladeIdeenAusDatei(){ try{ let fileContent; if(window.showOpenFilePicker){ [fileHandle] = await window.showOpenFilePicker({ types: [{ description: "JSON-Dateien", accept: { "application/json": [".json"] } }] }); const file = await fileHandle.getFile(); fileContent = await file.text(); } else { const input = document.createElement('input'); input.type = 'file'; input.accept = '.json'; await new Promise((resolve, reject) => { input.onchange = async (e) => { if (e.target.files && e.target.files.length > 0) { const file = e.target.files[0]; const reader = new FileReader(); reader.onload = (event) => { fileContent = event.target.result; resolve(); }; reader.onerror = (error) => reject(error); reader.readAsText(file); } else { reject(new Error("Keine Datei ausgewählt")); } }; input.click(); }); } if (!fileContent) { throw new Error("Kein Dateiinhalt geladen."); } const loadedData = JSON.parse(fileContent); let ideen = [], benutzerliste = [], kategorienAusDatei = null, nummer = 1; if (loadedData && typeof loadedData === 'object' && Array.isArray(loadedData.ideen)) { ideen = loadedData.ideen; benutzerliste = Array.isArray(loadedData.benutzerliste) ? loadedData.benutzerliste : []; kategorienAusDatei = Array.isArray(loadedData.kategorien) ? loadedData.kategorien : null; nummer = parseInt(loadedData.naechsteVorgangsnummer, 10) || 1; } else if (Array.isArray(loadedData)) { ideen = loadedData; benutzerliste = []; kategorienAusDatei = null; nummer = 1; } else { throw new Error("Ungültiges Dateiformat"); } localStorage.setItem("ideen", JSON.stringify(ideen)); localStorage.setItem("benutzerliste", JSON.stringify(benutzerliste)); if (kategorienAusDatei !== null) { localStorage.setItem("kategorien", JSON.stringify(kategorienAusDatei)); } localStorage.setItem("naechsteVorgangsnummer", nummer.toString()); ausgewaehlt = []; initialisiereKategorien(); initialisiereBenutzer(); initialisiereVorgangsnummer(); ensureIdeasHaveIds(); aktualisiereMandantenFilterDropdown(); zeigeIdeen(); zeigeWarnung(`Daten lokal geladen!`, 'success'); istGespeichert = true; } catch(e) { if(e.name !== "AbortError" && e.message !== "Keine Datei ausgewählt" && e.message !== "Kein Dateiinhalt geladen.") { zeigeWarnung("Fehler beim lokalen Laden: " + e.message); } }}
 /* --- END BLOCK 7 --- */
 
-/* --- START BLOCK 8: Init & Listeners (Angepasst für Migration) --- */
+/* --- START BLOCK 8: Init & Listeners --- */
 document.getElementById("ideeText").addEventListener("input",()=>{istGespeichert=!1});
 document.getElementById("ideeDetails").addEventListener("input",()=>{istGespeichert=!1});
 document.getElementById("mandantennummer").addEventListener("input",()=>{istGespeichert=!1});
@@ -701,23 +1138,21 @@ document.getElementById("dateien").addEventListener("change",function(e){
 });
 window.addEventListener("beforeunload",function(e){if(!istGespeichert){const msg="Ungespeicherte Änderungen! Seite wirklich verlassen?";e.preventDefault();e.returnValue=msg;return msg;}});
 
-// Funktion zur Datenmigration (inkl. Beschr.-Level/Sichtbarkeit und Anhang-Felder)
 function ensureIdeasHaveIds() {
     let ideen = [];
     try {
         const storedIdeen = localStorage.getItem("ideen");
         if (storedIdeen) { ideen = JSON.parse(storedIdeen); }
-    } catch(e) { console.error("Fehler beim Parsen von 'ideen' aus localStorage:", e); localStorage.removeItem("ideen"); ideen = []; }
+    } catch(e) { localStorage.removeItem("ideen"); ideen = []; }
 
     let changed = false;
-    if (!Array.isArray(ideen)) { ideen = []; changed = true; console.warn("'ideen' im localStorage war kein Array."); }
+    if (!Array.isArray(ideen)) { ideen = []; changed = true; }
 
     const initialIdeenLength = ideen.length;
     ideen = ideen.filter(idee => idee && typeof idee === 'object' && idee.id);
-    if (ideen.length < initialIdeenLength) { changed = true; console.warn("Ungültige Ideen-Einträge entfernt."); }
+    if (ideen.length < initialIdeenLength) { changed = true; }
 
     ideen.forEach(idee => {
-        // Beschreibungen migrieren
         if (!Array.isArray(idee.beschreibungen)) { idee.beschreibungen = []; changed = true; }
         else {
             if (idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
@@ -731,11 +1166,10 @@ function ensureIdeasHaveIds() {
                     if (typeof b.level !== 'number' || b.level < 0) { b.level = 0; changed = true; }
                     if (typeof b.sichtbar !== 'boolean') { b.sichtbar = true; changed = true; }
                 });
-                if (idee.beschreibungen.length < originalLengthDesc) { changed = true; console.log(`Ungültige Beschreibungseinträge für Idee ${idee.id} entfernt.`); }
+                if (idee.beschreibungen.length < originalLengthDesc) { changed = true; }
             }
         }
 
-        // Anhänge migrieren
         if (!Array.isArray(idee.dateien)) { idee.dateien = []; changed = true; }
         else {
             const originalLengthFiles = idee.dateien.length;
@@ -747,10 +1181,47 @@ function ensureIdeasHaveIds() {
                 if (datei.data) { delete datei.data; changed = true; }
                 if (datei.pfad) { delete datei.pfad; changed = true; }
             });
-             if (idee.dateien.length < originalLengthFiles) { changed = true; console.log(`Ungültige Anhangseinträge für Idee ${idee.id} entfernt.`); }
+             if (idee.dateien.length < originalLengthFiles) { changed = true; }
         }
 
-        // Andere Felder
+        const defaultErinnerung = getDefaultErinnerung(idee.text, idee.vorgangsnummer);
+        if (!idee.erinnerung || typeof idee.erinnerung !== 'object') {
+            idee.erinnerung = { ...defaultErinnerung };
+            changed = true;
+        } else {
+            let erinnerungChanged = false;
+            for (const key in defaultErinnerung) {
+                if (idee.erinnerung[key] === undefined) {
+                    idee.erinnerung[key] = defaultErinnerung[key];
+                    erinnerungChanged = true;
+                }
+            }
+            if (typeof idee.erinnerung.aktiv !== 'boolean') { idee.erinnerung.aktiv = defaultErinnerung.aktiv; erinnerungChanged = true; }
+            if (idee.erinnerung.termin && typeof idee.erinnerung.termin !== 'string') { idee.erinnerung.termin = null; erinnerungChanged = true;}
+            if (typeof idee.erinnerung.intervallTyp !== 'string') { idee.erinnerung.intervallTyp = defaultErinnerung.intervallTyp; erinnerungChanged = true; }
+            if (idee.erinnerung.intervallTyp === 'tage' && (typeof idee.erinnerung.intervallWert !== 'number' || idee.erinnerung.intervallWert < 1) && idee.erinnerung.intervallWert !== null) {
+                idee.erinnerung.intervallWert = defaultErinnerung.intervallWert;
+                erinnerungChanged = true;
+            } else if (idee.erinnerung.intervallTyp !== 'tage') {
+                idee.erinnerung.intervallWert = null;
+            }
+            if (typeof idee.erinnerung.vorabErinnerungAktiv !== 'boolean') { idee.erinnerung.vorabErinnerungAktiv = defaultErinnerung.vorabErinnerungAktiv; erinnerungChanged = true; }
+            if (idee.erinnerung.vorabErinnerungAktiv) {
+                if ((typeof idee.erinnerung.vorabWert !== 'number' || idee.erinnerung.vorabWert < 1) && idee.erinnerung.vorabWert !== null) {
+                    idee.erinnerung.vorabWert = defaultErinnerung.vorabWert; erinnerungChanged = true;
+                }
+                if (typeof idee.erinnerung.vorabEinheit !== 'string') {
+                    idee.erinnerung.vorabEinheit = defaultErinnerung.vorabEinheit; erinnerungChanged = true;
+                }
+            } else {
+                 idee.erinnerung.vorabWert = null;
+                 idee.erinnerung.vorabEinheit = null;
+            }
+            if (idee.erinnerung.titel !== idee.text) { idee.erinnerung.titel = idee.text; erinnerungChanged = true;}
+            if (idee.erinnerung.vorgangsnummer !== idee.vorgangsnummer) { idee.erinnerung.vorgangsnummer = idee.vorgangsnummer; erinnerungChanged = true;}
+            if(erinnerungChanged) changed = true;
+        }
+
         if (idee.benutzer === undefined) { idee.benutzer = ""; changed = true; }
         if (idee.mandantennummer === undefined) { idee.mandantennummer = ""; changed = true; }
         if (idee.firmenname === undefined) { idee.firmenname = ""; changed = true; }
@@ -761,17 +1232,18 @@ function ensureIdeasHaveIds() {
     });
 
     if (changed) {
-        console.log("Datenmigration abgeschlossen.");
-        try { localStorage.setItem("ideen", JSON.stringify(ideen)); console.log("Migrierte Ideen im localStorage gespeichert."); }
-        catch (e) { console.error("Fehler beim Speichern der migrierten Ideen:", e); zeigeWarnung("Speicherfehler nach Datenmigration!"); }
-    } else { console.log("Keine Datenmigration notwendig."); }
+        try { localStorage.setItem("ideen", JSON.stringify(ideen)); }
+        catch (e) { zeigeWarnung("Speicherfehler nach Datenmigration!"); }
+    }
 }
 
-// Initialisierungsaufrufe
 try {
     initialisiereKategorien(); initialisiereBenutzer(); initialisiereVorgangsnummer();
-    ensureIdeasHaveIds(); // Migriert Daten VOR der ersten Anzeige
+    ensureIdeasHaveIds();
     aktualisiereMandantenFilterDropdown(); zeigeIdeen(); pruebeLoginHinweis();
+
+    initialisiereUndStarteBenachrichtigungspruefung(); // NEU: Browser-Benachrichtigungen initialisieren
+
 } catch (initError) {
     console.error("Fehler während der Initialisierung:", initError);
     zeigeWarnung("Ein Fehler ist beim Starten der App aufgetreten.", "warnung");
