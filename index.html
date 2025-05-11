@@ -1204,8 +1204,6 @@ function terminDialogAbbrechen() {
     document.getElementById("terminEndeInput").value = "";
     document.getElementById("terminOrtInput").value = "";
 }
-
-// Funktion zum Erstellen des Kalenderlinks und Speichern des Nachweises
 async function kalenderTerminErstellenUndSpeichern() {
     if (!terminFuerId) return;
 
@@ -1240,16 +1238,47 @@ async function kalenderTerminErstellenUndSpeichern() {
     }
     const idee = ideen[ideeIndex];
 
+    // Hauptbeschreibung sammeln
     let terminBeschreibungText = idee.details || "";
+
+    // Weitere Beschreibungen hinzufügen
     if (idee.beschreibungen && idee.beschreibungen.length > 0) {
+        terminBeschreibungText += "\n\n--- Weitere Beschreibungen ---";
         idee.beschreibungen.forEach(b => {
-            if (b && b.sichtbar !== false && b.text) {
-                terminBeschreibungText += `\n\nWeitere Beschreibung (${getFormattedDate(b.timestamp)}):\n${b.text}`;
+            if (b && b.sichtbar !== false && b.text) { // Nur sichtbare Beschreibungen
+                terminBeschreibungText += `\n\nBeschreibung vom ${getFormattedDate(b.timestamp)}:\n${b.text}`;
             }
         });
     }
+
+    // NEU: Dateianhänge (Links) hinzufügen
+    if (idee.dateien && idee.dateien.length > 0) {
+        let anhangLinksText = "";
+        idee.dateien.forEach(datei => {
+            if (datei && datei.link && datei.sichtbar !== false) { // Nur sichtbare Dateien mit Link
+                if (anhangLinksText === "") { // Erste Überschrift nur einmal hinzufügen
+                    anhangLinksText += "\n\n--- Anhänge ---";
+                }
+                anhangLinksText += `\n${datei.name || 'Unbenannter Anhang'}: ${datei.link}`;
+            } else if (datei && datei.name && datei.sichtbar !== false) { // Sichtbare lokale Dateien (ohne Link)
+                 if (anhangLinksText === "") { // Erste Überschrift nur einmal hinzufügen
+                    anhangLinksText += "\n\n--- Anhänge ---";
+                }
+                anhangLinksText += `\n${datei.name || 'Unbenannter Anhang'} (Lokale Datei, kein direkter Link verfügbar)`;
+            }
+        });
+        terminBeschreibungText += anhangLinksText;
+    }
     
-    // Formatierung für Google Kalender Link (UTC)
+    // Optionale Kürzung, falls die Beschreibung (jetzt mit Links) zu lang für die URL wird
+    let finalTerminBeschreibungText = terminBeschreibungText; // Neue Variable für ggf. gekürzten Text
+    const MAX_URL_DESC_LENGTH = 1800; 
+    if (finalTerminBeschreibungText.length > MAX_URL_DESC_LENGTH) {
+        finalTerminBeschreibungText = finalTerminBeschreibungText.substring(0, MAX_URL_DESC_LENGTH) + "\n... (Inhalt für Kalenderlink gekürzt)";
+        zeigeWarnung("Die Terminbeschreibung (inkl. Anhänge) war für den Kalenderlink zu lang und wurde automatisch gekürzt.", "info");
+    }
+    
+    // Google Kalender Link erstellen
     const toUTCGoogleFormat = (date) => {
         return date.getUTCFullYear() +
                ('0' + (date.getUTCMonth() + 1)).slice(-2) +
@@ -1264,15 +1293,18 @@ async function kalenderTerminErstellenUndSpeichern() {
     let calendarUrl = `https://www.google.com/calendar/render?action=TEMPLATE`;
     calendarUrl += `&text=${encodeURIComponent(titel)}`;
     calendarUrl += `&dates=${toUTCGoogleFormat(startDatum)}/${toUTCGoogleFormat(endeDatum)}`;
-    calendarUrl += `&details=${encodeURIComponent(terminBeschreibungText.replace(/\n/g, '\r\n'))}`; // \r\n für bessere Kompatibilität
+    calendarUrl += `&details=${encodeURIComponent(finalTerminBeschreibungText.replace(/\n/g, '\r\n'))}`; 
     if (ort) {
         calendarUrl += `&location=${encodeURIComponent(ort)}`;
     }
 
+    console.log("Generierter Kalender-URL:", calendarUrl);
+    console.log("Länge des Kalender-URLs:", calendarUrl.length);
+
     window.open(calendarUrl, '_blank');
     zeigeWarnung("Kalenderlink wurde erstellt und geöffnet. Bitte Termin dort bestätigen/speichern.", "success");
 
-    const nachweisText = `Kalendertermin erstellt für: ${getFormattedDate(startDatum)} bis ${getFormattedDate(endeDatum)}. Titel: "${titel}" ${ort ? `, Ort: "${ort}"` : ''}`;
+    const nachweisText = `Kalendertermin erstellt für: ${getFormattedDate(startDatum)} bis ${getFormattedDate(endeDatum)}. Titel: "${titel}" ${ort ? `, Ort: "${ort}"` : ''}. Links zu Anhängen wurden ggf. mitübertragen.`;
     if (!ideen[ideeIndex].beschreibungen) {
         ideen[ideeIndex].beschreibungen = [];
     }
