@@ -467,7 +467,7 @@ function zeigeIdeen() {
                   <div class="idee-content">
                     ${vNumHtml}<h3>${sanierterIdeeText}</h3><p>${sanierterIdeeDetails}</p>
                     ${idee.benutzer ? `<div>Zust.: <b>${idee.benutzer}</b></div>` : ""} ${idee.mandantennummer ? `<div>Mandant: <b>${idee.mandantennummer}</b></div>` : ""} ${idee.firmenname ? `<div>Firma: <b>${idee.firmenname}</b></div>` : ""}
-                    ${beschreibungenHtml} {/* Bereits saniert innerhalb der Erstellung */}
+                    ${beschreibungenHtml}
                     <small>${idee.kategorie || '-'} | ${idee.prioritaet || "-"} | ${datum}</small>
                     ${erinnerungHtml}
                     ${dateiHtml}
