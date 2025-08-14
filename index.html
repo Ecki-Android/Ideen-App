@@ -48,7 +48,7 @@ button:disabled { cursor: not-allowed; opacity: 0.6; } /* Style für deaktiviert
 #warnung.warnung{ color:#d32f2f; border: 1px solid #d32f2f; background-color: #ffe0e0; }
 #warnung.success-message { color: #388e3c; border: 1px solid #388e3c; background-color: #e8f5e9; }
 #warnung.info-message { color: #1a73e8; border: 1px solid #1a73e8; background-color: #e8f0fe; }
-.beschreibung-item .edit-beschreibung-btn { padding: 3px 6px; font-size: 0.8em; margin-top: 0; min-width: auto; width: auto; height: 24px; line-height: 1; display: flex; align-items: center; justify-content: center; }
+.beschreibung-item .edit-beschreibung-btn, .beschreibung-item .add-anhang-beschreibung-btn { padding: 3px 6px; font-size: 0.8em; margin-top: 0; min-width: auto; width: auto; height: 24px; line-height: 1; display: flex; align-items: center; justify-content: center; }
 .top-actions .onedrive-btn { background: #0078d4; color: white; border-color: #005a9e; }
 
 /* --- START HINZUGEFÜGTE CSS REGELN --- */
@@ -121,15 +121,26 @@ button:disabled { cursor: not-allowed; opacity: 0.6; } /* Style für deaktiviert
     align-items: center;
     justify-content: center;
 }
-/* --- ENDE HINZUGEFÜGTE CSS REGELN --- */
+/** NEU: CSS für Beschreibungs-Anhänge **/
+.beschreibung-anhaenge {
+    font-size: 0.9em;
+    margin-top: 5px;
+    padding-left: 10px;
+    border-left: 2px solid #ddd;
+}
+.beschreibung-anhang-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 2px;
+}
+/** ENDE NEUE CSS REGELN **/
 
 .erinnerung-info { font-size: 0.85em; color: #0078d4; margin-top: 5px; }
-/* Wiederverwendung der .erinnerung-dialog-content Klasse für .terminDialog */
 .erinnerung-dialog-content label { display: block; margin-top:10px; font-weight: bold;}
 .erinnerung-dialog-content input[type="datetime-local"],
 .erinnerung-dialog-content select,
 .erinnerung-dialog-content input[type="number"],
-.erinnerung-dialog-content input[type="text"] { width: calc(100% - 22px); } /* Text-Input für Ort hinzugefügt */
+.erinnerung-dialog-content input[type="text"] { width: calc(100% - 22px); }
 .erinnerung-dialog-content .checkbox-label { display: inline-block; font-weight: normal; margin-left: 5px;}
 .erinnerung-dialog-content input[type="checkbox"] { width: auto; display: inline-block; margin-right: 5px; vertical-align: middle;}
 
@@ -186,6 +197,8 @@ button:disabled { cursor: not-allowed; opacity: 0.6; } /* Style für deaktiviert
 
 <div id="ideenListe"></div>
 <div id="beschreibungDialog" style="display:none;" class="beschreibung-eingabe"> <textarea id="beschreibungText" placeholder="Weitere Beschreibung" rows="2"></textarea> <button onclick="beschreibungSpeichern()">💾 Speichern</button> <button onclick="beschreibungAbbrechen()">❌ Abbrechen</button> </div>
+
+<input type="file" id="beschreibungAnhangInput" style="display: none;" onchange="handleBeschreibungAnhangUpload(event)" multiple>
 
 <div id="erinnerungDialog" style="display:none;" class="erinnerung-dialog-content">
     <h3>Erinnerung einstellen</h3>
@@ -254,14 +267,17 @@ console.log("Script started");
 const msalConfig={auth:{clientId:"ddf69193-7eab-4847-a995-b6c08f0df9ae",authority:"https://login.microsoftonline.com/683748a6-faf7-45ef-9da3-10e903da0b00",knownAuthorities:["login.microsoftonline.com"],redirectUri:"https://ecki-android.github.io"}};
 let accessToken=null, msalInstance=null, prioritaet="", bearbeiteId=null, ausgewaehlt=[], fileHandle=null, beschreibungFuerId=null, beschreibungZuBearbeitenderTimestamp=null, istGespeichert=!0;
 let erinnerungFuerId = null;
-let terminFuerId = null; // NEUE VARIABLE HIER
+let terminFuerId = null;
+/** NEU: Variable zum Speichern des Ziels für den Beschreibungs-Anhang **/
+let anhangFuerBeschreibungZiel = { ideeId: null, timestamp: null };
+
 const standardKategorien=["Aufgaben","Projekte","Privat","Arbeit","Später"];
 let kategorien=[];
 let benutzerliste=[];
 let filterMandantValue="";
 let filterBenutzerValue="";
 let naechsteVorgangsnummer=1;
-let benachrichtigungsIntervallId = null; 
+let benachrichtigungsIntervallId = null;
 
 function generateUUID(){return'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0,v=c=='x'?r:(r&0x3|0x8);return v.toString(16)})}
 function pruebeLoginHinweis(){document.getElementById("loginHinweis").style.display=accessToken?"none":"block"}
@@ -339,7 +355,7 @@ async function speichereIdee() {
 
 function saveIdeeObjekt(text, dateien) {
     let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-    const details = document.getElementById("ideeDetails").value; // .trim() entfernt für optionale Kürzung später
+    const details = document.getElementById("ideeDetails").value;
     const kat = document.getElementById("kategorie").value;
     const mnr = document.getElementById("mandantennummer").value.trim();
     const firma = document.getElementById("firmenname").value.trim();
@@ -349,10 +365,9 @@ function saveIdeeObjekt(text, dateien) {
         id: d.id, name: d.name, link: d.link || null, type: d.type,
         sichtbar: typeof d.sichtbar === 'boolean' ? d.sichtbar : true
     }));
-
-    // Optionale Kürzung für Details
+    
     let finalDetails = details;
-    const MAX_DETAILS_LENGTH = 20000; // Beispielhafte Maximallänge
+    const MAX_DETAILS_LENGTH = 20000;
     if (finalDetails.length > MAX_DETAILS_LENGTH) {
         finalDetails = finalDetails.substring(0, MAX_DETAILS_LENGTH);
         zeigeWarnung("Die Hauptbeschreibung war sehr lang und wurde gekürzt.", "info");
@@ -365,7 +380,7 @@ function saveIdeeObjekt(text, dateien) {
         if (idx !== -1) {
             const old = ideen[idx];
             const erinnerung = old.erinnerung || getDefaultErinnerung(text, old.vorgangsnummer);
-            erinnerung.titel = text; // Titel der Erinnerung mit Ideentitel synchron halten
+            erinnerung.titel = text; 
             erinnerung.vorgangsnummer = old.vorgangsnummer;
 
             ideen[idx] = { ...old, text, details: finalDetails, kategorie: kat, prioritaet, mandantennummer: mnr, firmenname: firma, benutzer: user, dateien: prozessierteDateien, erinnerung: erinnerung };
@@ -374,7 +389,7 @@ function saveIdeeObjekt(text, dateien) {
         } else { zeigeWarnung("Fehler: Idee nicht gefunden."); return; }
     } else {
         const num = naechsteVorgangsnummer;
-        const erinnerung = getDefaultErinnerung(text, num); // Titel und Nummer für neue Erinnerung setzen
+        const erinnerung = getDefaultErinnerung(text, num);
 
         const neu = { id: generateUUID(), vorgangsnummer: num, text, details: finalDetails, kategorie: kat, prioritaet, mandantennummer: mnr, firmenname: firma, benutzer: user, dateien: prozessierteDateien, timestamp: new Date().toISOString(), erledigt: false, beschreibungen: [], erinnerung: erinnerung };
         ideen.push(neu);
@@ -389,13 +404,13 @@ function saveIdeeObjekt(text, dateien) {
 }
 /* --- END BLOCK 5a --- */
 
-/* --- START BLOCK 5b: Display Ideas --- */
+/* --- START BLOCK 5b: Display Ideas (MODIFIZIERT) --- */
 function zeigeIdeen() {
     let fIdeen = [];
     try { fIdeen = JSON.parse(localStorage.getItem("ideen") || "[]"); } catch(e) { console.error("Fehler beim Laden der Ideen:", e); localStorage.removeItem("ideen"); fIdeen = []; }
     if (!Array.isArray(fIdeen)) fIdeen = [];
 
-    let filtered = fIdeen.filter(i => i && i.id); // Grundfilterung auf valide Objekte mit ID
+    let filtered = fIdeen.filter(i => i && i.id); 
 
     const fKat=document.getElementById("filterKategorie")?.value;if(fKat)filtered=filtered.filter(i=>i.kategorie===fKat);
     filterMandantValue=document.getElementById("filterMandant")?.value;if(filterMandantValue)filtered=filtered.filter(i=>(i.mandantennummer||"").toLowerCase()===filterMandantValue.toLowerCase());
@@ -432,14 +447,33 @@ function zeigeIdeen() {
                 const istSichtbar = b.sichtbar === true; const beschreibungKlasse = istSichtbar ? "" : " beschreibung-veraltet"; const sichtbarkeitButtonSymbol = istSichtbar ? '👁️' : '🙈';
                 const sichtbarkeitButtonTitle = istSichtbar ? 'Beschreibung ausblenden' : 'Beschreibung einblenden'; const praefix = istSichtbar ? "" : "[Ausgeblendet] ";
                 const sanierterBeschreibungstext = (b.text || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                
+                /** MODIFIZIERT: HTML für Beschreibungs-Anhänge generieren **/
+                let beschreibungAnhaengeHtml = "";
+                if (b.attachments && b.attachments.length > 0) {
+                    beschreibungAnhaengeHtml = `<div class="beschreibung-anhaenge">${
+                        b.attachments.map(anhang => {
+                            const anhangUrl = anhang.link || '#';
+                            const anhangIcon = anhang.link ? '🌐' : '📎';
+                            return `<div class="beschreibung-anhang-item">
+                                        <a href="${anhangUrl}" target="_blank" title="${anhang.name || ''}">${anhangIcon} ${anhang.name || 'Unbekannt'}</a>
+                                    </div>`;
+                        }).join('')
+                    }</div>`;
+                }
+
                 return `<div class="beschreibung-item${beschreibungKlasse}" style="margin-left: ${indentMargin}px; width: ${itemWidth};">
-                            <div class="beschreibung-text-zeit"><span class="beschreibung-zeit">${btsText}</span>${praefix}${sanierterBeschreibungstext}</div>
+                            <div class="beschreibung-text-zeit">
+                                <span class="beschreibung-zeit">${btsText}</span>${praefix}${sanierterBeschreibungstext}
+                                ${beschreibungAnhaengeHtml}
+                            </div>
                             <div class="beschreibung-item-actions">
                                 <button class="edit-beschreibung-btn" title="Bearbeiten" onclick="bearbeiteEinzelneBeschreibung('${id}','${b.timestamp}')">✏️</button>
                                 <button class="move-beschreibung-btn" title="Nach oben" onclick="verschiebeBeschreibung('${id}','${b.timestamp}', -1)">⬆️</button>
                                 <button class="move-beschreibung-btn" title="Nach unten" onclick="verschiebeBeschreibung('${id}','${b.timestamp}', 1)">⬇️</button>
                                 <button class="move-beschreibung-btn" title="Ausrücken" onclick="aendereEinrueckungBeschreibung('${id}','${b.timestamp}', -1)" ${indentLevel === 0 ? 'disabled' : ''}>⬅️</button>
                                 <button class="move-beschreibung-btn" title="Einrücken" onclick="aendereEinrueckungBeschreibung('${id}','${b.timestamp}', 1)">➡️</button>
+                                <button class="add-anhang-beschreibung-btn" title="Anhang zur Beschreibung hinzufügen" onclick="starteAnhangUploadFuerBeschreibung('${id}','${b.timestamp}')">📎</button>
                                 <button class="toggle-beschreibung-sichtbarkeit-btn" title="${sichtbarkeitButtonTitle}" onclick="toggleBeschreibungSichtbarkeit('${id}', '${b.timestamp}')">${sichtbarkeitButtonSymbol}</button>
                             </div>
                         </div>`;
@@ -464,43 +498,43 @@ function zeigeIdeen() {
         const sanierterIdeeDetails = (idee.details || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
         return `<div class="idee${erledigt ? ' erledigt' : ''}" data-idee-id="${id}">
-                  <div class="idee-content">
-                    ${vNumHtml}<h3>${sanierterIdeeText}</h3><p>${sanierterIdeeDetails}</p>
-                    ${idee.benutzer ? `<div>Zust.: <b>${idee.benutzer}</b></div>` : ""} ${idee.mandantennummer ? `<div>Mandant: <b>${idee.mandantennummer}</b></div>` : ""} ${idee.firmenname ? `<div>Firma: <b>${idee.firmenname}</b></div>` : ""}
-                    ${beschreibungenHtml}
-                    <small>${idee.kategorie || '-'} | ${idee.prioritaet || "-"} | ${datum}</small>
-                    ${erinnerungHtml}
-                    ${dateiHtml}
-                    <div class="idee-actions">
-                        <button onclick="verschiebeIdee('${id}',-1)">⬆️</button>
-                        <button onclick="verschiebeIdee('${id}',1)">⬇️</button>
-                        <button onclick="bearbeiteIdee('${id}')">✏️</button>
-                        <button onclick="toggleErledigt('${id}')">${erledigt ? "↩️" : "✔️"}</button>
-                        <button onclick="loescheIdee('${id}')">🗑️</button>
-                        <button onclick="zeigeBeschreibungDialog('${id}')">+ Beschr</button>
-                        <button onclick="zeigeErinnerungDialog('${id}')">🔔 Erinnerung</button>
-                        <button onclick="zeigeTerminDialog('${id}')">🗓️ Termin</button> 
+                    <div class="idee-content">
+                        ${vNumHtml}<h3>${sanierterIdeeText}</h3><p>${sanierterIdeeDetails}</p>
+                        ${idee.benutzer ? `<div>Zust.: <b>${idee.benutzer}</b></div>` : ""} ${idee.mandantennummer ? `<div>Mandant: <b>${idee.mandantennummer}</b></div>` : ""} ${idee.firmenname ? `<div>Firma: <b>${idee.firmenname}</b></div>` : ""}
+                        ${beschreibungenHtml}
+                        <small>${idee.kategorie || '-'} | ${idee.prioritaet || "-"} | ${datum}</small>
+                        ${erinnerungHtml}
+                        ${dateiHtml}
+                        <div class="idee-actions">
+                            <button onclick="verschiebeIdee('${id}',-1)">⬆️</button>
+                            <button onclick="verschiebeIdee('${id}',1)">⬇️</button>
+                            <button onclick="bearbeiteIdee('${id}')">✏️</button>
+                            <button onclick="toggleErledigt('${id}')">${erledigt ? "↩️" : "✔️"}</button>
+                            <button onclick="loescheIdee('${id}')">🗑️</button>
+                            <button onclick="zeigeBeschreibungDialog('${id}')">+ Beschr</button>
+                            <button onclick="zeigeErinnerungDialog('${id}')">🔔 Erinnerung</button>
+                            <button onclick="zeigeTerminDialog('${id}')">🗓️ Termin</button> 
+                        </div>
                     </div>
-                  </div>
-                  <input type="checkbox" class="idee-checkbox" onchange="toggleAuswahl('${id}',this)" ${ausgewaehlt.includes(id) ? "checked" : ""}>
+                    <input type="checkbox" class="idee-checkbox" onchange="toggleAuswahl('${id}',this)" ${ausgewaehlt.includes(id) ? "checked" : ""}>
                 </div>`;
-        } catch (e) {
-            console.error("Fehler beim Darstellen einer Idee (möglicherweise korrupte Daten):", idee, e);
-            if (idee && idee.id) {
-                 return `<div class="idee erledigt" data-idee-id="${idee.id}">
-                            <div class="idee-content">
-                                <h3>Fehlerhafte Idee (ID: ${idee.id})</h3>
-                                <p>Diese Idee konnte nicht korrekt geladen werden. Bitte überprüfen Sie die Daten oder löschen Sie den Eintrag.</p>
-                                <p>Fehlermeldung: ${e.message}</p>
-                                <div class="idee-actions">
-                                     <button onclick="loescheIdee('${idee.id}')">🗑️ Diesen Eintrag löschen</button>
-                                </div>
+      } catch (e) {
+        console.error("Fehler beim Darstellen einer Idee (möglicherweise korrupte Daten):", idee, e);
+        if (idee && idee.id) {
+             return `<div class="idee erledigt" data-idee-id="${idee.id}">
+                        <div class="idee-content">
+                            <h3>Fehlerhafte Idee (ID: ${idee.id})</h3>
+                            <p>Diese Idee konnte nicht korrekt geladen werden. Bitte überprüfen Sie die Daten oder löschen Sie den Eintrag.</p>
+                            <p>Fehlermeldung: ${e.message}</p>
+                            <div class="idee-actions">
+                                 <button onclick="loescheIdee('${idee.id}')">🗑️ Diesen Eintrag löschen</button>
                             </div>
-                             <input type="checkbox" class="idee-checkbox" style="display:none;">
-                         </div>`;
-            }
-            return ""; 
+                        </div>
+                         <input type="checkbox" class="idee-checkbox" style="display:none;">
+                       </div>`;
         }
+        return ""; 
+      }
     }).join("");
 
     if (bearbeiteId !== null && !filtered.some(i => i && i.id === bearbeiteId)) abbrechenBearbeiten();
@@ -555,7 +589,8 @@ function beschreibungSpeichern(){
         } else {
             const ts=new Date().toISOString()+'_'+Math.random().toString(36).substr(2,9);
             if(!ideen[idx].beschreibungen) ideen[idx].beschreibungen=[];
-            ideen[idx].beschreibungen.push({text:t, timestamp:ts, level: 0, sichtbar: true});
+            // MODIFIZIERT: Neue Beschreibung erhält ein leeres attachments Array
+            ideen[idx].beschreibungen.push({text:t, timestamp:ts, level: 0, sichtbar: true, attachments: []});
         }
         localStorage.setItem("ideen",JSON.stringify(ideen));
         zeigeIdeen();
@@ -563,6 +598,82 @@ function beschreibungSpeichern(){
     beschreibungAbbrechen(); istGespeichert=false; 
     if (typeof saveToOneDrive === "function") saveToOneDrive();
 }
+
+/** NEU: Funktion, um den Dateiupload-Dialog für eine Beschreibung zu starten **/
+function starteAnhangUploadFuerBeschreibung(ideeId, timestamp) {
+    // Speichere die IDs, damit der Event Handler weiß, wohin der Anhang soll
+    anhangFuerBeschreibungZiel = { ideeId: ideeId, timestamp: timestamp };
+    const fileInput = document.getElementById('beschreibungAnhangInput');
+    fileInput.value = ''; // Input zurücksetzen, um gleiche Datei erneut wählen zu können
+    fileInput.click();
+}
+
+/** NEU: Funktion, die den Upload nach Auswahl einer Datei handhabt **/
+async function handleBeschreibungAnhangUpload(event) {
+    const { ideeId, timestamp } = anhangFuerBeschreibungZiel;
+    if (!ideeId || !timestamp || !event.target.files) {
+        return;
+    }
+
+    const files = event.target.files;
+    if (files.length === 0) return;
+
+    zeigeWarnung(`Lade ${files.length} Datei(en) für Beschreibung hoch...`, 'info');
+
+    let neueAnhaenge = [];
+    if (accessToken) {
+        try {
+            neueAnhaenge = await Promise.all(Array.from(files).map(async f => {
+                const link = await uploadToOneDrive(f);
+                return { id: generateUUID(), name: f.name, link: link, type: f.type };
+            }));
+            neueAnhaenge = neueAnhaenge.filter(f => f.link !== null);
+        } catch (e) {
+            zeigeWarnung("Fehler beim OneDrive-Upload: " + e.message, 'warnung');
+            return;
+        }
+    } else {
+        neueAnhaenge = Array.from(files).map(f => ({
+            id: generateUUID(), name: f.name, link: null, type: f.type
+        }));
+    }
+
+    if (neueAnhaenge.length === 0) {
+        zeigeWarnung("Keine Anhänge erfolgreich verarbeitet.", 'warnung');
+        return;
+    }
+
+    let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+    const ideeIndex = ideen.findIndex(i => i && i.id === ideeId);
+    if (ideeIndex === -1) {
+        zeigeWarnung("Fehler: Zugehörige Idee nicht gefunden.", 'warnung');
+        return;
+    }
+
+    const beschreibungIndex = ideen[ideeIndex].beschreibungen.findIndex(b => b && b.timestamp === timestamp);
+    if (beschreibungIndex === -1) {
+        zeigeWarnung("Fehler: Zugehörige Beschreibung nicht gefunden.", 'warnung');
+        return;
+    }
+
+    // Stelle sicher, dass das attachments-Array existiert
+    if (!Array.isArray(ideen[ideeIndex].beschreibungen[beschreibungIndex].attachments)) {
+        ideen[ideeIndex].beschreibungen[beschreibungIndex].attachments = [];
+    }
+    
+    // Füge die neuen Anhänge hinzu
+    ideen[ideeIndex].beschreibungen[beschreibungIndex].attachments.push(...neueAnhaenge);
+
+    localStorage.setItem("ideen", JSON.stringify(ideen));
+    zeigeWarnung(`${neueAnhaenge.length} Anhang/Anhänge zur Beschreibung hinzugefügt.`, 'success');
+    zeigeIdeen();
+    istGespeichert = false;
+    if (typeof saveToOneDrive === "function") saveToOneDrive();
+
+    // Reset der Ziel-Variable
+    anhangFuerBeschreibungZiel = { ideeId: null, timestamp: null };
+}
+
 
 function bearbeiteEinzelneBeschreibung(id,ts){if(ts)zeigeBeschreibungDialog(id,ts);else zeigeWarnung("Interner Fehler: Timestamp fehlt.")}
 function toggleAuswahl(id,box){if(box.checked){if(!ausgewaehlt.includes(id))ausgewaehlt.push(id)}else{ausgewaehlt=ausgewaehlt.filter(i=>i!==id)}}
@@ -744,7 +855,7 @@ function toggleErinnerungVorabDetails() {
     document.getElementById("erinnerungVorabDetailsContainer").style.display = checked ? 'block' : 'none';
 }
 /* --- END BLOCK 5d --- */
-/* --- START BLOCK 6 (Angepasst für Erinnerung, neue E-Mail Funktion und PDF-Metadaten) --- */
+/* --- START BLOCK 6 (MODIFIZIERT) --- */
 function getFormattedDate(timestamp) { if (timestamp) { let ts = timestamp; if (typeof ts === 'string' && ts.includes('_')) { ts = ts.split('_')[0]; } try { const d = new Date(ts); if (!isNaN(d.getTime())) { return d.toLocaleString("de-DE", { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }); } } catch (e) { } } return 'N/A'; }
 function getExportIdeen() { let resultIdeen = []; try { let ideen = []; try { ideen = JSON.parse(localStorage.getItem("ideen") || "[]"); if (!Array.isArray(ideen)) { ideen = []; localStorage.setItem("ideen", "[]"); } } catch (e) { localStorage.removeItem("ideen"); ideen = []; } const aktuellAusgewaehlteCheckboxes = Array.from(document.querySelectorAll('.idee-checkbox:checked')); let aktuellAusgewaehlteIDs = []; if (aktuellAusgewaehlteCheckboxes.length > 0) { aktuellAusgewaehlteIDs = aktuellAusgewaehlteCheckboxes.map(cb => { try { let parentIdeeDiv = cb.closest('.idee'); if (parentIdeeDiv) { const buttonsMitId = parentIdeeDiv.querySelectorAll('button[onclick*="loescheIdee("], button[onclick*="bearbeiteIdee("], button[onclick*="toggleErledigt("]'); for(let btn of buttonsMitId) { if (btn.onclick) { const match = btn.onclick.toString().match(/\('([^']+)'\)/); if (match && match[1]) return match[1]; } } } } catch (e) { } return null; }).filter(id => id !== null); if (aktuellAusgewaehlteIDs.length > 0) { resultIdeen = ideen.filter(i => i && i.id && aktuellAusgewaehlteIDs.includes(i.id)); } else { resultIdeen = []; } } else { let fIdeen = [...ideen.filter(i=>i&&i.id)]; const fKat = document.getElementById("filterKategorie")?.value; if (fKat) fIdeen = fIdeen.filter(i => i.kategorie === fKat); const fMdt = document.getElementById("filterMandant")?.value; if (fMdt) fIdeen = fIdeen.filter(i => (i.mandantennummer || "").toLowerCase() === fMdt.toLowerCase()); const fUser = document.getElementById("filterBenutzer")?.value; if (fUser) fIdeen = fIdeen.filter(i => (i.benutzer || "").toLowerCase() === fUser.toLowerCase()); const fArchiv = document.getElementById("filterArchiv")?.value; if (fArchiv === "nicht_erledigt") fIdeen = fIdeen.filter(i => !(i.erledigt || false)); else if (fArchiv === "erledigt") fIdeen = fIdeen.filter(i => (i.erledigt || false)); const sort=document.getElementById("sortierung")?.value; if(sort && sort!=="standard"){ fIdeen.sort((a,b)=>{ if (!a || !b) return 0; if(sort==="prio"){ const p={"Hoch":3,"Mittel":2,"Niedrig":1}; return(p[b.prioritaet]||0)-(p[a.prioritaet]||0); } let tA=-Infinity,tB=-Infinity; try{tA=new Date(a.timestamp?.split('_')[0]).getTime();if(isNaN(tA))tA=(sort==="neu"?-Infinity:Infinity)}catch(e){tA=(sort==="neu"?-Infinity:Infinity)} try{tB=new Date(b.timestamp?.split('_')[0]).getTime();if(isNaN(tB))tB=(sort==="neu"?-Infinity:Infinity)}catch(e){tB=(sort==="neu"?-Infinity:Infinity)} if(sort==="neu")return tB-tA; if(sort==="alt")return tA-tB; return 0; }); } resultIdeen = fIdeen; } } catch (error) { resultIdeen = []; } if (!Array.isArray(resultIdeen)) { return []; } return resultIdeen; }
 
@@ -785,14 +896,20 @@ function exportiereAlsText() {
         }
 
         if (idee.beschreibungen && idee.beschreibungen.length > 0) {
-             textContent += `\nWeitere Beschreibungen:\n`;
-             idee.beschreibungen.forEach(b => {
-                if (b && b.text !== undefined) {
-                    const indentSpaces = "  ".repeat(b.level || 0);
-                    const praefix = b.sichtbar === false ? "[Ausgeblendet] " : "";
-                    textContent += `${indentSpaces}- [${getFormattedDate(b.timestamp)}] ${praefix}${b.text}\n`;
-                }
-             });
+              textContent += `\nWeitere Beschreibungen:\n`;
+              idee.beschreibungen.forEach(b => {
+                  if (b && b.text !== undefined) {
+                      const indentSpaces = "  ".repeat(b.level || 0);
+                      const praefix = b.sichtbar === false ? "[Ausgeblendet] " : "";
+                      textContent += `${indentSpaces}- [${getFormattedDate(b.timestamp)}] ${praefix}${b.text}\n`;
+                      /** MODIFIZIERT: Anhänge der Beschreibung zum Text-Export hinzufügen **/
+                      if (b.attachments && b.attachments.length > 0) {
+                          b.attachments.forEach(anhang => {
+                              textContent += `${indentSpaces}  -> Anhang: ${anhang.name} ${anhang.link ? `(${anhang.link})` : '(Lokal)'}\n`;
+                          });
+                      }
+                  }
+              });
         }
 
         if (idee.dateien && idee.dateien.length > 0) {
@@ -810,7 +927,6 @@ function exportiereAlsText() {
      const blob = new Blob([textContent], { type: "text/plain;charset=utf-8" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "ideen-export.txt"; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); zeigeWarnung("Text-Export gestartet.", "success");
 }
 
-/* --- Hilfsfunktion zum Bereinigen von Dateinamen --- */
 function sanitizeFilename(name) {
     if (!name) return "Unbenannte_Idee";
     let sanitized = name.replace(/[\\/:*?"<>|#%&{}]/g, '');
@@ -821,7 +937,6 @@ function sanitizeFilename(name) {
     return sanitized.substring(0, 100);
 }
 
-/* --- Modifizierte Funktion exportiereAlsPDF --- */
 function exportiereAlsPDF(fileName = "ideen-export.pdf") {
     const ideenToExport = getExportIdeen();
     if (ideenToExport.length === 0) {
@@ -883,7 +998,14 @@ function exportiereAlsPDF(fileName = "ideen-export.pdf") {
         const lines = doc.splitTextToSize(text || "N/A", maxWidth);
         for (let i = 0; i < lines.length; i++) {
             checkAddPage(lineHeight);
-            doc.text(lines[i], x, yPosition);
+            if (options.link && i === 0) { // Link nur für die erste Zeile des Anhangs-Textes
+                 const textWidth = doc.getTextWidth(lines[i]);
+                 const charHeight = doc.getFontSize() / doc.internal.scaleFactor;
+                 doc.text(lines[i], x, yPosition);
+                 doc.link(x, yPosition - charHeight + 1, textWidth, charHeight, { url: options.link });
+            } else {
+                 doc.text(lines[i], x, yPosition);
+            }
             yPosition += lineHeight;
         }
     }
@@ -948,6 +1070,16 @@ function exportiereAlsPDF(fileName = "ideen-export.pdf") {
                     } else { 
                         addWrappedText(textToDisplay, leftMargin + 5, contentWidth - 5, { fontSize: 10, lineHeight: defaultLineSpacing, color: textColor });
                     }
+                    /** MODIFIZIERT: Anhänge der Beschreibung zum PDF-Export hinzufügen **/
+                    if(b.attachments && b.attachments.length > 0) {
+                        checkAddPage(defaultLineSpacing);
+                        b.attachments.forEach(anhang => {
+                           const anhangText = `  -> ${anhang.name}`;
+                           const anhangColor = anhang.link ? [0, 0, 238] : [0,0,0];
+                           addWrappedText(anhangText, startX + 5, maxWidth - 5, {fontSize: 9, color: anhangColor, lineHeight: 4, link: anhang.link});
+                        });
+                        yPosition += 2; // Extra Abstand nach den Anhängen
+                    }
                 }
             });
             yPosition += (sectionSpacing / 2);
@@ -1003,7 +1135,6 @@ function exportiereAlsPDF(fileName = "ideen-export.pdf") {
     return true; 
 }
 
-/* --- Grundlegend überarbeitete Funktion teilePerEmail --- */
 async function teilePerEmail() {
     const ideenToExport = getExportIdeen();
     if (ideenToExport.length === 0) {
@@ -1093,7 +1224,7 @@ async function teilePerEmail() {
             const desc = `Informationen weitergeleitet (PDF-Download für E-Mail '${recipientInfo}') am ${exportTimestamp}. PDF-Name: ${pdfFileName}`;
             if (!idee.beschreibungen) { idee.beschreibungen = []; }
             const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9);
-            idee.beschreibungen.push({ text: desc, timestamp: ts, level: 0, sichtbar: true });
+            idee.beschreibungen.push({ text: desc, timestamp: ts, level: 0, sichtbar: true, attachments: [] });
             changed = true;
         }
     });
@@ -1119,9 +1250,16 @@ async function teilePerWhatsApp(){
          const beschreibungenText = idee.beschreibungen && idee.beschreibungen.length ?
              `\n*Weitere Beschreibungen:*\n${
                  idee.beschreibungen.filter(b => b && b.text !== undefined).map(b => {
-                     const indentSpacesWA = "  ".repeat(b.level || 0);
-                     const praefix = b.sichtbar === false ? "[Ausgeblendet] " : "";
-                     return `${indentSpacesWA}  - _[${getFormattedDate(b.timestamp)}]_ ${praefix}${b.text}`;
+                      const indentSpacesWA = "  ".repeat(b.level || 0);
+                      const praefix = b.sichtbar === false ? "[Ausgeblendet] " : "";
+                      let anhangTextWA = "";
+                      /** MODIFIZIERT: Anhänge der Beschreibung für WhatsApp-Export hinzufügen **/
+                      if(b.attachments && b.attachments.length > 0) {
+                          anhangTextWA = "\n" + b.attachments.map(anhang => {
+                             return `${indentSpacesWA}  -> Anhang: ${anhang.name} ${anhang.link ? `(${anhang.link})` : ''}`;
+                          }).join("\n");
+                      }
+                      return `${indentSpacesWA}  - _[${getFormattedDate(b.timestamp)}]_ ${praefix}${b.text}${anhangTextWA}`;
                  }).join("\n")
              }` : "";
         let anhaengeTextForWhatsApp = "\n📎 Anhänge: Keine";
@@ -1147,14 +1285,11 @@ async function teilePerWhatsApp(){
     }).filter(s => s !== "").join("\n\n------------------------------------\n\n");
 
      const exportTimestamp = new Date().toLocaleString("de-DE"); const weitergeleitetText = `\n\n_[Notiz(en) markiert als: Weitergeleitet an ${recipientInfo} am ${exportTimestamp}]_`; text += weitergeleitetText; const waLink = `https://wa.me/?text=${encodeURIComponent(text)}`; try { const waWindow = window.open(waLink,"_blank"); if (!waWindow) { zeigeWarnung("WhatsApp konnte nicht geöffnet werden.", "warning"); } } catch (e) { console.error("WhatsApp Fehler:", e); zeigeWarnung("Fehler WhatsApp: " + e.message); }
-     await new Promise(resolve => setTimeout(resolve, 100)); let ideenImSpeicher = JSON.parse(localStorage.getItem("ideen") || "[]"); let changed = false; const ausgewaehlteIDsFuerWA = ideenToExport.map(i => i.id); ideenImSpeicher.forEach(idee => { if (idee && idee.id && ausgewaehlteIDsFuerWA.includes(idee.id)) { const desc = `Weitergeleitet via WhatsApp an: ${recipientInfo} am ${exportTimestamp}`; if (!idee.beschreibungen){idee.beschreibungen = [];} const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); idee.beschreibungen.push({ text: desc, timestamp: ts, level: 0, sichtbar: true }); changed = true; }}); if (changed) { localStorage.setItem("ideen", JSON.stringify(ideenImSpeicher)); zeigeIdeen(); istGespeichert = false; if (typeof saveToOneDrive === "function") await saveToOneDrive(); }
+     await new Promise(resolve => setTimeout(resolve, 100)); let ideenImSpeicher = JSON.parse(localStorage.getItem("ideen") || "[]"); let changed = false; const ausgewaehlteIDsFuerWA = ideenToExport.map(i => i.id); ideenImSpeicher.forEach(idee => { if (idee && idee.id && ausgewaehlteIDsFuerWA.includes(idee.id)) { const desc = `Weitergeleitet via WhatsApp an: ${recipientInfo} am ${exportTimestamp}`; if (!idee.beschreibungen){idee.beschreibungen = [];} const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); idee.beschreibungen.push({ text: desc, timestamp: ts, level: 0, sichtbar: true, attachments: [] }); changed = true; }}); if (changed) { localStorage.setItem("ideen", JSON.stringify(ideenImSpeicher)); zeigeIdeen(); istGespeichert = false; if (typeof saveToOneDrive === "function") await saveToOneDrive(); }
 }
 /* --- END BLOCK 6 --- */
 // --- FUNKTIONEN FÜR KALENDERTERMINERSTELLUNG ---
 
-// Die globale Variable 'terminFuerId' wurde bereits am Anfang des Scripts deklariert.
-
-// Funktion, um den Termin-Dialog anzuzeigen
 function zeigeTerminDialog(ideeId) {
     terminFuerId = ideeId;
     const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
@@ -1177,7 +1312,6 @@ function zeigeTerminDialog(ideeId) {
     const startVorschlag = new Date(jetzt);
     const endeVorschlag = new Date(startVorschlag.getTime() + 60 * 60 * 1000); // Dauer 1 Stunde
 
-    // Hilfsfunktion, um Datum korrekt für datetime-local zu formatieren
     const toLocalISOString = (date) => {
         const year = date.getFullYear();
         const month = (date.getMonth() + 1).toString().padStart(2, '0');
@@ -1195,7 +1329,6 @@ function zeigeTerminDialog(ideeId) {
     document.getElementById("terminTitelInput").focus();
 }
 
-// Funktion zum Abbrechen des Termin-Dialogs
 function terminDialogAbbrechen() {
     document.getElementById("terminDialog").style.display = "none";
     terminFuerId = null;
@@ -1238,31 +1371,37 @@ async function kalenderTerminErstellenUndSpeichern() {
     }
     const idee = ideen[ideeIndex];
 
-    // Hauptbeschreibung sammeln
     let terminBeschreibungText = idee.details || "";
 
-    // Weitere Beschreibungen hinzufügen
     if (idee.beschreibungen && idee.beschreibungen.length > 0) {
         terminBeschreibungText += "\n\n--- Weitere Beschreibungen ---";
         idee.beschreibungen.forEach(b => {
-            if (b && b.sichtbar !== false && b.text) { // Nur sichtbare Beschreibungen
+            if (b && b.sichtbar !== false && b.text) { 
                 terminBeschreibungText += `\n\nBeschreibung vom ${getFormattedDate(b.timestamp)}:\n${b.text}`;
+                /** MODIFIZIERT: Anhänge von Beschreibungen in Kalendertermin einfügen **/
+                if (b.attachments && b.attachments.length > 0) {
+                    terminBeschreibungText += "\nAnhänge zu dieser Beschreibung:";
+                    b.attachments.forEach(anhang => {
+                        if (anhang.link) {
+                            terminBeschreibungText += `\n- ${anhang.name}: ${anhang.link}`;
+                        }
+                    });
+                }
             }
         });
     }
 
-    // NEU: Dateianhänge (Links) hinzufügen
     if (idee.dateien && idee.dateien.length > 0) {
         let anhangLinksText = "";
         idee.dateien.forEach(datei => {
-            if (datei && datei.link && datei.sichtbar !== false) { // Nur sichtbare Dateien mit Link
-                if (anhangLinksText === "") { // Erste Überschrift nur einmal hinzufügen
-                    anhangLinksText += "\n\n--- Anhänge ---";
+            if (datei && datei.link && datei.sichtbar !== false) { 
+                if (anhangLinksText === "") { 
+                    anhangLinksText += "\n\n--- Haupt-Anhänge ---";
                 }
                 anhangLinksText += `\n${datei.name || 'Unbenannter Anhang'}: ${datei.link}`;
-            } else if (datei && datei.name && datei.sichtbar !== false) { // Sichtbare lokale Dateien (ohne Link)
-                 if (anhangLinksText === "") { // Erste Überschrift nur einmal hinzufügen
-                    anhangLinksText += "\n\n--- Anhänge ---";
+            } else if (datei && datei.name && datei.sichtbar !== false) { 
+                 if (anhangLinksText === "") { 
+                    anhangLinksText += "\n\n--- Haupt-Anhänge ---";
                 }
                 anhangLinksText += `\n${datei.name || 'Unbenannter Anhang'} (Lokale Datei, kein direkter Link verfügbar)`;
             }
@@ -1270,15 +1409,13 @@ async function kalenderTerminErstellenUndSpeichern() {
         terminBeschreibungText += anhangLinksText;
     }
     
-    // Optionale Kürzung, falls die Beschreibung (jetzt mit Links) zu lang für die URL wird
-    let finalTerminBeschreibungText = terminBeschreibungText; // Neue Variable für ggf. gekürzten Text
+    let finalTerminBeschreibungText = terminBeschreibungText;
     const MAX_URL_DESC_LENGTH = 1800; 
     if (finalTerminBeschreibungText.length > MAX_URL_DESC_LENGTH) {
         finalTerminBeschreibungText = finalTerminBeschreibungText.substring(0, MAX_URL_DESC_LENGTH) + "\n... (Inhalt für Kalenderlink gekürzt)";
         zeigeWarnung("Die Terminbeschreibung (inkl. Anhänge) war für den Kalenderlink zu lang und wurde automatisch gekürzt.", "info");
     }
     
-    // Google Kalender Link erstellen
     const toUTCGoogleFormat = (date) => {
         return date.getUTCFullYear() +
                ('0' + (date.getUTCMonth() + 1)).slice(-2) +
@@ -1309,7 +1446,7 @@ async function kalenderTerminErstellenUndSpeichern() {
         ideen[ideeIndex].beschreibungen = [];
     }
     const timestamp = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9);
-    ideen[ideeIndex].beschreibungen.push({ text: nachweisText, timestamp: timestamp, level: 0, sichtbar: true });
+    ideen[ideeIndex].beschreibungen.push({ text: nachweisText, timestamp: timestamp, level: 0, sichtbar: true, attachments: [] });
 
     localStorage.setItem("ideen", JSON.stringify(ideen));
     zeigeIdeen(); 
@@ -1438,11 +1575,11 @@ function pruefeUndZeigeBenachrichtigungen() {
                          if (naechsterTermin > jetzt) {
                              idee.erinnerung.termin = naechsterTermin.toISOString();
                              console.log(`Nächste Erinnerung für "${idee.text}" am: ${idee.erinnerung.termin}`);
-                        } else {
+                         } else {
                             // Falls der Termin immer noch nicht in der Zukunft liegt, Erinnerung deaktivieren
-                            idee.erinnerung.aktiv = false;
-                            console.warn(`Konnte keinen zukünftigen Termin für "${idee.text}" festlegen, Erinnerung deaktiviert.`);
-                        }
+                             idee.erinnerung.aktiv = false;
+                             console.warn(`Konnte keinen zukünftigen Termin für "${idee.text}" festlegen, Erinnerung deaktiviert.`);
+                         }
                     }
                 }
                 aenderungenVorgenommen = true;
@@ -1466,10 +1603,10 @@ function pruefeUndZeigeBenachrichtigungen() {
 async function uploadToOneDrive(f){if(!accessToken){zeigeWarnung("Bitte zuerst mit Microsoft anmelden!");return null;}try{const n=`ideenapp/${Date.now()}_${f.name}`;const u=await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${n}:/content`,{method:"PUT",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":f.type},body:f});const d=await u.json();if(!u.ok){throw new Error(`OneDrive Upload Error ${u.status}: ${d?.error?.message||'Unknown'}`);}const s=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${d.id}/createLink`,{method:"POST",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":"application/json"},body:JSON.stringify({type:"view",scope:"anonymous"})});const j=await s.json();if(!s.ok){throw new Error(`OneDrive Link Error ${s.status}: ${j?.error?.message||'Unknown'}`);}return j.link.webUrl;}catch(e){console.error("OneDrive Upload/Link Fehler:",e);zeigeWarnung("OneDrive-Fehler: "+e.message);return null;}}
 async function saveToOneDrive(){ if(!accessToken){ return; } try { const ideen=JSON.parse(localStorage.getItem("ideen")||"[]"); const benutzer=JSON.parse(localStorage.getItem("benutzerliste")||"[]"); const kategorien=JSON.parse(localStorage.getItem("kategorien")||"[]"); const nummer=localStorage.getItem("naechsteVorgangsnummer")||"1"; const data={ideen,benutzerliste:benutzer,kategorien,naechsteVorgangsnummer:nummer}; const dataStr=JSON.stringify(data,null,2); const path=(document.getElementById("onedrivePath").value.trim()||"/ideenapp/ideen.json"); const finalPath=path.startsWith('/')?path:'/'+path; if(!finalPath||finalPath==='/'){zeigeWarnung("OneDrive Speichern: Ungültiger Pfad.");return;} const url=`https://graph.microsoft.com/v1.0/me/drive/root:${finalPath}:/content`; const res=await fetch(url,{method:"PUT",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":"application/json"},body:dataStr}); if(res.ok){istGespeichert=true;}else{const err=await res.json().catch(()=>null); const msg=err?.error?.message||res.statusText; zeigeWarnung(`OneDrive Speichern Fehler: ${msg}`);}}catch(e){zeigeWarnung("OneDrive Speichern Fehler: "+e.message);}}
 async function loadFromOneDrive(){ if(!accessToken){ const ok=await handleLogin(); if(!ok||!accessToken){return;} } const path=(document.getElementById("onedrivePath").value.trim()||"/ideenapp/ideen.json"); const finalPath=path.startsWith('/')?path:'/'+path; if(!finalPath||finalPath==='/'){zeigeWarnung("OneDrive Laden: Ungültiger Pfad.");return;} zeigeWarnung(`Lade Daten von OneDrive: ${finalPath}...`,'info'); try{ const url=`https://graph.microsoft.com/v1.0/me/drive/root:${finalPath}:/content`; const res=await fetch(url,{method:"GET",headers:{"Authorization":`Bearer ${accessToken}`}}); if(res.ok){ const content=await res.text(); const loadedData=JSON.parse(content); let ideen=[], benutzerliste=[], kategorienAusDatei=null, nummer=1; if(loadedData&&typeof loadedData==='object'&&Array.isArray(loadedData.ideen)){ ideen=loadedData.ideen; benutzerliste=Array.isArray(loadedData.benutzerliste)?loadedData.benutzerliste:[]; kategorienAusDatei=Array.isArray(loadedData.kategorien)?loadedData.kategorien:null; nummer=parseInt(loadedData.naechsteVorgangsnummer,10)||1; }else if(Array.isArray(loadedData)){ideen=loadedData; benutzerliste=[]; kategorienAusDatei=null; nummer=1;}else{throw new Error("Ungültiges Dateiformat");} localStorage.setItem("ideen",JSON.stringify(ideen)); localStorage.setItem("benutzerliste",JSON.stringify(benutzerliste)); if(kategorienAusDatei!==null){localStorage.setItem("kategorien",JSON.stringify(kategorienAusDatei));} localStorage.setItem("naechsteVorgangsnummer", nummer.toString()); ausgewaehlt=[]; initialisiereKategorien(); initialisiereBenutzer(); initialisiereVorgangsnummer(); ensureIdeasHaveIds(); aktualisiereMandantenFilterDropdown(); zeigeIdeen(); zeigeWarnung(`Daten von OneDrive geladen! (${finalPath})`,'success'); istGespeichert=true; }else if(res.status===404){zeigeWarnung(`Datei nicht gefunden: ${finalPath}.`,'warning');}else{ const err=await res.json().catch(()=>null); const msg=err?.error?.message||res.statusText; zeigeWarnung(`OneDrive Laden Fehler (${res.status}): ${msg}`);}}catch(e){zeigeWarnung("OneDrive Laden Fehler: "+e.message);}}
-async function speichereIdeenAlsDatei(){ try{ const ideen = JSON.parse(localStorage.getItem("ideen")||"[]"); const benutzerData = JSON.parse(localStorage.getItem("benutzerliste")||"[]"); const kategorienData = JSON.parse(localStorage.getItem("kategorien")||"[]"); const nummer = localStorage.getItem("naechsteVorgangsnummer")||"1"; const combinedData = { ideen, benutzerliste: benutzerData, kategorien: kategorienData, naechsteVorgangsnummer: nummer }; const dataToSave = JSON.stringify(combinedData, null, 2); if(window.showSaveFilePicker){ fileHandle = await window.showSaveFilePicker({ suggestedName: "ideen.json", types: [{ description: "JSON-Dateien", accept: { "application/json": [".json"] } }] }); const writable = await fileHandle.createWritable(); await writable.write(dataToSave); await writable.close(); zeigeWarnung("Datei lokal gespeichert!", 'success'); istGespeichert = true; } else { const blob = new Blob([dataToSave], { type: "application/json" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "ideen.json"; link.click(); URL.revokeObjectURL(url); zeigeWarnung("Datei-Download gestartet.", 'success'); istGespeichert = true; }} catch(e) { if(e.name !== "AbortError") { zeigeWarnung("Fehler beim lokalen Speichern: " + e.message); } }}
+async function speichereIdeenAlsDatei(){ try{ const ideen = JSON.parse(localStorage.getItem("ideen")||"[]"); const benutzerData = JSON.parse(localStorage.getItem("benutzerliste")||"[]"); const kategorienData = JSON.parse(localStorage.getItem("kategorien")||"[]"); const nummer = localStorage.getItem("naechsteVorgangsnummer")||"1"; const combinedData = { ideen, benutzerliste: benutzerData, kategorien: kategorienData, naechsteVorgangsnummer: nummer }; const dataToSave = JSON.stringify(combinedData, null, 2); if(window.showSaveFilePicker){ fileHandle = await window.showSaveFilePicker({ suggestedName: "ideen.json", types: [{ description: "JSON-Dateien", accept: { "application/json": [".json"] } }] }); const writable = await fileHandle.createWritable(); await writable.write(dataToSave); await writable.close(); zeigeWarnung("Datei lokal gespeichert!", 'success'); istGespeichert = true; } else { const blob = new Blob([dataToSave], { type: "application/json" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "ideen.json"; link.click(); URL.revokeObjectURL(url); zeigeWarnung("Datei-Download gestartet.", 'success'); istGespeichert = true; }} catch(e) { if(e.name !== "AbortError") { zegeWarnung("Fehler beim lokalen Speichern: " + e.message); } }}
 async function ladeIdeenAusDatei(){ try{ let fileContent; if(window.showOpenFilePicker){ [fileHandle] = await window.showOpenFilePicker({ types: [{ description: "JSON-Dateien", accept: { "application/json": [".json"] } }] }); const file = await fileHandle.getFile(); fileContent = await file.text(); } else { const input = document.createElement('input'); input.type = 'file'; input.accept = '.json'; await new Promise((resolve, reject) => { input.onchange = async (e) => { if (e.target.files && e.target.files.length > 0) { const file = e.target.files[0]; const reader = new FileReader(); reader.onload = (event) => { fileContent = event.target.result; resolve(); }; reader.onerror = (error) => reject(error); reader.readAsText(file); } else { reject(new Error("Keine Datei ausgewählt")); } }; input.click(); }); } if (!fileContent) { throw new Error("Kein Dateiinhalt geladen."); } const loadedData = JSON.parse(fileContent); let ideen = [], benutzerliste = [], kategorienAusDatei = null, nummer = 1; if (loadedData && typeof loadedData === 'object' && Array.isArray(loadedData.ideen)) { ideen = loadedData.ideen; benutzerliste = Array.isArray(loadedData.benutzerliste) ? loadedData.benutzerliste : []; kategorienAusDatei = Array.isArray(loadedData.kategorien) ? loadedData.kategorien : null; nummer = parseInt(loadedData.naechsteVorgangsnummer, 10) || 1; } else if (Array.isArray(loadedData)) { ideen = loadedData; benutzerliste = []; kategorienAusDatei = null; nummer = 1; } else { throw new Error("Ungültiges Dateiformat"); } localStorage.setItem("ideen", JSON.stringify(ideen)); localStorage.setItem("benutzerliste", JSON.stringify(benutzerliste)); if (kategorienAusDatei !== null) { localStorage.setItem("kategorien", JSON.stringify(kategorienAusDatei)); } localStorage.setItem("naechsteVorgangsnummer", nummer.toString()); ausgewaehlt = []; initialisiereKategorien(); initialisiereBenutzer(); initialisiereVorgangsnummer(); ensureIdeasHaveIds(); aktualisiereMandantenFilterDropdown(); zeigeIdeen(); zeigeWarnung(`Daten lokal geladen!`, 'success'); istGespeichert = true; } catch(e) { if(e.name !== "AbortError" && e.message !== "Keine Datei ausgewählt" && e.message !== "Kein Dateiinhalt geladen.") { zeigeWarnung("Fehler beim lokalen Laden: " + e.message); } }}
 /* --- END BLOCK 7 --- */
-/* --- START BLOCK 8: Init & Listeners --- */
+/* --- START BLOCK 8: Init & Listeners (MODIFIZIERT) --- */
 document.getElementById("ideeText").addEventListener("input",()=>{istGespeichert=!1});
 document.getElementById("ideeDetails").addEventListener("input",()=>{istGespeichert=!1});
 document.getElementById("mandantennummer").addEventListener("input",()=>{istGespeichert=!1});
@@ -1516,8 +1653,8 @@ function ensureIdeasHaveIds() {
         if (!Array.isArray(idee.beschreibungen)) { idee.beschreibungen = []; changed = true; }
         else {
             if (idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
-                 idee.beschreibungen = idee.beschreibungen.map(text => ({ text: text, timestamp: new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9), level: 0, sichtbar: true }));
-                 changed = true;
+                idee.beschreibungen = idee.beschreibungen.map(text => ({ text: text, timestamp: new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9), level: 0, sichtbar: true, attachments: [] }));
+                changed = true;
             } else {
                 const originalLengthDesc = idee.beschreibungen.length;
                 idee.beschreibungen = idee.beschreibungen.filter(b => b && typeof b === 'object' && typeof b.text === 'string');
@@ -1525,6 +1662,8 @@ function ensureIdeasHaveIds() {
                     if (!b.timestamp || typeof b.timestamp !== 'string') { b.timestamp = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); changed = true; }
                     if (typeof b.level !== 'number' || b.level < 0) { b.level = 0; changed = true; }
                     if (typeof b.sichtbar !== 'boolean') { b.sichtbar = true; changed = true; }
+                    /** MODIFIZIERT: Sicherstellen, dass jede Beschreibung ein attachments-Array hat **/
+                    if (!Array.isArray(b.attachments)) { b.attachments = []; changed = true; }
                 });
                 if (idee.beschreibungen.length < originalLengthDesc) { changed = true; }
             }
