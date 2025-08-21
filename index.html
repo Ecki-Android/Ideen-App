@@ -121,7 +121,7 @@ button:disabled { cursor: not-allowed; opacity: 0.6; } /* Style für deaktiviert
     align-items: center;
     justify-content: center;
 }
-/** NEU: CSS für Beschreibungs-Anhänge **/
+/** CSS für Beschreibungs-Anhänge **/
 .beschreibung-anhaenge {
     font-size: 0.9em;
     margin-top: 5px;
@@ -136,6 +136,15 @@ button:disabled { cursor: not-allowed; opacity: 0.6; } /* Style für deaktiviert
 /** ENDE NEUE CSS REGELN **/
 
 .erinnerung-info { font-size: 0.85em; color: #0078d4; margin-top: 5px; }
+
+/** CSS für die Erinnerungsanzeige unter einer Beschreibung **/
+.beschreibung-erinnerung-info {
+    font-size: 0.9em;
+    color: #0078d4;
+    margin-top: 4px;
+    padding: 3px 0 3px 10px;
+}
+
 .erinnerung-dialog-content label { display: block; margin-top:10px; font-weight: bold;}
 .erinnerung-dialog-content input[type="datetime-local"],
 .erinnerung-dialog-content select,
@@ -267,8 +276,9 @@ console.log("Script started");
 const msalConfig={auth:{clientId:"ddf69193-7eab-4847-a995-b6c08f0df9ae",authority:"https://login.microsoftonline.com/683748a6-faf7-45ef-9da3-10e903da0b00",knownAuthorities:["login.microsoftonline.com"],redirectUri:"https://ecki-android.github.io"}};
 let accessToken=null, msalInstance=null, prioritaet="", bearbeiteId=null, ausgewaehlt=[], fileHandle=null, beschreibungFuerId=null, beschreibungZuBearbeitenderTimestamp=null, istGespeichert=!0;
 let erinnerungFuerId = null;
+/** Variable, um den Timestamp der Beschreibung für die Erinnerung zu speichern **/
+let erinnerungFuerBeschreibungTimestamp = null;
 let terminFuerId = null;
-/** NEU: Variable zum Speichern des Ziels für den Beschreibungs-Anhang **/
 let anhangFuerBeschreibungZiel = { ideeId: null, timestamp: null };
 
 const standardKategorien=["Aufgaben","Projekte","Privat","Arbeit","Später"];
@@ -448,7 +458,6 @@ function zeigeIdeen() {
                 const sichtbarkeitButtonTitle = istSichtbar ? 'Beschreibung ausblenden' : 'Beschreibung einblenden'; const praefix = istSichtbar ? "" : "[Ausgeblendet] ";
                 const sanierterBeschreibungstext = (b.text || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
                 
-                /** MODIFIZIERT: HTML für Beschreibungs-Anhänge generieren **/
                 let beschreibungAnhaengeHtml = "";
                 if (b.attachments && b.attachments.length > 0) {
                     beschreibungAnhaengeHtml = `<div class="beschreibung-anhaenge">${
@@ -462,10 +471,25 @@ function zeigeIdeen() {
                     }</div>`;
                 }
 
+                let beschreibungErinnerungHtml = "";
+                if (b.erinnerung && b.erinnerung.aktiv) {
+                    let erinnerungText = `🔔 Erinnerung: ${getFormattedDate(b.erinnerung.termin)}`;
+                     if (b.erinnerung.intervallTyp !== 'einmalig') {
+                        erinnerungText += `, Intervall: ${b.erinnerung.intervallTyp}`;
+                         if(b.erinnerung.intervallTyp === 'tage' && b.erinnerung.intervallWert) {
+                            erinnerungText += ` (${b.erinnerung.intervallWert} Tage)`;
+                        }
+                    }
+                    beschreibungErinnerungHtml = `<div class="beschreibung-erinnerung-info">${erinnerungText}</div>`;
+                } else if (b.erinnerung && !b.erinnerung.aktiv && b.erinnerung.termin) {
+                    beschreibungErinnerungHtml = `<div class="beschreibung-erinnerung-info" style="opacity:0.6;">🔔 Erinnerung (inaktiv): ${getFormattedDate(b.erinnerung.termin)}</div>`;
+                }
+
                 return `<div class="beschreibung-item${beschreibungKlasse}" style="margin-left: ${indentMargin}px; width: ${itemWidth};">
                             <div class="beschreibung-text-zeit">
                                 <span class="beschreibung-zeit">${btsText}</span>${praefix}${sanierterBeschreibungstext}
                                 ${beschreibungAnhaengeHtml}
+                                ${beschreibungErinnerungHtml}
                             </div>
                             <div class="beschreibung-item-actions">
                                 <button class="edit-beschreibung-btn" title="Bearbeiten" onclick="bearbeiteEinzelneBeschreibung('${id}','${b.timestamp}')">✏️</button>
@@ -473,7 +497,8 @@ function zeigeIdeen() {
                                 <button class="move-beschreibung-btn" title="Nach unten" onclick="verschiebeBeschreibung('${id}','${b.timestamp}', 1)">⬇️</button>
                                 <button class="move-beschreibung-btn" title="Ausrücken" onclick="aendereEinrueckungBeschreibung('${id}','${b.timestamp}', -1)" ${indentLevel === 0 ? 'disabled' : ''}>⬅️</button>
                                 <button class="move-beschreibung-btn" title="Einrücken" onclick="aendereEinrueckungBeschreibung('${id}','${b.timestamp}', 1)">➡️</button>
-                                <button class="add-anhang-beschreibung-btn" title="Anhang zur Beschreibung hinzufügen" onclick="starteAnhangUploadFuerBeschreibung('${id}','${b.timestamp}')">📎</button>
+                                <button class="add-anhang-beschreibung-btn" title="Anhang" onclick="starteAnhangUploadFuerBeschreibung('${id}','${b.timestamp}')">📎</button>
+                                <button class="add-anhang-beschreibung-btn" title="Erinnerung" onclick="zeigeBeschreibungErinnerungDialog('${id}','${b.timestamp}')">🔔</button>
                                 <button class="toggle-beschreibung-sichtbarkeit-btn" title="${sichtbarkeitButtonTitle}" onclick="toggleBeschreibungSichtbarkeit('${id}', '${b.timestamp}')">${sichtbarkeitButtonSymbol}</button>
                             </div>
                         </div>`;
@@ -521,7 +546,7 @@ function zeigeIdeen() {
       } catch (e) {
         console.error("Fehler beim Darstellen einer Idee (möglicherweise korrupte Daten):", idee, e);
         if (idee && idee.id) {
-             return `<div class="idee erledigt" data-idee-id="${idee.id}">
+            return `<div class="idee erledigt" data-idee-id="${id}">
                         <div class="idee-content">
                             <h3>Fehlerhafte Idee (ID: ${idee.id})</h3>
                             <p>Diese Idee konnte nicht korrekt geladen werden. Bitte überprüfen Sie die Daten oder löschen Sie den Eintrag.</p>
@@ -531,7 +556,7 @@ function zeigeIdeen() {
                             </div>
                         </div>
                          <input type="checkbox" class="idee-checkbox" style="display:none;">
-                       </div>`;
+                        </div>`;
         }
         return ""; 
       }
@@ -563,7 +588,7 @@ function verschiebeIdee(id,dir){let ideen=JSON.parse(localStorage.getItem("ideen
 function loescheIdee(id){if(!confirm("Wirklich löschen?"))return;let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idx=ideen.findIndex(i=>i&&i.id===id);if(idx!==-1){const del=ideen[idx];ideen.splice(idx,1);localStorage.setItem("ideen",JSON.stringify(ideen));const mExists=ideen.some(i=>i&&i.mandantennummer&&(i.mandantennummer||"").toLowerCase()===(del.mandantennummer||"").toLowerCase());const uExists=ideen.some(i=>i&&i.benutzer&&(i.benutzer||"").toLowerCase()===(del.benutzer||"").toLowerCase());if(!mExists&&del.mandantennummer)aktualisiereMandantenFilterDropdown();if(!uExists&&del.benutzer)aktualisiereBenutzerDropdowns();ausgewaehlt=ausgewaehlt.filter(i=>i!==id);if(bearbeiteId===id)abbrechenBearbeiten();if(beschreibungFuerId===id)beschreibungAbbrechen(); if(erinnerungFuerId===id)erinnerungAbbrechen(); if(terminFuerId===id)terminDialogAbbrechen(); zeigeIdeen();istGespeichert=false;if (typeof saveToOneDrive === "function") saveToOneDrive()}else{zeigeWarnung("Fehler: Idee nicht gefunden.");}}
 /* --- END BLOCK 5c --- */
 
-/* --- START BLOCK 5d (Mit allen neuen Funktionen & Erinnerungsfunktionen) --- */
+/* --- START BLOCK 5d (Mit allen neuen Funktionen & Erinnerungsfunktionen - MODIFIZIERT) --- */
 function zeigeBeschreibungDialog(id,ts=null){beschreibungFuerId=id;beschreibungZuBearbeitenderTimestamp=ts;const area=document.getElementById("beschreibungText");if(ts!==null){const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idee=ideen.find(i=>i&&i.id===id);const desc=idee?.beschreibungen?.find(b=>b&&b.timestamp===ts);if(desc)area.value=desc.text;else{zeigeWarnung("Fehler: Beschreibung nicht gefunden.");beschreibungAbbrechen();return}}else{area.value=""}document.getElementById("beschreibungDialog").style.display="block";area.focus();istGespeichert=!1}
 function beschreibungAbbrechen(){document.getElementById("beschreibungDialog").style.display="none";beschreibungFuerId=null;beschreibungZuBearbeitenderTimestamp=null;document.getElementById("beschreibungText").value=""}
 
@@ -589,8 +614,7 @@ function beschreibungSpeichern(){
         } else {
             const ts=new Date().toISOString()+'_'+Math.random().toString(36).substr(2,9);
             if(!ideen[idx].beschreibungen) ideen[idx].beschreibungen=[];
-            // MODIFIZIERT: Neue Beschreibung erhält ein leeres attachments Array
-            ideen[idx].beschreibungen.push({text:t, timestamp:ts, level: 0, sichtbar: true, attachments: []});
+            ideen[idx].beschreibungen.push({text:t, timestamp:ts, level: 0, sichtbar: true, attachments: [], erinnerung: getDefaultErinnerung()});
         }
         localStorage.setItem("ideen",JSON.stringify(ideen));
         zeigeIdeen();
@@ -599,16 +623,13 @@ function beschreibungSpeichern(){
     if (typeof saveToOneDrive === "function") saveToOneDrive();
 }
 
-/** NEU: Funktion, um den Dateiupload-Dialog für eine Beschreibung zu starten **/
 function starteAnhangUploadFuerBeschreibung(ideeId, timestamp) {
-    // Speichere die IDs, damit der Event Handler weiß, wohin der Anhang soll
     anhangFuerBeschreibungZiel = { ideeId: ideeId, timestamp: timestamp };
     const fileInput = document.getElementById('beschreibungAnhangInput');
-    fileInput.value = ''; // Input zurücksetzen, um gleiche Datei erneut wählen zu können
+    fileInput.value = ''; 
     fileInput.click();
 }
 
-/** NEU: Funktion, die den Upload nach Auswahl einer Datei handhabt **/
 async function handleBeschreibungAnhangUpload(event) {
     const { ideeId, timestamp } = anhangFuerBeschreibungZiel;
     if (!ideeId || !timestamp || !event.target.files) {
@@ -656,12 +677,10 @@ async function handleBeschreibungAnhangUpload(event) {
         return;
     }
 
-    // Stelle sicher, dass das attachments-Array existiert
     if (!Array.isArray(ideen[ideeIndex].beschreibungen[beschreibungIndex].attachments)) {
         ideen[ideeIndex].beschreibungen[beschreibungIndex].attachments = [];
     }
     
-    // Füge die neuen Anhänge hinzu
     ideen[ideeIndex].beschreibungen[beschreibungIndex].attachments.push(...neueAnhaenge);
 
     localStorage.setItem("ideen", JSON.stringify(ideen));
@@ -670,7 +689,6 @@ async function handleBeschreibungAnhangUpload(event) {
     istGespeichert = false;
     if (typeof saveToOneDrive === "function") saveToOneDrive();
 
-    // Reset der Ziel-Variable
     anhangFuerBeschreibungZiel = { ideeId: null, timestamp: null };
 }
 
@@ -755,6 +773,7 @@ function getDefaultErinnerung(titel = "", vorgangsnummer = null) {
 
 function zeigeErinnerungDialog(id) {
     erinnerungFuerId = id;
+    erinnerungFuerBeschreibungTimestamp = null; // Wichtig: Zurücksetzen
     const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
     const idee = ideen.find(i => i && i.id === id);
 
@@ -778,9 +797,38 @@ function zeigeErinnerungDialog(id) {
     istGespeichert = false;
 }
 
+function zeigeBeschreibungErinnerungDialog(ideeId, beschreibungTimestamp) {
+    erinnerungFuerId = ideeId;
+    erinnerungFuerBeschreibungTimestamp = beschreibungTimestamp; // Timestamp der Beschreibung setzen
+
+    const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+    const idee = ideen.find(i => i && i.id === ideeId);
+    if (!idee) { zeigeWarnung("Fehler: Zugehörige Idee nicht gefunden."); erinnerungAbbrechen(); return; }
+    
+    const beschreibung = idee.beschreibungen.find(b => b && b.timestamp === beschreibungTimestamp);
+    if (!beschreibung) { zeigeWarnung("Fehler: Beschreibung für Erinnerung nicht gefunden."); erinnerungAbbrechen(); return; }
+
+    const erinnerung = beschreibung.erinnerung || getDefaultErinnerung();
+
+    document.getElementById("erinnerungTerminInput").value = erinnerung.termin ? erinnerung.termin.substring(0, 16) : "";
+    document.getElementById("erinnerungIntervallTypSelect").value = erinnerung.intervallTyp || 'einmalig';
+    document.getElementById("erinnerungIntervallWertInput").value = erinnerung.intervallWert || 1;
+    document.getElementById("erinnerungVorabCheckbox").checked = erinnerung.vorabErinnerungAktiv || false;
+    document.getElementById("erinnerungVorabWertInput").value = erinnerung.vorabWert || 10;
+    document.getElementById("erinnerungVorabEinheitSelect").value = erinnerung.vorabEinheit || 'minuten';
+
+    toggleErinnerungIntervallWert();
+    toggleErinnerungVorabDetails();
+    
+    document.getElementById("erinnerungDialog").style.display = "block";
+    document.getElementById("erinnerungTerminInput").focus();
+    istGespeichert = false;
+}
+
 function erinnerungAbbrechen() {
     document.getElementById("erinnerungDialog").style.display = "none";
     erinnerungFuerId = null;
+    erinnerungFuerBeschreibungTimestamp = null; // Wichtig
     document.getElementById("erinnerungTerminInput").value = "";
     document.getElementById("erinnerungIntervallTypSelect").value = "einmalig";
     document.getElementById("erinnerungIntervallWertInput").value = "1";
@@ -816,12 +864,35 @@ function erinnerungSpeichern() {
 
     if (ideeIndex !== -1) {
         const idee = ideen[ideeIndex];
-        if (idee.erledigt) { zeigeWarnung("Erinnerung kann nicht gespeichert werden (Notiz erledigt).", "info"); erinnerungAbbrechen(); return; }
-        ideen[ideeIndex].erinnerung = {
+        const erinnerungsDaten = {
             aktiv: true, termin: termin, intervallTyp: intervallTyp, intervallWert: intervallWert,
-            vorabErinnerungAktiv: vorabErinnerungAktiv, vorabWert: vorabWert, vorabEinheit: vorabEinheit,
-            titel: idee.text, vorgangsnummer: idee.vorgangsnummer
+            vorabErinnerungAktiv: vorabErinnerungAktiv, vorabWert: vorabWert, vorabEinheit: vorabEinheit
         };
+
+        if (erinnerungFuerBeschreibungTimestamp) {
+            // Speichern für eine Beschreibung
+            const beschreibungIndex = idee.beschreibungen.findIndex(b => b && b.timestamp === erinnerungFuerBeschreibungTimestamp);
+            if (beschreibungIndex !== -1) {
+                ideen[ideeIndex].beschreibungen[beschreibungIndex].erinnerung = {
+                     ...erinnerungsDaten,
+                     titel: null,
+                     vorgangsnummer: null
+                };
+            } else {
+                zeigeWarnung("Fehler: Beschreibung zum Speichern der Erinnerung nicht gefunden.");
+                erinnerungAbbrechen();
+                return;
+            }
+        } else {
+            // Speichern für die Haupt-Idee
+            if (idee.erledigt) { zeigeWarnung("Erinnerung kann nicht gespeichert werden (Notiz erledigt).", "info"); erinnerungAbbrechen(); return; }
+            ideen[ideeIndex].erinnerung = {
+                ...erinnerungsDaten,
+                titel: idee.text,
+                vorgangsnummer: idee.vorgangsnummer
+            };
+        }
+
         localStorage.setItem("ideen", JSON.stringify(ideen));
         zeigeWarnung("Erinnerung gespeichert.", "success");
         zeigeIdeen(); 
@@ -835,8 +906,23 @@ function erinnerungLoeschen() {
     if (!confirm("Möchten Sie diese Erinnerung wirklich löschen?")) return;
     let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
     const ideeIndex = ideen.findIndex(i => i && i.id === erinnerungFuerId);
+    
     if (ideeIndex !== -1) {
-        ideen[ideeIndex].erinnerung = getDefaultErinnerung(ideen[ideeIndex].text, ideen[ideeIndex].vorgangsnummer);
+        if (erinnerungFuerBeschreibungTimestamp) {
+            // Löschen für eine Beschreibung
+            const beschreibungIndex = ideen[ideeIndex].beschreibungen.findIndex(b => b && b.timestamp === erinnerungFuerBeschreibungTimestamp);
+            if (beschreibungIndex !== -1) {
+                ideen[ideeIndex].beschreibungen[beschreibungIndex].erinnerung = getDefaultErinnerung();
+            } else {
+                zeigeWarnung("Fehler: Beschreibung zum Löschen der Erinnerung nicht gefunden.");
+                erinnerungAbbrechen();
+                return;
+            }
+        } else {
+            // Löschen für die Haupt-Idee
+            ideen[ideeIndex].erinnerung = getDefaultErinnerung(ideen[ideeIndex].text, ideen[ideeIndex].vorgangsnummer);
+        }
+
         localStorage.setItem("ideen", JSON.stringify(ideen));
         zeigeWarnung("Erinnerung gelöscht.", "success");
         zeigeIdeen(); 
@@ -844,6 +930,7 @@ function erinnerungLoeschen() {
     } else { zeigeWarnung("Fehler: Idee zum Löschen der Erinnerung nicht gefunden."); }
     erinnerungAbbrechen(); istGespeichert = false;
 }
+
 
 function toggleErinnerungIntervallWert() {
     const typ = document.getElementById("erinnerungIntervallTypSelect").value;
@@ -863,8 +950,8 @@ function formatErinnerungForExport(erinnerung) {
     if (!erinnerung || !erinnerung.termin) return "";
     let text = `Erinnerung (${erinnerung.aktiv ? 'Aktiv' : 'Inaktiv'}):\n`;
     text += `  Termin: ${getFormattedDate(erinnerung.termin)}\n`;
-    text += `  Titel (für Erinnerung): ${erinnerung.titel || '-'}\n`;
-    text += `  Vorgangsnr. (für Erinnerung): ${erinnerung.vorgangsnummer || '-'}\n`;
+    if(erinnerung.titel) text += `  Titel (für Erinnerung): ${erinnerung.titel || '-'}\n`;
+    if(erinnerung.vorgangsnummer) text += `  Vorgangsnr. (für Erinnerung): ${erinnerung.vorgangsnummer || '-'}\n`;
     text += `  Intervall: ${erinnerung.intervallTyp || 'einmalig'}`;
     if (erinnerung.intervallTyp === 'tage' && erinnerung.intervallWert) {
         text += ` (alle ${erinnerung.intervallWert} Tage)`;
@@ -902,11 +989,13 @@ function exportiereAlsText() {
                       const indentSpaces = "  ".repeat(b.level || 0);
                       const praefix = b.sichtbar === false ? "[Ausgeblendet] " : "";
                       textContent += `${indentSpaces}- [${getFormattedDate(b.timestamp)}] ${praefix}${b.text}\n`;
-                      /** MODIFIZIERT: Anhänge der Beschreibung zum Text-Export hinzufügen **/
                       if (b.attachments && b.attachments.length > 0) {
                           b.attachments.forEach(anhang => {
                               textContent += `${indentSpaces}  -> Anhang: ${anhang.name} ${anhang.link ? `(${anhang.link})` : '(Lokal)'}\n`;
                           });
+                      }
+                      if (b.erinnerung && b.erinnerung.termin) {
+                          textContent += `${indentSpaces}  ${formatErinnerungForExport(b.erinnerung).replace(/\n/g, `\n${indentSpaces}  `)}`;
                       }
                   }
               });
@@ -998,13 +1087,13 @@ function exportiereAlsPDF(fileName = "ideen-export.pdf") {
         const lines = doc.splitTextToSize(text || "N/A", maxWidth);
         for (let i = 0; i < lines.length; i++) {
             checkAddPage(lineHeight);
-            if (options.link && i === 0) { // Link nur für die erste Zeile des Anhangs-Textes
-                 const textWidth = doc.getTextWidth(lines[i]);
-                 const charHeight = doc.getFontSize() / doc.internal.scaleFactor;
-                 doc.text(lines[i], x, yPosition);
-                 doc.link(x, yPosition - charHeight + 1, textWidth, charHeight, { url: options.link });
+            if (options.link && i === 0) {
+                const textWidth = doc.getTextWidth(lines[i]);
+                const charHeight = doc.getFontSize() / doc.internal.scaleFactor;
+                doc.text(lines[i], x, yPosition);
+                doc.link(x, yPosition - charHeight + 1, textWidth, charHeight, { url: options.link });
             } else {
-                 doc.text(lines[i], x, yPosition);
+                doc.text(lines[i], x, yPosition);
             }
             yPosition += lineHeight;
         }
@@ -1070,15 +1159,20 @@ function exportiereAlsPDF(fileName = "ideen-export.pdf") {
                     } else { 
                         addWrappedText(textToDisplay, leftMargin + 5, contentWidth - 5, { fontSize: 10, lineHeight: defaultLineSpacing, color: textColor });
                     }
-                    /** MODIFIZIERT: Anhänge der Beschreibung zum PDF-Export hinzufügen **/
                     if(b.attachments && b.attachments.length > 0) {
                         checkAddPage(defaultLineSpacing);
                         b.attachments.forEach(anhang => {
-                           const anhangText = `  -> ${anhang.name}`;
-                           const anhangColor = anhang.link ? [0, 0, 238] : [0,0,0];
-                           addWrappedText(anhangText, startX + 5, maxWidth - 5, {fontSize: 9, color: anhangColor, lineHeight: 4, link: anhang.link});
+                            const anhangText = `  -> ${anhang.name}`;
+                            const anhangColor = anhang.link ? [0, 0, 238] : [0,0,0];
+                            addWrappedText(anhangText, startX + 5, maxWidth - 5, {fontSize: 9, color: anhangColor, lineHeight: 4, link: anhang.link});
                         });
-                        yPosition += 2; // Extra Abstand nach den Anhängen
+                        yPosition += 2;
+                    }
+                     if (b.erinnerung && b.erinnerung.termin) {
+                        checkAddPage(defaultLineSpacing * 3);
+                        const erinnerungTextPDF = formatErinnerungForExport(b.erinnerung).replace(/\n$/, "").replace(/^/gm, "  ");
+                        addWrappedText(erinnerungTextPDF, startX, maxWidth, { fontSize: 9, lineHeight: 4 });
+                        yPosition += 2;
                     }
                 }
             });
@@ -1158,8 +1252,8 @@ async function teilePerEmail() {
     try {
         const pdfErstellt = exportiereAlsPDF(pdfFileName);
         if (!pdfErstellt) { 
-             zeigeWarnung(`PDF "${pdfFileName}" konnte nicht erstellt werden (keine Notizen).`, 'warnung');
-             return;
+            zeigeWarnung(`PDF "${pdfFileName}" konnte nicht erstellt werden (keine Notizen).`, 'warnung');
+            return;
         }
         zeigeWarnung(`PDF "${pdfFileName}" wurde heruntergeladen. Bitte manuell an die E-Mail anhängen.`, 'success');
     } catch (e) {
@@ -1224,7 +1318,7 @@ async function teilePerEmail() {
             const desc = `Informationen weitergeleitet (PDF-Download für E-Mail '${recipientInfo}') am ${exportTimestamp}. PDF-Name: ${pdfFileName}`;
             if (!idee.beschreibungen) { idee.beschreibungen = []; }
             const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9);
-            idee.beschreibungen.push({ text: desc, timestamp: ts, level: 0, sichtbar: true, attachments: [] });
+            idee.beschreibungen.push({ text: desc, timestamp: ts, level: 0, sichtbar: true, attachments: [], erinnerung: getDefaultErinnerung() });
             changed = true;
         }
     });
@@ -1250,16 +1344,20 @@ async function teilePerWhatsApp(){
          const beschreibungenText = idee.beschreibungen && idee.beschreibungen.length ?
              `\n*Weitere Beschreibungen:*\n${
                  idee.beschreibungen.filter(b => b && b.text !== undefined).map(b => {
-                      const indentSpacesWA = "  ".repeat(b.level || 0);
-                      const praefix = b.sichtbar === false ? "[Ausgeblendet] " : "";
-                      let anhangTextWA = "";
-                      /** MODIFIZIERT: Anhänge der Beschreibung für WhatsApp-Export hinzufügen **/
-                      if(b.attachments && b.attachments.length > 0) {
-                          anhangTextWA = "\n" + b.attachments.map(anhang => {
+                     const indentSpacesWA = "  ".repeat(b.level || 0);
+                     const praefix = b.sichtbar === false ? "[Ausgeblendet] " : "";
+                     let anhangTextWA = "";
+                     if(b.attachments && b.attachments.length > 0) {
+                         anhangTextWA = "\n" + b.attachments.map(anhang => {
                              return `${indentSpacesWA}  -> Anhang: ${anhang.name} ${anhang.link ? `(${anhang.link})` : ''}`;
-                          }).join("\n");
-                      }
-                      return `${indentSpacesWA}  - _[${getFormattedDate(b.timestamp)}]_ ${praefix}${b.text}${anhangTextWA}`;
+                         }).join("\n");
+                     }
+                     let erinnerungTextBWA = "";
+                     if(b.erinnerung && b.erinnerung.termin) {
+                        erinnerungTextBWA = `\n${indentSpacesWA}  🔔 _Erinnerung: ${getFormattedDate(b.erinnerung.termin)} (${b.erinnerung.intervallTyp})_`
+                     }
+
+                     return `${indentSpacesWA}  - _[${getFormattedDate(b.timestamp)}]_ ${praefix}${b.text}${anhangTextWA}${erinnerungTextBWA}`;
                  }).join("\n")
              }` : "";
         let anhaengeTextForWhatsApp = "\n📎 Anhänge: Keine";
@@ -1285,7 +1383,7 @@ async function teilePerWhatsApp(){
     }).filter(s => s !== "").join("\n\n------------------------------------\n\n");
 
      const exportTimestamp = new Date().toLocaleString("de-DE"); const weitergeleitetText = `\n\n_[Notiz(en) markiert als: Weitergeleitet an ${recipientInfo} am ${exportTimestamp}]_`; text += weitergeleitetText; const waLink = `https://wa.me/?text=${encodeURIComponent(text)}`; try { const waWindow = window.open(waLink,"_blank"); if (!waWindow) { zeigeWarnung("WhatsApp konnte nicht geöffnet werden.", "warning"); } } catch (e) { console.error("WhatsApp Fehler:", e); zeigeWarnung("Fehler WhatsApp: " + e.message); }
-     await new Promise(resolve => setTimeout(resolve, 100)); let ideenImSpeicher = JSON.parse(localStorage.getItem("ideen") || "[]"); let changed = false; const ausgewaehlteIDsFuerWA = ideenToExport.map(i => i.id); ideenImSpeicher.forEach(idee => { if (idee && idee.id && ausgewaehlteIDsFuerWA.includes(idee.id)) { const desc = `Weitergeleitet via WhatsApp an: ${recipientInfo} am ${exportTimestamp}`; if (!idee.beschreibungen){idee.beschreibungen = [];} const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); idee.beschreibungen.push({ text: desc, timestamp: ts, level: 0, sichtbar: true, attachments: [] }); changed = true; }}); if (changed) { localStorage.setItem("ideen", JSON.stringify(ideenImSpeicher)); zeigeIdeen(); istGespeichert = false; if (typeof saveToOneDrive === "function") await saveToOneDrive(); }
+     await new Promise(resolve => setTimeout(resolve, 100)); let ideenImSpeicher = JSON.parse(localStorage.getItem("ideen") || "[]"); let changed = false; const ausgewaehlteIDsFuerWA = ideenToExport.map(i => i.id); ideenImSpeicher.forEach(idee => { if (idee && idee.id && ausgewaehlteIDsFuerWA.includes(idee.id)) { const desc = `Weitergeleitet via WhatsApp an: ${recipientInfo} am ${exportTimestamp}`; if (!idee.beschreibungen){idee.beschreibungen = [];} const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); idee.beschreibungen.push({ text: desc, timestamp: ts, level: 0, sichtbar: true, attachments: [], erinnerung: getDefaultErinnerung() }); changed = true; }}); if (changed) { localStorage.setItem("ideen", JSON.stringify(ideenImSpeicher)); zeigeIdeen(); istGespeichert = false; if (typeof saveToOneDrive === "function") await saveToOneDrive(); }
 }
 /* --- END BLOCK 6 --- */
 // --- FUNKTIONEN FÜR KALENDERTERMINERSTELLUNG ---
@@ -1310,7 +1408,7 @@ function zeigeTerminDialog(ideeId) {
     jetzt.setMilliseconds(0);
 
     const startVorschlag = new Date(jetzt);
-    const endeVorschlag = new Date(startVorschlag.getTime() + 60 * 60 * 1000); // Dauer 1 Stunde
+    const endeVorschlag = new Date(startVorschlag.getTime() + 60 * 60 * 1000);
 
     const toLocalISOString = (date) => {
         const year = date.getFullYear();
@@ -1378,7 +1476,6 @@ async function kalenderTerminErstellenUndSpeichern() {
         idee.beschreibungen.forEach(b => {
             if (b && b.sichtbar !== false && b.text) { 
                 terminBeschreibungText += `\n\nBeschreibung vom ${getFormattedDate(b.timestamp)}:\n${b.text}`;
-                /** MODIFIZIERT: Anhänge von Beschreibungen in Kalendertermin einfügen **/
                 if (b.attachments && b.attachments.length > 0) {
                     terminBeschreibungText += "\nAnhänge zu dieser Beschreibung:";
                     b.attachments.forEach(anhang => {
@@ -1446,7 +1543,7 @@ async function kalenderTerminErstellenUndSpeichern() {
         ideen[ideeIndex].beschreibungen = [];
     }
     const timestamp = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9);
-    ideen[ideeIndex].beschreibungen.push({ text: nachweisText, timestamp: timestamp, level: 0, sichtbar: true, attachments: [] });
+    ideen[ideeIndex].beschreibungen.push({ text: nachweisText, timestamp: timestamp, level: 0, sichtbar: true, attachments: [], erinnerung: getDefaultErinnerung() });
 
     localStorage.setItem("ideen", JSON.stringify(ideen));
     zeigeIdeen(); 
@@ -1462,7 +1559,7 @@ async function kalenderTerminErstellenUndSpeichern() {
 // --- ENDE FUNKTIONEN FÜR KALENDERTERMINERSTELLUNG ---
 
 
-/* --- FUNKTIONEN FÜR BROWSER-BENACHRICHTIGUNGEN --- */
+/* --- FUNKTIONEN FÜR BROWSER-BENACHRICHTIGUNGEN (MODIFIZIERT) --- */
 async function initialisiereUndStarteBenachrichtigungspruefung() {
     if (!("Notification" in window)) {
         console.warn("Dieser Browser unterstützt keine Desktop-Benachrichtigungen.");
@@ -1511,79 +1608,75 @@ function pruefeUndZeigeBenachrichtigungen() {
     let aenderungenVorgenommen = false;
 
     ideen.forEach(idee => {
-        if (idee && idee.erinnerung && idee.erinnerung.aktiv && idee.erinnerung.termin) {
-            const terminDatum = new Date(idee.erinnerung.termin);
+        if (!idee) return;
 
+        const handleFrist = (erinnerungObjekt, istBeschreibung = false, beschreibungText = "") => {
+            const terminDatum = new Date(erinnerungObjekt.termin);
             if (terminDatum <= jetzt) {
-                console.log(`Erinnerung fällig für: ${idee.text}`);
-                const titel = idee.erinnerung.titel || idee.text || "Ideen-App Erinnerung";
-                const bodyText = `Ihre Erinnerung für "${titel}" (Vorgang: ${idee.vorgangsnummer || 'N/A'}) ist jetzt fällig.`;
+                let titel, bodyText, tag;
+                if (istBeschreibung) {
+                    titel = `Vorgang ${idee.vorgangsnummer || 'N/A'}: ${idee.text}`;
+                    bodyText = `Detail-Erinnerung: "${beschreibungText}"`;
+                    tag = idee.id + '_' + erinnerungObjekt.termin + '_desc';
+                } else {
+                    titel = erinnerungObjekt.titel || idee.text || "Ideen-App Erinnerung";
+                    bodyText = `Ihre Erinnerung für "${titel}" (Vorgang: ${idee.vorgangsnummer || 'N/A'}) ist jetzt fällig.`;
+                    tag = idee.id + '_' + erinnerungObjekt.termin;
+                }
                 
                 try {
-                    const notification = new Notification(titel, {
-                        body: bodyText,
-                        // icon: "./icon.png", 
-                        tag: idee.id + '_' + idee.erinnerung.termin 
-                    });
-
+                    const notification = new Notification(titel, { body: bodyText, tag: tag });
                     notification.onclick = function() {
                         window.focus(); 
-                        console.log(`Benachrichtigung für Idee ${idee.id} geklickt.`);
                         this.close();
                     };
                 } catch (e) {
                     console.error("Fehler beim Erstellen der Benachrichtigung:", e);
                 }
 
-                if (idee.erinnerung.intervallTyp === 'einmalig') {
-                    idee.erinnerung.aktiv = false;
-                    console.log(`Einmalige Erinnerung für "${idee.text}" deaktiviert.`);
+                if (erinnerungObjekt.intervallTyp === 'einmalig') {
+                    erinnerungObjekt.aktiv = false;
                 } else {
                     let naechsterTermin = new Date(terminDatum);
                     let intervallValid = true;
-                    switch (idee.erinnerung.intervallTyp) {
+                    switch (erinnerungObjekt.intervallTyp) {
                         case 'tage':
-                            if (idee.erinnerung.intervallWert && idee.erinnerung.intervallWert > 0) {
-                                naechsterTermin.setDate(terminDatum.getDate() + parseInt(idee.erinnerung.intervallWert, 10));
-                            } else { intervallValid = false; }
+                            if (erinnerungObjekt.intervallWert > 0) naechsterTermin.setDate(terminDatum.getDate() + parseInt(erinnerungObjekt.intervallWert, 10)); else intervallValid = false;
                             break;
-                        case 'woechentlich':
-                            naechsterTermin.setDate(terminDatum.getDate() + 7);
-                            break;
-                        case 'monatlich':
-                            naechsterTermin.setMonth(terminDatum.getMonth() + 1);
-                            break;
-                        case 'vierteljaehrlich':
-                            naechsterTermin.setMonth(terminDatum.getMonth() + 3);
-                            break;
-                        case 'jaehrlich':
-                            naechsterTermin.setFullYear(terminDatum.getFullYear() + 1);
-                            break;
-                        default:
-                            intervallValid = false;
-                            break;
+                        case 'woechentlich': naechsterTermin.setDate(terminDatum.getDate() + 7); break;
+                        case 'monatlich': naechsterTermin.setMonth(terminDatum.getMonth() + 1); break;
+                        case 'vierteljaehrlich': naechsterTermin.setMonth(terminDatum.getMonth() + 3); break;
+                        case 'jaehrlich': naechsterTermin.setFullYear(terminDatum.getFullYear() + 1); break;
+                        default: intervallValid = false; break;
                     }
 
                     if (!intervallValid) {
-                        idee.erinnerung.aktiv = false;
-                        console.warn(`Ungültiger Intervalltyp oder -wert für "${idee.text}", Erinnerung deaktiviert.`);
-                    } else if (idee.erinnerung.aktiv) { // Nur wenn noch aktiv, neuen Termin setzen
-                        // Sicherstellen, dass der nächste Termin in der Zukunft liegt
-                        while (naechsterTermin <= jetzt && (idee.erinnerung.intervallTyp === 'tage' && idee.erinnerung.intervallWert > 0)) {
-                           naechsterTermin.setDate(naechsterTermin.getDate() + parseInt(idee.erinnerung.intervallWert, 10));
+                        erinnerungObjekt.aktiv = false;
+                    } else if (erinnerungObjekt.aktiv) {
+                        while (naechsterTermin <= jetzt && (erinnerungObjekt.intervallTyp === 'tage' && erinnerungObjekt.intervallWert > 0)) {
+                           naechsterTermin.setDate(naechsterTermin.getDate() + parseInt(erinnerungObjekt.intervallWert, 10));
                         }
-                         if (naechsterTermin > jetzt) {
-                             idee.erinnerung.termin = naechsterTermin.toISOString();
-                             console.log(`Nächste Erinnerung für "${idee.text}" am: ${idee.erinnerung.termin}`);
-                         } else {
-                            // Falls der Termin immer noch nicht in der Zukunft liegt, Erinnerung deaktivieren
-                             idee.erinnerung.aktiv = false;
-                             console.warn(`Konnte keinen zukünftigen Termin für "${idee.text}" festlegen, Erinnerung deaktiviert.`);
-                         }
+                        if (naechsterTermin > jetzt) {
+                            erinnerungObjekt.termin = naechsterTermin.toISOString();
+                        } else {
+                            erinnerungObjekt.aktiv = false;
+                        }
                     }
                 }
                 aenderungenVorgenommen = true;
             }
+        };
+
+        if (idee.erinnerung && idee.erinnerung.aktiv && idee.erinnerung.termin) {
+            handleFrist(idee.erinnerung, false);
+        }
+
+        if (idee.beschreibungen && Array.isArray(idee.beschreibungen)) {
+            idee.beschreibungen.forEach(beschreibung => {
+                if (beschreibung && beschreibung.erinnerung && beschreibung.erinnerung.aktiv && beschreibung.erinnerung.termin) {
+                    handleFrist(beschreibung.erinnerung, true, beschreibung.text);
+                }
+            });
         }
     });
 
@@ -1599,7 +1692,7 @@ function pruefeUndZeigeBenachrichtigungen() {
     }
 }
 /* --- ENDE FUNKTIONEN FÜR BROWSER-BENACHRICHTIGUNGEN --- */
-/* --- START BLOCK 7: File & OneDrive (Unverändert für Kalenderfunktion) --- */
+/* --- START BLOCK 7: File & OneDrive --- */
 async function uploadToOneDrive(f){if(!accessToken){zeigeWarnung("Bitte zuerst mit Microsoft anmelden!");return null;}try{const n=`ideenapp/${Date.now()}_${f.name}`;const u=await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${n}:/content`,{method:"PUT",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":f.type},body:f});const d=await u.json();if(!u.ok){throw new Error(`OneDrive Upload Error ${u.status}: ${d?.error?.message||'Unknown'}`);}const s=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${d.id}/createLink`,{method:"POST",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":"application/json"},body:JSON.stringify({type:"view",scope:"anonymous"})});const j=await s.json();if(!s.ok){throw new Error(`OneDrive Link Error ${s.status}: ${j?.error?.message||'Unknown'}`);}return j.link.webUrl;}catch(e){console.error("OneDrive Upload/Link Fehler:",e);zeigeWarnung("OneDrive-Fehler: "+e.message);return null;}}
 async function saveToOneDrive(){ if(!accessToken){ return; } try { const ideen=JSON.parse(localStorage.getItem("ideen")||"[]"); const benutzer=JSON.parse(localStorage.getItem("benutzerliste")||"[]"); const kategorien=JSON.parse(localStorage.getItem("kategorien")||"[]"); const nummer=localStorage.getItem("naechsteVorgangsnummer")||"1"; const data={ideen,benutzerliste:benutzer,kategorien,naechsteVorgangsnummer:nummer}; const dataStr=JSON.stringify(data,null,2); const path=(document.getElementById("onedrivePath").value.trim()||"/ideenapp/ideen.json"); const finalPath=path.startsWith('/')?path:'/'+path; if(!finalPath||finalPath==='/'){zeigeWarnung("OneDrive Speichern: Ungültiger Pfad.");return;} const url=`https://graph.microsoft.com/v1.0/me/drive/root:${finalPath}:/content`; const res=await fetch(url,{method:"PUT",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":"application/json"},body:dataStr}); if(res.ok){istGespeichert=true;}else{const err=await res.json().catch(()=>null); const msg=err?.error?.message||res.statusText; zeigeWarnung(`OneDrive Speichern Fehler: ${msg}`);}}catch(e){zeigeWarnung("OneDrive Speichern Fehler: "+e.message);}}
 async function loadFromOneDrive(){ if(!accessToken){ const ok=await handleLogin(); if(!ok||!accessToken){return;} } const path=(document.getElementById("onedrivePath").value.trim()||"/ideenapp/ideen.json"); const finalPath=path.startsWith('/')?path:'/'+path; if(!finalPath||finalPath==='/'){zeigeWarnung("OneDrive Laden: Ungültiger Pfad.");return;} zeigeWarnung(`Lade Daten von OneDrive: ${finalPath}...`,'info'); try{ const url=`https://graph.microsoft.com/v1.0/me/drive/root:${finalPath}:/content`; const res=await fetch(url,{method:"GET",headers:{"Authorization":`Bearer ${accessToken}`}}); if(res.ok){ const content=await res.text(); const loadedData=JSON.parse(content); let ideen=[], benutzerliste=[], kategorienAusDatei=null, nummer=1; if(loadedData&&typeof loadedData==='object'&&Array.isArray(loadedData.ideen)){ ideen=loadedData.ideen; benutzerliste=Array.isArray(loadedData.benutzerliste)?loadedData.benutzerliste:[]; kategorienAusDatei=Array.isArray(loadedData.kategorien)?loadedData.kategorien:null; nummer=parseInt(loadedData.naechsteVorgangsnummer,10)||1; }else if(Array.isArray(loadedData)){ideen=loadedData; benutzerliste=[]; kategorienAusDatei=null; nummer=1;}else{throw new Error("Ungültiges Dateiformat");} localStorage.setItem("ideen",JSON.stringify(ideen)); localStorage.setItem("benutzerliste",JSON.stringify(benutzerliste)); if(kategorienAusDatei!==null){localStorage.setItem("kategorien",JSON.stringify(kategorienAusDatei));} localStorage.setItem("naechsteVorgangsnummer", nummer.toString()); ausgewaehlt=[]; initialisiereKategorien(); initialisiereBenutzer(); initialisiereVorgangsnummer(); ensureIdeasHaveIds(); aktualisiereMandantenFilterDropdown(); zeigeIdeen(); zeigeWarnung(`Daten von OneDrive geladen! (${finalPath})`,'success'); istGespeichert=true; }else if(res.status===404){zeigeWarnung(`Datei nicht gefunden: ${finalPath}.`,'warning');}else{ const err=await res.json().catch(()=>null); const msg=err?.error?.message||res.statusText; zeigeWarnung(`OneDrive Laden Fehler (${res.status}): ${msg}`);}}catch(e){zeigeWarnung("OneDrive Laden Fehler: "+e.message);}}
@@ -1653,7 +1746,7 @@ function ensureIdeasHaveIds() {
         if (!Array.isArray(idee.beschreibungen)) { idee.beschreibungen = []; changed = true; }
         else {
             if (idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
-                idee.beschreibungen = idee.beschreibungen.map(text => ({ text: text, timestamp: new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9), level: 0, sichtbar: true, attachments: [] }));
+                idee.beschreibungen = idee.beschreibungen.map(text => ({ text: text, timestamp: new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9), level: 0, sichtbar: true, attachments: [], erinnerung: getDefaultErinnerung() }));
                 changed = true;
             } else {
                 const originalLengthDesc = idee.beschreibungen.length;
@@ -1662,8 +1755,8 @@ function ensureIdeasHaveIds() {
                     if (!b.timestamp || typeof b.timestamp !== 'string') { b.timestamp = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); changed = true; }
                     if (typeof b.level !== 'number' || b.level < 0) { b.level = 0; changed = true; }
                     if (typeof b.sichtbar !== 'boolean') { b.sichtbar = true; changed = true; }
-                    /** MODIFIZIERT: Sicherstellen, dass jede Beschreibung ein attachments-Array hat **/
                     if (!Array.isArray(b.attachments)) { b.attachments = []; changed = true; }
+                    if (!b.erinnerung || typeof b.erinnerung !== 'object') { b.erinnerung = getDefaultErinnerung(); changed = true; }
                 });
                 if (idee.beschreibungen.length < originalLengthDesc) { changed = true; }
             }
@@ -1756,7 +1849,7 @@ try {
     zeigeIdeen(); 
     pruebeLoginHinweis();
 
-    initialisiereUndStarteBenachrichtigungspruefung(); // Browser-Benachrichtigungen initialisieren
+    initialisiereUndStarteBenachrichtigungspruefung();
 
 } catch (initError) {
     console.error("Fehler während der Initialisierung:", initError);
