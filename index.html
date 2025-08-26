@@ -475,10 +475,10 @@ function zeigeIdeen() {
                 if (b.erinnerung && b.erinnerung.aktiv) {
                     let erinnerungText = `🔔 Erinnerung: ${getFormattedDate(b.erinnerung.termin)}`;
                      if (b.erinnerung.intervallTyp !== 'einmalig') {
-                        erinnerungText += `, Intervall: ${b.erinnerung.intervallTyp}`;
-                         if(b.erinnerung.intervallTyp === 'tage' && b.erinnerung.intervallWert) {
-                            erinnerungText += ` (${b.erinnerung.intervallWert} Tage)`;
-                        }
+                         erinnerungText += `, Intervall: ${b.erinnerung.intervallTyp}`;
+                          if(b.erinnerung.intervallTyp === 'tage' && b.erinnerung.intervallWert) {
+                             erinnerungText += ` (${b.erinnerung.intervallWert} Tage)`;
+                         }
                     }
                     beschreibungErinnerungHtml = `<div class="beschreibung-erinnerung-info">${erinnerungText}</div>`;
                 } else if (b.erinnerung && !b.erinnerung.aktiv && b.erinnerung.termin) {
@@ -499,6 +499,7 @@ function zeigeIdeen() {
                                 <button class="move-beschreibung-btn" title="Einrücken" onclick="aendereEinrueckungBeschreibung('${id}','${b.timestamp}', 1)">➡️</button>
                                 <button class="add-anhang-beschreibung-btn" title="Anhang" onclick="starteAnhangUploadFuerBeschreibung('${id}','${b.timestamp}')">📎</button>
                                 <button class="add-anhang-beschreibung-btn" title="Erinnerung" onclick="zeigeBeschreibungErinnerungDialog('${id}','${b.timestamp}')">🔔</button>
+                                <button class="add-anhang-beschreibung-btn" title="Per WhatsApp teilen" onclick="teileBeschreibungPerWhatsApp('${id}','${b.timestamp}')">📱</button>
                                 <button class="toggle-beschreibung-sichtbarkeit-btn" title="${sichtbarkeitButtonTitle}" onclick="toggleBeschreibungSichtbarkeit('${id}', '${b.timestamp}')">${sichtbarkeitButtonSymbol}</button>
                             </div>
                         </div>`;
@@ -874,9 +875,9 @@ function erinnerungSpeichern() {
             const beschreibungIndex = idee.beschreibungen.findIndex(b => b && b.timestamp === erinnerungFuerBeschreibungTimestamp);
             if (beschreibungIndex !== -1) {
                 ideen[ideeIndex].beschreibungen[beschreibungIndex].erinnerung = {
-                     ...erinnerungsDaten,
-                     titel: null,
-                     vorgangsnummer: null
+                        ...erinnerungsDaten,
+                        titel: null,
+                        vorgangsnummer: null
                 };
             } else {
                 zeigeWarnung("Fehler: Beschreibung zum Speichern der Erinnerung nicht gefunden.");
@@ -991,7 +992,7 @@ function exportiereAlsText() {
                       textContent += `${indentSpaces}- [${getFormattedDate(b.timestamp)}] ${praefix}${b.text}\n`;
                       if (b.attachments && b.attachments.length > 0) {
                           b.attachments.forEach(anhang => {
-                              textContent += `${indentSpaces}  -> Anhang: ${anhang.name} ${anhang.link ? `(${anhang.link})` : '(Lokal)'}\n`;
+                              textContent += `${indentSpaces}   -> Anhang: ${anhang.name} ${anhang.link ? `(${anhang.link})` : '(Lokal)'}\n`;
                           });
                       }
                       if (b.erinnerung && b.erinnerung.termin) {
@@ -1013,7 +1014,7 @@ function exportiereAlsText() {
         }
         textContent += `\n==================================================\n\n`;
     });
-     const blob = new Blob([textContent], { type: "text/plain;charset=utf-8" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "ideen-export.txt"; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); zeigeWarnung("Text-Export gestartet.", "success");
+    const blob = new Blob([textContent], { type: "text/plain;charset=utf-8" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "ideen-export.txt"; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); zeigeWarnung("Text-Export gestartet.", "success");
 }
 
 function sanitizeFilename(name) {
@@ -1162,18 +1163,18 @@ function exportiereAlsPDF(fileName = "ideen-export.pdf") {
                     if(b.attachments && b.attachments.length > 0) {
                         checkAddPage(defaultLineSpacing);
                         b.attachments.forEach(anhang => {
-                            const anhangText = `  -> ${anhang.name}`;
+                            const anhangText = `   -> ${anhang.name}`;
                             const anhangColor = anhang.link ? [0, 0, 238] : [0,0,0];
                             addWrappedText(anhangText, startX + 5, maxWidth - 5, {fontSize: 9, color: anhangColor, lineHeight: 4, link: anhang.link});
                         });
                         yPosition += 2;
                     }
                      if (b.erinnerung && b.erinnerung.termin) {
-                        checkAddPage(defaultLineSpacing * 3);
-                        const erinnerungTextPDF = formatErinnerungForExport(b.erinnerung).replace(/\n$/, "").replace(/^/gm, "  ");
-                        addWrappedText(erinnerungTextPDF, startX, maxWidth, { fontSize: 9, lineHeight: 4 });
-                        yPosition += 2;
-                    }
+                         checkAddPage(defaultLineSpacing * 3);
+                         const erinnerungTextPDF = formatErinnerungForExport(b.erinnerung).replace(/\n$/, "").replace(/^/gm, "  ");
+                         addWrappedText(erinnerungTextPDF, startX, maxWidth, { fontSize: 9, lineHeight: 4 });
+                         yPosition += 2;
+                     }
                 }
             });
             yPosition += (sectionSpacing / 2);
@@ -1342,24 +1343,24 @@ async function teilePerWhatsApp(){
          let datumTextWA = getFormattedDate(idee.timestamp);
          let hauptBeschreibungTextWA = idee.details ? `\n📝 *Beschreibung:*\n${idee.details}\n` : "";
          const beschreibungenText = idee.beschreibungen && idee.beschreibungen.length ?
-             `\n*Weitere Beschreibungen:*\n${
-                 idee.beschreibungen.filter(b => b && b.text !== undefined).map(b => {
-                     const indentSpacesWA = "  ".repeat(b.level || 0);
-                     const praefix = b.sichtbar === false ? "[Ausgeblendet] " : "";
-                     let anhangTextWA = "";
-                     if(b.attachments && b.attachments.length > 0) {
-                         anhangTextWA = "\n" + b.attachments.map(anhang => {
-                             return `${indentSpacesWA}  -> Anhang: ${anhang.name} ${anhang.link ? `(${anhang.link})` : ''}`;
-                         }).join("\n");
-                     }
-                     let erinnerungTextBWA = "";
-                     if(b.erinnerung && b.erinnerung.termin) {
-                        erinnerungTextBWA = `\n${indentSpacesWA}  🔔 _Erinnerung: ${getFormattedDate(b.erinnerung.termin)} (${b.erinnerung.intervallTyp})_`
-                     }
+              `\n*Weitere Beschreibungen:*\n${
+                   idee.beschreibungen.filter(b => b && b.text !== undefined).map(b => {
+                       const indentSpacesWA = "  ".repeat(b.level || 0);
+                       const praefix = b.sichtbar === false ? "[Ausgeblendet] " : "";
+                       let anhangTextWA = "";
+                       if(b.attachments && b.attachments.length > 0) {
+                           anhangTextWA = "\n" + b.attachments.map(anhang => {
+                               return `${indentSpacesWA}   -> Anhang: ${anhang.name} ${anhang.link ? `(${anhang.link})` : ''}`;
+                           }).join("\n");
+                       }
+                       let erinnerungTextBWA = "";
+                       if(b.erinnerung && b.erinnerung.termin) {
+                           erinnerungTextBWA = `\n${indentSpacesWA}  🔔 _Erinnerung: ${getFormattedDate(b.erinnerung.termin)} (${b.erinnerung.intervallTyp})_`
+                       }
 
-                     return `${indentSpacesWA}  - _[${getFormattedDate(b.timestamp)}]_ ${praefix}${b.text}${anhangTextWA}${erinnerungTextBWA}`;
-                 }).join("\n")
-             }` : "";
+                       return `${indentSpacesWA}  - _[${getFormattedDate(b.timestamp)}]_ ${praefix}${b.text}${anhangTextWA}${erinnerungTextBWA}`;
+                   }).join("\n")
+              }` : "";
         let anhaengeTextForWhatsApp = "\n📎 Anhänge: Keine";
         if (idee.dateien && idee.dateien.length > 0) {
             anhaengeTextForWhatsApp = `\n📎 *Anhänge:*\n${idee.dateien.filter(f => f && f.id).map(f => {
@@ -1375,16 +1376,102 @@ async function teilePerWhatsApp(){
         }
 
         return ( `${idee.erledigt ? '_[ERLEDIGT]_ ' : ''}*${idee.vorgangsnummer ? `[Vorgang ${idee.vorgangsnummer}] ` : ''}${idee.text || 'Ohne Titel'}*\n` +
-                 `📁 Kat.: ${idee.kategorie||'-'}\n` + `${idee.benutzer?`🧑‍💻 Zust.: ${idee.benutzer}\n`:""}` + `🔖 Prio: ${idee.prioritaet||"-"}\n` + `📅 ${datumTextWA}\n` +
-                 `${hauptBeschreibungTextWA}` +
-                 `${idee.mandantennummer?`🏢 Mandant: ${idee.mandantennummer}\n`:""}` + `${idee.firmenname?`🏭 Firma: ${idee.firmenname}\n`:""}` +
-                 `${erinnerungTextWA}` +
-                 `${beschreibungenText}` + `${anhaengeTextForWhatsApp}` );
+                   `📁 Kat.: ${idee.kategorie||'-'}\n` + `${idee.benutzer?`🧑‍💻 Zust.: ${idee.benutzer}\n`:""}` + `🔖 Prio: ${idee.prioritaet||"-"}\n` + `📅 ${datumTextWA}\n` +
+                   `${hauptBeschreibungTextWA}` +
+                   `${idee.mandantennummer?`🏢 Mandant: ${idee.mandantennummer}\n`:""}` + `${idee.firmenname?`🏭 Firma: ${idee.firmenname}\n`:""}` +
+                   `${erinnerungTextWA}` +
+                   `${beschreibungenText}` + `${anhaengeTextForWhatsApp}` );
     }).filter(s => s !== "").join("\n\n------------------------------------\n\n");
 
-     const exportTimestamp = new Date().toLocaleString("de-DE"); const weitergeleitetText = `\n\n_[Notiz(en) markiert als: Weitergeleitet an ${recipientInfo} am ${exportTimestamp}]_`; text += weitergeleitetText; const waLink = `https://wa.me/?text=${encodeURIComponent(text)}`; try { const waWindow = window.open(waLink,"_blank"); if (!waWindow) { zeigeWarnung("WhatsApp konnte nicht geöffnet werden.", "warning"); } } catch (e) { console.error("WhatsApp Fehler:", e); zeigeWarnung("Fehler WhatsApp: " + e.message); }
-     await new Promise(resolve => setTimeout(resolve, 100)); let ideenImSpeicher = JSON.parse(localStorage.getItem("ideen") || "[]"); let changed = false; const ausgewaehlteIDsFuerWA = ideenToExport.map(i => i.id); ideenImSpeicher.forEach(idee => { if (idee && idee.id && ausgewaehlteIDsFuerWA.includes(idee.id)) { const desc = `Weitergeleitet via WhatsApp an: ${recipientInfo} am ${exportTimestamp}`; if (!idee.beschreibungen){idee.beschreibungen = [];} const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); idee.beschreibungen.push({ text: desc, timestamp: ts, level: 0, sichtbar: true, attachments: [], erinnerung: getDefaultErinnerung() }); changed = true; }}); if (changed) { localStorage.setItem("ideen", JSON.stringify(ideenImSpeicher)); zeigeIdeen(); istGespeichert = false; if (typeof saveToOneDrive === "function") await saveToOneDrive(); }
+    const exportTimestamp = new Date().toLocaleString("de-DE"); const weitergeleitetText = `\n\n_[Notiz(en) markiert als: Weitergeleitet an ${recipientInfo} am ${exportTimestamp}]_`; text += weitergeleitetText; const waLink = `https://wa.me/?text=${encodeURIComponent(text)}`; try { const waWindow = window.open(waLink,"_blank"); if (!waWindow) { zeigeWarnung("WhatsApp konnte nicht geöffnet werden.", "warning"); } } catch (e) { console.error("WhatsApp Fehler:", e); zeigeWarnung("Fehler WhatsApp: " + e.message); }
+    await new Promise(resolve => setTimeout(resolve, 100)); let ideenImSpeicher = JSON.parse(localStorage.getItem("ideen") || "[]"); let changed = false; const ausgewaehlteIDsFuerWA = ideenToExport.map(i => i.id); ideenImSpeicher.forEach(idee => { if (idee && idee.id && ausgewaehlteIDsFuerWA.includes(idee.id)) { const desc = `Weitergeleitet via WhatsApp an: ${recipientInfo} am ${exportTimestamp}`; if (!idee.beschreibungen){idee.beschreibungen = [];} const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); idee.beschreibungen.push({ text: desc, timestamp: ts, level: 0, sichtbar: true, attachments: [], erinnerung: getDefaultErinnerung() }); changed = true; }}); if (changed) { localStorage.setItem("ideen", JSON.stringify(ideenImSpeicher)); zeigeIdeen(); istGespeichert = false; if (typeof saveToOneDrive === "function") await saveToOneDrive(); }
 }
+
+/**
+ * NEU HINZUGEFÜGT: Funktion zum Teilen einer einzelnen Beschreibung per WhatsApp.
+ * @param {string} ideeId - Die ID der Haupt-Idee.
+ * @param {string} beschreibungTimestamp - Der eindeutige Zeitstempel der zu teilenden Beschreibung.
+ */
+async function teileBeschreibungPerWhatsApp(ideeId, beschreibungTimestamp) {
+    if (!ideeId || !beschreibungTimestamp) {
+        zeigeWarnung("Fehler: ID für das Teilen fehlt.", "warnung");
+        return;
+    }
+
+    // Daten aus dem Speicher laden
+    let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+    const idee = ideen.find(i => i && i.id === ideeId);
+    if (!idee) {
+        zeigeWarnung("Zugehörige Idee nicht gefunden.", "warnung");
+        return;
+    }
+    const beschreibung = idee.beschreibungen?.find(b => b && b.timestamp === beschreibungTimestamp);
+    if (!beschreibung) {
+        zeigeWarnung("Spezifische Beschreibung nicht gefunden.", "warnung");
+        return;
+    }
+    
+    // Empfänger abfragen
+    const recipientInput = prompt("An wen soll diese Beschreibung gesendet werden? Info oder 'ich', 'mandant', 'support', 'andere'");
+    let recipientInfo = recipientInput ? recipientInput.trim().toLowerCase() : "";
+    if (!recipientInfo) {
+        zeigeWarnung("Export abgebrochen, kein Empfänger angegeben.");
+        return;
+    }
+    if (!["ich", "mandant", "support"].includes(recipientInfo) && recipientInfo !== "andere" && !recipientInfo.startsWith("andere:")) {
+        recipientInfo = `Direkte Eingabe: ${recipientInput.trim()}`;
+    } else if (recipientInfo === "andere") {
+        const other = prompt("Zusätzliche Info für den Vermerk bei 'andere'?");
+        if (!other?.trim()) {
+            zeigeWarnung("Abgebrochen, keine Details für 'andere' angegeben.");
+            return;
+        }
+        recipientInfo = `Andere: ${other.trim()}`;
+    }
+
+    // WhatsApp-Nachricht erstellen
+    let text = `*Teil-Information aus Vorgang ${idee.vorgangsnummer || 'N/A'}: ${idee.text || 'Ohne Titel'}*\n\n`;
+    text += `*Beschreibung vom ${getFormattedDate(beschreibung.timestamp)}:*\n`;
+    text += `${beschreibung.text || 'Kein Text'}`;
+
+    if (beschreibung.attachments && beschreibung.attachments.length > 0) {
+        text += `\n\n*Anhänge zu dieser Beschreibung:*\n`;
+        text += beschreibung.attachments.map(att => `  - ${att.name || 'Unbekannt'} ${att.link ? `(${att.link})` : '(Lokal)'}`).join('\n');
+    }
+
+    const exportTimestamp = new Date().toLocaleString("de-DE");
+    text += `\n\n_[Diese einzelne Beschreibung wurde weitergeleitet an: ${recipientInfo} am ${exportTimestamp}]_`;
+
+    // WhatsApp-Link öffnen
+    const waLink = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    try {
+        const waWindow = window.open(waLink, "_blank");
+        if (!waWindow) {
+            zeigeWarnung("WhatsApp konnte nicht im neuen Tab geöffnet werden. Prüfen Sie Ihren Pop-up-Blocker.", "warning");
+        }
+    } catch (e) {
+        console.error("WhatsApp Link Fehler:", e);
+        zeigeWarnung("Fehler beim Öffnen von WhatsApp: " + e.message, "warnung");
+    }
+
+    // Protokoll-Eintrag in der App speichern
+    await new Promise(resolve => setTimeout(resolve, 100)); 
+    const ideeIndex = ideen.findIndex(i => i && i.id === ideeId);
+    if (ideeIndex !== -1) {
+        const logDesc = `Einzelne Beschreibung (vom ${getFormattedDate(beschreibung.timestamp)}) weitergeleitet via WhatsApp an: ${recipientInfo} am ${exportTimestamp}.`;
+        const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9);
+        ideen[ideeIndex].beschreibungen.push({ text: logDesc, timestamp: ts, level: 0, sichtbar: true, attachments: [], erinnerung: getDefaultErinnerung() });
+        
+        localStorage.setItem("ideen", JSON.stringify(ideen));
+        zeigeIdeen();
+        istGespeichert = false;
+        if (typeof saveToOneDrive === "function") {
+            await saveToOneDrive();
+        }
+    }
+}
+
+
 /* --- END BLOCK 6 --- */
 // --- FUNKTIONEN FÜR KALENDERTERMINERSTELLUNG ---
 
