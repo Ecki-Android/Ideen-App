@@ -203,7 +203,7 @@ console.log("Script started");
 // WICHTIG: Ersetzen Sie diesen Link mit einem DIREKTEN Link zur userlist.json.
 // Ein Link von GitHub Raw ist ideal, z.B.: https://raw.githubusercontent.com/IHR-NAME/IHR-REPO/main/userlist.json
 // Ein normaler SharePoint-Link wird durch Browser-Sicherheit (CORS) blockiert!
-const whitelistUrl = "https://unimakgmbh-my.sharepoint.com/:u:/g/personal/admin_unimakgmbh_onmicrosoft_com/EdC-9NYTxy9Or3fpEa8EQpkBfkeFvYQwBOPaw3x4_KI3_A?e=PnchDd&download=1";
+const whitelistUrl = "https://raw.githubusercontent.com/Ecki-Android/Ideen-App/main/userlist.json";
 
 const adminEmail = "admin@unimakgmbh.onmicrosoft.com";
 const adminPasswordHash = "NDUwMV9raXdpMg=="; // Base64 kodiertes Passwort "4501_kiwi2"
@@ -395,23 +395,29 @@ function saveWhitelistToLocalStorage() {
 }
 
 async function saveWhitelistToOneDrive() {
+    // Diese Funktion ist jetzt nur noch für Backup-Zwecke relevant,
+    // da die primäre Benutzerliste auf GitHub liegt.
     if (!accessToken) {
-        zeigeWarnung("Sie müssen als Administrator angemeldet sein, um die Liste zu speichern.", "warnung");
+        zeigeWarnung("Sie müssen als Administrator angemeldet sein.", "warnung");
         return;
     }
-    saveWhitelistToLocalStorage();
-    const storedList = localStorage.getItem('whitelist_local') || '[]';
-    const whitelistPath = "/ideenapp/userlist.json";
-    zeigeWarnung("Speichere Benutzerliste in OneDrive...", "info");
+    const editorValue = document.getElementById('whitelistEditor').value;
+    const userArray = editorValue.split('\n').map(email => email.trim()).filter(email => email);
+    const userListString = JSON.stringify(userArray, null, 2);
+
+    const whitelistPath = "/ideenapp/userlist_backup.json"; // Geänderter Pfad für Backup
+    zeigeWarnung("Speichere Backup der Benutzerliste in OneDrive...", "info");
     try {
         const url = `https://graph.microsoft.com/v1.0/me/drive/root:${whitelistPath}:/content`;
         const res = await fetch(url, {
             method: "PUT",
             headers: { "Authorization": `Bearer ${accessToken}`, "Content-Type": "application/json" },
-            body: storedList
+            body: userListString
         });
         if (res.ok) {
-            zeigeWarnung("Benutzerliste erfolgreich in OneDrive gespeichert!", 'success');
+            zeigeWarnung("Backup der Benutzerliste erfolgreich in OneDrive gespeichert!", 'success');
+            // Hinweis: Um die Live-Liste zu ändern, muss die Datei auf GitHub bearbeitet werden.
+            alert("Hinweis: Dies hat nur ein Backup auf OneDrive gespeichert. Um die Benutzerberechtigungen live zu ändern, müssen Sie die 'userlist.json' Datei direkt auf GitHub bearbeiten.");
             closeAdminPanel();
         } else {
             const err = await res.json().catch(() => null);
@@ -419,7 +425,7 @@ async function saveWhitelistToOneDrive() {
             throw new Error(msg);
         }
     } catch(e) {
-        zeigeWarnung("Fehler beim Speichern der Benutzerliste: " + e.message, "warnung");
+        zeigeWarnung("Fehler beim Speichern des Backups: " + e.message, "warnung");
     }
 }
 
@@ -1942,7 +1948,6 @@ async function loadFromOneDrive(){
             zeigeWarnung(`Daten von OneDrive geladen! (${finalPath})`,'success'); 
             istGespeichert=true; 
         } else if(res.status===404){
-            // KORRIGIERT: Behandelt den Fall, dass ein neuer Benutzer noch keine Datei hat.
             zeigeWarnung(`Keine bestehende Datenbank unter '${finalPath}' gefunden. Eine neue wird beim ersten Speichern angelegt.`, 'info');
             localStorage.removeItem("ideen");
             localStorage.removeItem("kategorien");
@@ -1951,12 +1956,11 @@ async function loadFromOneDrive(){
             naechsteVorgangsnummer = 1;
             kategorien = [];
             benutzerliste = [];
-            // UI zurücksetzen
             initialisiereKategorien();
             initialisiereBenutzer();
             initialisiereVorgangsnummer();
             zeigeIdeen();
-            istGespeichert = true; // Es gibt nichts zu speichern
+            istGespeichert = true;
         }else{ 
             const err=await res.json().catch(()=>null); 
             const msg=err?.error?.message||res.statusText; 
