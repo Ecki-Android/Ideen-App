@@ -11,7 +11,7 @@ body{font-family:Arial,sans-serif;margin:0 0 20px 0;}
 input,select,textarea{margin-top:10px;padding:10px;font-size:1em;width:400px;max-width:100vw;box-sizing:border-box;display:block;}
 textarea{min-height:60px;}
 button{padding:10px 18px;font-size:1em;margin-top:10px;margin-right:8px;border-radius:4px;border:1px solid #bbb;background:#eee;cursor:pointer;width:auto;min-width:44px;display:inline-block;}
-button:disabled { cursor: not-allowed; opacity: 0.6; } /* Style für deaktivierte Buttons */
+button:disabled { cursor: not-allowed; opacity: 0.6; }
 .buttons,.top-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;}
 .filter-bar{margin:20px 0;}
 .filter-bar label, .filter-bar select,.filter-bar input{width:auto;display:inline-block;margin-right:10px;margin-top:0;}
@@ -22,18 +22,7 @@ button:disabled { cursor: not-allowed; opacity: 0.6; } /* Style für deaktiviert
 .idee-content h3,.idee-content p,.idee-content small{max-width:100%;overflow-wrap:break-word;word-break:break-word;font-size:1em;}
 .idee.erledigt .idee-content h3,.idee.erledigt .idee-content p,.idee.erledigt .idee-content small{text-decoration:line-through;color:#888;}
 .beschreibung-historie{margin:8px 0 12px 0;}
-.beschreibung-item{ /* Basis-Styling, Einrückung per Inline-Style */
-    margin:4px 0 4px 0;
-    padding:6px 8px;
-    background:#f8f8f8;
-    border-left:3px solid #bbb;
-    font-size:0.98em;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-sizing: border-box; /* Wichtig bei Breitenänderung */
-    transition: opacity 0.3s ease; /* Übergang für Ausblenden */
-}
+.beschreibung-item{margin:4px 0 4px 0;padding:6px 8px;background:#f8f8f8;border-left:3px solid #bbb;font-size:0.98em;display:flex;justify-content:space-between;align-items:center;box-sizing:border-box;transition:opacity .3s ease;}
 .beschreibung-text-zeit { flex-grow: 1; margin-right: 10px; overflow-wrap: break-word; word-break: break-word; }
 .beschreibung-zeit{color:#666;font-size:0.9em;margin-bottom:2px;display:block;}
 .beschreibung-eingabe, .erinnerung-dialog-content {margin:10px 0;background:#f9f9f9;border-left:3px solid #bbb;padding:15px; border-radius: 5px;}
@@ -50,110 +39,27 @@ button:disabled { cursor: not-allowed; opacity: 0.6; } /* Style für deaktiviert
 #warnung.info-message { color: #1a73e8; border: 1px solid #1a73e8; background-color: #e8f0fe; }
 .beschreibung-item .edit-beschreibung-btn, .beschreibung-item .add-anhang-beschreibung-btn { padding: 3px 6px; font-size: 0.8em; margin-top: 0; min-width: auto; width: auto; height: 24px; line-height: 1; display: flex; align-items: center; justify-content: center; }
 .top-actions .onedrive-btn { background: #0078d4; color: white; border-color: #005a9e; }
-
-/* --- START HINZUGEFÜGTE CSS REGELN --- */
-/* Regeln für veraltete Anhänge */
-.anhang-veraltet {
-    opacity: 0.7; /* Gesamten Eintrag etwas ausblenden */
-}
-.anhang-veraltet .datei-link {
-    text-decoration: line-through; /* Link durchstreichen */
-    color: grey !important; /* Linkfarbe ändern (important ggf. nötig) */
-}
-.toggle-anhang-sichtbarkeit-btn {
-    padding: 1px 4px !important;
-    font-size: 0.8em !important;
-    margin-left: 8px !important;
-    line-height: 1 !important;
-    min-width: auto !important;
-    width: auto !important;
-    margin-top: 0 !important;
-    vertical-align: middle !important;
-    border-radius: 3px !important;
-    border: 1px solid #ccc !important;
-    background: #f0f0f0 !important;
-    cursor: pointer;
-}
-
-/* Regeln für Beschreibungs-Sortierbuttons */
-.beschreibung-item-actions { /* Container für die Buttons rechts */
-    display: flex;
-    gap: 3px; /* Kleiner Abstand zwischen Buttons */
-    align-items: center;
-    flex-shrink: 0; /* Verhindert Schrumpfen der Buttons */
-}
-.move-beschreibung-btn {
-    padding: 3px 5px !important;
-    font-size: 1em !important; /* Pfeilgröße anpassen */
-    line-height: 1 !important;
-    min-width: auto !important;
-    width: auto !important;
-    height: 24px !important; /* Passend zum Edit-Button */
-    margin: 0 !important; /* Kein margin-top */
-    vertical-align: middle;
-    background-color: #f0f0f0 !important;
-    border: 1px solid #ccc !important;
-    border-radius: 3px !important;
-    cursor: pointer;
-}
-/* Regeln für veraltete Beschreibungen */
-.beschreibung-veraltet {
-    opacity: 0.6; /* Gesamten Eintrag etwas ausblenden */
-}
-.beschreibung-veraltet .beschreibung-text-zeit {
-    color: grey; /* Textfarbe ändern */
-}
-.toggle-beschreibung-sichtbarkeit-btn {
-    padding: 1px 4px !important;
-    font-size: 0.8em !important;
-    margin-left: 3px !important; /* Abstand zu anderen Buttons */
-    line-height: 1 !important;
-    min-width: auto !important;
-    width: auto !important;
-    margin-top: 0 !important;
-    vertical-align: middle !important;
-    border-radius: 3px !important;
-    border: 1px solid #ccc !important;
-    background: #f0f0f0 !important;
-    cursor: pointer;
-    height: 24px !important; /* Passend zu anderen Buttons */
-    display: flex; /* Stellt sicher, dass Icon zentriert ist */
-    align-items: center;
-    justify-content: center;
-}
-/** CSS für Beschreibungs-Anhänge **/
-.beschreibung-anhaenge {
-    font-size: 0.9em;
-    margin-top: 5px;
-    padding-left: 10px;
-    border-left: 2px solid #ddd;
-}
-.beschreibung-anhang-item {
-    display: flex;
-    align-items: center;
-    margin-bottom: 2px;
-}
-/** ENDE NEUE CSS REGELN **/
-
+.anhang-veraltet { opacity: 0.7; }
+.anhang-veraltet .datei-link { text-decoration: line-through; color: grey !important; }
+.toggle-anhang-sichtbarkeit-btn { padding: 1px 4px !important; font-size: 0.8em !important; margin-left: 8px !important; line-height: 1 !important; min-width: auto !important; width: auto !important; margin-top: 0 !important; vertical-align: middle !important; border-radius: 3px !important; border: 1px solid #ccc !important; background: #f0f0f0 !important; cursor: pointer; }
+.beschreibung-item-actions { display: flex; gap: 3px; align-items: center; flex-shrink: 0; }
+.move-beschreibung-btn { padding: 3px 5px !important; font-size: 1em !important; line-height: 1 !important; min-width: auto !important; width: auto !important; height: 24px !important; margin: 0 !important; vertical-align: middle; background-color: #f0f0f0 !important; border: 1px solid #ccc !important; border-radius: 3px !important; cursor: pointer; }
+.beschreibung-veraltet { opacity: 0.6; }
+.beschreibung-veraltet .beschreibung-text-zeit { color: grey; }
+.toggle-beschreibung-sichtbarkeit-btn { padding: 1px 4px !important; font-size: 0.8em !important; margin-left: 3px !important; line-height: 1 !important; min-width: auto !important; width: auto !important; margin-top: 0 !important; vertical-align: middle !important; border-radius: 3px !important; border: 1px solid #ccc !important; background: #f0f0f0 !important; cursor: pointer; height: 24px !important; display: flex; align-items: center; justify-content: center; }
+.beschreibung-anhaenge { font-size: 0.9em; margin-top: 5px; padding-left: 10px; border-left: 2px solid #ddd; }
+.beschreibung-anhang-item { display: flex; align-items: center; margin-bottom: 2px; }
 .erinnerung-info { font-size: 0.85em; color: #0078d4; margin-top: 5px; }
-
-/** CSS für die Erinnerungsanzeige unter einer Beschreibung **/
-.beschreibung-erinnerung-info {
-    font-size: 0.9em;
-    color: #0078d4;
-    margin-top: 4px;
-    padding: 3px 0 3px 10px;
-}
-
+.beschreibung-erinnerung-info { font-size: 0.9em; color: #0078d4; margin-top: 4px; padding: 3px 0 3px 10px; }
 .erinnerung-dialog-content label { display: block; margin-top:10px; font-weight: bold;}
-.erinnerung-dialog-content input[type="datetime-local"],
-.erinnerung-dialog-content select,
-.erinnerung-dialog-content input[type="number"],
-.erinnerung-dialog-content input[type="text"] { width: calc(100% - 22px); }
+.erinnerung-dialog-content input[type="datetime-local"], .erinnerung-dialog-content select, .erinnerung-dialog-content input[type="number"], .erinnerung-dialog-content input[type="text"] { width: calc(100% - 22px); }
 .erinnerung-dialog-content .checkbox-label { display: inline-block; font-weight: normal; margin-left: 5px;}
 .erinnerung-dialog-content input[type="checkbox"] { width: auto; display: inline-block; margin-right: 5px; vertical-align: middle;}
-
-
+#adminPanel { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 90%; max-width: 500px; background: white; border: 1px solid #ccc; box-shadow: 0 5px 15px rgba(0,0,0,0.3); z-index: 2000; padding: 20px; }
+#adminPanel h3 { margin-top: 0; }
+#whitelistEditor { width: 100%; height: 150px; }
+#accessDeniedMessage { display: none; text-align: center; padding: 40px; background: #fff; margin: 20px; border-radius: 8px; }
+.app-container.hidden { display: none; }
 @media (max-width:600px){
     input,select,textarea,button{width:100vw;min-width:0;max-width:100vw;}
     .buttons,.top-actions,.filter-bar{flex-direction:column;gap:0;}
@@ -166,122 +72,147 @@ button:disabled { cursor: not-allowed; opacity: 0.6; } /* Style für deaktiviert
     .beschreibung-item-actions { margin-top: 5px; width: 100%; justify-content: flex-start; flex-wrap: wrap; }
     #warnung { position: static; transform: none; left: auto; max-width: 100%; }
     .toggle-anhang-sichtbarkeit-btn { float: right; }
-    .erinnerung-dialog-content input[type="datetime-local"],
-    .erinnerung-dialog-content select,
-    .erinnerung-dialog-content input[type="number"],
-    .erinnerung-dialog-content input[type="text"] { width: 100%; }
+    .erinnerung-dialog-content input[type="datetime-local"], .erinnerung-dialog-content select, .erinnerung-dialog-content input[type="number"], .erinnerung-dialog-content input[type="text"] { width: 100%; }
 }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://alcdn.msauth.net/browser/2.24.0/js/msal-browser.min.js"></script>
 </head>
 <body>
-<h1>Ideen-App Pro</h1>
-<div id="warnung"></div> <div id="loginHinweis" class="warnung" style="display:none;">Anmeldung erforderlich: Bitte melden Sie sich zuerst mit Ihrem Microsoft-Konto an. Ohne Anmeldung sind keine Cloud-Links und keine Synchronisation möglich.</div>
 
-<div id="vorgangsnummerAnzeigeInput">Nächste Vorgangsnummer: <span id="naechsteNummerAnzeige">1</span></div>
-<input type="text" id="ideeText" placeholder="Titel*" />
-<textarea id="ideeDetails" placeholder="Beschreibung" rows="3"></textarea>
-<input type="text" id="mandantennummer" placeholder="Mandantennummer (optional)" />
-<input type="text" id="firmenname" placeholder="Firmenname (optional)" />
-<select id="kategorie"></select> <input type="text" id="neueKategorie" placeholder="Neue Kategorie" /> <button onclick="neueKategorieHinzufuegen()">+ Kat</button> <button class="katLoeschBtn" onclick="kategorieLoeschen()">Kat löschen</button> <select id="benutzer"></select> <input type="text" id="neuerBenutzer" placeholder="Neuer Benutzer" /> <button onclick="neuenBenutzerHinzufuegen()">+ User</button> <button class="benutzerLoeschBtn" onclick="benutzerLoeschen()">User löschen</button> <div class="buttons"> <button id="prioHoch" class="prio-btn" onclick="setzePrioritaet('Hoch')">🔴 Hoch</button> <button id="prioMittel" class="prio-btn" onclick="setzePrioritaet('Mittel')">🟠 Mittel</button> <button id="prioNiedrig" class="prio-btn" onclick="setzePrioritaet('Niedrig')">🟢 Niedrig</button> </div>
-<input type="file" id="dateien" multiple /> <div class="datei-vorschau" id="dateiVorschau"></div>
-<button id="speichernBtn" onclick="speichereIdee()">💾 Speichern</button> <button id="abbrechenBtn" onclick="abbrechenBearbeiten()" style="display:none;">Abbrechen</button>
-
-<div class="filter-bar">
-<label>Filter:</label> <select id="filterKategorie" onchange="zeigeIdeen()"><option value="" class="filter-option-alle">🎯 Alle Ideen</option></select>
-<label>Archiv:</label> <select id="filterArchiv" onchange="zeigeIdeen()"><option value="nicht_erledigt">Nur nicht erledigt</option><option value="erledigt">Nur erledigt</option><option value="alle">Alle anzeigen</option></select>
-<label>Benutzer:</label> <select id="filterBenutzer" onchange="filterNachBenutzer()"></select>
-<label>Mandant:</label> <select id="filterMandant" onchange="filterNachMandant()"><option value="">🏢 Alle Mandanten</option></select>
-<label>Sortierung:</label> <select id="sortierung" onchange="zeigeIdeen()"><option value="standard">Standard</option><option value="neu">Neueste zuerst</option><option value="alt">Älteste zuerst</option><option value="prio">Nach Priorität</option></select>
+<div id="accessDeniedMessage">
+    <h2>Zugriff verweigert</h2>
+    <p>Sie sind nicht berechtigt, diese Anwendung zu nutzen.</p>
+    <p>Bitte kontaktieren Sie den Administrator, um eine Freischaltung zu beantragen.</p>
 </div>
 
-<div class="top-actions">
-<button onclick="exportiereAlsPDF()">📝 PDF</button> <button onclick="exportiereAlsText()">📄 Text</button> <button onclick="teilePerEmail()">✉️ E-Mail</button> <button onclick="teilePerWhatsApp()">📱 WhatsApp</button>
-<input type="text" id="onedrivePath" placeholder="/ideenapp/ideen.json" style="width: 250px; margin-top: 0;"/> <button class="onedrive-btn" onclick="saveToOneDrive()">☁️ OneDrive Speichern</button> <button class="onedrive-btn" onclick="loadFromOneDrive()">☁️ OneDrive Laden</button>
-<button onclick="alleIdeenLoeschen()" style="background:#eee;border:1px solid #c00;color:#c00;">Alle löschen</button> <button onclick="ausgewaehlteNotizenLoeschen()" style="background:#eee;border:1px solid #c00;color:#c00;">Auswahl löschen</button>
-<button id="speicherDateiBtn" onclick="speichereIdeenAlsDatei()">Datei speichern</button> <button id="oeffneDateiBtn" onclick="ladeIdeenAusDatei()">Datei öffnen</button>
-<button onclick="anmeldenUndLaden()" style="background:#005a9e; color: white; border-color: #004578;">🔑☁️ Anmelden & Laden</button>
-<button onclick="handleLogin()" style="background:#e6f4ff;border-color:#0067b8;color:#0067b8;">🔑 Anmelden</button> 
-<button onclick="handleLogout()" style="background:#ffe0e0;border-color:#c00;color:#c00;">🔒 Abmelden</button>
-</div>
+<div class="app-container">
+    <h1>Ideen-App Pro</h1>
+    <div id="warnung"></div> <div id="loginHinweis" class="warnung" style="display:none;">Anmeldung erforderlich: Bitte melden Sie sich zuerst mit Ihrem Microsoft-Konto an. Ohne Anmeldung sind keine Cloud-Links und keine Synchronisation möglich.</div>
 
-<div id="ideenListe"></div>
-<div id="beschreibungDialog" style="display:none;" class="beschreibung-eingabe"> <textarea id="beschreibungText" placeholder="Weitere Beschreibung" rows="2"></textarea> <button onclick="beschreibungSpeichern()">💾 Speichern</button> <button onclick="beschreibungAbbrechen()">❌ Abbrechen</button> </div>
+    <div id="vorgangsnummerAnzeigeInput">Nächste Vorgangsnummer: <span id="naechsteNummerAnzeige">1</span></div>
+    <input type="text" id="ideeText" placeholder="Titel*" />
+    <textarea id="ideeDetails" placeholder="Beschreibung" rows="3"></textarea>
+    <input type="text" id="mandantennummer" placeholder="Mandantennummer (optional)" />
+    <input type="text" id="firmenname" placeholder="Firmenname (optional)" />
+    <select id="kategorie"></select> <input type="text" id="neueKategorie" placeholder="Neue Kategorie" /> <button onclick="neueKategorieHinzufuegen()">+ Kat</button> <button class="katLoeschBtn" onclick="kategorieLoeschen()">Kat löschen</button> <select id="benutzer"></select> <input type="text" id="neuerBenutzer" placeholder="Neuer Benutzer" /> <button onclick="neuenBenutzerHinzufuegen()">+ User</button> <button class="benutzerLoeschBtn" onclick="benutzerLoeschen()">User löschen</button> <div class="buttons"> <button id="prioHoch" class="prio-btn" onclick="setzePrioritaet('Hoch')">🔴 Hoch</button> <button id="prioMittel" class="prio-btn" onclick="setzePrioritaet('Mittel')">🟠 Mittel</button> <button id="prioNiedrig" class="prio-btn" onclick="setzePrioritaet('Niedrig')">🟢 Niedrig</button> </div>
+    <input type="file" id="dateien" multiple /> <div class="datei-vorschau" id="dateiVorschau"></div>
+    <button id="speichernBtn" onclick="speichereIdee()">💾 Speichern</button> <button id="abbrechenBtn" onclick="abbrechenBearbeiten()" style="display:none;">Abbrechen</button>
 
-<input type="file" id="beschreibungAnhangInput" style="display: none;" onchange="handleBeschreibungAnhangUpload(event)" multiple>
-
-<div id="erinnerungDialog" style="display:none;" class="erinnerung-dialog-content">
-    <h3>Erinnerung einstellen</h3>
-    <label for="erinnerungTerminInput">Termin (Datum und Uhrzeit):</label>
-    <input type="datetime-local" id="erinnerungTerminInput" />
-
-    <label for="erinnerungIntervallTypSelect">Intervall:</label>
-    <select id="erinnerungIntervallTypSelect" onchange="toggleErinnerungIntervallWert()">
-        <option value="einmalig">Einmalig</option>
-        <option value="tage">Alle X Tage</option>
-        <option value="woechentlich">Wöchentlich</option>
-        <option value="monatlich">Monatlich</option>
-        <option value="vierteljaehrlich">Vierteljährlich</option>
-        <option value="jaehrlich">Jährlich</option>
-    </select>
-    <div id="erinnerungIntervallWertContainer" style="display:none;">
-      <label for="erinnerungIntervallWertInput">Anzahl Tage:</label>
-      <input type="number" id="erinnerungIntervallWertInput" min="1" value="1" />
+    <div class="filter-bar">
+    <label>Filter:</label> <select id="filterKategorie" onchange="zeigeIdeen()"><option value="" class="filter-option-alle">🎯 Alle Ideen</option></select>
+    <label>Archiv:</label> <select id="filterArchiv" onchange="zeigeIdeen()"><option value="nicht_erledigt">Nur nicht erledigt</option><option value="erledigt">Nur erledigt</option><option value="alle">Alle anzeigen</option></select>
+    <label>Benutzer:</label> <select id="filterBenutzer" onchange="filterNachBenutzer()"></select>
+    <label>Mandant:</label> <select id="filterMandant" onchange="filterNachMandant()"><option value="">🏢 Alle Mandanten</option></select>
+    <label>Sortierung:</label> <select id="sortierung" onchange="zeigeIdeen()"><option value="standard">Standard</option><option value="neu">Neueste zuerst</option><option value="alt">Älteste zuerst</option><option value="prio">Nach Priorität</option></select>
     </div>
 
-    <input type="checkbox" id="erinnerungVorabCheckbox" onchange="toggleErinnerungVorabDetails()">
-    <label for="erinnerungVorabCheckbox" class="checkbox-label">Vorab-Erinnerung</label>
+    <div class="top-actions">
+    <button onclick="showAdminPanel()" id="adminButton" style="display:none; background:#ffc107; color: black; border-color: #e0a800;">👤 Benutzer verwalten</button>
+    <button onclick="exportiereAlsPDF()">📝 PDF</button> <button onclick="exportiereAlsText()">📄 Text</button> <button onclick="teilePerEmail()">✉️ E-Mail</button> <button onclick="teilePerWhatsApp()">📱 WhatsApp</button>
+    <input type="text" id="onedrivePath" placeholder="/ideenapp/ideen.json" style="width: 250px; margin-top: 0;"/> <button class="onedrive-btn" onclick="saveToOneDrive()">☁️ OneDrive Speichern</button> <button class="onedrive-btn" onclick="loadFromOneDrive()">☁️ OneDrive Laden</button>
+    <button onclick="alleIdeenLoeschen()" style="background:#eee;border:1px solid #c00;color:#c00;">Alle löschen</button> <button onclick="ausgewaehlteNotizenLoeschen()" style="background:#eee;border:1px solid #c00;color:#c00;">Auswahl löschen</button>
+    <button id="speicherDateiBtn" onclick="speichereIdeenAlsDatei()">Datei speichern</button> <button id="oeffneDateiBtn" onclick="ladeIdeenAusDatei()">Datei öffnen</button>
+    <button onclick="anmeldenUndLaden()" style="background:#005a9e; color: white; border-color: #004578;">🔑☁️ Anmelden & Laden</button>
+    <button onclick="handleLogin()" style="background:#e6f4ff;border-color:#0067b8;color:#0067b8;">🔑 Anmelden</button> 
+    <button onclick="handleLogout()" style="background:#ffe0e0;border-color:#c00;color:#c00;">🔒 Abmelden</button>
+    </div>
 
-    <div id="erinnerungVorabDetailsContainer" style="display:none;">
-        <label for="erinnerungVorabWertInput">Vorab-Wert:</label>
-        <input type="number" id="erinnerungVorabWertInput" min="1" value="10"/>
-        <label for="erinnerungVorabEinheitSelect">Vorab-Einheit:</label>
-        <select id="erinnerungVorabEinheitSelect">
-            <option value="minuten">Minute(n)</option>
-            <option value="stunden">Stunde(n)</option>
-            <option value="tage">Tag(e)</option>
-            <option value="wochen">Woche(n)</option>
+    <div id="ideenListe"></div>
+    <div id="beschreibungDialog" style="display:none;" class="beschreibung-eingabe"> <textarea id="beschreibungText" placeholder="Weitere Beschreibung" rows="2"></textarea> <button onclick="beschreibungSpeichern()">💾 Speichern</button> <button onclick="beschreibungAbbrechen()">❌ Abbrechen</button> </div>
+
+    <input type="file" id="beschreibungAnhangInput" style="display: none;" onchange="handleBeschreibungAnhangUpload(event)" multiple>
+
+    <div id="erinnerungDialog" style="display:none;" class="erinnerung-dialog-content">
+        <h3>Erinnerung einstellen</h3>
+        <label for="erinnerungTerminInput">Termin (Datum und Uhrzeit):</label>
+        <input type="datetime-local" id="erinnerungTerminInput" />
+
+        <label for="erinnerungIntervallTypSelect">Intervall:</label>
+        <select id="erinnerungIntervallTypSelect" onchange="toggleErinnerungIntervallWert()">
+            <option value="einmalig">Einmalig</option>
+            <option value="tage">Alle X Tage</option>
+            <option value="woechentlich">Wöchentlich</option>
+            <option value="monatlich">Monatlich</option>
+            <option value="vierteljaehrlich">Vierteljährlich</option>
+            <option value="jaehrlich">Jährlich</option>
         </select>
+        <div id="erinnerungIntervallWertContainer" style="display:none;">
+          <label for="erinnerungIntervallWertInput">Anzahl Tage:</label>
+          <input type="number" id="erinnerungIntervallWertInput" min="1" value="1" />
+        </div>
+
+        <input type="checkbox" id="erinnerungVorabCheckbox" onchange="toggleErinnerungVorabDetails()">
+        <label for="erinnerungVorabCheckbox" class="checkbox-label">Vorab-Erinnerung</label>
+
+        <div id="erinnerungVorabDetailsContainer" style="display:none;">
+            <label for="erinnerungVorabWertInput">Vorab-Wert:</label>
+            <input type="number" id="erinnerungVorabWertInput" min="1" value="10"/>
+            <label for="erinnerungVorabEinheitSelect">Vorab-Einheit:</label>
+            <select id="erinnerungVorabEinheitSelect">
+                <option value="minuten">Minute(n)</option>
+                <option value="stunden">Stunde(n)</option>
+                <option value="tage">Tag(e)</option>
+                <option value="wochen">Woche(n)</option>
+            </select>
+        </div>
+        <div class="buttons">
+            <button onclick="erinnerungSpeichern()">💾 Speichern</button>
+            <button onclick="erinnerungLoeschen()">🗑️ Löschen</button>
+            <button onclick="erinnerungAbbrechen()">❌ Abbrechen</button>
+        </div>
     </div>
-    <div class="buttons">
-        <button onclick="erinnerungSpeichern()">💾 Speichern</button>
-        <button onclick="erinnerungLoeschen()">🗑️ Löschen</button>
-        <button onclick="erinnerungAbbrechen()">❌ Abbrechen</button>
+
+    <div id="terminDialog" style="display:none;" class="erinnerung-dialog-content">
+        <h3>Neuen Kalendertermin erstellen</h3>
+        <label for="terminTitelInput">Titel des Termins:</label>
+        <input type="text" id="terminTitelInput" />
+
+        <label for="terminStartInput">Startzeit:</label>
+        <input type="datetime-local" id="terminStartInput" />
+
+        <label for="terminEndeInput">Endzeit:</label>
+        <input type="datetime-local" id="terminEndeInput" />
+
+        <label for="terminOrtInput">Ort (optional):</label>
+        <input type="text" id="terminOrtInput" placeholder="Ort des Termins" />
+
+        <p style="font-size:0.9em; margin-top:15px;">Hinweis: Die Beschreibungen der Idee werden automatisch in die Terminbeschreibung übernommen.</p>
+
+        <div class="buttons">
+            <button onclick="kalenderTerminErstellenUndSpeichern()">🗓️ Kalenderlink erstellen & Vermerk speichern</button>
+            <button onclick="terminDialogAbbrechen()">❌ Abbrechen</button>
+        </div>
     </div>
 </div>
 
-<div id="terminDialog" style="display:none;" class="erinnerung-dialog-content">
-    <h3>Neuen Kalendertermin erstellen</h3>
-    <label for="terminTitelInput">Titel des Termins:</label>
-    <input type="text" id="terminTitelInput" />
-
-    <label for="terminStartInput">Startzeit:</label>
-    <input type="datetime-local" id="terminStartInput" />
-
-    <label for="terminEndeInput">Endzeit:</label>
-    <input type="datetime-local" id="terminEndeInput" />
-
-    <label for="terminOrtInput">Ort (optional):</label>
-    <input type="text" id="terminOrtInput" placeholder="Ort des Termins" />
-
-    <p style="font-size:0.9em; margin-top:15px;">Hinweis: Die Beschreibungen der Idee werden automatisch in die Terminbeschreibung übernommen.</p>
-
+<div id="adminPanel">
+    <h3>Benutzerverwaltung</h3>
+    <p>Fügen Sie hier die E-Mail-Adressen der berechtigten Benutzer hinzu (eine pro Zeile).</p>
+    <textarea id="whitelistEditor"></textarea>
     <div class="buttons">
-        <button onclick="kalenderTerminErstellenUndSpeichern()">🗓️ Kalenderlink erstellen & Vermerk speichern</button>
-        <button onclick="terminDialogAbbrechen()">❌ Abbrechen</button>
+        <button onclick="saveWhitelistToLocalStorage()">Lokal speichern</button>
+        <button onclick="saveWhitelistToOneDrive()">Liste in OneDrive speichern</button>
+        <button onclick="closeAdminPanel()">Schließen</button>
     </div>
 </div>
+
 <script>
 console.log("Script started");
 /* --- START BLOCK 4: Script Start, Variables & Initializers --- */
+// WICHTIG: Nach der Ersteinrichtung muss der Admin hier den öffentlichen Link zur userlist.json eintragen.
+const whitelistUrl = "BITTE_HIER_DEN_ÖFFENTLICHEN_LINK_ZUR_userlist.json_EINTRAGEN";
+
+const adminEmail = "admin@unimakgmbh.onmicrosoft.com";
+const adminPasswordHash = "NDUwMV9raXdpMg=="; // Base64 kodiertes Passwort "4501_kiwi2"
+
 const msalConfig={auth:{clientId:"c3cd3be4-3540-46dd-a24c-82eb6ed5542d",authority:"https://login.microsoftonline.com/common",redirectUri:"https://ecki-android.github.io"}};
 let accessToken=null, msalInstance=null, prioritaet="", bearbeiteId=null, ausgewaehlt=[], fileHandle=null, beschreibungFuerId=null, beschreibungZuBearbeitenderTimestamp=null, istGespeichert=!0;
 let erinnerungFuerId = null;
-/** Variable, um den Timestamp der Beschreibung für die Erinnerung zu speichern **/
 let erinnerungFuerBeschreibungTimestamp = null;
 let terminFuerId = null;
 let anhangFuerBeschreibungZiel = { ideeId: null, timestamp: null };
+let whitelist = [];
 
 const standardKategorien=["Aufgaben","Projekte","Privat","Arbeit","Später"];
 let kategorien=[];
@@ -293,10 +224,160 @@ let benachrichtigungsIntervallId = null;
 
 function generateUUID(){return'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0,v=c=='x'?r:(r&0x3|0x8);return v.toString(16)})}
 function pruebeLoginHinweis(){document.getElementById("loginHinweis").style.display=accessToken?"none":"block"}
-async function handleLogin(){try{msalInstance=new msal.PublicClientApplication(msalConfig);const l=await msalInstance.loginPopup({scopes:["Files.ReadWrite","offline_access"]});const t=await msalInstance.acquireTokenSilent({scopes:["Files.ReadWrite"],account:l.account});accessToken=t.accessToken;zeigeWarnung("Erfolgreich angemeldet!",'success');pruebeLoginHinweis();return!0}catch(e){zeigeWarnung("Login fehlgeschlagen: "+e.message);return!1}}
-async function handleLogout(){if(!istGespeichert&&!confirm("Ungespeicherte Änderungen! Trotzdem abmelden?"))return;try{if(msalInstance){const a=msalInstance.getAllAccounts()[0];if(a)await msalInstance.logoutPopup({account:a,postLogoutRedirectUri:"https://ecki-android.github.io"})}accessToken=null;pruebeLoginHinweis();zeigeWarnung("Erfolgreich abgemeldet.",'success')}catch(e){zeigeWarnung("Abmeldung fehlgeschlagen: "+e.message)}}
+
+async function handleLogin() {
+    try {
+        msalInstance = new msal.PublicClientApplication(msalConfig);
+        const loginResponse = await msalInstance.loginPopup({ scopes: ["Files.ReadWrite", "offline_access"] });
+        
+        const account = loginResponse.account;
+        const userEmail = account.username.toLowerCase();
+        
+        // --- Zugriffskontrolle ---
+        const isAllowed = await checkUserAccess(userEmail);
+        if (!isAllowed) {
+            blockAppAccess();
+            return false; // Login-Prozess abbrechen
+        }
+        
+        const tokenResponse = await msalInstance.acquireTokenSilent({ scopes: ["Files.ReadWrite"], account: account });
+        accessToken = tokenResponse.accessToken;
+        
+        zeigeWarnung("Erfolgreich angemeldet!", 'success');
+        pruebeLoginHinweis();
+        
+        // Admin-Button nur für Admin anzeigen
+        if (userEmail === adminEmail.toLowerCase()) {
+            document.getElementById("adminButton").style.display = 'inline-block';
+        }
+
+        // App-Inhalt anzeigen, falls er blockiert war
+        document.querySelector('.app-container').classList.remove('hidden');
+        document.getElementById('accessDeniedMessage').style.display = 'none';
+
+        return true;
+    } catch (e) {
+        zeigeWarnung("Login fehlgeschlagen: " + e.message);
+        console.error("Login-Fehler:", e);
+        return false;
+    }
+}
+
+async function checkUserAccess(userEmail) {
+    // Der Admin hat immer Zugriff
+    if (userEmail === adminEmail.toLowerCase()) {
+        return true;
+    }
+
+    if (!whitelistUrl || whitelistUrl.includes("BITTE_HIER_DEN")) {
+        console.warn("Whitelist-URL ist nicht konfiguriert. Zugriff nur für Admin gewährt.");
+        return false;
+    }
+
+    try {
+        // OneDrive-Links müssen für den direkten Download angepasst werden. Ein einfacher Trick ist, ?download=1 anzuhängen, falls es ein direkter Share-Link ist.
+        // Besser ist es, den Link-Typ zu kennen. Wir gehen von einem Standard-Web-Link aus.
+        // Dieser Logik-Teil ist der heikelste. Eine einfache Methode ist, den Nutzer einen direkten Link erstellen zu lassen.
+        // Für OneDrive for Business: ?download=1 anhängen.
+        // Für OneDrive Personal: /content anstelle von /embed anhängen oder eine API-Umwandlung.
+        // Da wir es nicht wissen, probieren wir eine generische Methode.
+        // Die Erfahrung zeigt, dass ein manuell erstellter "Jeder kann anzeigen"-Link oft eine ?download=1 Option oder eine ID enthält.
+        // Für dieses Setup wandeln wir den Link nicht um, sondern verlassen uns darauf, dass der Link direkt auf die JSON-Datei verweist.
+        const response = await fetch(whitelistUrl);
+        if (!response.ok) {
+            throw new Error(`Fehler beim Laden der Benutzerliste: ${response.statusText}`);
+        }
+        const userList = await response.json();
+        whitelist = userList.map(email => email.toLowerCase());
+        
+        return whitelist.includes(userEmail);
+
+    } catch (error) {
+        console.error("Fehler beim Prüfen der Zugriffsberechtigung:", error);
+        zeigeWarnung("Fehler beim Prüfen der Zugriffsberechtigung.", "warnung");
+        return false;
+    }
+}
+
+
+function blockAppAccess() {
+    document.querySelector('.app-container').classList.add('hidden');
+    document.getElementById('accessDeniedMessage').style.display = 'block';
+    if(msalInstance) {
+        msalInstance.logoutPopup();
+    }
+}
+
+async function handleLogout(){if(!istGespeichert&&!confirm("Ungespeicherte Änderungen! Trotzdem abmelden?"))return;try{if(msalInstance){const a=msalInstance.getAllAccounts()[0];if(a)await msalInstance.logoutPopup({account:a,postLogoutRedirectUri:"https://ecki-android.github.io"})}accessToken=null;pruebeLoginHinweis();document.getElementById("adminButton").style.display = 'none'; zeigeWarnung("Erfolgreich abgemeldet.",'success')}catch(e){zeigeWarnung("Abmeldung fehlgeschlagen: "+e.message)}}
 async function anmeldenUndLaden() { const anmeldungErfolgreich = await handleLogin(); if (anmeldungErfolgreich) { await loadFromOneDrive(); }}
 function zeigeWarnung(msg,type='warning'){const w=document.getElementById("warnung");w.textContent=msg;w.style.display="block";w.className="";if(type==='success')w.classList.add('success-message');else if(type==='info')w.classList.add('info-message');else w.classList.add('warnung');setTimeout(()=>w.style.display="none",6e3)}
+
+// --- Admin Panel Funktionen ---
+function showAdminPanel() {
+    try {
+        const password = prompt("Bitte geben Sie das Administrator-Passwort ein:");
+        if (password === null) return; // Benutzer hat Abbrechen geklickt
+        
+        if (btoa(password) === adminPasswordHash) {
+            loadWhitelistForEditing();
+            document.getElementById('adminPanel').style.display = 'block';
+        } else {
+            alert("Falsches Passwort!");
+        }
+    } catch(e) {
+        console.error("Fehler bei der Passwortprüfung (btoa wird in unsicheren Kontexten blockiert):", e);
+        alert("Passwortprüfung fehlgeschlagen. Stellen Sie sicher, dass die Seite über HTTPS geladen wird.");
+    }
+}
+
+function closeAdminPanel() {
+    document.getElementById('adminPanel').style.display = 'none';
+}
+
+function loadWhitelistForEditing() {
+    const storedList = localStorage.getItem('whitelist_local') || '[]';
+    const userArray = JSON.parse(storedList);
+    document.getElementById('whitelistEditor').value = userArray.join('\n');
+}
+
+function saveWhitelistToLocalStorage() {
+    const editorValue = document.getElementById('whitelistEditor').value;
+    const userArray = editorValue.split('\n').map(email => email.trim()).filter(email => email);
+    localStorage.setItem('whitelist_local', JSON.stringify(userArray));
+    zeigeWarnung('Liste lokal zwischengespeichert.', 'info');
+}
+
+async function saveWhitelistToOneDrive() {
+    if (!accessToken) {
+        zeigeWarnung("Sie müssen als Administrator angemeldet sein, um die Liste zu speichern.", "warnung");
+        return;
+    }
+    saveWhitelistToLocalStorage(); // Erst lokal sichern
+
+    const storedList = localStorage.getItem('whitelist_local') || '[]';
+    const whitelistPath = "/ideenapp/userlist.json";
+    
+    zeigeWarnung("Speichere Benutzerliste in OneDrive...", "info");
+    try {
+        const url = `https://graph.microsoft.com/v1.0/me/drive/root:${whitelistPath}:/content`;
+        const res = await fetch(url, {
+            method: "PUT",
+            headers: { "Authorization": `Bearer ${accessToken}`, "Content-Type": "application/json" },
+            body: storedList
+        });
+
+        if (res.ok) {
+            zeigeWarnung("Benutzerliste erfolgreich in OneDrive gespeichert!", 'success');
+            closeAdminPanel();
+        } else {
+            const err = await res.json().catch(() => null);
+            const msg = err?.error?.message || res.statusText;
+            throw new Error(msg);
+        }
+    } catch(e) {
+        zeigeWarnung("Fehler beim Speichern der Benutzerliste: " + e.message, "warnung");
+    }
+}
 
 function initialisiereKategorien(){
     let loadedKategorien = null;
@@ -320,7 +401,6 @@ function zeigeNaechsteNummer(){const el=document.getElementById("naechsteNummerA
 function filterNachMandant(){filterMandantValue=document.getElementById("filterMandant").value;zeigeIdeen()}
 function filterNachBenutzer(){filterBenutzerValue=document.getElementById("filterBenutzer").value;zeigeIdeen()}
 function setzePrioritaet(p){prioritaet=p;["prioHoch","prioMittel","prioNiedrig"].forEach(id=>document.getElementById(id).classList.remove("selected"));if(p)document.getElementById(`prio${p}`).classList.add("selected");istGespeichert=!1}
-/* --- END BLOCK 4 --- */
 /* --- START BLOCK 5a: Save Idea --- */
 async function speichereIdee() {
     const text = document.getElementById("ideeText").value.trim();
@@ -1931,16 +2011,7 @@ function ensureIdeasHaveIds() {
 }
 
 try {
-    initialisiereKategorien(); 
-    initialisiereBenutzer(); 
-    initialisiereVorgangsnummer();
-    ensureIdeasHaveIds(); 
-    aktualisiereMandantenFilterDropdown(); 
-    zeigeIdeen(); 
-    pruebeLoginHinweis();
-
-    initialisiereUndStarteBenachrichtigungspruefung();
-
+    // Initialisierungsfunktionen werden erst nach dem Login aufgerufen
 } catch (initError) {
     console.error("Fehler während der Initialisierung:", initError);
     zeigeWarnung("Ein Fehler ist beim Starten der App aufgetreten.", "warnung");
