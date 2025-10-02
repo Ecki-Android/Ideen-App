@@ -200,6 +200,9 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
 <script>
 console.log("Script started");
 /* --- START BLOCK 4: Script Start, Variables & Initializers --- */
+// WICHTIG: Ersetzen Sie diesen Link mit einem DIREKTEN Link zur userlist.json.
+// Ein Link von GitHub Raw ist ideal, z.B.: https://raw.githubusercontent.com/IHR-NAME/IHR-REPO/main/userlist.json
+// Ein normaler SharePoint-Link wird durch Browser-Sicherheit (CORS) blockiert!
 const whitelistUrl = "https://unimakgmbh-my.sharepoint.com/:u:/g/personal/admin_unimakgmbh_onmicrosoft_com/EdC-9NYTxy9Or3fpEa8EQpkBfkeFvYQwBOPaw3x4_KI3_A?e=PnchDd&download=1";
 
 const adminEmail = "admin@unimakgmbh.onmicrosoft.com";
@@ -271,6 +274,7 @@ async function checkUserAccess(userEmail) {
     if (userEmail === adminEmail.toLowerCase()) {
         return true;
     }
+    console.log(`Prüfe Zugriff für: ${userEmail}`);
 
     if (!whitelistUrl || whitelistUrl.includes("BITTE_HIER_DEN")) {
         console.warn("Whitelist-URL ist nicht konfiguriert.");
@@ -278,13 +282,10 @@ async function checkUserAccess(userEmail) {
     }
 
     try {
-        const response = await fetch(whitelistUrl, { cache: 'no-store', mode: 'cors' });
+        const response = await fetch(whitelistUrl, { cache: 'no-store' });
         
-        if (response.type === 'opaque') {
-             throw new Error('CORS_ERROR');
-        }
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            throw new Error(`HTTP error! Status: ${response.status}`);
         }
         const userList = await response.json();
         whitelist = userList.map(email => email.toLowerCase());
@@ -293,8 +294,8 @@ async function checkUserAccess(userEmail) {
 
     } catch (error) {
         console.error("Fehler beim Prüfen der Zugriffsberechtigung:", error);
-        if (error.message === 'CORS_ERROR' || error instanceof TypeError) {
-             zeigeWarnung("Zugriffs-Fehler: Der Freigabelink für die Benutzerliste blockiert die Anfrage (CORS-Problem).", "warnung");
+        if (error instanceof TypeError) {
+             zeigeWarnung("Zugriffs-Fehler: Der Link zur Benutzerliste wird vom Browser blockiert (CORS-Problem). Bitte verwenden Sie einen direkten Link (z.B. von GitHub Raw).", "warnung");
         } else if (error.message.includes('HTTP error')) {
              zeigeWarnung(`Zugriffs-Fehler: Die Benutzerliste konnte nicht geladen werden (${error.message}). Ist der Link korrekt und öffentlich?`, "warnung");
         } else {
