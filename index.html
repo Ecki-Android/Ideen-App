@@ -208,7 +208,7 @@ const whitelistUrl = "https://unimakgmbh-my.sharepoint.com/:u:/g/personal/admin_
 const adminEmail = "admin@unimakgmbh.onmicrosoft.com";
 const adminPasswordHash = "NDUwMV9raXdpMg=="; // Base64 kodiertes Passwort "4501_kiwi2"
 
-const msalConfig={auth:{clientId:"c3cd3be4-3540-46dd-a24c-82eb6ed5542d",authority:"https://login.microsoftonline.com/common",redirectUri: window.location.origin + window.location.pathname}};
+const msalConfig={auth:{clientId:"c3cd3be4-3540-46dd-a24c-82eb6ed5542d",authority:"https://login.microsoftonline.com/common",redirectUri: "https://ecki-android.github.io"}};
 let accessToken=null, msalInstance=null, prioritaet="", bearbeiteId=null, ausgewaehlt=[], fileHandle=null, beschreibungFuerId=null, beschreibungZuBearbeitenderTimestamp=null, istGespeichert=!0;
 let erinnerungFuerId = null;
 let erinnerungFuerBeschreibungTimestamp = null;
@@ -2070,3 +2070,4 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+
