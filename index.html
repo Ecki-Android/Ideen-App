@@ -274,21 +274,29 @@ async function handleLogin() {
 }
 
 async function checkUserAccess(userEmail) {
+    // Der Admin hat immer Zugriff
     if (userEmail === adminEmail.toLowerCase()) {
         return true;
     }
+
     if (!whitelistUrl || whitelistUrl.includes("BITTE_HIER_DEN")) {
         console.warn("Whitelist-URL ist nicht konfiguriert. Zugriff nur für Admin gewährt.");
         return false;
     }
+
     try {
-        const response = await fetch(whitelistUrl);
+        // KORRIGIERT: Fügt { cache: 'no-store' } hinzu.
+        // Dies zwingt den Browser, immer die aktuellste Version der userlist.json von OneDrive zu laden
+        // und verhindert, dass eine veraltete, zwischengespeicherte Liste verwendet wird.
+        const response = await fetch(whitelistUrl, { cache: 'no-store' });
         if (!response.ok) {
             throw new Error(`Fehler beim Laden der Benutzerliste: ${response.statusText}`);
         }
         const userList = await response.json();
         whitelist = userList.map(email => email.toLowerCase());
+        
         return whitelist.includes(userEmail);
+
     } catch (error) {
         console.error("Fehler beim Prüfen der Zugriffsberechtigung:", error);
         zeigeWarnung("Fehler beim Prüfen der Zugriffsberechtigung. Der Freigabelink ist möglicherweise nicht öffentlich zugänglich.", "warnung");
