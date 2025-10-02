@@ -307,38 +307,45 @@ async function checkUserAccess(userEmail) {
 function blockAppAccess() {
     document.querySelector('.app-container').classList.add('hidden');
     document.getElementById('accessDeniedMessage').style.display = 'block';
-    // Logout aus der App, nicht aus Microsoft
     accessToken = null;
-    // msalInstance hier nicht auf null setzen, damit ein erneuter Login-Versuch möglich ist
 }
 
 async function handleLogout() {
-    if (!istGespeichert && !confirm("Es gibt ungespeicherte Änderungen. Wirklich abmelden?")) {
-        return;
+    let accountToLogout = msalInstance ? msalInstance.getActiveAccount() : null;
+    let confirmMessage = "Wirklich abmelden?";
+
+    if (accountToLogout) {
+        confirmMessage = `Vom Konto "${accountToLogout.username}" abmelden?`;
     }
+
+    if (!istGespeichert) {
+        if (!confirm(confirmMessage + "\n\nEs gibt ungespeicherte Änderungen, die verloren gehen! Trotzdem fortfahren?")) {
+            return;
+        }
+    } else {
+        if (!confirm(confirmMessage)) {
+            return;
+        }
+    }
+
     try {
-        if (msalInstance) {
-             const currentAccount = msalInstance.getActiveAccount();
-             if (currentAccount) {
-                await msalInstance.logoutPopup({ account: currentAccount });
-             }
+        if (msalInstance && accountToLogout) {
+            await msalInstance.logoutPopup({ account: accountToLogout });
         }
     } catch (e) {
         console.error("Abmeldung fehlgeschlagen:", e);
         zeigeWarnung("Abmeldung fehlgeschlagen: " + e.message, "warnung");
     } finally {
         accessToken = null;
-        msalInstance = null; // WICHTIG: Instanz hier zurücksetzen für sauberen Neuanfang
+        msalInstance = null;
         istGespeichert = true;
         
-        // UI komplett zurücksetzen
         document.getElementById("adminButton").style.display = 'none';
         localStorage.removeItem("ideen");
         localStorage.removeItem("kategorien");
         localStorage.removeItem("benutzerliste");
         localStorage.removeItem("naechsteVorgangsnummer");
         
-        // App neu initialisieren
         initialisiereKategorien();
         initialisiereBenutzer();
         initialisiereVorgangsnummer();
