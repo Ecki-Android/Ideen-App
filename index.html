@@ -11,7 +11,7 @@ body{font-family:Arial,sans-serif;margin:0 0 20px 0;}
 input,select,textarea{margin-top:10px;padding:10px;font-size:1em;width:400px;max-width:100vw;box-sizing:border-box;display:block;}
 textarea{min-height:60px;}
 button{padding:10px 18px;font-size:1em;margin-top:10px;margin-right:8px;border-radius:4px;border:1px solid #bbb;background:#eee;cursor:pointer;width:auto;min-width:44px;display:inline-block;}
-button:disabled { cursor: not-allowed; opacity: 0.6; }
+button:disabled { cursor: not-allowed; opacity: 0.6; } /* Style für deaktivierte Buttons */
 .buttons,.top-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;}
 .filter-bar{margin:20px 0;}
 .filter-bar label, .filter-bar select,.filter-bar input{width:auto;display:inline-block;margin-right:10px;margin-top:0;}
@@ -22,7 +22,18 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
 .idee-content h3,.idee-content p,.idee-content small{max-width:100%;overflow-wrap:break-word;word-break:break-word;font-size:1em;}
 .idee.erledigt .idee-content h3,.idee.erledigt .idee-content p,.idee.erledigt .idee-content small{text-decoration:line-through;color:#888;}
 .beschreibung-historie{margin:8px 0 12px 0;}
-.beschreibung-item{margin:4px 0 4px 0;padding:6px 8px;background:#f8f8f8;border-left:3px solid #bbb;font-size:0.98em;display:flex;justify-content:space-between;align-items:center;box-sizing:border-box;transition:opacity .3s ease;}
+.beschreibung-item{ /* Basis-Styling, Einrückung per Inline-Style */
+    margin:4px 0 4px 0;
+    padding:6px 8px;
+    background:#f8f8f8;
+    border-left:3px solid #bbb;
+    font-size:0.98em;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-sizing: border-box; /* Wichtig bei Breitenänderung */
+    transition: opacity 0.3s ease; /* Übergang für Ausblenden */
+}
 .beschreibung-text-zeit { flex-grow: 1; margin-right: 10px; overflow-wrap: break-word; word-break: break-word; }
 .beschreibung-zeit{color:#666;font-size:0.9em;margin-bottom:2px;display:block;}
 .beschreibung-eingabe, .erinnerung-dialog-content {margin:10px 0;background:#f9f9f9;border-left:3px solid #bbb;padding:15px; border-radius: 5px;}
@@ -39,27 +50,110 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
 #warnung.info-message { color: #1a73e8; border: 1px solid #1a73e8; background-color: #e8f0fe; }
 .beschreibung-item .edit-beschreibung-btn, .beschreibung-item .add-anhang-beschreibung-btn { padding: 3px 6px; font-size: 0.8em; margin-top: 0; min-width: auto; width: auto; height: 24px; line-height: 1; display: flex; align-items: center; justify-content: center; }
 .top-actions .onedrive-btn { background: #0078d4; color: white; border-color: #005a9e; }
-.anhang-veraltet { opacity: 0.7; }
-.anhang-veraltet .datei-link { text-decoration: line-through; color: grey !important; }
-.toggle-anhang-sichtbarkeit-btn { padding: 1px 4px !important; font-size: 0.8em !important; margin-left: 8px !important; line-height: 1 !important; min-width: auto !important; width: auto !important; margin-top: 0 !important; vertical-align: middle !important; border-radius: 3px !important; border: 1px solid #ccc !important; background: #f0f0f0 !important; cursor: pointer; }
-.beschreibung-item-actions { display: flex; gap: 3px; align-items: center; flex-shrink: 0; }
-.move-beschreibung-btn { padding: 3px 5px !important; font-size: 1em !important; line-height: 1 !important; min-width: auto !important; width: auto !important; height: 24px !important; margin: 0 !important; vertical-align: middle; background-color: #f0f0f0 !important; border: 1px solid #ccc !important; border-radius: 3px !important; cursor: pointer; }
-.beschreibung-veraltet { opacity: 0.6; }
-.beschreibung-veraltet .beschreibung-text-zeit { color: grey; }
-.toggle-beschreibung-sichtbarkeit-btn { padding: 1px 4px !important; font-size: 0.8em !important; margin-left: 3px !important; line-height: 1 !important; min-width: auto !important; width: auto !important; margin-top: 0 !important; vertical-align: middle !important; border-radius: 3px !important; border: 1px solid #ccc !important; background: #f0f0f0 !important; cursor: pointer; height: 24px !important; display: flex; align-items: center; justify-content: center; }
-.beschreibung-anhaenge { font-size: 0.9em; margin-top: 5px; padding-left: 10px; border-left: 2px solid #ddd; }
-.beschreibung-anhang-item { display: flex; align-items: center; margin-bottom: 2px; }
+
+/* --- START HINZUGEFÜGTE CSS REGELN --- */
+/* Regeln für veraltete Anhänge */
+.anhang-veraltet {
+    opacity: 0.7; /* Gesamten Eintrag etwas ausblenden */
+}
+.anhang-veraltet .datei-link {
+    text-decoration: line-through; /* Link durchstreichen */
+    color: grey !important; /* Linkfarbe ändern (important ggf. nötig) */
+}
+.toggle-anhang-sichtbarkeit-btn {
+    padding: 1px 4px !important;
+    font-size: 0.8em !important;
+    margin-left: 8px !important;
+    line-height: 1 !important;
+    min-width: auto !important;
+    width: auto !important;
+    margin-top: 0 !important;
+    vertical-align: middle !important;
+    border-radius: 3px !important;
+    border: 1px solid #ccc !important;
+    background: #f0f0f0 !important;
+    cursor: pointer;
+}
+
+/* Regeln für Beschreibungs-Sortierbuttons */
+.beschreibung-item-actions { /* Container für die Buttons rechts */
+    display: flex;
+    gap: 3px; /* Kleiner Abstand zwischen Buttons */
+    align-items: center;
+    flex-shrink: 0; /* Verhindert Schrumpfen der Buttons */
+}
+.move-beschreibung-btn {
+    padding: 3px 5px !important;
+    font-size: 1em !important; /* Pfeilgröße anpassen */
+    line-height: 1 !important;
+    min-width: auto !important;
+    width: auto !important;
+    height: 24px !important; /* Passend zum Edit-Button */
+    margin: 0 !important; /* Kein margin-top */
+    vertical-align: middle;
+    background-color: #f0f0f0 !important;
+    border: 1px solid #ccc !important;
+    border-radius: 3px !important;
+    cursor: pointer;
+}
+/* Regeln für veraltete Beschreibungen */
+.beschreibung-veraltet {
+    opacity: 0.6; /* Gesamten Eintrag etwas ausblenden */
+}
+.beschreibung-veraltet .beschreibung-text-zeit {
+    color: grey; /* Textfarbe ändern */
+}
+.toggle-beschreibung-sichtbarkeit-btn {
+    padding: 1px 4px !important;
+    font-size: 0.8em !important;
+    margin-left: 3px !important; /* Abstand zu anderen Buttons */
+    line-height: 1 !important;
+    min-width: auto !important;
+    width: auto !important;
+    margin-top: 0 !important;
+    vertical-align: middle !important;
+    border-radius: 3px !important;
+    border: 1px solid #ccc !important;
+    background: #f0f0f0 !important;
+    cursor: pointer;
+    height: 24px !important; /* Passend zu anderen Buttons */
+    display: flex; /* Stellt sicher, dass Icon zentriert ist */
+    align-items: center;
+    justify-content: center;
+}
+/** CSS für Beschreibungs-Anhänge **/
+.beschreibung-anhaenge {
+    font-size: 0.9em;
+    margin-top: 5px;
+    padding-left: 10px;
+    border-left: 2px solid #ddd;
+}
+.beschreibung-anhang-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 2px;
+}
+/** ENDE NEUE CSS REGELN **/
+
 .erinnerung-info { font-size: 0.85em; color: #0078d4; margin-top: 5px; }
-.beschreibung-erinnerung-info { font-size: 0.9em; color: #0078d4; margin-top: 4px; padding: 3px 0 3px 10px; }
+
+/** CSS für die Erinnerungsanzeige unter einer Beschreibung **/
+.beschreibung-erinnerung-info {
+    font-size: 0.9em;
+    color: #0078d4;
+    margin-top: 4px;
+    padding: 3px 0 3px 10px;
+}
+
 .erinnerung-dialog-content label { display: block; margin-top:10px; font-weight: bold;}
-.erinnerung-dialog-content input[type="datetime-local"], .erinnerung-dialog-content select, .erinnerung-dialog-content input[type="number"], .erinnerung-dialog-content input[type="text"] { width: calc(100% - 22px); }
+.erinnerung-dialog-content input[type="datetime-local"],
+.erinnerung-dialog-content select,
+.erinnerung-dialog-content input[type="number"],
+.erinnerung-dialog-content input[type="text"] { width: calc(100% - 22px); }
 .erinnerung-dialog-content .checkbox-label { display: inline-block; font-weight: normal; margin-left: 5px;}
 .erinnerung-dialog-content input[type="checkbox"] { width: auto; display: inline-block; margin-right: 5px; vertical-align: middle;}
-#adminPanel { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 90%; max-width: 500px; background: white; border: 1px solid #ccc; box-shadow: 0 5px 15px rgba(0,0,0,0.3); z-index: 2000; padding: 20px; }
-#adminPanel h3 { margin-top: 0; }
-#whitelistEditor { width: 100%; height: 150px; }
-#accessDeniedMessage { display: none; text-align: center; padding: 40px; background: #fff; margin: 20px; border-radius: 8px; }
-.app-container.hidden { display: none; }
+
+
 @media (max-width:600px){
     input,select,textarea,button{width:100vw;min-width:0;max-width:100vw;}
     .buttons,.top-actions,.filter-bar{flex-direction:column;gap:0;}
@@ -72,146 +166,122 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
     .beschreibung-item-actions { margin-top: 5px; width: 100%; justify-content: flex-start; flex-wrap: wrap; }
     #warnung { position: static; transform: none; left: auto; max-width: 100%; }
     .toggle-anhang-sichtbarkeit-btn { float: right; }
-    .erinnerung-dialog-content input[type="datetime-local"], .erinnerung-dialog-content select, .erinnerung-dialog-content input[type="number"], .erinnerung-dialog-content input[type="text"] { width: 100%; }
+    .erinnerung-dialog-content input[type="datetime-local"],
+    .erinnerung-dialog-content select,
+    .erinnerung-dialog-content input[type="number"],
+    .erinnerung-dialog-content input[type="text"] { width: 100%; }
 }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://alcdn.msauth.net/browser/2.24.0/js/msal-browser.min.js"></script>
 </head>
 <body>
+<h1>Ideen-App Pro</h1>
+<div id="warnung"></div> <div id="loginHinweis" class="warnung" style="display:none;">Anmeldung erforderlich: Bitte melden Sie sich zuerst mit Ihrem Microsoft-Konto an. Ohne Anmeldung sind keine Cloud-Links und keine Synchronisation möglich.</div>
 
-<div id="accessDeniedMessage">
-    <h2>Zugriff verweigert</h2>
-    <p>Sie sind nicht berechtigt, diese Anwendung zu nutzen.</p>
-    <p>Bitte kontaktieren Sie den Administrator, um eine Freischaltung zu beantragen.</p>
+<div id="vorgangsnummerAnzeigeInput">Nächste Vorgangsnummer: <span id="naechsteNummerAnzeige">1</span></div>
+<input type="text" id="ideeText" placeholder="Titel*" />
+<textarea id="ideeDetails" placeholder="Beschreibung" rows="3"></textarea>
+<input type="text" id="mandantennummer" placeholder="Mandantennummer (optional)" />
+<input type="text" id="firmenname" placeholder="Firmenname (optional)" />
+<select id="kategorie"></select> <input type="text" id="neueKategorie" placeholder="Neue Kategorie" /> <button onclick="neueKategorieHinzufuegen()">+ Kat</button> <button class="katLoeschBtn" onclick="kategorieLoeschen()">Kat löschen</button> <select id="benutzer"></select> <input type="text" id="neuerBenutzer" placeholder="Neuer Benutzer" /> <button onclick="neuenBenutzerHinzufuegen()">+ User</button> <button class="benutzerLoeschBtn" onclick="benutzerLoeschen()">User löschen</button> <div class="buttons"> <button id="prioHoch" class="prio-btn" onclick="setzePrioritaet('Hoch')">🔴 Hoch</button> <button id="prioMittel" class="prio-btn" onclick="setzePrioritaet('Mittel')">🟠 Mittel</button> <button id="prioNiedrig" class="prio-btn" onclick="setzePrioritaet('Niedrig')">🟢 Niedrig</button> </div>
+<input type="file" id="dateien" multiple /> <div class="datei-vorschau" id="dateiVorschau"></div>
+<button id="speichernBtn" onclick="speichereIdee()">💾 Speichern</button> <button id="abbrechenBtn" onclick="abbrechenBearbeiten()" style="display:none;">Abbrechen</button>
+
+<div class="filter-bar">
+<label>Filter:</label> <select id="filterKategorie" onchange="zeigeIdeen()"><option value="" class="filter-option-alle">🎯 Alle Ideen</option></select>
+<label>Archiv:</label> <select id="filterArchiv" onchange="zeigeIdeen()"><option value="nicht_erledigt">Nur nicht erledigt</option><option value="erledigt">Nur erledigt</option><option value="alle">Alle anzeigen</option></select>
+<label>Benutzer:</label> <select id="filterBenutzer" onchange="filterNachBenutzer()"></select>
+<label>Mandant:</label> <select id="filterMandant" onchange="filterNachMandant()"><option value="">🏢 Alle Mandanten</option></select>
+<label>Sortierung:</label> <select id="sortierung" onchange="zeigeIdeen()"><option value="standard">Standard</option><option value="neu">Neueste zuerst</option><option value="alt">Älteste zuerst</option><option value="prio">Nach Priorität</option></select>
 </div>
 
-<div class="app-container">
-    <h1>Ideen-App Pro</h1>
-    <div id="warnung"></div> <div id="loginHinweis" class="warnung" style="display:none;">Anmeldung erforderlich: Bitte melden Sie sich zuerst mit Ihrem Microsoft-Konto an. Ohne Anmeldung sind keine Cloud-Links und keine Synchronisation möglich.</div>
+<div class="top-actions">
+<button onclick="exportiereAlsPDF()">📝 PDF</button> <button onclick="exportiereAlsText()">📄 Text</button> <button onclick="teilePerEmail()">✉️ E-Mail</button> <button onclick="teilePerWhatsApp()">📱 WhatsApp</button>
+<input type="text" id="onedrivePath" placeholder="/ideenapp/ideen.json" style="width: 250px; margin-top: 0;"/> <button class="onedrive-btn" onclick="saveToOneDrive()">☁️ OneDrive Speichern</button> <button class="onedrive-btn" onclick="loadFromOneDrive()">☁️ OneDrive Laden</button>
+<button onclick="alleIdeenLoeschen()" style="background:#eee;border:1px solid #c00;color:#c00;">Alle löschen</button> <button onclick="ausgewaehlteNotizenLoeschen()" style="background:#eee;border:1px solid #c00;color:#c00;">Auswahl löschen</button>
+<button id="speicherDateiBtn" onclick="speichereIdeenAlsDatei()">Datei speichern</button> <button id="oeffneDateiBtn" onclick="ladeIdeenAusDatei()">Datei öffnen</button>
+<button onclick="anmeldenUndLaden()" style="background:#005a9e; color: white; border-color: #004578;">🔑☁️ Anmelden & Laden</button>
+<button onclick="handleLogin()" style="background:#e6f4ff;border-color:#0067b8;color:#0067b8;">🔑 Anmelden</button> 
+<button onclick="handleLogout()" style="background:#ffe0e0;border-color:#c00;color:#c00;">🔒 Abmelden</button>
+</div>
 
-    <div id="vorgangsnummerAnzeigeInput">Nächste Vorgangsnummer: <span id="naechsteNummerAnzeige">1</span></div>
-    <input type="text" id="ideeText" placeholder="Titel*" />
-    <textarea id="ideeDetails" placeholder="Beschreibung" rows="3"></textarea>
-    <input type="text" id="mandantennummer" placeholder="Mandantennummer (optional)" />
-    <input type="text" id="firmenname" placeholder="Firmenname (optional)" />
-    <select id="kategorie"></select> <input type="text" id="neueKategorie" placeholder="Neue Kategorie" /> <button onclick="neueKategorieHinzufuegen()">+ Kat</button> <button class="katLoeschBtn" onclick="kategorieLoeschen()">Kat löschen</button> <select id="benutzer"></select> <input type="text" id="neuerBenutzer" placeholder="Neuer Benutzer" /> <button onclick="neuenBenutzerHinzufuegen()">+ User</button> <button class="benutzerLoeschBtn" onclick="benutzerLoeschen()">User löschen</button> <div class="buttons"> <button id="prioHoch" class="prio-btn" onclick="setzePrioritaet('Hoch')">🔴 Hoch</button> <button id="prioMittel" class="prio-btn" onclick="setzePrioritaet('Mittel')">🟠 Mittel</button> <button id="prioNiedrig" class="prio-btn" onclick="setzePrioritaet('Niedrig')">🟢 Niedrig</button> </div>
-    <input type="file" id="dateien" multiple /> <div class="datei-vorschau" id="dateiVorschau"></div>
-    <button id="speichernBtn" onclick="speichereIdee()">💾 Speichern</button> <button id="abbrechenBtn" onclick="abbrechenBearbeiten()" style="display:none;">Abbrechen</button>
+<div id="ideenListe"></div>
+<div id="beschreibungDialog" style="display:none;" class="beschreibung-eingabe"> <textarea id="beschreibungText" placeholder="Weitere Beschreibung" rows="2"></textarea> <button onclick="beschreibungSpeichern()">💾 Speichern</button> <button onclick="beschreibungAbbrechen()">❌ Abbrechen</button> </div>
 
-    <div class="filter-bar">
-    <label>Filter:</label> <select id="filterKategorie" onchange="zeigeIdeen()"><option value="" class="filter-option-alle">🎯 Alle Ideen</option></select>
-    <label>Archiv:</label> <select id="filterArchiv" onchange="zeigeIdeen()"><option value="nicht_erledigt">Nur nicht erledigt</option><option value="erledigt">Nur erledigt</option><option value="alle">Alle anzeigen</option></select>
-    <label>Benutzer:</label> <select id="filterBenutzer" onchange="filterNachBenutzer()"></select>
-    <label>Mandant:</label> <select id="filterMandant" onchange="filterNachMandant()"><option value="">🏢 Alle Mandanten</option></select>
-    <label>Sortierung:</label> <select id="sortierung" onchange="zeigeIdeen()"><option value="standard">Standard</option><option value="neu">Neueste zuerst</option><option value="alt">Älteste zuerst</option><option value="prio">Nach Priorität</option></select>
+<input type="file" id="beschreibungAnhangInput" style="display: none;" onchange="handleBeschreibungAnhangUpload(event)" multiple>
+
+<div id="erinnerungDialog" style="display:none;" class="erinnerung-dialog-content">
+    <h3>Erinnerung einstellen</h3>
+    <label for="erinnerungTerminInput">Termin (Datum und Uhrzeit):</label>
+    <input type="datetime-local" id="erinnerungTerminInput" />
+
+    <label for="erinnerungIntervallTypSelect">Intervall:</label>
+    <select id="erinnerungIntervallTypSelect" onchange="toggleErinnerungIntervallWert()">
+        <option value="einmalig">Einmalig</option>
+        <option value="tage">Alle X Tage</option>
+        <option value="woechentlich">Wöchentlich</option>
+        <option value="monatlich">Monatlich</option>
+        <option value="vierteljaehrlich">Vierteljährlich</option>
+        <option value="jaehrlich">Jährlich</option>
+    </select>
+    <div id="erinnerungIntervallWertContainer" style="display:none;">
+      <label for="erinnerungIntervallWertInput">Anzahl Tage:</label>
+      <input type="number" id="erinnerungIntervallWertInput" min="1" value="1" />
     </div>
 
-    <div class="top-actions">
-    <button onclick="showAdminPanel()" id="adminButton" style="display:none; background:#ffc107; color: black; border-color: #e0a800;">👤 Benutzer verwalten</button>
-    <button onclick="exportiereAlsPDF()">📝 PDF</button> <button onclick="exportiereAlsText()">📄 Text</button> <button onclick="teilePerEmail()">✉️ E-Mail</button> <button onclick="teilePerWhatsApp()">📱 WhatsApp</button>
-    <input type="text" id="onedrivePath" placeholder="/ideenapp/ideen.json" style="width: 250px; margin-top: 0;"/> <button class="onedrive-btn" onclick="saveToOneDrive()">☁️ OneDrive Speichern</button> <button class="onedrive-btn" onclick="loadFromOneDrive()">☁️ OneDrive Laden</button>
-    <button onclick="alleIdeenLoeschen()" style="background:#eee;border:1px solid #c00;color:#c00;">Alle löschen</button> <button onclick="ausgewaehlteNotizenLoeschen()" style="background:#eee;border:1px solid #c00;color:#c00;">Auswahl löschen</button>
-    <button id="speicherDateiBtn" onclick="speichereIdeenAlsDatei()">Datei speichern</button> <button id="oeffneDateiBtn" onclick="ladeIdeenAusDatei()">Datei öffnen</button>
-    <button onclick="anmeldenUndLaden()" style="background:#005a9e; color: white; border-color: #004578;">🔑☁️ Anmelden & Laden</button>
-    <button onclick="handleLogin()" style="background:#e6f4ff;border-color:#0067b8;color:#0067b8;">🔑 Anmelden</button> 
-    <button onclick="handleLogout()" style="background:#ffe0e0;border-color:#c00;color:#c00;">🔒 Abmelden</button>
-    </div>
+    <input type="checkbox" id="erinnerungVorabCheckbox" onchange="toggleErinnerungVorabDetails()">
+    <label for="erinnerungVorabCheckbox" class="checkbox-label">Vorab-Erinnerung</label>
 
-    <div id="ideenListe"></div>
-    <div id="beschreibungDialog" style="display:none;" class="beschreibung-eingabe"> <textarea id="beschreibungText" placeholder="Weitere Beschreibung" rows="2"></textarea> <button onclick="beschreibungSpeichern()">💾 Speichern</button> <button onclick="beschreibungAbbrechen()">❌ Abbrechen</button> </div>
-
-    <input type="file" id="beschreibungAnhangInput" style="display: none;" onchange="handleBeschreibungAnhangUpload(event)" multiple>
-
-    <div id="erinnerungDialog" style="display:none;" class="erinnerung-dialog-content">
-        <h3>Erinnerung einstellen</h3>
-        <label for="erinnerungTerminInput">Termin (Datum und Uhrzeit):</label>
-        <input type="datetime-local" id="erinnerungTerminInput" />
-
-        <label for="erinnerungIntervallTypSelect">Intervall:</label>
-        <select id="erinnerungIntervallTypSelect" onchange="toggleErinnerungIntervallWert()">
-            <option value="einmalig">Einmalig</option>
-            <option value="tage">Alle X Tage</option>
-            <option value="woechentlich">Wöchentlich</option>
-            <option value="monatlich">Monatlich</option>
-            <option value="vierteljaehrlich">Vierteljährlich</option>
-            <option value="jaehrlich">Jährlich</option>
+    <div id="erinnerungVorabDetailsContainer" style="display:none;">
+        <label for="erinnerungVorabWertInput">Vorab-Wert:</label>
+        <input type="number" id="erinnerungVorabWertInput" min="1" value="10"/>
+        <label for="erinnerungVorabEinheitSelect">Vorab-Einheit:</label>
+        <select id="erinnerungVorabEinheitSelect">
+            <option value="minuten">Minute(n)</option>
+            <option value="stunden">Stunde(n)</option>
+            <option value="tage">Tag(e)</option>
+            <option value="wochen">Woche(n)</option>
         </select>
-        <div id="erinnerungIntervallWertContainer" style="display:none;">
-          <label for="erinnerungIntervallWertInput">Anzahl Tage:</label>
-          <input type="number" id="erinnerungIntervallWertInput" min="1" value="1" />
-        </div>
-
-        <input type="checkbox" id="erinnerungVorabCheckbox" onchange="toggleErinnerungVorabDetails()">
-        <label for="erinnerungVorabCheckbox" class="checkbox-label">Vorab-Erinnerung</label>
-
-        <div id="erinnerungVorabDetailsContainer" style="display:none;">
-            <label for="erinnerungVorabWertInput">Vorab-Wert:</label>
-            <input type="number" id="erinnerungVorabWertInput" min="1" value="10"/>
-            <label for="erinnerungVorabEinheitSelect">Vorab-Einheit:</label>
-            <select id="erinnerungVorabEinheitSelect">
-                <option value="minuten">Minute(n)</option>
-                <option value="stunden">Stunde(n)</option>
-                <option value="tage">Tag(e)</option>
-                <option value="wochen">Woche(n)</option>
-            </select>
-        </div>
-        <div class="buttons">
-            <button onclick="erinnerungSpeichern()">💾 Speichern</button>
-            <button onclick="erinnerungLoeschen()">🗑️ Löschen</button>
-            <button onclick="erinnerungAbbrechen()">❌ Abbrechen</button>
-        </div>
     </div>
-
-    <div id="terminDialog" style="display:none;" class="erinnerung-dialog-content">
-        <h3>Neuen Kalendertermin erstellen</h3>
-        <label for="terminTitelInput">Titel des Termins:</label>
-        <input type="text" id="terminTitelInput" />
-
-        <label for="terminStartInput">Startzeit:</label>
-        <input type="datetime-local" id="terminStartInput" />
-
-        <label for="terminEndeInput">Endzeit:</label>
-        <input type="datetime-local" id="terminEndeInput" />
-
-        <label for="terminOrtInput">Ort (optional):</label>
-        <input type="text" id="terminOrtInput" placeholder="Ort des Termins" />
-
-        <p style="font-size:0.9em; margin-top:15px;">Hinweis: Die Beschreibungen der Idee werden automatisch in die Terminbeschreibung übernommen.</p>
-
-        <div class="buttons">
-            <button onclick="kalenderTerminErstellenUndSpeichern()">🗓️ Kalenderlink erstellen & Vermerk speichern</button>
-            <button onclick="terminDialogAbbrechen()">❌ Abbrechen</button>
-        </div>
-    </div>
-</div>
-
-<div id="adminPanel">
-    <h3>Benutzerverwaltung</h3>
-    <p>Fügen Sie hier die E-Mail-Adressen der berechtigten Benutzer hinzu (eine pro Zeile).</p>
-    <textarea id="whitelistEditor"></textarea>
     <div class="buttons">
-        <button onclick="saveWhitelistToLocalStorage()">Lokal speichern</button>
-        <button onclick="saveWhitelistToOneDrive()">Liste in OneDrive speichern</button>
-        <button onclick="closeAdminPanel()">Schließen</button>
+        <button onclick="erinnerungSpeichern()">💾 Speichern</button>
+        <button onclick="erinnerungLoeschen()">🗑️ Löschen</button>
+        <button onclick="erinnerungAbbrechen()">❌ Abbrechen</button>
     </div>
 </div>
 
+<div id="terminDialog" style="display:none;" class="erinnerung-dialog-content">
+    <h3>Neuen Kalendertermin erstellen</h3>
+    <label for="terminTitelInput">Titel des Termins:</label>
+    <input type="text" id="terminTitelInput" />
+
+    <label for="terminStartInput">Startzeit:</label>
+    <input type="datetime-local" id="terminStartInput" />
+
+    <label for="terminEndeInput">Endzeit:</label>
+    <input type="datetime-local" id="terminEndeInput" />
+
+    <label for="terminOrtInput">Ort (optional):</label>
+    <input type="text" id="terminOrtInput" placeholder="Ort des Termins" />
+
+    <p style="font-size:0.9em; margin-top:15px;">Hinweis: Die Beschreibungen der Idee werden automatisch in die Terminbeschreibung übernommen.</p>
+
+    <div class="buttons">
+        <button onclick="kalenderTerminErstellenUndSpeichern()">🗓️ Kalenderlink erstellen & Vermerk speichern</button>
+        <button onclick="terminDialogAbbrechen()">❌ Abbrechen</button>
+    </div>
+</div>
 <script>
 console.log("Script started");
 /* --- START BLOCK 4: Script Start, Variables & Initializers --- */
-const whitelistUrl = "https://unimakgmbh-my.sharepoint.com/:u:/g/personal/admin_unimakgmbh_onmicrosoft_com/EdC-9NYTxy9Or3fpEa8EQpkBfkeFvYQwBOPaw3x4_KI3_A?e=PnchDd&download=1";
-
-const adminEmail = "admin@unimakgmbh.onmicrosoft.com";
-const adminPasswordHash = "NDUwMV9raXdpMg=="; // Base64 kodiertes Passwort "4501_kiwi2"
-
-const msalConfig={auth:{clientId:"c3cd3be4-3540-46dd-a24c-82eb6ed5542d",authority:"https://login.microsoftonline.com/common",redirectUri: "https://ecki-android.github.io"}};
+const msalConfig={auth:{clientId:"c3cd3be4-3540-46dd-a24c-82eb6ed5542d",authority:"https://login.microsoftonline.com/common",redirectUri:"https://ecki-android.github.io"}};
 let accessToken=null, msalInstance=null, prioritaet="", bearbeiteId=null, ausgewaehlt=[], fileHandle=null, beschreibungFuerId=null, beschreibungZuBearbeitenderTimestamp=null, istGespeichert=!0;
 let erinnerungFuerId = null;
+/** Variable, um den Timestamp der Beschreibung für die Erinnerung zu speichern **/
 let erinnerungFuerBeschreibungTimestamp = null;
 let terminFuerId = null;
 let anhangFuerBeschreibungZiel = { ideeId: null, timestamp: null };
-let whitelist = [];
 
 const standardKategorien=["Aufgaben","Projekte","Privat","Arbeit","Später"];
 let kategorien=[];
@@ -223,197 +293,10 @@ let benachrichtigungsIntervallId = null;
 
 function generateUUID(){return'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0,v=c=='x'?r:(r&0x3|0x8);return v.toString(16)})}
 function pruebeLoginHinweis(){document.getElementById("loginHinweis").style.display=accessToken?"none":"block"}
-
-// KORRIGIERT: Fügt 'prompt: "select_account"' hinzu.
-// Dies zwingt Microsoft, jedes Mal das Fenster zur Kontoauswahl anzuzeigen,
-// anstatt automatisch den zuletzt angemeldeten Benutzer wiederzuverwenden.
-// Das löst das Problem der Anmelde-Schleife beim Benutzerwechsel.
-async function handleLogin() {
-    try {
-        if (!msalInstance) {
-            msalInstance = new msal.PublicClientApplication(msalConfig);
-        }
-        // HIER IST DIE ÄNDERUNG: prompt: 'select_account'
-        const loginRequest = {
-            scopes: ["Files.ReadWrite", "offline_access"],
-            prompt: 'select_account' 
-        };
-        const loginResponse = await msalInstance.loginPopup(loginRequest);
-        
-        const account = loginResponse.account;
-        const userEmail = account.username.toLowerCase();
-        
-        const isAllowed = await checkUserAccess(userEmail);
-        if (!isAllowed) {
-            blockAppAccess();
-            return false;
-        }
-        
-        const tokenResponse = await msalInstance.acquireTokenSilent({ scopes: ["Files.ReadWrite"], account: account });
-        accessToken = tokenResponse.accessToken;
-        
-        zeigeWarnung("Erfolgreich angemeldet!", 'success');
-        pruebeLoginHinweis();
-        
-        if (userEmail === adminEmail.toLowerCase()) {
-            document.getElementById("adminButton").style.display = 'inline-block';
-        }
-
-        document.querySelector('.app-container').classList.remove('hidden');
-        document.getElementById('accessDeniedMessage').style.display = 'none';
-
-        return true;
-    } catch (e) {
-        zeigeWarnung("Login fehlgeschlagen: " + e.message, "warnung");
-        console.error("Login-Fehler:", e);
-        // Harter Reset bei jedem Fehler, wie gewünscht.
-        accessToken = null;
-        msalInstance = null;
-        return false;
-    }
-}
-
-async function checkUserAccess(userEmail) {
-    // Der Admin hat immer Zugriff
-    if (userEmail === adminEmail.toLowerCase()) {
-        return true;
-    }
-
-    if (!whitelistUrl || whitelistUrl.includes("BITTE_HIER_DEN")) {
-        console.warn("Whitelist-URL ist nicht konfiguriert. Zugriff nur für Admin gewährt.");
-        return false;
-    }
-
-    try {
-        // KORRIGIERT: Fügt { cache: 'no-store' } hinzu, um Caching zu verhindern.
-        // HINZUGEFÜGT: 'mode: 'cors'' für explizite Anfrage
-        const response = await fetch(whitelistUrl, { cache: 'no-store', mode: 'cors' });
-        
-        // NEU: Verbesserte Fehlererkennung für CORS
-        if (response.type === 'opaque') {
-             throw new Error('CORS_ERROR');
-        }
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const userList = await response.json();
-        whitelist = userList.map(email => email.toLowerCase());
-        
-        return whitelist.includes(userEmail);
-
-    } catch (error) {
-        console.error("Fehler beim Prüfen der Zugriffsberechtigung:", error);
-        if (error.message === 'CORS_ERROR' || error instanceof TypeError) { // TypeError ist oft ein CORS-Symptom
-             zeigeWarnung("Zugriffs-Fehler: Der Freigabelink für die Benutzerliste blockiert die Anfrage (CORS-Problem).", "warnung");
-        } else if (error.message.includes('HTTP error')) {
-             zeigeWarnung(`Zugriffs-Fehler: Die Benutzerliste konnte nicht geladen werden (${error.message}). Ist der Link korrekt und öffentlich?`, "warnung");
-        } else {
-             zeigeWarnung("Fehler beim Prüfen der Zugriffsberechtigung. Prüfen Sie die Browser-Konsole für Details.", "warnung");
-        }
-        return false;
-    }
-}
-
-function blockAppAccess() {
-    document.querySelector('.app-container').classList.add('hidden');
-    document.getElementById('accessDeniedMessage').style.display = 'block';
-    accessToken = null;
-    msalInstance = null;
-}
-
-async function handleLogout() {
-    if (!istGespeichert && !confirm("Es gibt ungespeicherte Änderungen. Wirklich abmelden?")) {
-        return;
-    }
-    try {
-        if (msalInstance) {
-            await msalInstance.logoutPopup();
-        }
-        zeigeWarnung("Erfolgreich abgemeldet.", 'success');
-    } catch (e) {
-        console.error("Abmeldung fehlgeschlagen:", e);
-        zeigeWarnung("Abmeldung fehlgeschlagen: " + e.message, "warnung");
-    } finally {
-        accessToken = null;
-        msalInstance = null;
-        istGespeichert = true;
-        pruebeLoginHinweis();
-        document.getElementById("adminButton").style.display = 'none';
-        document.getElementById("ideenListe").innerHTML = ""; 
-        document.getElementById("filterKategorie").value = "";
-        document.getElementById("filterArchiv").value = "nicht_erledigt";
-        document.getElementById("filterBenutzer").value = "";
-        document.getElementById("filterMandant").value = "";
-        filterMandantValue = "";
-        filterBenutzerValue = "";
-    }
-}
-
+async function handleLogin(){try{msalInstance=new msal.PublicClientApplication(msalConfig);const l=await msalInstance.loginPopup({scopes:["Files.ReadWrite","offline_access"]});const t=await msalInstance.acquireTokenSilent({scopes:["Files.ReadWrite"],account:l.account});accessToken=t.accessToken;zeigeWarnung("Erfolgreich angemeldet!",'success');pruebeLoginHinweis();return!0}catch(e){zeigeWarnung("Login fehlgeschlagen: "+e.message);return!1}}
+async function handleLogout(){if(!istGespeichert&&!confirm("Ungespeicherte Änderungen! Trotzdem abmelden?"))return;try{if(msalInstance){const a=msalInstance.getAllAccounts()[0];if(a)await msalInstance.logoutPopup({account:a,postLogoutRedirectUri:"https://ecki-android.github.io"})}accessToken=null;pruebeLoginHinweis();zeigeWarnung("Erfolgreich abgemeldet.",'success')}catch(e){zeigeWarnung("Abmeldung fehlgeschlagen: "+e.message)}}
 async function anmeldenUndLaden() { const anmeldungErfolgreich = await handleLogin(); if (anmeldungErfolgreich) { await loadFromOneDrive(); }}
 function zeigeWarnung(msg,type='warning'){const w=document.getElementById("warnung");w.textContent=msg;w.style.display="block";w.className="";if(type==='success')w.classList.add('success-message');else if(type==='info')w.classList.add('info-message');else w.classList.add('warnung');setTimeout(()=>w.style.display="none",6e3)}
-
-// --- Admin Panel Funktionen ---
-function showAdminPanel() {
-    try {
-        const password = prompt("Bitte geben Sie das Administrator-Passwort ein:");
-        if (password === null) return;
-        if (btoa(password) === adminPasswordHash) {
-            loadWhitelistForEditing();
-            document.getElementById('adminPanel').style.display = 'block';
-        } else {
-            alert("Falsches Passwort!");
-        }
-    } catch(e) {
-        console.error("Fehler bei der Passwortprüfung (btoa wird in unsicheren Kontexten blockiert):", e);
-        alert("Passwortprüfung fehlgeschlagen. Stellen Sie sicher, dass die Seite über HTTPS geladen wird.");
-    }
-}
-
-function closeAdminPanel() {
-    document.getElementById('adminPanel').style.display = 'none';
-}
-
-function loadWhitelistForEditing() {
-    const storedList = localStorage.getItem('whitelist_local') || '[]';
-    const userArray = JSON.parse(storedList);
-    document.getElementById('whitelistEditor').value = userArray.join('\n');
-}
-
-function saveWhitelistToLocalStorage() {
-    const editorValue = document.getElementById('whitelistEditor').value;
-    const userArray = editorValue.split('\n').map(email => email.trim()).filter(email => email);
-    localStorage.setItem('whitelist_local', JSON.stringify(userArray));
-    zeigeWarnung('Liste lokal zwischengespeichert.', 'info');
-}
-
-async function saveWhitelistToOneDrive() {
-    if (!accessToken) {
-        zeigeWarnung("Sie müssen als Administrator angemeldet sein, um die Liste zu speichern.", "warnung");
-        return;
-    }
-    saveWhitelistToLocalStorage();
-    const storedList = localStorage.getItem('whitelist_local') || '[]';
-    const whitelistPath = "/ideenapp/userlist.json";
-    zeigeWarnung("Speichere Benutzerliste in OneDrive...", "info");
-    try {
-        const url = `https://graph.microsoft.com/v1.0/me/drive/root:${whitelistPath}:/content`;
-        const res = await fetch(url, {
-            method: "PUT",
-            headers: { "Authorization": `Bearer ${accessToken}`, "Content-Type": "application/json" },
-            body: storedList
-        });
-        if (res.ok) {
-            zeigeWarnung("Benutzerliste erfolgreich in OneDrive gespeichert!", 'success');
-            closeAdminPanel();
-        } else {
-            const err = await res.json().catch(() => null);
-            const msg = err?.error?.message || res.statusText;
-            throw new Error(msg);
-        }
-    } catch(e) {
-        zeigeWarnung("Fehler beim Speichern der Benutzerliste: " + e.message, "warnung");
-    }
-}
 
 function initialisiereKategorien(){
     let loadedKategorien = null;
@@ -437,6 +320,7 @@ function zeigeNaechsteNummer(){const el=document.getElementById("naechsteNummerA
 function filterNachMandant(){filterMandantValue=document.getElementById("filterMandant").value;zeigeIdeen()}
 function filterNachBenutzer(){filterBenutzerValue=document.getElementById("filterBenutzer").value;zeigeIdeen()}
 function setzePrioritaet(p){prioritaet=p;["prioHoch","prioMittel","prioNiedrig"].forEach(id=>document.getElementById(id).classList.remove("selected"));if(p)document.getElementById(`prio${p}`).classList.add("selected");istGespeichert=!1}
+/* --- END BLOCK 4 --- */
 /* --- START BLOCK 5a: Save Idea --- */
 async function speichereIdee() {
     const text = document.getElementById("ideeText").value.trim();
@@ -596,8 +480,8 @@ function zeigeIdeen() {
                      if (b.erinnerung.intervallTyp !== 'einmalig') {
                          erinnerungText += `, Intervall: ${b.erinnerung.intervallTyp}`;
                           if(b.erinnerung.intervallTyp === 'tage' && b.erinnerung.intervallWert) {
-                               erinnerungText += ` (${b.erinnerung.intervallWert} Tage)`;
-                          }
+                             erinnerungText += ` (${b.erinnerung.intervallWert} Tage)`;
+                         }
                     }
                     beschreibungErinnerungHtml = `<div class="beschreibung-erinnerung-info">${erinnerungText}</div>`;
                 } else if (b.erinnerung && !b.erinnerung.aktiv && b.erinnerung.termin) {
@@ -1462,24 +1346,24 @@ async function teilePerWhatsApp(){
          let datumTextWA = getFormattedDate(idee.timestamp);
          let hauptBeschreibungTextWA = idee.details ? `\n📝 *Beschreibung:*\n${idee.details}\n` : "";
          const beschreibungenText = idee.beschreibungen && idee.beschreibungen.length ?
-               `\n*Weitere Beschreibungen:*\n${
-                     idee.beschreibungen.filter(b => b && b.text !== undefined).map(b => {
-                         const indentSpacesWA = "  ".repeat(b.level || 0);
-                         const praefix = b.sichtbar === false ? "[Ausgeblendet] " : "";
-                         let anhangTextWA = "";
-                         if(b.attachments && b.attachments.length > 0) {
-                             anhangTextWA = "\n" + b.attachments.map(anhang => {
-                                 return `${indentSpacesWA}   -> Anhang: ${anhang.name} ${anhang.link ? `(${anhang.link})` : ''}`;
-                             }).join("\n");
-                         }
-                         let erinnerungTextBWA = "";
-                         if(b.erinnerung && b.erinnerung.termin) {
-                             erinnerungTextBWA = `\n${indentSpacesWA}  🔔 _Erinnerung: ${getFormattedDate(b.erinnerung.termin)} (${b.erinnerung.intervallTyp})_`
-                         }
+              `\n*Weitere Beschreibungen:*\n${
+                   idee.beschreibungen.filter(b => b && b.text !== undefined).map(b => {
+                       const indentSpacesWA = "  ".repeat(b.level || 0);
+                       const praefix = b.sichtbar === false ? "[Ausgeblendet] " : "";
+                       let anhangTextWA = "";
+                       if(b.attachments && b.attachments.length > 0) {
+                           anhangTextWA = "\n" + b.attachments.map(anhang => {
+                               return `${indentSpacesWA}   -> Anhang: ${anhang.name} ${anhang.link ? `(${anhang.link})` : ''}`;
+                           }).join("\n");
+                       }
+                       let erinnerungTextBWA = "";
+                       if(b.erinnerung && b.erinnerung.termin) {
+                           erinnerungTextBWA = `\n${indentSpacesWA}  🔔 _Erinnerung: ${getFormattedDate(b.erinnerung.termin)} (${b.erinnerung.intervallTyp})_`
+                       }
 
-                         return `${indentSpacesWA}  - _[${getFormattedDate(b.timestamp)}]_ ${praefix}${b.text}${anhangTextWA}${erinnerungTextBWA}`;
-                     }).join("\n")
-               }` : "";
+                       return `${indentSpacesWA}  - _[${getFormattedDate(b.timestamp)}]_ ${praefix}${b.text}${anhangTextWA}${erinnerungTextBWA}`;
+                   }).join("\n")
+              }` : "";
         let anhaengeTextForWhatsApp = "\n📎 Anhänge: Keine";
         if (idee.dateien && idee.dateien.length > 0) {
             anhaengeTextForWhatsApp = `\n📎 *Anhänge:*\n${idee.dateien.filter(f => f && f.id).map(f => {
@@ -1495,22 +1379,29 @@ async function teilePerWhatsApp(){
         }
 
         return ( `${idee.erledigt ? '_[ERLEDIGT]_ ' : ''}*${idee.vorgangsnummer ? `[Vorgang ${idee.vorgangsnummer}] ` : ''}${idee.text || 'Ohne Titel'}*\n` +
-                     `📁 Kat.: ${idee.kategorie||'-'}\n` + `${idee.benutzer?`🧑‍💻 Zust.: ${idee.benutzer}\n`:""}` + `🔖 Prio: ${idee.prioritaet||"-"}\n` + `📅 ${datumTextWA}\n` +
-                     `${hauptBeschreibungTextWA}` +
-                     `${idee.mandantennummer?`🏢 Mandant: ${idee.mandantennummer}\n`:""}` + `${idee.firmenname?`🏭 Firma: ${idee.firmenname}\n`:""}` +
-                     `${erinnerungTextWA}` +
-                     `${beschreibungenText}` + `${anhaengeTextForWhatsApp}` );
+                   `📁 Kat.: ${idee.kategorie||'-'}\n` + `${idee.benutzer?`🧑‍💻 Zust.: ${idee.benutzer}\n`:""}` + `🔖 Prio: ${idee.prioritaet||"-"}\n` + `📅 ${datumTextWA}\n` +
+                   `${hauptBeschreibungTextWA}` +
+                   `${idee.mandantennummer?`🏢 Mandant: ${idee.mandantennummer}\n`:""}` + `${idee.firmenname?`🏭 Firma: ${idee.firmenname}\n`:""}` +
+                   `${erinnerungTextWA}` +
+                   `${beschreibungenText}` + `${anhaengeTextForWhatsApp}` );
     }).filter(s => s !== "").join("\n\n------------------------------------\n\n");
 
     const exportTimestamp = new Date().toLocaleString("de-DE"); const weitergeleitetText = `\n\n_[Notiz(en) markiert als: Weitergeleitet an ${recipientInfo} am ${exportTimestamp}]_`; text += weitergeleitetText; const waLink = `https://wa.me/?text=${encodeURIComponent(text)}`; try { const waWindow = window.open(waLink,"_blank"); if (!waWindow) { zeigeWarnung("WhatsApp konnte nicht geöffnet werden.", "warning"); } } catch (e) { console.error("WhatsApp Fehler:", e); zeigeWarnung("Fehler WhatsApp: " + e.message); }
     await new Promise(resolve => setTimeout(resolve, 100)); let ideenImSpeicher = JSON.parse(localStorage.getItem("ideen") || "[]"); let changed = false; const ausgewaehlteIDsFuerWA = ideenToExport.map(i => i.id); ideenImSpeicher.forEach(idee => { if (idee && idee.id && ausgewaehlteIDsFuerWA.includes(idee.id)) { const desc = `Weitergeleitet via WhatsApp an: ${recipientInfo} am ${exportTimestamp}`; if (!idee.beschreibungen){idee.beschreibungen = [];} const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); idee.beschreibungen.push({ text: desc, timestamp: ts, level: 0, sichtbar: true, attachments: [], erinnerung: getDefaultErinnerung() }); changed = true; }}); if (changed) { localStorage.setItem("ideen", JSON.stringify(ideenImSpeicher)); zeigeIdeen(); istGespeichert = false; if (typeof saveToOneDrive === "function") await saveToOneDrive(); }
 }
 
+/**
+ * NEU HINZUGEFÜGT: Funktion zum Teilen einer einzelnen Beschreibung per WhatsApp.
+ * @param {string} ideeId - Die ID der Haupt-Idee.
+ * @param {string} beschreibungTimestamp - Der eindeutige Zeitstempel der zu teilenden Beschreibung.
+ */
 async function teileBeschreibungPerWhatsApp(ideeId, beschreibungTimestamp) {
     if (!ideeId || !beschreibungTimestamp) {
         zeigeWarnung("Fehler: ID für das Teilen fehlt.", "warnung");
         return;
     }
+
+    // Daten aus dem Speicher laden
     let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
     const idee = ideen.find(i => i && i.id === ideeId);
     if (!idee) {
@@ -1522,6 +1413,8 @@ async function teileBeschreibungPerWhatsApp(ideeId, beschreibungTimestamp) {
         zeigeWarnung("Spezifische Beschreibung nicht gefunden.", "warnung");
         return;
     }
+    
+    // Empfänger abfragen
     const recipientInput = prompt("An wen soll diese Beschreibung gesendet werden? Info oder 'ich', 'mandant', 'support', 'andere'");
     let recipientInfo = recipientInput ? recipientInput.trim().toLowerCase() : "";
     if (!recipientInfo) {
@@ -1539,6 +1432,7 @@ async function teileBeschreibungPerWhatsApp(ideeId, beschreibungTimestamp) {
         recipientInfo = `Andere: ${other.trim()}`;
     }
 
+    // WhatsApp-Nachricht erstellen
     let text = `*Teil-Information aus Vorgang ${idee.vorgangsnummer || 'N/A'}: ${idee.text || 'Ohne Titel'}*\n\n`;
     text += `*Beschreibung vom ${getFormattedDate(beschreibung.timestamp)}:*\n`;
     text += `${beschreibung.text || 'Kein Text'}`;
@@ -1551,6 +1445,7 @@ async function teileBeschreibungPerWhatsApp(ideeId, beschreibungTimestamp) {
     const exportTimestamp = new Date().toLocaleString("de-DE");
     text += `\n\n_[Diese einzelne Beschreibung wurde weitergeleitet an: ${recipientInfo} am ${exportTimestamp}]_`;
 
+    // WhatsApp-Link öffnen
     const waLink = `https://wa.me/?text=${encodeURIComponent(text)}`;
     try {
         const waWindow = window.open(waLink, "_blank");
@@ -1562,6 +1457,7 @@ async function teileBeschreibungPerWhatsApp(ideeId, beschreibungTimestamp) {
         zeigeWarnung("Fehler beim Öffnen von WhatsApp: " + e.message, "warnung");
     }
 
+    // Protokoll-Eintrag in der App speichern
     await new Promise(resolve => setTimeout(resolve, 100)); 
     const ideeIndex = ideen.findIndex(i => i && i.id === ideeId);
     if (ideeIndex !== -1) {
@@ -1744,7 +1640,7 @@ async function kalenderTerminErstellenUndSpeichern() {
     if (typeof saveToOneDrive === "function") { 
        await saveToOneDrive();
     } else {
-      console.warn("saveToOneDrive Funktion nicht gefunden, Überspringe OneDrive Sync für Terminvermerk.");
+       console.warn("saveToOneDrive Funktion nicht gefunden, Überspringe OneDrive Sync für Terminvermerk.");
     }
 
     terminDialogAbbrechen();
@@ -1889,76 +1785,7 @@ function pruefeUndZeigeBenachrichtigungen() {
 /* --- START BLOCK 7: File & OneDrive --- */
 async function uploadToOneDrive(f){if(!accessToken){zeigeWarnung("Bitte zuerst mit Microsoft anmelden!");return null;}try{const n=`ideenapp/${Date.now()}_${f.name}`;const u=await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${n}:/content`,{method:"PUT",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":f.type},body:f});const d=await u.json();if(!u.ok){throw new Error(`OneDrive Upload Error ${u.status}: ${d?.error?.message||'Unknown'}`);}const s=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${d.id}/createLink`,{method:"POST",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":"application/json"},body:JSON.stringify({type:"view",scope:"anonymous"})});const j=await s.json();if(!s.ok){throw new Error(`OneDrive Link Error ${s.status}: ${j?.error?.message||'Unknown'}`);}return j.link.webUrl;}catch(e){console.error("OneDrive Upload/Link Fehler:",e);zeigeWarnung("OneDrive-Fehler: "+e.message);return null;}}
 async function saveToOneDrive(){ if(!accessToken){ return; } try { const ideen=JSON.parse(localStorage.getItem("ideen")||"[]"); const benutzer=JSON.parse(localStorage.getItem("benutzerliste")||"[]"); const kategorien=JSON.parse(localStorage.getItem("kategorien")||"[]"); const nummer=localStorage.getItem("naechsteVorgangsnummer")||"1"; const data={ideen,benutzerliste:benutzer,kategorien,naechsteVorgangsnummer:nummer}; const dataStr=JSON.stringify(data,null,2); const path=(document.getElementById("onedrivePath").value.trim()||"/ideenapp/ideen.json"); const finalPath=path.startsWith('/')?path:'/'+path; if(!finalPath||finalPath==='/'){zeigeWarnung("OneDrive Speichern: Ungültiger Pfad.");return;} const url=`https://graph.microsoft.com/v1.0/me/drive/root:${finalPath}:/content`; const res=await fetch(url,{method:"PUT",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":"application/json"},body:dataStr}); if(res.ok){istGespeichert=true;}else{const err=await res.json().catch(()=>null); const msg=err?.error?.message||res.statusText; zeigeWarnung(`OneDrive Speichern Fehler: ${msg}`);}}catch(e){zeigeWarnung("OneDrive Speichern Fehler: "+e.message);}}
-
-async function loadFromOneDrive(){ 
-    if(!accessToken){ 
-        const ok=await handleLogin(); 
-        if(!ok||!accessToken){return;} 
-    } 
-    const path=(document.getElementById("onedrivePath").value.trim()||"/ideenapp/ideen.json"); 
-    const finalPath=path.startsWith('/')?path:'/'+path; 
-    if(!finalPath||finalPath==='/'){zeigeWarnung("OneDrive Laden: Ungültiger Pfad.");return;} 
-    zeigeWarnung(`Lade Daten von OneDrive: ${finalPath}...`,'info'); 
-    try{ 
-        const url=`https://graph.microsoft.com/v1.0/me/drive/root:${finalPath}:/content`; 
-        const res=await fetch(url,{method:"GET",headers:{"Authorization":`Bearer ${accessToken}`}}); 
-        if(res.ok){ 
-            const content=await res.text(); 
-            const loadedData=JSON.parse(content); 
-            let ideen=[], benutzerliste=[], kategorienAusDatei=null, nummer=1; 
-            if(loadedData&&typeof loadedData==='object'&&Array.isArray(loadedData.ideen)){ 
-                ideen=loadedData.ideen; 
-                benutzerliste=Array.isArray(loadedData.benutzerliste)?loadedData.benutzerliste:[]; 
-                kategorienAusDatei=Array.isArray(loadedData.kategorien)?loadedData.kategorien:null; 
-                nummer=parseInt(loadedData.naechsteVorgangsnummer,10)||1; 
-            } else if(Array.isArray(loadedData)){
-                ideen=loadedData; 
-                benutzerliste=[]; 
-                kategorienAusDatei=null; 
-                nummer=1;
-            } else {
-                throw new Error("Ungültiges Dateiformat");
-            }
-            localStorage.setItem("ideen",JSON.stringify(ideen)); 
-            localStorage.setItem("benutzerliste",JSON.stringify(benutzerliste)); 
-            if(kategorienAusDatei!==null){localStorage.setItem("kategorien",JSON.stringify(kategorienAusDatei));} 
-            localStorage.setItem("naechsteVorgangsnummer", nummer.toString()); 
-            
-            ausgewaehlt=[]; 
-            initialisiereKategorien(); 
-            initialisiereBenutzer(); 
-            initialisiereVorgangsnummer(); 
-            ensureIdeasHaveIds(); 
-            aktualisiereMandantenFilterDropdown(); 
-            zeigeIdeen(); 
-            zeigeWarnung(`Daten von OneDrive geladen! (${finalPath})`,'success'); 
-            istGespeichert=true; 
-        } else if(res.status===404){
-            // KORRIGIERT: Behandelt den Fall, dass ein neuer Benutzer noch keine Datei hat.
-            zeigeWarnung(`Keine bestehende Datenbank unter '${finalPath}' gefunden. Eine neue wird beim ersten Speichern angelegt.`, 'info');
-            localStorage.removeItem("ideen");
-            localStorage.removeItem("kategorien");
-            localStorage.removeItem("benutzerliste");
-            localStorage.removeItem("naechsteVorgangsnummer");
-            naechsteVorgangsnummer = 1;
-            kategorien = [];
-            benutzerliste = [];
-            // UI zurücksetzen
-            initialisiereKategorien();
-            initialisiereBenutzer();
-            initialisiereVorgangsnummer();
-            zeigeIdeen();
-            istGespeichert = true; // Es gibt nichts zu speichern
-        }else{ 
-            const err=await res.json().catch(()=>null); 
-            const msg=err?.error?.message||res.statusText; 
-            zeigeWarnung(`OneDrive Laden Fehler (${res.status}): ${msg}`);
-        }
-    }catch(e){
-        zeigeWarnung("OneDrive Laden Fehler: "+e.message);
-    }
-}
-
+async function loadFromOneDrive(){ if(!accessToken){ const ok=await handleLogin(); if(!ok||!accessToken){return;} } const path=(document.getElementById("onedrivePath").value.trim()||"/ideenapp/ideen.json"); const finalPath=path.startsWith('/')?path:'/'+path; if(!finalPath||finalPath==='/'){zeigeWarnung("OneDrive Laden: Ungültiger Pfad.");return;} zeigeWarnung(`Lade Daten von OneDrive: ${finalPath}...`,'info'); try{ const url=`https://graph.microsoft.com/v1.0/me/drive/root:${finalPath}:/content`; const res=await fetch(url,{method:"GET",headers:{"Authorization":`Bearer ${accessToken}`}}); if(res.ok){ const content=await res.text(); const loadedData=JSON.parse(content); let ideen=[], benutzerliste=[], kategorienAusDatei=null, nummer=1; if(loadedData&&typeof loadedData==='object'&&Array.isArray(loadedData.ideen)){ ideen=loadedData.ideen; benutzerliste=Array.isArray(loadedData.benutzerliste)?loadedData.benutzerliste:[]; kategorienAusDatei=Array.isArray(loadedData.kategorien)?loadedData.kategorien:null; nummer=parseInt(loadedData.naechsteVorgangsnummer,10)||1; }else if(Array.isArray(loadedData)){ideen=loadedData; benutzerliste=[]; kategorienAusDatei=null; nummer=1;}else{throw new Error("Ungültiges Dateiformat");} localStorage.setItem("ideen",JSON.stringify(ideen)); localStorage.setItem("benutzerliste",JSON.stringify(benutzerliste)); if(kategorienAusDatei!==null){localStorage.setItem("kategorien",JSON.stringify(kategorienAusDatei));} localStorage.setItem("naechsteVorgangsnummer", nummer.toString()); ausgewaehlt=[]; initialisiereKategorien(); initialisiereBenutzer(); initialisiereVorgangsnummer(); ensureIdeasHaveIds(); aktualisiereMandantenFilterDropdown(); zeigeIdeen(); zeigeWarnung(`Daten von OneDrive geladen! (${finalPath})`,'success'); istGespeichert=true; }else if(res.status===404){zeigeWarnung(`Datei nicht gefunden: ${finalPath}.`,'warning');}else{ const err=await res.json().catch(()=>null); const msg=err?.error?.message||res.statusText; zeigeWarnung(`OneDrive Laden Fehler (${res.status}): ${msg}`);}}catch(e){zeigeWarnung("OneDrive Laden Fehler: "+e.message);}}
 async function speichereIdeenAlsDatei(){ try{ const ideen = JSON.parse(localStorage.getItem("ideen")||"[]"); const benutzerData = JSON.parse(localStorage.getItem("benutzerliste")||"[]"); const kategorienData = JSON.parse(localStorage.getItem("kategorien")||"[]"); const nummer = localStorage.getItem("naechsteVorgangsnummer")||"1"; const combinedData = { ideen, benutzerliste: benutzerData, kategorien: kategorienData, naechsteVorgangsnummer: nummer }; const dataToSave = JSON.stringify(combinedData, null, 2); if(window.showSaveFilePicker){ fileHandle = await window.showSaveFilePicker({ suggestedName: "ideen.json", types: [{ description: "JSON-Dateien", accept: { "application/json": [".json"] } }] }); const writable = await fileHandle.createWritable(); await writable.write(dataToSave); await writable.close(); zeigeWarnung("Datei lokal gespeichert!", 'success'); istGespeichert = true; } else { const blob = new Blob([dataToSave], { type: "application/json" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "ideen.json"; link.click(); URL.revokeObjectURL(url); zeigeWarnung("Datei-Download gestartet.", 'success'); istGespeichert = true; }} catch(e) { if(e.name !== "AbortError") { zegeWarnung("Fehler beim lokalen Speichern: " + e.message); } }}
 async function ladeIdeenAusDatei(){ try{ let fileContent; if(window.showOpenFilePicker){ [fileHandle] = await window.showOpenFilePicker({ types: [{ description: "JSON-Dateien", accept: { "application/json": [".json"] } }] }); const file = await fileHandle.getFile(); fileContent = await file.text(); } else { const input = document.createElement('input'); input.type = 'file'; input.accept = '.json'; await new Promise((resolve, reject) => { input.onchange = async (e) => { if (e.target.files && e.target.files.length > 0) { const file = e.target.files[0]; const reader = new FileReader(); reader.onload = (event) => { fileContent = event.target.result; resolve(); }; reader.onerror = (error) => reject(error); reader.readAsText(file); } else { reject(new Error("Keine Datei ausgewählt")); } }; input.click(); }); } if (!fileContent) { throw new Error("Kein Dateiinhalt geladen."); } const loadedData = JSON.parse(fileContent); let ideen = [], benutzerliste = [], kategorienAusDatei = null, nummer = 1; if (loadedData && typeof loadedData === 'object' && Array.isArray(loadedData.ideen)) { ideen = loadedData.ideen; benutzerliste = Array.isArray(loadedData.benutzerliste) ? loadedData.benutzerliste : []; kategorienAusDatei = Array.isArray(loadedData.kategorien) ? loadedData.kategorien : null; nummer = parseInt(loadedData.naechsteVorgangsnummer, 10) || 1; } else if (Array.isArray(loadedData)) { ideen = loadedData; benutzerliste = []; kategorienAusDatei = null; nummer = 1; } else { throw new Error("Ungültiges Dateiformat"); } localStorage.setItem("ideen", JSON.stringify(ideen)); localStorage.setItem("benutzerliste", JSON.stringify(benutzerliste)); if (kategorienAusDatei !== null) { localStorage.setItem("kategorien", JSON.stringify(kategorienAusDatei)); } localStorage.setItem("naechsteVorgangsnummer", nummer.toString()); ausgewaehlt = []; initialisiereKategorien(); initialisiereBenutzer(); initialisiereVorgangsnummer(); ensureIdeasHaveIds(); aktualisiereMandantenFilterDropdown(); zeigeIdeen(); zeigeWarnung(`Daten lokal geladen!`, 'success'); istGespeichert = true; } catch(e) { if(e.name !== "AbortError" && e.message !== "Keine Datei ausgewählt" && e.message !== "Kein Dateiinhalt geladen.") { zeigeWarnung("Fehler beim lokalen Laden: " + e.message); } }}
 /* --- END BLOCK 7 --- */
@@ -2103,23 +1930,22 @@ function ensureIdeasHaveIds() {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    try {
-        initialisiereKategorien();
-        initialisiereBenutzer();
-        initialisiereVorgangsnummer();
-        ensureIdeasHaveIds(); // Stellt die Datenintegrität sicher
-        aktualisiereMandantenFilterDropdown();
-        zeigeIdeen();
-        initialisiereUndStarteBenachrichtigungspruefung();
-        pruebeLoginHinweis(); // Initialer Check, ob der User angemeldet sein sollte
-    } catch (initError) {
-        console.error("Fehler während der Initialisierung:", initError);
-        zeigeWarnung("Ein Fehler ist beim Starten der App aufgetreten.", "warnung");
-    }
-});
+try {
+    initialisiereKategorien(); 
+    initialisiereBenutzer(); 
+    initialisiereVorgangsnummer();
+    ensureIdeasHaveIds(); 
+    aktualisiereMandantenFilterDropdown(); 
+    zeigeIdeen(); 
+    pruebeLoginHinweis();
+
+    initialisiereUndStarteBenachrichtigungspruefung();
+
+} catch (initError) {
+    console.error("Fehler während der Initialisierung:", initError);
+    zeigeWarnung("Ein Fehler ist beim Starten der App aufgetreten.", "warnung");
+}
 /* --- END BLOCK 8 --- */
 </script>
 </body>
 </html>
-
