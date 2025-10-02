@@ -201,7 +201,7 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
 console.log("Script started");
 /* --- START BLOCK 4: Script Start, Variables & Initializers --- */
 // WICHTIG: Nach der Ersteinrichtung muss der Admin hier den öffentlichen Link zur userlist.json eintragen.
-const whitelistUrl = "BITTE_HIER_DEN_ÖFFENTLICHEN_LINK_ZUR_userlist.json_EINTRAGEN";
+const whitelistUrl = "https://unimakgmbh-my.sharepoint.com/:u:/g/personal/admin_unimakgmbh_onmicrosoft_com/EdC-9NYTxy9Or3fpEa8EQpkBfkeFvYQwBOPaw3x4_KI3_A?e=IiCrSI";
 
 const adminEmail = "admin@unimakgmbh.onmicrosoft.com";
 const adminPasswordHash = "NDUwMV9raXdpMg=="; // Base64 kodiertes Passwort "4501_kiwi2"
@@ -264,8 +264,10 @@ async function handleLogin() {
 }
 
 async function checkUserAccess(userEmail) {
+// --- START: ANGEPASSTE FUNKTION ---
+async function checkUserAccess(userEmail) {
     // Der Admin hat immer Zugriff
-    if (userEmail === adminEmail.toLowerCase()) {
+    if (userEmail.toLowerCase() === adminEmail.toLowerCase()) {
         return true;
     }
 
@@ -275,22 +277,18 @@ async function checkUserAccess(userEmail) {
     }
 
     try {
-        // OneDrive-Links müssen für den direkten Download angepasst werden. Ein einfacher Trick ist, ?download=1 anzuhängen, falls es ein direkter Share-Link ist.
-        // Besser ist es, den Link-Typ zu kennen. Wir gehen von einem Standard-Web-Link aus.
-        // Dieser Logik-Teil ist der heikelste. Eine einfache Methode ist, den Nutzer einen direkten Link erstellen zu lassen.
-        // Für OneDrive for Business: ?download=1 anhängen.
-        // Für OneDrive Personal: /content anstelle von /embed anhängen oder eine API-Umwandlung.
-        // Da wir es nicht wissen, probieren wir eine generische Methode.
-        // Die Erfahrung zeigt, dass ein manuell erstellter "Jeder kann anzeigen"-Link oft eine ?download=1 Option oder eine ID enthält.
-        // Für dieses Setup wandeln wir den Link nicht um, sondern verlassen uns darauf, dass der Link direkt auf die JSON-Datei verweist.
-        const response = await fetch(whitelistUrl);
+        // Spezielle Umwandlung für SharePoint/OneDrive for Business Links
+        let base64Url = btoa(whitelistUrl).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        const directDownloadUrl = `https://graph.microsoft.com/v1.0/shares/u!${base64Url}/driveItem/content`;
+
+        const response = await fetch(directDownloadUrl);
         if (!response.ok) {
             throw new Error(`Fehler beim Laden der Benutzerliste: ${response.statusText}`);
         }
         const userList = await response.json();
         whitelist = userList.map(email => email.toLowerCase());
         
-        return whitelist.includes(userEmail);
+        return whitelist.includes(userEmail.toLowerCase());
 
     } catch (error) {
         console.error("Fehler beim Prüfen der Zugriffsberechtigung:", error);
@@ -298,7 +296,7 @@ async function checkUserAccess(userEmail) {
         return false;
     }
 }
-
+// --- ENDE: ANGEPASSTE FUNKTION ---
 
 function blockAppAccess() {
     document.querySelector('.app-container').classList.add('hidden');
