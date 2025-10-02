@@ -200,13 +200,15 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
 <script>
 console.log("Script started");
 /* --- START BLOCK 4: Script Start, Variables & Initializers --- */
-// WICHTIG: Nach der Ersteinrichtung muss der Admin hier den öffentlichen Link zur userlist.json eintragen.
-const whitelistUrl = "https://unimakgmbh-my.sharepoint.com/:u:/g/personal/admin_unimakgmbh_onmicrosoft_com/EdC-9NYTxy9Or3fpEa8EQpkBfkeFvYQwBOPaw3x4_KI3_A?e=IiCrSI";
+// KORRIGIERT: Der Platzhalter wurde durch den bereitgestellten Link ersetzt.
+// HINWEIS: SharePoint-Links können beim direkten Abruf (fetch) zu CORS-Fehlern führen.
+// Ein direkter, anonymer Download-Link (z. B. von einem Public Repo oder Blob Storage) ist zuverlässiger.
+const whitelistUrl = "https://unimakgmbh-my.sharepoint.com/:u:/g/personal/admin_unimakgmbh_onmicrosoft_com/EdC-9NYTxy9Or3fpEa8EQpkBfkeFvYQwBOPaw3x4_KI3_A?e=PnchDd&download=1";
 
 const adminEmail = "admin@unimakgmbh.onmicrosoft.com";
 const adminPasswordHash = "NDUwMV9raXdpMg=="; // Base64 kodiertes Passwort "4501_kiwi2"
 
-const msalConfig={auth:{clientId:"c3cd3be4-3540-46dd-a24c-82eb6ed5542d",authority:"https://login.microsoftonline.com/common",redirectUri:"https://ecki-android.github.io"}};
+const msalConfig={auth:{clientId:"c3cd3be4-3540-46dd-a24c-82eb6ed5542d",authority:"https://login.microsoftonline.com/common",redirectUri: window.location.origin + window.location.pathname}};
 let accessToken=null, msalInstance=null, prioritaet="", bearbeiteId=null, ausgewaehlt=[], fileHandle=null, beschreibungFuerId=null, beschreibungZuBearbeitenderTimestamp=null, istGespeichert=!0;
 let erinnerungFuerId = null;
 let erinnerungFuerBeschreibungTimestamp = null;
@@ -227,7 +229,9 @@ function pruebeLoginHinweis(){document.getElementById("loginHinweis").style.disp
 
 async function handleLogin() {
     try {
-        msalInstance = new msal.PublicClientApplication(msalConfig);
+        if (!msalInstance) {
+            msalInstance = new msal.PublicClientApplication(msalConfig);
+        }
         const loginResponse = await msalInstance.loginPopup({ scopes: ["Files.ReadWrite", "offline_access"] });
         
         const account = loginResponse.account;
@@ -236,7 +240,7 @@ async function handleLogin() {
         // --- Zugriffskontrolle ---
         const isAllowed = await checkUserAccess(userEmail);
         if (!isAllowed) {
-            blockAppAccess();
+            blockAppAccess(); // Blockiert den Zugriff und bereinigt den Zustand, ohne ein weiteres Popup
             return false; // Login-Prozess abbrechen
         }
         
@@ -259,15 +263,16 @@ async function handleLogin() {
     } catch (e) {
         zeigeWarnung("Login fehlgeschlagen: " + e.message);
         console.error("Login-Fehler:", e);
+        // Zustand bei Fehler zurücksetzen
+        accessToken = null;
+        msalInstance = null;
         return false;
     }
 }
 
 async function checkUserAccess(userEmail) {
-// --- START: ANGEPASSTE FUNKTION ---
-async function checkUserAccess(userEmail) {
     // Der Admin hat immer Zugriff
-    if (userEmail.toLowerCase() === adminEmail.toLowerCase()) {
+    if (userEmail === adminEmail.toLowerCase()) {
         return true;
     }
 
@@ -277,39 +282,74 @@ async function checkUserAccess(userEmail) {
     }
 
     try {
-        // Spezielle Umwandlung für SharePoint/OneDrive for Business Links
-        let base64Url = btoa(whitelistUrl).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-        const directDownloadUrl = `https://graph.microsoft.com/v1.0/shares/u!${base64Url}/driveItem/content`;
-
-        const response = await fetch(directDownloadUrl);
+        const response = await fetch(whitelistUrl);
         if (!response.ok) {
             throw new Error(`Fehler beim Laden der Benutzerliste: ${response.statusText}`);
         }
         const userList = await response.json();
         whitelist = userList.map(email => email.toLowerCase());
         
-        return whitelist.includes(userEmail.toLowerCase());
+        return whitelist.includes(userEmail);
 
     } catch (error) {
         console.error("Fehler beim Prüfen der Zugriffsberechtigung:", error);
-        zeigeWarnung("Fehler beim Prüfen der Zugriffsberechtigung.", "warnung");
+        zeigeWarnung("Fehler beim Prüfen der Zugriffsberechtigung. Der Freigabelink ist möglicherweise nicht öffentlich zugänglich.", "warnung");
         return false;
     }
 }
-// --- ENDE: ANGEPASSTE FUNKTION ---
 
-// --- START: ERSETZEN SIE DIESE FUNKTION ---
+// KORRIGIERT: Diese Funktion zwingt den Benutzer nicht mehr zu einem verwirrenden zweiten Logout-Popup.
 function blockAppAccess() {
     document.querySelector('.app-container').classList.add('hidden');
     document.getElementById('accessDeniedMessage').style.display = 'block';
-    // WICHTIGE ÄNDERUNG: Wir entfernen den automatischen Logout (msalInstance.logoutPopup()),
-    // da dieser Prozess die Seite blockiert hat. Der Benutzer kann die Seite
-    // einfach manuell neu laden, um einen neuen Anmeldeversuch zu starten.
-}
-// --- ENDE: ERSETZEN SIE DIESE FUNKTION ---
+    
+    // Anstatt den Benutzer mit einem weiteren Popup zu konfrontieren,
+    // setzen wir den internen Zustand der App leise zurück.
+    // Der Benutzer ist weiterhin bei Microsoft angemeldet, aber nicht in unserer App.
+    accessToken = null;
+    msalInstance = null; // Wichtig für einen sauberen Neuanmeldeversuch
 }
 
-async function handleLogout(){if(!istGespeichert&&!confirm("Ungespeicherte Änderungen! Trotzdem abmelden?"))return;try{if(msalInstance){const a=msalInstance.getAllAccounts()[0];if(a)await msalInstance.logoutPopup({account:a,postLogoutRedirectUri:"https://ecki-android.github.io"})}accessToken=null;pruebeLoginHinweis();document.getElementById("adminButton").style.display = 'none'; zeigeWarnung("Erfolgreich abgemeldet.",'success')}catch(e){zeigeWarnung("Abmeldung fehlgeschlagen: "+e.message)}}
+// KORRIGIERT: Die Logout-Funktion wurde komplett überarbeitet, um das "Einfrieren" zu verhindern.
+// Sie lädt die Seite nicht mehr neu, sondern setzt den Anwendungszustand sauber zurück.
+async function handleLogout() {
+    if (!istGespeichert && !confirm("Es gibt ungespeicherte Änderungen. Wirklich abmelden?")) {
+        return;
+    }
+    try {
+        if (msalInstance) {
+            // logoutPopup löst auf, wenn das Popup geschlossen wird. Kein Redirect nötig.
+            await msalInstance.logoutPopup();
+        }
+        
+        zeigeWarnung("Erfolgreich abgemeldet.", 'success');
+
+    } catch (e) {
+        console.error("Abmeldung fehlgeschlagen:", e);
+        zeigeWarnung("Abmeldung fehlgeschlagen: " + e.message, "warnung");
+    } finally {
+        // WICHTIG: Setze den Zustand immer zurück, auch wenn das Popup einen Fehler wirft.
+        accessToken = null;
+        msalInstance = null; // Sehr wichtig, um Konflikte bei der Neuanmeldung zu vermeiden
+        istGespeichert = true; // Verhindert die "Seite verlassen?"-Warnung
+
+        // UI-Elemente aktualisieren
+        pruebeLoginHinweis(); // Zeigt den "Bitte anmelden"-Hinweis an
+        document.getElementById("adminButton").style.display = 'none';
+        
+        // App-Daten ausblenden, um Verwirrung zu vermeiden
+        document.getElementById("ideenListe").innerHTML = ""; 
+        
+        // Filter zurücksetzen, um eine saubere Ansicht nach Neuanmeldung zu gewährleisten
+        document.getElementById("filterKategorie").value = "";
+        document.getElementById("filterArchiv").value = "nicht_erledigt";
+        document.getElementById("filterBenutzer").value = "";
+        document.getElementById("filterMandant").value = "";
+        filterMandantValue = "";
+        filterBenutzerValue = "";
+    }
+}
+
 async function anmeldenUndLaden() { const anmeldungErfolgreich = await handleLogin(); if (anmeldungErfolgreich) { await loadFromOneDrive(); }}
 function zeigeWarnung(msg,type='warning'){const w=document.getElementById("warnung");w.textContent=msg;w.style.display="block";w.className="";if(type==='success')w.classList.add('success-message');else if(type==='info')w.classList.add('info-message');else w.classList.add('warnung');setTimeout(()=>w.style.display="none",6e3)}
 
@@ -561,8 +601,8 @@ function zeigeIdeen() {
                      if (b.erinnerung.intervallTyp !== 'einmalig') {
                          erinnerungText += `, Intervall: ${b.erinnerung.intervallTyp}`;
                           if(b.erinnerung.intervallTyp === 'tage' && b.erinnerung.intervallWert) {
-                             erinnerungText += ` (${b.erinnerung.intervallWert} Tage)`;
-                         }
+                               erinnerungText += ` (${b.erinnerung.intervallWert} Tage)`;
+                          }
                     }
                     beschreibungErinnerungHtml = `<div class="beschreibung-erinnerung-info">${erinnerungText}</div>`;
                 } else if (b.erinnerung && !b.erinnerung.aktiv && b.erinnerung.termin) {
@@ -1427,24 +1467,24 @@ async function teilePerWhatsApp(){
          let datumTextWA = getFormattedDate(idee.timestamp);
          let hauptBeschreibungTextWA = idee.details ? `\n📝 *Beschreibung:*\n${idee.details}\n` : "";
          const beschreibungenText = idee.beschreibungen && idee.beschreibungen.length ?
-              `\n*Weitere Beschreibungen:*\n${
-                   idee.beschreibungen.filter(b => b && b.text !== undefined).map(b => {
-                       const indentSpacesWA = "  ".repeat(b.level || 0);
-                       const praefix = b.sichtbar === false ? "[Ausgeblendet] " : "";
-                       let anhangTextWA = "";
-                       if(b.attachments && b.attachments.length > 0) {
-                           anhangTextWA = "\n" + b.attachments.map(anhang => {
-                               return `${indentSpacesWA}   -> Anhang: ${anhang.name} ${anhang.link ? `(${anhang.link})` : ''}`;
-                           }).join("\n");
-                       }
-                       let erinnerungTextBWA = "";
-                       if(b.erinnerung && b.erinnerung.termin) {
-                           erinnerungTextBWA = `\n${indentSpacesWA}  🔔 _Erinnerung: ${getFormattedDate(b.erinnerung.termin)} (${b.erinnerung.intervallTyp})_`
-                       }
+               `\n*Weitere Beschreibungen:*\n${
+                     idee.beschreibungen.filter(b => b && b.text !== undefined).map(b => {
+                         const indentSpacesWA = "  ".repeat(b.level || 0);
+                         const praefix = b.sichtbar === false ? "[Ausgeblendet] " : "";
+                         let anhangTextWA = "";
+                         if(b.attachments && b.attachments.length > 0) {
+                             anhangTextWA = "\n" + b.attachments.map(anhang => {
+                                 return `${indentSpacesWA}   -> Anhang: ${anhang.name} ${anhang.link ? `(${anhang.link})` : ''}`;
+                             }).join("\n");
+                         }
+                         let erinnerungTextBWA = "";
+                         if(b.erinnerung && b.erinnerung.termin) {
+                             erinnerungTextBWA = `\n${indentSpacesWA}  🔔 _Erinnerung: ${getFormattedDate(b.erinnerung.termin)} (${b.erinnerung.intervallTyp})_`
+                         }
 
-                       return `${indentSpacesWA}  - _[${getFormattedDate(b.timestamp)}]_ ${praefix}${b.text}${anhangTextWA}${erinnerungTextBWA}`;
-                   }).join("\n")
-              }` : "";
+                         return `${indentSpacesWA}  - _[${getFormattedDate(b.timestamp)}]_ ${praefix}${b.text}${anhangTextWA}${erinnerungTextBWA}`;
+                     }).join("\n")
+               }` : "";
         let anhaengeTextForWhatsApp = "\n📎 Anhänge: Keine";
         if (idee.dateien && idee.dateien.length > 0) {
             anhaengeTextForWhatsApp = `\n📎 *Anhänge:*\n${idee.dateien.filter(f => f && f.id).map(f => {
@@ -1460,11 +1500,11 @@ async function teilePerWhatsApp(){
         }
 
         return ( `${idee.erledigt ? '_[ERLEDIGT]_ ' : ''}*${idee.vorgangsnummer ? `[Vorgang ${idee.vorgangsnummer}] ` : ''}${idee.text || 'Ohne Titel'}*\n` +
-                   `📁 Kat.: ${idee.kategorie||'-'}\n` + `${idee.benutzer?`🧑‍💻 Zust.: ${idee.benutzer}\n`:""}` + `🔖 Prio: ${idee.prioritaet||"-"}\n` + `📅 ${datumTextWA}\n` +
-                   `${hauptBeschreibungTextWA}` +
-                   `${idee.mandantennummer?`🏢 Mandant: ${idee.mandantennummer}\n`:""}` + `${idee.firmenname?`🏭 Firma: ${idee.firmenname}\n`:""}` +
-                   `${erinnerungTextWA}` +
-                   `${beschreibungenText}` + `${anhaengeTextForWhatsApp}` );
+                     `📁 Kat.: ${idee.kategorie||'-'}\n` + `${idee.benutzer?`🧑‍💻 Zust.: ${idee.benutzer}\n`:""}` + `🔖 Prio: ${idee.prioritaet||"-"}\n` + `📅 ${datumTextWA}\n` +
+                     `${hauptBeschreibungTextWA}` +
+                     `${idee.mandantennummer?`🏢 Mandant: ${idee.mandantennummer}\n`:""}` + `${idee.firmenname?`🏭 Firma: ${idee.firmenname}\n`:""}` +
+                     `${erinnerungTextWA}` +
+                     `${beschreibungenText}` + `${anhaengeTextForWhatsApp}` );
     }).filter(s => s !== "").join("\n\n------------------------------------\n\n");
 
     const exportTimestamp = new Date().toLocaleString("de-DE"); const weitergeleitetText = `\n\n_[Notiz(en) markiert als: Weitergeleitet an ${recipientInfo} am ${exportTimestamp}]_`; text += weitergeleitetText; const waLink = `https://wa.me/?text=${encodeURIComponent(text)}`; try { const waWindow = window.open(waLink,"_blank"); if (!waWindow) { zeigeWarnung("WhatsApp konnte nicht geöffnet werden.", "warning"); } } catch (e) { console.error("WhatsApp Fehler:", e); zeigeWarnung("Fehler WhatsApp: " + e.message); }
@@ -1721,7 +1761,7 @@ async function kalenderTerminErstellenUndSpeichern() {
     if (typeof saveToOneDrive === "function") { 
        await saveToOneDrive();
     } else {
-       console.warn("saveToOneDrive Funktion nicht gefunden, Überspringe OneDrive Sync für Terminvermerk.");
+      console.warn("saveToOneDrive Funktion nicht gefunden, Überspringe OneDrive Sync für Terminvermerk.");
     }
 
     terminDialogAbbrechen();
@@ -2011,12 +2051,21 @@ function ensureIdeasHaveIds() {
     }
 }
 
-try {
-    // Initialisierungsfunktionen werden erst nach dem Login aufgerufen
-} catch (initError) {
-    console.error("Fehler während der Initialisierung:", initError);
-    zeigeWarnung("Ein Fehler ist beim Starten der App aufgetreten.", "warnung");
-}
+document.addEventListener('DOMContentLoaded', () => {
+    try {
+        initialisiereKategorien();
+        initialisiereBenutzer();
+        initialisiereVorgangsnummer();
+        ensureIdeasHaveIds(); // Stellt die Datenintegrität sicher
+        aktualisiereMandantenFilterDropdown();
+        zeigeIdeen();
+        initialisiereUndStarteBenachrichtigungspruefung();
+        pruebeLoginHinweis(); // Initialer Check, ob der User angemeldet sein sollte
+    } catch (initError) {
+        console.error("Fehler während der Initialisierung:", initError);
+        zeigeWarnung("Ein Fehler ist beim Starten der App aufgetreten.", "warnung");
+    }
+});
 /* --- END BLOCK 8 --- */
 </script>
 </body>
