@@ -285,12 +285,16 @@ async function checkUserAccess(userEmail) {
     }
 
     try {
-        // KORRIGIERT: Fügt { cache: 'no-store' } hinzu.
-        // Dies zwingt den Browser, immer die aktuellste Version der userlist.json von OneDrive zu laden
-        // und verhindert, dass eine veraltete, zwischengespeicherte Liste verwendet wird.
-        const response = await fetch(whitelistUrl, { cache: 'no-store' });
+        // KORRIGIERT: Fügt { cache: 'no-store' } hinzu, um Caching zu verhindern.
+        // HINZUGEFÜGT: 'mode: 'cors'' für explizite Anfrage
+        const response = await fetch(whitelistUrl, { cache: 'no-store', mode: 'cors' });
+        
+        // NEU: Verbesserte Fehlererkennung für CORS
+        if (response.type === 'opaque') {
+             throw new Error('CORS_ERROR');
+        }
         if (!response.ok) {
-            throw new Error(`Fehler beim Laden der Benutzerliste: ${response.statusText}`);
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
         const userList = await response.json();
         whitelist = userList.map(email => email.toLowerCase());
@@ -299,7 +303,13 @@ async function checkUserAccess(userEmail) {
 
     } catch (error) {
         console.error("Fehler beim Prüfen der Zugriffsberechtigung:", error);
-        zeigeWarnung("Fehler beim Prüfen der Zugriffsberechtigung. Der Freigabelink ist möglicherweise nicht öffentlich zugänglich.", "warnung");
+        if (error.message === 'CORS_ERROR' || error instanceof TypeError) { // TypeError ist oft ein CORS-Symptom
+             zeigeWarnung("Zugriffs-Fehler: Der Freigabelink für die Benutzerliste blockiert die Anfrage (CORS-Problem).", "warnung");
+        } else if (error.message.includes('HTTP error')) {
+             zeigeWarnung(`Zugriffs-Fehler: Die Benutzerliste konnte nicht geladen werden (${error.message}). Ist der Link korrekt und öffentlich?`, "warnung");
+        } else {
+             zeigeWarnung("Fehler beim Prüfen der Zugriffsberechtigung. Prüfen Sie die Browser-Konsole für Details.", "warnung");
+        }
         return false;
     }
 }
@@ -1879,7 +1889,76 @@ function pruefeUndZeigeBenachrichtigungen() {
 /* --- START BLOCK 7: File & OneDrive --- */
 async function uploadToOneDrive(f){if(!accessToken){zeigeWarnung("Bitte zuerst mit Microsoft anmelden!");return null;}try{const n=`ideenapp/${Date.now()}_${f.name}`;const u=await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${n}:/content`,{method:"PUT",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":f.type},body:f});const d=await u.json();if(!u.ok){throw new Error(`OneDrive Upload Error ${u.status}: ${d?.error?.message||'Unknown'}`);}const s=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${d.id}/createLink`,{method:"POST",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":"application/json"},body:JSON.stringify({type:"view",scope:"anonymous"})});const j=await s.json();if(!s.ok){throw new Error(`OneDrive Link Error ${s.status}: ${j?.error?.message||'Unknown'}`);}return j.link.webUrl;}catch(e){console.error("OneDrive Upload/Link Fehler:",e);zeigeWarnung("OneDrive-Fehler: "+e.message);return null;}}
 async function saveToOneDrive(){ if(!accessToken){ return; } try { const ideen=JSON.parse(localStorage.getItem("ideen")||"[]"); const benutzer=JSON.parse(localStorage.getItem("benutzerliste")||"[]"); const kategorien=JSON.parse(localStorage.getItem("kategorien")||"[]"); const nummer=localStorage.getItem("naechsteVorgangsnummer")||"1"; const data={ideen,benutzerliste:benutzer,kategorien,naechsteVorgangsnummer:nummer}; const dataStr=JSON.stringify(data,null,2); const path=(document.getElementById("onedrivePath").value.trim()||"/ideenapp/ideen.json"); const finalPath=path.startsWith('/')?path:'/'+path; if(!finalPath||finalPath==='/'){zeigeWarnung("OneDrive Speichern: Ungültiger Pfad.");return;} const url=`https://graph.microsoft.com/v1.0/me/drive/root:${finalPath}:/content`; const res=await fetch(url,{method:"PUT",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":"application/json"},body:dataStr}); if(res.ok){istGespeichert=true;}else{const err=await res.json().catch(()=>null); const msg=err?.error?.message||res.statusText; zeigeWarnung(`OneDrive Speichern Fehler: ${msg}`);}}catch(e){zeigeWarnung("OneDrive Speichern Fehler: "+e.message);}}
-async function loadFromOneDrive(){ if(!accessToken){ const ok=await handleLogin(); if(!ok||!accessToken){return;} } const path=(document.getElementById("onedrivePath").value.trim()||"/ideenapp/ideen.json"); const finalPath=path.startsWith('/')?path:'/'+path; if(!finalPath||finalPath==='/'){zeigeWarnung("OneDrive Laden: Ungültiger Pfad.");return;} zeigeWarnung(`Lade Daten von OneDrive: ${finalPath}...`,'info'); try{ const url=`https://graph.microsoft.com/v1.0/me/drive/root:${finalPath}:/content`; const res=await fetch(url,{method:"GET",headers:{"Authorization":`Bearer ${accessToken}`}}); if(res.ok){ const content=await res.text(); const loadedData=JSON.parse(content); let ideen=[], benutzerliste=[], kategorienAusDatei=null, nummer=1; if(loadedData&&typeof loadedData==='object'&&Array.isArray(loadedData.ideen)){ ideen=loadedData.ideen; benutzerliste=Array.isArray(loadedData.benutzerliste)?loadedData.benutzerliste:[]; kategorienAusDatei=Array.isArray(loadedData.kategorien)?loadedData.kategorien:null; nummer=parseInt(loadedData.naechsteVorgangsnummer,10)||1; }else if(Array.isArray(loadedData)){ideen=loadedData; benutzerliste=[]; kategorienAusDatei=null; nummer=1;}else{throw new Error("Ungültiges Dateiformat");} localStorage.setItem("ideen",JSON.stringify(ideen)); localStorage.setItem("benutzerliste",JSON.stringify(benutzerliste)); if(kategorienAusDatei!==null){localStorage.setItem("kategorien",JSON.stringify(kategorienAusDatei));} localStorage.setItem("naechsteVorgangsnummer", nummer.toString()); ausgewaehlt=[]; initialisiereKategorien(); initialisiereBenutzer(); initialisiereVorgangsnummer(); ensureIdeasHaveIds(); aktualisiereMandantenFilterDropdown(); zeigeIdeen(); zeigeWarnung(`Daten von OneDrive geladen! (${finalPath})`,'success'); istGespeichert=true; }else if(res.status===404){zeigeWarnung(`Datei nicht gefunden: ${finalPath}.`,'warning');}else{ const err=await res.json().catch(()=>null); const msg=err?.error?.message||res.statusText; zeigeWarnung(`OneDrive Laden Fehler (${res.status}): ${msg}`);}}catch(e){zeigeWarnung("OneDrive Laden Fehler: "+e.message);}}
+
+async function loadFromOneDrive(){ 
+    if(!accessToken){ 
+        const ok=await handleLogin(); 
+        if(!ok||!accessToken){return;} 
+    } 
+    const path=(document.getElementById("onedrivePath").value.trim()||"/ideenapp/ideen.json"); 
+    const finalPath=path.startsWith('/')?path:'/'+path; 
+    if(!finalPath||finalPath==='/'){zeigeWarnung("OneDrive Laden: Ungültiger Pfad.");return;} 
+    zeigeWarnung(`Lade Daten von OneDrive: ${finalPath}...`,'info'); 
+    try{ 
+        const url=`https://graph.microsoft.com/v1.0/me/drive/root:${finalPath}:/content`; 
+        const res=await fetch(url,{method:"GET",headers:{"Authorization":`Bearer ${accessToken}`}}); 
+        if(res.ok){ 
+            const content=await res.text(); 
+            const loadedData=JSON.parse(content); 
+            let ideen=[], benutzerliste=[], kategorienAusDatei=null, nummer=1; 
+            if(loadedData&&typeof loadedData==='object'&&Array.isArray(loadedData.ideen)){ 
+                ideen=loadedData.ideen; 
+                benutzerliste=Array.isArray(loadedData.benutzerliste)?loadedData.benutzerliste:[]; 
+                kategorienAusDatei=Array.isArray(loadedData.kategorien)?loadedData.kategorien:null; 
+                nummer=parseInt(loadedData.naechsteVorgangsnummer,10)||1; 
+            } else if(Array.isArray(loadedData)){
+                ideen=loadedData; 
+                benutzerliste=[]; 
+                kategorienAusDatei=null; 
+                nummer=1;
+            } else {
+                throw new Error("Ungültiges Dateiformat");
+            }
+            localStorage.setItem("ideen",JSON.stringify(ideen)); 
+            localStorage.setItem("benutzerliste",JSON.stringify(benutzerliste)); 
+            if(kategorienAusDatei!==null){localStorage.setItem("kategorien",JSON.stringify(kategorienAusDatei));} 
+            localStorage.setItem("naechsteVorgangsnummer", nummer.toString()); 
+            
+            ausgewaehlt=[]; 
+            initialisiereKategorien(); 
+            initialisiereBenutzer(); 
+            initialisiereVorgangsnummer(); 
+            ensureIdeasHaveIds(); 
+            aktualisiereMandantenFilterDropdown(); 
+            zeigeIdeen(); 
+            zeigeWarnung(`Daten von OneDrive geladen! (${finalPath})`,'success'); 
+            istGespeichert=true; 
+        } else if(res.status===404){
+            // KORRIGIERT: Behandelt den Fall, dass ein neuer Benutzer noch keine Datei hat.
+            zeigeWarnung(`Keine bestehende Datenbank unter '${finalPath}' gefunden. Eine neue wird beim ersten Speichern angelegt.`, 'info');
+            localStorage.removeItem("ideen");
+            localStorage.removeItem("kategorien");
+            localStorage.removeItem("benutzerliste");
+            localStorage.removeItem("naechsteVorgangsnummer");
+            naechsteVorgangsnummer = 1;
+            kategorien = [];
+            benutzerliste = [];
+            // UI zurücksetzen
+            initialisiereKategorien();
+            initialisiereBenutzer();
+            initialisiereVorgangsnummer();
+            zeigeIdeen();
+            istGespeichert = true; // Es gibt nichts zu speichern
+        }else{ 
+            const err=await res.json().catch(()=>null); 
+            const msg=err?.error?.message||res.statusText; 
+            zeigeWarnung(`OneDrive Laden Fehler (${res.status}): ${msg}`);
+        }
+    }catch(e){
+        zeigeWarnung("OneDrive Laden Fehler: "+e.message);
+    }
+}
+
 async function speichereIdeenAlsDatei(){ try{ const ideen = JSON.parse(localStorage.getItem("ideen")||"[]"); const benutzerData = JSON.parse(localStorage.getItem("benutzerliste")||"[]"); const kategorienData = JSON.parse(localStorage.getItem("kategorien")||"[]"); const nummer = localStorage.getItem("naechsteVorgangsnummer")||"1"; const combinedData = { ideen, benutzerliste: benutzerData, kategorien: kategorienData, naechsteVorgangsnummer: nummer }; const dataToSave = JSON.stringify(combinedData, null, 2); if(window.showSaveFilePicker){ fileHandle = await window.showSaveFilePicker({ suggestedName: "ideen.json", types: [{ description: "JSON-Dateien", accept: { "application/json": [".json"] } }] }); const writable = await fileHandle.createWritable(); await writable.write(dataToSave); await writable.close(); zeigeWarnung("Datei lokal gespeichert!", 'success'); istGespeichert = true; } else { const blob = new Blob([dataToSave], { type: "application/json" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "ideen.json"; link.click(); URL.revokeObjectURL(url); zeigeWarnung("Datei-Download gestartet.", 'success'); istGespeichert = true; }} catch(e) { if(e.name !== "AbortError") { zegeWarnung("Fehler beim lokalen Speichern: " + e.message); } }}
 async function ladeIdeenAusDatei(){ try{ let fileContent; if(window.showOpenFilePicker){ [fileHandle] = await window.showOpenFilePicker({ types: [{ description: "JSON-Dateien", accept: { "application/json": [".json"] } }] }); const file = await fileHandle.getFile(); fileContent = await file.text(); } else { const input = document.createElement('input'); input.type = 'file'; input.accept = '.json'; await new Promise((resolve, reject) => { input.onchange = async (e) => { if (e.target.files && e.target.files.length > 0) { const file = e.target.files[0]; const reader = new FileReader(); reader.onload = (event) => { fileContent = event.target.result; resolve(); }; reader.onerror = (error) => reject(error); reader.readAsText(file); } else { reject(new Error("Keine Datei ausgewählt")); } }; input.click(); }); } if (!fileContent) { throw new Error("Kein Dateiinhalt geladen."); } const loadedData = JSON.parse(fileContent); let ideen = [], benutzerliste = [], kategorienAusDatei = null, nummer = 1; if (loadedData && typeof loadedData === 'object' && Array.isArray(loadedData.ideen)) { ideen = loadedData.ideen; benutzerliste = Array.isArray(loadedData.benutzerliste) ? loadedData.benutzerliste : []; kategorienAusDatei = Array.isArray(loadedData.kategorien) ? loadedData.kategorien : null; nummer = parseInt(loadedData.naechsteVorgangsnummer, 10) || 1; } else if (Array.isArray(loadedData)) { ideen = loadedData; benutzerliste = []; kategorienAusDatei = null; nummer = 1; } else { throw new Error("Ungültiges Dateiformat"); } localStorage.setItem("ideen", JSON.stringify(ideen)); localStorage.setItem("benutzerliste", JSON.stringify(benutzerliste)); if (kategorienAusDatei !== null) { localStorage.setItem("kategorien", JSON.stringify(kategorienAusDatei)); } localStorage.setItem("naechsteVorgangsnummer", nummer.toString()); ausgewaehlt = []; initialisiereKategorien(); initialisiereBenutzer(); initialisiereVorgangsnummer(); ensureIdeasHaveIds(); aktualisiereMandantenFilterDropdown(); zeigeIdeen(); zeigeWarnung(`Daten lokal geladen!`, 'success'); istGespeichert = true; } catch(e) { if(e.name !== "AbortError" && e.message !== "Keine Datei ausgewählt" && e.message !== "Kein Dateiinhalt geladen.") { zeigeWarnung("Fehler beim lokalen Laden: " + e.message); } }}
 /* --- END BLOCK 7 --- */
