@@ -298,12 +298,15 @@ async function checkUserAccess(userEmail) {
 }
 // --- ENDE: ANGEPASSTE FUNKTION ---
 
+// --- START: ERSETZEN SIE DIESE FUNKTION ---
 function blockAppAccess() {
     document.querySelector('.app-container').classList.add('hidden');
     document.getElementById('accessDeniedMessage').style.display = 'block';
-    if(msalInstance) {
-        msalInstance.logoutPopup();
-    }
+    // WICHTIGE ÄNDERUNG: Wir entfernen den automatischen Logout (msalInstance.logoutPopup()),
+    // da dieser Prozess die Seite blockiert hat. Der Benutzer kann die Seite
+    // einfach manuell neu laden, um einen neuen Anmeldeversuch zu starten.
+}
+// --- ENDE: ERSETZEN SIE DIESE FUNKTION ---
 }
 
 async function handleLogout(){if(!istGespeichert&&!confirm("Ungespeicherte Änderungen! Trotzdem abmelden?"))return;try{if(msalInstance){const a=msalInstance.getAllAccounts()[0];if(a)await msalInstance.logoutPopup({account:a,postLogoutRedirectUri:"https://ecki-android.github.io"})}accessToken=null;pruebeLoginHinweis();document.getElementById("adminButton").style.display = 'none'; zeigeWarnung("Erfolgreich abgemeldet.",'success')}catch(e){zeigeWarnung("Abmeldung fehlgeschlagen: "+e.message)}}
