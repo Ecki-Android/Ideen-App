@@ -200,9 +200,6 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
 <script>
 console.log("Script started");
 /* --- START BLOCK 4: Script Start, Variables & Initializers --- */
-// KORRIGIERT: Der Platzhalter wurde durch den bereitgestellten Link ersetzt.
-// HINWEIS: SharePoint-Links können beim direkten Abruf (fetch) zu CORS-Fehlern führen.
-// Ein direkter, anonymer Download-Link (z. B. von einem Public Repo oder Blob Storage) ist zuverlässiger.
 const whitelistUrl = "https://unimakgmbh-my.sharepoint.com/:u:/g/personal/admin_unimakgmbh_onmicrosoft_com/EdC-9NYTxy9Or3fpEa8EQpkBfkeFvYQwBOPaw3x4_KI3_A?e=PnchDd&download=1";
 
 const adminEmail = "admin@unimakgmbh.onmicrosoft.com";
@@ -227,21 +224,29 @@ let benachrichtigungsIntervallId = null;
 function generateUUID(){return'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0,v=c=='x'?r:(r&0x3|0x8);return v.toString(16)})}
 function pruebeLoginHinweis(){document.getElementById("loginHinweis").style.display=accessToken?"none":"block"}
 
+// KORRIGIERT: Fügt 'prompt: "select_account"' hinzu.
+// Dies zwingt Microsoft, jedes Mal das Fenster zur Kontoauswahl anzuzeigen,
+// anstatt automatisch den zuletzt angemeldeten Benutzer wiederzuverwenden.
+// Das löst das Problem der Anmelde-Schleife beim Benutzerwechsel.
 async function handleLogin() {
     try {
         if (!msalInstance) {
             msalInstance = new msal.PublicClientApplication(msalConfig);
         }
-        const loginResponse = await msalInstance.loginPopup({ scopes: ["Files.ReadWrite", "offline_access"] });
+        // HIER IST DIE ÄNDERUNG: prompt: 'select_account'
+        const loginRequest = {
+            scopes: ["Files.ReadWrite", "offline_access"],
+            prompt: 'select_account' 
+        };
+        const loginResponse = await msalInstance.loginPopup(loginRequest);
         
         const account = loginResponse.account;
         const userEmail = account.username.toLowerCase();
         
-        // --- Zugriffskontrolle ---
         const isAllowed = await checkUserAccess(userEmail);
         if (!isAllowed) {
-            blockAppAccess(); // Blockiert den Zugriff und bereinigt den Zustand, ohne ein weiteres Popup
-            return false; // Login-Prozess abbrechen
+            blockAppAccess();
+            return false;
         }
         
         const tokenResponse = await msalInstance.acquireTokenSilent({ scopes: ["Files.ReadWrite"], account: account });
@@ -250,20 +255,18 @@ async function handleLogin() {
         zeigeWarnung("Erfolgreich angemeldet!", 'success');
         pruebeLoginHinweis();
         
-        // Admin-Button nur für Admin anzeigen
         if (userEmail === adminEmail.toLowerCase()) {
             document.getElementById("adminButton").style.display = 'inline-block';
         }
 
-        // App-Inhalt anzeigen, falls er blockiert war
         document.querySelector('.app-container').classList.remove('hidden');
         document.getElementById('accessDeniedMessage').style.display = 'none';
 
         return true;
     } catch (e) {
-        zeigeWarnung("Login fehlgeschlagen: " + e.message);
+        zeigeWarnung("Login fehlgeschlagen: " + e.message, "warnung");
         console.error("Login-Fehler:", e);
-        // Zustand bei Fehler zurücksetzen
+        // Harter Reset bei jedem Fehler, wie gewünscht.
         accessToken = null;
         msalInstance = null;
         return false;
@@ -271,16 +274,13 @@ async function handleLogin() {
 }
 
 async function checkUserAccess(userEmail) {
-    // Der Admin hat immer Zugriff
     if (userEmail === adminEmail.toLowerCase()) {
         return true;
     }
-
     if (!whitelistUrl || whitelistUrl.includes("BITTE_HIER_DEN")) {
         console.warn("Whitelist-URL ist nicht konfiguriert. Zugriff nur für Admin gewährt.");
         return false;
     }
-
     try {
         const response = await fetch(whitelistUrl);
         if (!response.ok) {
@@ -288,9 +288,7 @@ async function checkUserAccess(userEmail) {
         }
         const userList = await response.json();
         whitelist = userList.map(email => email.toLowerCase());
-        
         return whitelist.includes(userEmail);
-
     } catch (error) {
         console.error("Fehler beim Prüfen der Zugriffsberechtigung:", error);
         zeigeWarnung("Fehler beim Prüfen der Zugriffsberechtigung. Der Freigabelink ist möglicherweise nicht öffentlich zugänglich.", "warnung");
@@ -298,49 +296,32 @@ async function checkUserAccess(userEmail) {
     }
 }
 
-// KORRIGIERT: Diese Funktion zwingt den Benutzer nicht mehr zu einem verwirrenden zweiten Logout-Popup.
 function blockAppAccess() {
     document.querySelector('.app-container').classList.add('hidden');
     document.getElementById('accessDeniedMessage').style.display = 'block';
-    
-    // Anstatt den Benutzer mit einem weiteren Popup zu konfrontieren,
-    // setzen wir den internen Zustand der App leise zurück.
-    // Der Benutzer ist weiterhin bei Microsoft angemeldet, aber nicht in unserer App.
     accessToken = null;
-    msalInstance = null; // Wichtig für einen sauberen Neuanmeldeversuch
+    msalInstance = null;
 }
 
-// KORRIGIERT: Die Logout-Funktion wurde komplett überarbeitet, um das "Einfrieren" zu verhindern.
-// Sie lädt die Seite nicht mehr neu, sondern setzt den Anwendungszustand sauber zurück.
 async function handleLogout() {
     if (!istGespeichert && !confirm("Es gibt ungespeicherte Änderungen. Wirklich abmelden?")) {
         return;
     }
     try {
         if (msalInstance) {
-            // logoutPopup löst auf, wenn das Popup geschlossen wird. Kein Redirect nötig.
             await msalInstance.logoutPopup();
         }
-        
         zeigeWarnung("Erfolgreich abgemeldet.", 'success');
-
     } catch (e) {
         console.error("Abmeldung fehlgeschlagen:", e);
         zeigeWarnung("Abmeldung fehlgeschlagen: " + e.message, "warnung");
     } finally {
-        // WICHTIG: Setze den Zustand immer zurück, auch wenn das Popup einen Fehler wirft.
         accessToken = null;
-        msalInstance = null; // Sehr wichtig, um Konflikte bei der Neuanmeldung zu vermeiden
-        istGespeichert = true; // Verhindert die "Seite verlassen?"-Warnung
-
-        // UI-Elemente aktualisieren
-        pruebeLoginHinweis(); // Zeigt den "Bitte anmelden"-Hinweis an
+        msalInstance = null;
+        istGespeichert = true;
+        pruebeLoginHinweis();
         document.getElementById("adminButton").style.display = 'none';
-        
-        // App-Daten ausblenden, um Verwirrung zu vermeiden
         document.getElementById("ideenListe").innerHTML = ""; 
-        
-        // Filter zurücksetzen, um eine saubere Ansicht nach Neuanmeldung zu gewährleisten
         document.getElementById("filterKategorie").value = "";
         document.getElementById("filterArchiv").value = "nicht_erledigt";
         document.getElementById("filterBenutzer").value = "";
@@ -357,8 +338,7 @@ function zeigeWarnung(msg,type='warning'){const w=document.getElementById("warnu
 function showAdminPanel() {
     try {
         const password = prompt("Bitte geben Sie das Administrator-Passwort ein:");
-        if (password === null) return; // Benutzer hat Abbrechen geklickt
-        
+        if (password === null) return;
         if (btoa(password) === adminPasswordHash) {
             loadWhitelistForEditing();
             document.getElementById('adminPanel').style.display = 'block';
@@ -393,11 +373,9 @@ async function saveWhitelistToOneDrive() {
         zeigeWarnung("Sie müssen als Administrator angemeldet sein, um die Liste zu speichern.", "warnung");
         return;
     }
-    saveWhitelistToLocalStorage(); // Erst lokal sichern
-
+    saveWhitelistToLocalStorage();
     const storedList = localStorage.getItem('whitelist_local') || '[]';
     const whitelistPath = "/ideenapp/userlist.json";
-    
     zeigeWarnung("Speichere Benutzerliste in OneDrive...", "info");
     try {
         const url = `https://graph.microsoft.com/v1.0/me/drive/root:${whitelistPath}:/content`;
@@ -406,7 +384,6 @@ async function saveWhitelistToOneDrive() {
             headers: { "Authorization": `Bearer ${accessToken}`, "Content-Type": "application/json" },
             body: storedList
         });
-
         if (res.ok) {
             zeigeWarnung("Benutzerliste erfolgreich in OneDrive gespeichert!", 'success');
             closeAdminPanel();
@@ -1511,18 +1488,11 @@ async function teilePerWhatsApp(){
     await new Promise(resolve => setTimeout(resolve, 100)); let ideenImSpeicher = JSON.parse(localStorage.getItem("ideen") || "[]"); let changed = false; const ausgewaehlteIDsFuerWA = ideenToExport.map(i => i.id); ideenImSpeicher.forEach(idee => { if (idee && idee.id && ausgewaehlteIDsFuerWA.includes(idee.id)) { const desc = `Weitergeleitet via WhatsApp an: ${recipientInfo} am ${exportTimestamp}`; if (!idee.beschreibungen){idee.beschreibungen = [];} const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); idee.beschreibungen.push({ text: desc, timestamp: ts, level: 0, sichtbar: true, attachments: [], erinnerung: getDefaultErinnerung() }); changed = true; }}); if (changed) { localStorage.setItem("ideen", JSON.stringify(ideenImSpeicher)); zeigeIdeen(); istGespeichert = false; if (typeof saveToOneDrive === "function") await saveToOneDrive(); }
 }
 
-/**
- * NEU HINZUGEFÜGT: Funktion zum Teilen einer einzelnen Beschreibung per WhatsApp.
- * @param {string} ideeId - Die ID der Haupt-Idee.
- * @param {string} beschreibungTimestamp - Der eindeutige Zeitstempel der zu teilenden Beschreibung.
- */
 async function teileBeschreibungPerWhatsApp(ideeId, beschreibungTimestamp) {
     if (!ideeId || !beschreibungTimestamp) {
         zeigeWarnung("Fehler: ID für das Teilen fehlt.", "warnung");
         return;
     }
-
-    // Daten aus dem Speicher laden
     let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
     const idee = ideen.find(i => i && i.id === ideeId);
     if (!idee) {
@@ -1534,8 +1504,6 @@ async function teileBeschreibungPerWhatsApp(ideeId, beschreibungTimestamp) {
         zeigeWarnung("Spezifische Beschreibung nicht gefunden.", "warnung");
         return;
     }
-    
-    // Empfänger abfragen
     const recipientInput = prompt("An wen soll diese Beschreibung gesendet werden? Info oder 'ich', 'mandant', 'support', 'andere'");
     let recipientInfo = recipientInput ? recipientInput.trim().toLowerCase() : "";
     if (!recipientInfo) {
@@ -1553,7 +1521,6 @@ async function teileBeschreibungPerWhatsApp(ideeId, beschreibungTimestamp) {
         recipientInfo = `Andere: ${other.trim()}`;
     }
 
-    // WhatsApp-Nachricht erstellen
     let text = `*Teil-Information aus Vorgang ${idee.vorgangsnummer || 'N/A'}: ${idee.text || 'Ohne Titel'}*\n\n`;
     text += `*Beschreibung vom ${getFormattedDate(beschreibung.timestamp)}:*\n`;
     text += `${beschreibung.text || 'Kein Text'}`;
@@ -1566,7 +1533,6 @@ async function teileBeschreibungPerWhatsApp(ideeId, beschreibungTimestamp) {
     const exportTimestamp = new Date().toLocaleString("de-DE");
     text += `\n\n_[Diese einzelne Beschreibung wurde weitergeleitet an: ${recipientInfo} am ${exportTimestamp}]_`;
 
-    // WhatsApp-Link öffnen
     const waLink = `https://wa.me/?text=${encodeURIComponent(text)}`;
     try {
         const waWindow = window.open(waLink, "_blank");
@@ -1578,7 +1544,6 @@ async function teileBeschreibungPerWhatsApp(ideeId, beschreibungTimestamp) {
         zeigeWarnung("Fehler beim Öffnen von WhatsApp: " + e.message, "warnung");
     }
 
-    // Protokoll-Eintrag in der App speichern
     await new Promise(resolve => setTimeout(resolve, 100)); 
     const ideeIndex = ideen.findIndex(i => i && i.id === ideeId);
     if (ideeIndex !== -1) {
