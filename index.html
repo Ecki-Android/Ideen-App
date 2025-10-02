@@ -87,7 +87,7 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
 </div>
 
 <div class="app-container">
-    <h1>Ideen-App Pro</h1>
+    <h1>Ideen-App Pro <span id="loggedInUser" style="display:none; font-size: 0.6em; font-weight: normal; color: #555;"></span></h1>
     <div id="warnung"></div> <div id="loginHinweis" class="warnung" style="display:none;">Anmeldung erforderlich: Bitte melden Sie sich zuerst mit Ihrem Microsoft-Konto an. Ohne Anmeldung sind keine Cloud-Links und keine Synchronisation möglich.</div>
 
     <div id="vorgangsnummerAnzeigeInput">Nächste Vorgangsnummer: <span id="naechsteNummerAnzeige">1</span></div>
@@ -250,6 +250,12 @@ async function handleLogin() {
         const tokenResponse = await msalInstance.acquireTokenSilent({ scopes: ["Files.ReadWrite"], account: account });
         accessToken = tokenResponse.accessToken;
         
+        // UI-Update für den angemeldeten Benutzer
+        const userDisplay = document.getElementById('loggedInUser');
+        const displayName = account.name || userEmail;
+        userDisplay.textContent = `(Angemeldet als: ${displayName})`;
+        userDisplay.style.display = 'inline';
+
         zeigeWarnung("Erfolgreich angemeldet!", 'success');
         pruebeLoginHinweis();
         
@@ -340,6 +346,10 @@ async function handleLogout() {
         accessToken = null;
         msalInstance = null;
         istGespeichert = true;
+        
+        // UI-Update, um den Benutzernamen zu entfernen
+        document.getElementById('loggedInUser').textContent = '';
+        document.getElementById('loggedInUser').style.display = 'none';
         
         document.getElementById("adminButton").style.display = 'none';
         localStorage.removeItem("ideen");
