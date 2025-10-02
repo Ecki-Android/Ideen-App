@@ -252,8 +252,9 @@ async function handleLogin() {
         
         // UI-Update für den angemeldeten Benutzer
         const userDisplay = document.getElementById('loggedInUser');
-        const displayName = account.name || userEmail;
-        userDisplay.textContent = `(Angemeldet als: ${displayName})`;
+        const displayName = account.name || '';
+        const userIdentifier = displayName ? `${displayName} (${userEmail})` : userEmail;
+        userDisplay.textContent = `(Angemeldet als: ${userIdentifier})`;
         userDisplay.style.display = 'inline';
 
         zeigeWarnung("Erfolgreich angemeldet!", 'success');
