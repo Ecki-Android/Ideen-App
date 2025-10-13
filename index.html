@@ -108,14 +108,14 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
     </div>
 
     <div class="top-actions">
-    <button onclick="showAdminPanel()" id="adminButton" style="display:none; background:#ffc107; color: black; border-color: #e0a800;">👤 Benutzer verwalten</button>
+    <button onclick="showAdminPanel()" id="adminButton" style="display:none; background:#ffc107; color: black; border-color: #e0a800;">👤 Admin Panel</button>
     <button onclick="exportiereAlsPDF()">📝 PDF</button> <button onclick="exportiereAlsText()">📄 Text</button> <button onclick="teilePerEmail()">✉️ E-Mail</button> <button onclick="teilePerWhatsApp()">📱 WhatsApp</button>
     <input type="text" id="onedrivePath" placeholder="/ideenapp/ideen.json" style="width: 250px; margin-top: 0;"/> <button class="onedrive-btn" onclick="saveToOneDrive()">☁️ OneDrive Speichern</button> <button class="onedrive-btn" onclick="loadFromOneDrive()">☁️ OneDrive Laden</button>
     <button onclick="alleIdeenLoeschen()" style="background:#eee;border:1px solid #c00;color:#c00;">Alle löschen</button> <button onclick="ausgewaehlteNotizenLoeschen()" style="background:#eee;border:1px solid #c00;color:#c00;">Auswahl löschen</button>
     <button id="speicherDateiBtn" onclick="speichereIdeenAlsDatei()">Datei speichern</button> <button id="oeffneDateiBtn" onclick="ladeIdeenAusDatei()">Datei öffnen</button>
     
     <button id="microsoftLoginBtn" onclick="handleMicrosoftLogin()" style="background:#e6f4ff;border-color:#0067b8;color:#0067b8;">🔑 Anmelden (Microsoft)</button>
-    <button id="githubLoginBtn" onclick="handleGithubLogin()" style="display:none; background:#333;border-color:#111;color:white;">🔑 Anmelden (GitHub)</button>
+    <button id="githubLoginBtn" onclick="handleGithubLogin()" style="background:#333;border-color:#111;color:white;">🔑 Anmelden (GitHub)</button>
     <button id="logoutBtn" onclick="handleLogout()" style="display:none; background:#ffe0e0;border-color:#c00;color:#c00;">🔒 Abmelden</button>
     </div>
 
@@ -188,12 +188,13 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
 </div>
 
 <div id="adminPanel">
-    <h3>Benutzerverwaltung</h3>
-    <p>Fügen Sie hier die E-Mail-Adressen der berechtigten Benutzer hinzu (eine pro Zeile).</p>
+    <h3>Benutzerverwaltung (Whitelist)</h3>
+    <p>Fügen Sie hier die E-Mail-Adressen der berechtigten Benutzer hinzu (eine pro Zeile). Diese Liste dient nur als lokales Backup oder zur Vorbereitung.</p>
+    <p><b>Wichtig:</b> Die Live-Zugriffssteuerung erfolgt über die <code>userlist.json</code> auf GitHub.</p>
     <textarea id="whitelistEditor"></textarea>
     <div class="buttons">
         <button onclick="saveWhitelistToLocalStorage()">Lokal speichern</button>
-        <button onclick="saveWhitelistToOneDrive()">Liste in OneDrive speichern</button>
+        <button onclick="saveWhitelistToOneDrive()">Backup in OneDrive speichern</button>
         <button onclick="closeAdminPanel()">Schließen</button>
     </div>
 </div>
@@ -204,17 +205,16 @@ console.log("Script started");
 // WICHTIG: Ersetzen Sie diesen Link mit einem DIREKTEN Link zur userlist.json.
 const whitelistUrl = "https://raw.githubusercontent.com/Ecki-Android/Ideen-App/main/userlist.json";
 
+// Admin-E-Mail für direkte Erkennung und für das neue Antrags-System
 const adminEmail = "admin@unimakgmbh.onmicrosoft.com";
 const adminPasswordHash = "NDUwMV9raXdpMg=="; // Base64 kodiertes Passwort "4501_kiwi2"
 
 // --- Microsoft MSAL Konfiguration ---
 const msalConfig={auth:{clientId:"c3cd3be4-3540-46dd-a24c-82eb6ed5542d",authority:"https://login.microsoftonline.com/common",redirectUri: window.location.origin + window.location.pathname}};
 
-// --- NEU: GitHub OAuth Konfiguration ---
-// BITTE ERSETZEN: Holen Sie sich diese ID von Ihrer GitHub OAuth App
-const githubClientId = "Ov23liCVFN3ohObMAPqA"; 
-// BITTE ERSETZEN: Die URL zu Ihrer bereitgestellten Serverless Function (siehe Teil 2)
-const tokenProxyUrl = "https://musical-praline-fc16d2.netlify.app/.netlify/functions/github-auth"; 
+// --- GitHub OAuth Konfiguration ---
+const githubClientId = "Ov23liCVFN3ohObMAPqA";
+const tokenProxyUrl = "https://musical-praline-fc16d2.netlify.app/.netlify/functions/github-auth";
 
 let accessToken = null, // Microsoft Access Token
     githubAccessToken = null, // GitHub Access Token
@@ -244,8 +244,7 @@ let benachrichtigungsIntervallId = null;
 function generateUUID(){return'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0,v=c=='x'?r:(r&0x3|0x8);return v.toString(16)})}
 function pruebeLoginHinweis(){document.getElementById("loginHinweis").style.display=(accessToken || githubAccessToken)?"none":"block"}
 
-
-// --- ZENTRALE FUNKTION ZUR BUTTON-STEUERUNG (KORRIGIERT) ---
+// --- ZENTRALE FUNKTION ZUR BUTTON-STEUERUNG (ANGEPASST) ---
 function updateButtonVisibility(userEmail = null) {
     const microsoftLoginBtn = document.getElementById('microsoftLoginBtn');
     const githubLoginBtn = document.getElementById('githubLoginBtn');
@@ -255,19 +254,22 @@ function updateButtonVisibility(userEmail = null) {
     const isLoggedIn = !!userEmail;
     const isAdmin = isLoggedIn && (userEmail.toLowerCase() === adminEmail.toLowerCase());
 
-    if (microsoftLoginBtn) microsoftLoginBtn.style.display = 'inline-block';
-    if (logoutBtn) logoutBtn.style.display = 'inline-block';
+    // Anmelde-Buttons nur zeigen, wenn ausgeloggt
+    microsoftLoginBtn.style.display = isLoggedIn ? 'none' : 'inline-block';
+    githubLoginBtn.style.display = isLoggedIn ? 'none' : 'inline-block';
     
-    // Admin-spezifische Buttons
-    if (adminBtn) adminBtn.style.display = isAdmin ? 'inline-block' : 'none';
-    if (githubLoginBtn) githubLoginBtn.style.display = isAdmin ? 'inline-block' : 'none';
+    // Abmelde-Button nur zeigen, wenn eingeloggt
+    logoutBtn.style.display = isLoggedIn ? 'inline-block' : 'none';
+    
+    // Admin-Button nur für den Admin
+    adminBtn.style.display = isAdmin ? 'inline-block' : 'none';
 }
 
 
-// --- NEUE GITHUB LOGIN FUNKTIONEN ---
+// --- GITHUB LOGIN FUNKTIONEN (ANGEPASST FÜR ANTRAGS-SYSTEM) ---
 
 function handleGithubLogin() {
-    if (!githubClientId || githubClientId === "IHRE_GITHUB_CLIENT_ID") {
+    if (!githubClientId || githubClientId.includes("IHRE")) {
         zeigeWarnung("GitHub Client ID ist nicht konfiguriert.", "warnung");
         return;
     }
@@ -277,7 +279,10 @@ function handleGithubLogin() {
 }
 
 async function handleGithubCallback(code) {
-    if (!tokenProxyUrl || tokenProxyUrl === "IHRE_PROXY_SERVER_URL") {
+    // URL nach der Verarbeitung bereinigen
+    window.history.replaceState({}, document.title, window.location.pathname);
+
+    if (!tokenProxyUrl || tokenProxyUrl.includes("IHRE")) {
         zeigeWarnung("Der GitHub Token-Proxy ist nicht konfiguriert.", "warnung");
         return;
     }
@@ -301,12 +306,11 @@ async function handleGithubCallback(code) {
             throw new Error("Kein Access Token von GitHub erhalten.");
         }
 
-        const userResponse = await fetch('https://api.github.com/user', {
-            headers: { 'Authorization': `token ${githubAccessToken}` }
-        });
-        const emailsResponse = await fetch('https://api.github.com/user/emails', {
-             headers: { 'Authorization': `token ${githubAccessToken}` }
-        });
+        // Benutzerdaten und E-Mail von GitHub abrufen
+        const [userResponse, emailsResponse] = await Promise.all([
+             fetch('https://api.github.com/user', { headers: { 'Authorization': `token ${githubAccessToken}` } }),
+             fetch('https://api.github.com/user/emails', { headers: { 'Authorization': `token ${githubAccessToken}` } })
+        ]);
 
         if (!userResponse.ok || !emailsResponse.ok) {
             throw new Error("Fehler beim Abrufen der GitHub Benutzerdaten.");
@@ -321,31 +325,52 @@ async function handleGithubCallback(code) {
         }
         const userEmail = primaryEmail.email.toLowerCase();
 
+        // --- NEUE LOGIK: PRÜFEN UND ANTRAG STELLEN ---
         const isAllowed = await checkUserAccess(userEmail);
-        if (!isAllowed) {
-            blockAppAccess();
-            return;
+        if (isAllowed) {
+            // Benutzer ist berechtigt -> Normaler Login
+            currentLoginType = 'github';
+            updateLoggedInUI(userData.name || userData.login, userEmail);
+            updateButtonVisibility(userEmail);
+            zeigeWarnung("Erfolgreich mit GitHub angemeldet!", 'success');
+        } else {
+            // Benutzer ist NICHT berechtigt -> Antrags-Prozess
+            promptForAccessRequest(userData.name || userData.login, userEmail);
+            // Wichtig: Token nicht speichern und UI nicht als eingeloggt anzeigen
+            githubAccessToken = null;
+            currentLoginType = null;
+            updateButtonVisibility(null);
         }
-        
-        currentLoginType = 'github';
-        updateLoggedInUI(userData.name || userData.login, userEmail);
-        updateButtonVisibility(userEmail); 
-        zeigeWarnung("Erfolgreich mit GitHub angemeldet!", 'success');
-        
-        window.history.replaceState({}, document.title, window.location.pathname);
 
     } catch (e) {
         zeigeWarnung("GitHub Login fehlgeschlagen: " + e.message, "warnung");
         console.error("GitHub Callback-Fehler:", e);
         githubAccessToken = null;
         currentLoginType = null;
-        updateButtonVisibility(null); 
+        updateButtonVisibility(null);
     } finally {
         pruebeLoginHinweis();
     }
 }
 
-// --- ANGEPASSTE MICROSOFT LOGIN FUNKTION ---
+function promptForAccessRequest(userName, userEmail) {
+    const message = `Hallo ${userName},\n\nIhre E-Mail-Adresse "${userEmail}" ist noch nicht für die Nutzung dieser App freigeschaltet.\n\nMöchten Sie jetzt eine Zugriffsanfrage an den Administrator senden?`;
+    
+    if (confirm(message)) {
+        const subject = "Zugriffsanfrage für Ideen-App Pro";
+        const body = `Hallo,\n\nbitte schalten Sie den folgenden Benutzer für die Ideen-App Pro frei:\n\nName: ${userName}\nE-Mail: ${userEmail}\n\nDiese E-Mail wurde automatisch generiert. Bitte fügen Sie die E-Mail-Adresse zur userlist.json hinzu.\n\nVielen Dank!`;
+        const mailtoLink = `mailto:${adminEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        
+        window.location.href = mailtoLink;
+        
+        zeigeWarnung("Ihr E-Mail-Programm wird geöffnet, um die Anfrage zu senden.", "info");
+    } else {
+        zeigeWarnung("Zugriffsanfrage abgebrochen.", "info");
+    }
+}
+
+
+// --- MICROSOFT LOGIN FUNKTION (Bleibt unverändert, harter Check) ---
 
 async function handleMicrosoftLogin() {
     try {
@@ -363,7 +388,7 @@ async function handleMicrosoftLogin() {
         
         const isAllowed = await checkUserAccess(userEmail);
         if (!isAllowed) {
-            blockAppAccess();
+            blockAppAccess(); // Hier bleibt der harte Block, da kein Antragssystem vorgesehen ist.
             return false;
         }
         
@@ -625,7 +650,7 @@ async function speichereIdee() {
             }
         } else {
              if (currentLoginType === 'github') {
-                zeigeWarnung("Dateianhänge sind nur mit Microsoft-Login möglich. Dateien werden lokal vermerkt.", "info");
+                 zeigeWarnung("Dateianhänge sind nur mit Microsoft-Login möglich. Dateien werden lokal vermerkt.", "info");
              }
             neuHochgeladeneDateien = Array.from(fileInput.files).map(f => ({
                 id: generateUUID(), name: f.name, type: f.type, sichtbar: true, isLocal: true
@@ -761,9 +786,9 @@ function zeigeIdeen() {
                     let erinnerungText = `🔔 Erinnerung: ${getFormattedDate(b.erinnerung.termin)}`;
                      if (b.erinnerung.intervallTyp !== 'einmalig') {
                          erinnerungText += `, Intervall: ${b.erinnerung.intervallTyp}`;
-                           if(b.erinnerung.intervallTyp === 'tage' && b.erinnerung.intervallWert) {
-                                erinnerungText += ` (${b.erinnerung.intervallWert} Tage)`;
-                           }
+                          if(b.erinnerung.intervallTyp === 'tage' && b.erinnerung.intervallWert) {
+                               erinnerungText += ` (${b.erinnerung.intervallWert} Tage)`;
+                          }
                     }
                     beschreibungErinnerungHtml = `<div class="beschreibung-erinnerung-info">${erinnerungText}</div>`;
                 } else if (b.erinnerung && !b.erinnerung.aktiv && b.erinnerung.termin) {
@@ -1451,7 +1476,7 @@ function exportiereAlsPDF(fileName = "ideen-export.pdf") {
                     if(b.attachments && b.attachments.length > 0) {
                         checkAddPage(defaultLineSpacing);
                         b.attachments.forEach(anhang => {
-                            const anhangText = `    -> ${anhang.name}`;
+                            const anhangText = `     -> ${anhang.name}`;
                             const anhangColor = anhang.link ? [0, 0, 238] : [0,0,0];
                             addWrappedText(anhangText, startX + 5, maxWidth - 5, {fontSize: 9, color: anhangColor, lineHeight: 4, link: anhang.link});
                         });
@@ -1631,24 +1656,24 @@ async function teilePerWhatsApp(){
          let datumTextWA = getFormattedDate(idee.timestamp);
          let hauptBeschreibungTextWA = idee.details ? `\n📝 *Beschreibung:*\n${idee.details}\n` : "";
          const beschreibungenText = idee.beschreibungen && idee.beschreibungen.length ?
-              `\n*Weitere Beschreibungen:*\n${
+               `\n*Weitere Beschreibungen:*\n${
                    idee.beschreibungen.filter(b => b && b.text !== undefined).map(b => {
-                       const indentSpacesWA = "  ".repeat(b.level || 0);
-                       const praefix = b.sichtbar === false ? "[Ausgeblendet] " : "";
-                       let anhangTextWA = "";
-                       if(b.attachments && b.attachments.length > 0) {
-                           anhangTextWA = "\n" + b.attachments.map(anhang => {
-                               return `${indentSpacesWA}    -> Anhang: ${anhang.name} ${anhang.link ? `(${anhang.link})` : ''}`;
-                           }).join("\n");
-                       }
-                       let erinnerungTextBWA = "";
-                       if(b.erinnerung && b.erinnerung.termin) {
-                           erinnerungTextBWA = `\n${indentSpacesWA}  🔔 _Erinnerung: ${getFormattedDate(b.erinnerung.termin)} (${b.erinnerung.intervallTyp})_`
-                       }
+                      const indentSpacesWA = "  ".repeat(b.level || 0);
+                      const praefix = b.sichtbar === false ? "[Ausgeblendet] " : "";
+                      let anhangTextWA = "";
+                      if(b.attachments && b.attachments.length > 0) {
+                          anhangTextWA = "\n" + b.attachments.map(anhang => {
+                             return `${indentSpacesWA}    -> Anhang: ${anhang.name} ${anhang.link ? `(${anhang.link})` : ''}`;
+                          }).join("\n");
+                      }
+                      let erinnerungTextBWA = "";
+                      if(b.erinnerung && b.erinnerung.termin) {
+                          erinnerungTextBWA = `\n${indentSpacesWA}  🔔 _Erinnerung: ${getFormattedDate(b.erinnerung.termin)} (${b.erinnerung.intervallTyp})_`
+                      }
 
-                       return `${indentSpacesWA}  - _[${getFormattedDate(b.timestamp)}]_ ${praefix}${b.text}${anhangTextWA}${erinnerungTextBWA}`;
+                      return `${indentSpacesWA}  - _[${getFormattedDate(b.timestamp)}]_ ${praefix}${b.text}${anhangTextWA}${erinnerungTextBWA}`;
                    }).join("\n")
-              }` : "";
+               }` : "";
         let anhaengeTextForWhatsApp = "\n📎 Anhänge: Keine";
         if (idee.dateien && idee.dateien.length > 0) {
             anhaengeTextForWhatsApp = `\n📎 *Anhänge:*\n${idee.dateien.filter(f => f && f.id).map(f => {
@@ -1664,11 +1689,11 @@ async function teilePerWhatsApp(){
         }
 
         return ( `${idee.erledigt ? '_[ERLEDIGT]_ ' : ''}*${idee.vorgangsnummer ? `[Vorgang ${idee.vorgangsnummer}] ` : ''}${idee.text || 'Ohne Titel'}*\n` +
-                        `📁 Kat.: ${idee.kategorie||'-'}\n` + `${idee.benutzer?`🧑‍💻 Zust.: ${idee.benutzer}\n`:""}` + `🔖 Prio: ${idee.prioritaet||"-"}\n` + `📅 ${datumTextWA}\n` +
-                        `${hauptBeschreibungTextWA}` +
-                        `${idee.mandantennummer?`🏢 Mandant: ${idee.mandantennummer}\n`:""}` + `${idee.firmenname?`🏭 Firma: ${idee.firmenname}\n`:""}` +
-                        `${erinnerungTextWA}` +
-                        `${beschreibungenText}` + `${anhaengeTextForWhatsApp}` );
+                            `📁 Kat.: ${idee.kategorie||'-'}\n` + `${idee.benutzer?`🧑‍💻 Zust.: ${idee.benutzer}\n`:""}` + `🔖 Prio: ${idee.prioritaet||"-"}\n` + `📅 ${datumTextWA}\n` +
+                            `${hauptBeschreibungTextWA}` +
+                            `${idee.mandantennummer?`🏢 Mandant: ${idee.mandantennummer}\n`:""}` + `${idee.firmenname?`🏭 Firma: ${idee.firmenname}\n`:""}` +
+                            `${erinnerungTextWA}` +
+                            `${beschreibungenText}` + `${anhaengeTextForWhatsApp}` );
     }).filter(s => s !== "").join("\n\n------------------------------------\n\n");
 
     const exportTimestamp = new Date().toLocaleString("de-DE"); const weitergeleitetText = `\n\n_[Notiz(en) markiert als: Weitergeleitet an ${recipientInfo} am ${exportTimestamp}]_`; text += weitergeleitetText; const waLink = `https://wa.me/?text=${encodeURIComponent(text)}`; try { const waWindow = window.open(waLink,"_blank"); if (!waWindow) { zeigeWarnung("WhatsApp konnte nicht geöffnet werden.", "warning"); } } catch (e) { console.error("WhatsApp Fehler:", e); zeigeWarnung("Fehler WhatsApp: " + e.message); }
@@ -2300,4 +2325,3 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
-
