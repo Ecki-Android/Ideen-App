@@ -241,6 +241,17 @@ let filterBenutzerValue="";
 let naechsteVorgangsnummer=1;
 let benachrichtigungsIntervallId = null;
 
+// --- NEU: Debounce-Funktion für automatisches Speichern ---
+let debounceTimer;
+function triggerAutoSave() {
+    istGespeichert = false;
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+        console.log("Auto-Save ausgelöst...");
+        saveToOneDrive();
+    }, 2000); // Speichert 2 Sekunden nach der letzten Änderung
+}
+
 function generateUUID(){return'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0,v=c=='x'?r:(r&0x3|0x8);return v.toString(16)})}
 function pruebeLoginHinweis(){document.getElementById("loginHinweis").style.display=(accessToken || githubAccessToken)?"none":"block"}
 
@@ -529,10 +540,6 @@ async function handleLogout() {
     zeigeWarnung("Erfolgreich abgemeldet.", 'success');
 }
 
-async function anmeldenUndLaden() { 
-    const anmeldungErfolgreich = await handleMicrosoftLogin(); 
-    // Das Laden wird jetzt direkt in handleMicrosoftLogin ausgelöst.
-}
 
 function zeigeWarnung(msg,type='warning'){const w=document.getElementById("warnung");w.textContent=msg;w.style.display="block";w.className="";if(type==='success')w.classList.add('success-message');else if(type==='info')w.classList.add('info-message');else w.classList.add('warnung');setTimeout(()=>w.style.display="none",6e3)}
 
@@ -602,7 +609,6 @@ async function saveWhitelistToOneDrive() {
     }
 }
 
-// ... (Restlicher Code von initialisiereKategorien bis zum Ende bleibt unverändert) ...
 
 function initialisiereKategorien(){
     let loadedKategorien = null;
@@ -614,19 +620,19 @@ function initialisiereKategorien(){
     const filterSelectKategorie = document.getElementById("filterKategorie"); filterSelectKategorie.innerHTML = '<option value="" class="filter-option-alle">🎯 Alle Ideen</option>'; if (Array.isArray(kategorien)) { kategorien.forEach(katName => filterSelectKategorie.add(new Option(katName, katName))); }
 }
 
-function neueKategorieHinzufuegen(){const input=document.getElementById("neueKategorie");const name=input.value.trim();if(!name){zeigeWarnung("Bitte Kategorienamen eingeben.");return}kategorien=JSON.parse(localStorage.getItem("kategorien")||"[]");if(!Array.isArray(kategorien))kategorien=[...standardKategorien];if(kategorien.includes(name)){zeigeWarnung(`Kategorie "${name}" existiert bereits!`);return}kategorien.push(name);kategorien.sort();localStorage.setItem("kategorien",JSON.stringify(kategorien));saveToOneDrive();initialisiereKategorien();input.value="";input.focus();zeigeWarnung(`Kategorie "${name}" hinzugefügt.`,'success');istGespeichert=!1}
-function kategorieLoeschen(){const sel=document.getElementById("kategorie");const name=sel.value;const noDel=["Aufgaben","Projekte","Privat","Arbeit","Später"];if(!name||name===""){zeigeWarnung("Bitte Kategorie zum Löschen wählen.");return}if(noDel.includes(name)){zeigeWarnung(`Standardkategorie "${name}" kann nicht gelöscht werden.`);return}kategorien=JSON.parse(localStorage.getItem("kategorien")||"[]");if(!Array.isArray(kategorien))kategorien=[];if(!kategorien.includes(name)){zeigeWarnung(`Kategorie "${name}" nicht gefunden.`);return}const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const count=ideen.filter(i=>i&&i.kategorie===name).length;let msg=`Kategorie "${name}" wirklich löschen?`;if(count>0)msg+=` ${count} Notiz(en) verlieren diese Kategorie.`;if(!confirm(msg))return;const idx=kategorien.indexOf(name);if(idx>-1){kategorien.splice(idx,1);localStorage.setItem("kategorien",JSON.stringify(kategorien));saveToOneDrive();let changed=!1;ideen.forEach(i=>{if(i&&i.kategorie===name){i.kategorie="";changed=!0}});if(changed){localStorage.setItem("ideen",JSON.stringify(ideen));saveToOneDrive()}initialisiereKategorien();const fSel=document.getElementById("filterKategorie");if(fSel.value===name)fSel.value="";zeigeWarnung(`Kategorie "${name}" gelöscht.`,'success');zeigeIdeen();istGespeichert=false;}else{zeigeWarnung(`Interner Fehler: Kategorie "${name}" nicht gefunden.`);}}
+function neueKategorieHinzufuegen(){const input=document.getElementById("neueKategorie");const name=input.value.trim();if(!name){zeigeWarnung("Bitte Kategorienamen eingeben.");return}kategorien=JSON.parse(localStorage.getItem("kategorien")||"[]");if(!Array.isArray(kategorien))kategorien=[...standardKategorien];if(kategorien.includes(name)){zeigeWarnung(`Kategorie "${name}" existiert bereits!`);return}kategorien.push(name);kategorien.sort();localStorage.setItem("kategorien",JSON.stringify(kategorien));triggerAutoSave();initialisiereKategorien();input.value="";input.focus();zeigeWarnung(`Kategorie "${name}" hinzugefügt.`,'success');}
+function kategorieLoeschen(){const sel=document.getElementById("kategorie");const name=sel.value;const noDel=["Aufgaben","Projekte","Privat","Arbeit","Später"];if(!name||name===""){zeigeWarnung("Bitte Kategorie zum Löschen wählen.");return}if(noDel.includes(name)){zeigeWarnung(`Standardkategorie "${name}" kann nicht gelöscht werden.`);return}kategorien=JSON.parse(localStorage.getItem("kategorien")||"[]");if(!Array.isArray(kategorien))kategorien=[];if(!kategorien.includes(name)){zeigeWarnung(`Kategorie "${name}" nicht gefunden.`);return}const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const count=ideen.filter(i=>i&&i.kategorie===name).length;let msg=`Kategorie "${name}" wirklich löschen?`;if(count>0)msg+=` ${count} Notiz(en) verlieren diese Kategorie.`;if(!confirm(msg))return;const idx=kategorien.indexOf(name);if(idx>-1){kategorien.splice(idx,1);localStorage.setItem("kategorien",JSON.stringify(kategorien));let changed=!1;ideen.forEach(i=>{if(i&&i.kategorie===name){i.kategorie="";changed=!0}});if(changed){localStorage.setItem("ideen",JSON.stringify(ideen));}initialisiereKategorien();triggerAutoSave();const fSel=document.getElementById("filterKategorie");if(fSel.value===name)fSel.value="";zeigeWarnung(`Kategorie "${name}" gelöscht.`,'success');zeigeIdeen();}else{zeigeWarnung(`Interner Fehler: Kategorie "${name}" nicht gefunden.`);}}
 function initialisiereBenutzer(){benutzerliste=JSON.parse(localStorage.getItem("benutzerliste")||"[]");if(!Array.isArray(benutzerliste)){benutzerliste=[];localStorage.setItem("benutzerliste","[]")}const sel=document.getElementById("benutzer");sel.innerHTML='<option value="">-- Benutzer --</option>';benutzerliste.forEach(b=>sel.add(new Option(b,b)));const fSel=document.getElementById("filterBenutzer");fSel.innerHTML='<option value="">👤 Alle Benutzer</option>';benutzerliste.forEach(b=>fSel.add(new Option(b,b)))}
-function neuenBenutzerHinzufuegen(){const input=document.getElementById("neuerBenutzer");const name=input.value.trim();if(!name){zeigeWarnung("Bitte Benutzernamen eingeben.");return}benutzerliste=JSON.parse(localStorage.getItem("benutzerliste")||"[]");if(!Array.isArray(benutzerliste))benutzerliste=[];if(benutzerliste.includes(name)){zeigeWarnung(`Benutzer "${name}" existiert bereits!`);return}benutzerliste.push(name);benutzerliste.sort();localStorage.setItem("benutzerliste",JSON.stringify(benutzerliste));saveToOneDrive();aktualisiereBenutzerDropdowns();input.value="";input.focus();zeigeWarnung(`Benutzer "${name}" hinzugefügt.`,'success');istGespeichert=!1}
-function benutzerLoeschen(){const sel=document.getElementById("benutzer");const name=sel.value;if(!name||name===""){zeigeWarnung("Bitte Benutzer zum Löschen wählen.");return}benutzerliste=JSON.parse(localStorage.getItem("benutzerliste")||"[]");if(!Array.isArray(benutzerliste))benutzerliste=[];if(!benutzerliste.includes(name)){zeigeWarnung(`Benutzer "${name}" nicht gefunden.`);return}if(!confirm(`Benutzer "${name}" WIRKLICH löschen? ALLE Notizen dieses Benutzers werden gelöscht!`))return;const idx=benutzerliste.indexOf(name);if(idx>-1){benutzerliste.splice(idx,1);localStorage.setItem("benutzerliste",JSON.stringify(benutzerliste));saveToOneDrive();let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const len=ideen.length;const origIdeen=JSON.parse(localStorage.getItem("ideen")||"[]");ideen=ideen.filter(i=>i&&i.benutzer!==name);const deletedCount=len-ideen.length;if(deletedCount>0){localStorage.setItem("ideen",JSON.stringify(ideen));saveToOneDrive();const remM=new Set(ideen.filter(i=>i).map(i=>(i.mandantennummer||"").toLowerCase()).filter(m=>m!==""));const allM=new Set(origIdeen.filter(i=>i).map(i=>(i.mandantennummer||"").toLowerCase()).filter(m=>m!==""));let updM=!1;allM.forEach(m=>{if(!remM.has(m))updM=!0});if(updM)aktualisiereMandantenFilterDropdown()}aktualisiereBenutzerDropdowns();if(filterBenutzerValue===name){filterBenutzerValue="";document.getElementById("filterBenutzer").value=""}if(bearbeiteId!==null&&!ideen.some(i=>i&&i.id===bearbeiteId)){abbrechenBearbeiten()}if(beschreibungFuerId!==null&&!ideen.some(i=>i&&i.id===beschreibungFuerId)){beschreibungAbbrechen()}zeigeWarnung(`Benutzer "${name}" und ${deletedCount} Notiz(en) gelöscht.`,'success');zeigeIdeen();istGespeichert=false;}else{zeigeWarnung(`Interner Fehler: Benutzer "${name}" nicht gefunden.`);}}
+function neuenBenutzerHinzufuegen(){const input=document.getElementById("neuerBenutzer");const name=input.value.trim();if(!name){zeigeWarnung("Bitte Benutzernamen eingeben.");return}benutzerliste=JSON.parse(localStorage.getItem("benutzerliste")||"[]");if(!Array.isArray(benutzerliste))benutzerliste=[];if(benutzerliste.includes(name)){zeigeWarnung(`Benutzer "${name}" existiert bereits!`);return}benutzerliste.push(name);benutzerliste.sort();localStorage.setItem("benutzerliste",JSON.stringify(benutzerliste));triggerAutoSave();aktualisiereBenutzerDropdowns();input.value="";input.focus();zeigeWarnung(`Benutzer "${name}" hinzugefügt.`,'success');}
+function benutzerLoeschen(){const sel=document.getElementById("benutzer");const name=sel.value;if(!name||name===""){zeigeWarnung("Bitte Benutzer zum Löschen wählen.");return}benutzerliste=JSON.parse(localStorage.getItem("benutzerliste")||"[]");if(!Array.isArray(benutzerliste))benutzerliste=[];if(!benutzerliste.includes(name)){zeigeWarnung(`Benutzer "${name}" nicht gefunden.`);return}if(!confirm(`Benutzer "${name}" WIRKLICH löschen? ALLE Notizen dieses Benutzers werden gelöscht!`))return;const idx=benutzerliste.indexOf(name);if(idx>-1){benutzerliste.splice(idx,1);localStorage.setItem("benutzerliste",JSON.stringify(benutzerliste));let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const len=ideen.length;const origIdeen=JSON.parse(localStorage.getItem("ideen")||"[]");ideen=ideen.filter(i=>i&&i.benutzer!==name);const deletedCount=len-ideen.length;if(deletedCount>0){localStorage.setItem("ideen",JSON.stringify(ideen));const remM=new Set(ideen.filter(i=>i).map(i=>(i.mandantennummer||"").toLowerCase()).filter(m=>m!==""));const allM=new Set(origIdeen.filter(i=>i).map(i=>(i.mandantennummer||"").toLowerCase()).filter(m=>m!==""));let updM=!1;allM.forEach(m=>{if(!remM.has(m))updM=!0});if(updM)aktualisiereMandantenFilterDropdown()}aktualisiereBenutzerDropdowns();triggerAutoSave();if(filterBenutzerValue===name){filterBenutzerValue="";document.getElementById("filterBenutzer").value=""}if(bearbeiteId!==null&&!ideen.some(i=>i&&i.id===bearbeiteId)){abbrechenBearbeiten()}if(beschreibungFuerId!==null&&!ideen.some(i=>i&&i.id===beschreibungFuerId)){beschreibungAbbrechen()}zeigeWarnung(`Benutzer "${name}" und ${deletedCount} Notiz(en) gelöscht.`,'success');zeigeIdeen();}else{zeigeWarnung(`Interner Fehler: Benutzer "${name}" nicht gefunden.`);}}
 function aktualisiereBenutzerDropdowns(){initialisiereBenutzer()}
 function aktualisiereMandantenFilterDropdown(){const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");if(!Array.isArray(ideen))return; const set=new Set(ideen.filter(i=>i).map(i=>(i.mandantennummer||"").trim()).filter(m=>m!==""));const list=Array.from(set).sort();const sel=document.getElementById("filterMandant");const current=sel.value;sel.innerHTML='<option value="">🏢 Alle Mandanten</option>';list.forEach(m=>sel.add(new Option(m,m)));if(current&&list.includes(current)){sel.value=current;filterMandantValue=current}else{sel.value="";filterMandantValue=""}}
 function initialisiereVorgangsnummer(){const saved=localStorage.getItem("naechsteVorgangsnummer");naechsteVorgangsnummer=saved?parseInt(saved,10):1;if(isNaN(naechsteVorgangsnummer)||naechsteVorgangsnummer<1){naechsteVorgangsnummer=1;localStorage.setItem("naechsteVorgangsnummer",naechsteVorgangsnummer.toString())}zeigeNaechsteNummer()}
 function zeigeNaechsteNummer(){const el=document.getElementById("naechsteNummerAnzeige");if(el)el.textContent=naechsteVorgangsnummer}
 function filterNachMandant(){filterMandantValue=document.getElementById("filterMandant").value;zeigeIdeen()}
 function filterNachBenutzer(){filterBenutzerValue=document.getElementById("filterBenutzer").value;zeigeIdeen()}
-function setzePrioritaet(p){prioritaet=p;["prioHoch","prioMittel","prioNiedrig"].forEach(id=>document.getElementById(id).classList.remove("selected"));if(p)document.getElementById(`prio${p}`).classList.add("selected");istGespeichert=!1}
-/* --- START BLOCK 5a: Save Idea --- */
+function setzePrioritaet(p){prioritaet=p;["prioHoch","prioMittel","prioNiedrig"].forEach(id=>document.getElementById(id).classList.remove("selected"));if(p)document.getElementById(`prio${p}`).classList.add("selected");triggerAutoSave();}
+
 async function speichereIdee() {
     const text = document.getElementById("ideeText").value.trim();
     if (!text) return zeigeWarnung("Titel ist erforderlich!");
@@ -719,12 +725,9 @@ function saveIdeeObjekt(text, dateien) {
     aktualisiereMandantenFilterDropdown(); zeigeIdeen();
     document.getElementById("ideeText").value = ""; document.getElementById("ideeDetails").value = ""; document.getElementById("mandantennummer").value = ""; document.getElementById("firmenname").value = ""; document.getElementById("dateiVorschau").innerHTML = "";
     setzePrioritaet(""); document.getElementById("benutzer").value = ""; document.getElementById("kategorie").value = "";
-    istGespeichert = false;
-    if (typeof saveToOneDrive === "function") saveToOneDrive();
+    triggerAutoSave();
 }
-/* --- END BLOCK 5a --- */
 
-/* --- START BLOCK 5b: Display Ideas (MODIFIZIERT) --- */
 function zeigeIdeen() {
     let fIdeen = [];
     try { fIdeen = JSON.parse(localStorage.getItem("ideen") || "[]"); } catch(e) { console.error("Fehler beim Laden der Ideen:", e); localStorage.removeItem("ideen"); fIdeen = []; }
@@ -831,7 +834,7 @@ function zeigeIdeen() {
         }
 
         const sanierterIdeeText = (idee.text || 'Ohne Titel').replace(/</g, "&lt;").replace(/>/g, "&gt;");
-        const sanierterIdeeDetails = (idee.details || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const sanierterIdeeDetails = (idee.details || "").replace(/</g, "&gt;");
 
         return `<div class="idee${erledigt ? ' erledigt' : ''}" data-idee-id="${id}">
                     <div class="idee-content">
@@ -878,8 +881,7 @@ function zeigeIdeen() {
     if (erinnerungFuerId !== null && !filtered.some(i => i && i.id === erinnerungFuerId)) erinnerungAbbrechen();
     if (terminFuerId !== null && !filtered.some(i => i && i.id === terminFuerId)) terminDialogAbbrechen();
 }
-/* --- END BLOCK 5b --- */
-/* --- START BLOCK 5c: Idea Actions --- */
+
 function toggleErledigt(id){
     let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");
     const idx=ideen.findIndex(i=>i&&i.id===id);
@@ -889,19 +891,17 @@ function toggleErledigt(id){
             ideen[idx].erinnerung.aktiv = false; 
         }
         localStorage.setItem("ideen",JSON.stringify(ideen));
-        zeigeIdeen();istGespeichert=!1;
-        if (typeof saveToOneDrive === "function") saveToOneDrive();
+        zeigeIdeen();
+        triggerAutoSave();
     }
 }
-function bearbeiteIdee(id){const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idee=ideen.find(i=>i&&i.id===id);if(!idee){zeigeWarnung("Fehler: Idee nicht gefunden.");return}document.getElementById("ideeText").value=idee.text;document.getElementById("ideeDetails").value=idee.details||"";document.getElementById("kategorie").value=idee.kategorie||"";document.getElementById("mandantennummer").value=idee.mandantennummer||"";document.getElementById("firmenname").value=idee.firmenname||"";document.getElementById("benutzer").value=idee.benutzer||"";setzePrioritaet(idee.prioritaet||"");bearbeiteId=id;const v=document.getElementById("dateiVorschau");v.innerHTML="";if(idee.dateien){idee.dateien.filter(f=>f&&f.id).forEach(f=>{const url=f.link;if(url){const istVeraltet = f.sichtbar===false; v.innerHTML+=`<div style="display:inline-block;margin:5px;text-align:center;max-width:150px;vertical-align:top; ${istVeraltet?'opacity:0.6;':''}"><a href="${url}" target="_blank" title="${f.name}" style="${istVeraltet?'text-decoration:line-through;':''}">${f.type?.startsWith("image/")?'<img src="'+url+'" style="max-height:80px;display:block;margin:auto;object-fit:cover;">':''}${f.type==="application/pdf"?'<iframe src="'+url+'" style="width:100%;height:80px;border:1px solid #ccc;"></iframe>':''}${!f.type?.startsWith("image/")&&f.type!=="application/pdf"?'<span style="font-size:2em;display:block;">'+(f.link?'🌐':'📎')+'</span>':''}<span style="font-size:.8em;word-break:break-all;display:block;">${f.name}</span></a><div style="font-size:.7em;color:grey;">${f.link?'OneDrive':'Lokal'} (${f.sichtbar?'Sichtbar':'Veraltet'})</div></div>`}})}document.getElementById("speichernBtn").textContent="💾 Aktualisieren";document.getElementById("abbrechenBtn").style.display="";istGespeichert=!1}
-function abbrechenBearbeiten(){bearbeiteId=null;document.getElementById("ideeText").value="";document.getElementById("ideeDetails").value="";document.getElementById("mandantennummer").value="";document.getElementById("firmenname").value="";document.getElementById("dateien").value="";document.getElementById("dateiVorschau").innerHTML="";document.getElementById("speichernBtn").textContent="💾 Speichern";document.getElementById("abbrechenBtn").style.display="none";setzePrioritaet("");document.getElementById("benutzer").value="";document.getElementById("kategorie").value="";istGespeichert=!0} 
-function verschiebeIdee(id,dir){let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idx=ideen.findIndex(i=>i&&i.id===id);if(idx===-1)return;const targetIdx=idx+dir;if(targetIdx>=0&&targetIdx<ideen.length){[ideen[idx],ideen[targetIdx]]=[ideen[targetIdx],ideen[idx]];localStorage.setItem("ideen",JSON.stringify(ideen));zeigeIdeen();istGespeichert=!1;if (typeof saveToOneDrive === "function") saveToOneDrive()}}
-function loescheIdee(id){if(!confirm("Wirklich löschen?"))return;let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idx=ideen.findIndex(i=>i&&i.id===id);if(idx!==-1){const del=ideen[idx];ideen.splice(idx,1);localStorage.setItem("ideen",JSON.stringify(ideen));const mExists=ideen.some(i=>i&&i.mandantennummer&&(i.mandantennummer||"").toLowerCase()===(del.mandantennummer||"").toLowerCase());const uExists=ideen.some(i=>i&&i.benutzer&&(i.benutzer||"").toLowerCase()===(del.benutzer||"").toLowerCase());if(!mExists&&del.mandantennummer)aktualisiereMandantenFilterDropdown();if(!uExists&&del.benutzer)aktualisiereBenutzerDropdowns();ausgewaehlt=ausgewaehlt.filter(i=>i!==id);if(bearbeiteId===id)abbrechenBearbeiten();if(beschreibungFuerId===id)beschreibungAbbrechen(); if(erinnerungFuerId===id)erinnerungAbbrechen(); if(terminFuerId===id)terminDialogAbbrechen(); zeigeIdeen();istGespeichert=false;if (typeof saveToOneDrive === "function") saveToOneDrive()}else{zeigeWarnung("Fehler: Idee nicht gefunden.");}}
-/* --- END BLOCK 5c --- */
+function bearbeiteIdee(id){const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idee=ideen.find(i=>i&&i.id===id);if(!idee){zeigeWarnung("Fehler: Idee nicht gefunden.");return}document.getElementById("ideeText").value=idee.text;document.getElementById("ideeDetails").value=idee.details||"";document.getElementById("kategorie").value=idee.kategorie||"";document.getElementById("mandantennummer").value=idee.mandantennummer||"";document.getElementById("firmenname").value=idee.firmenname||"";document.getElementById("benutzer").value=idee.benutzer||"";setzePrioritaet(idee.prioritaet||"");bearbeiteId=id;const v=document.getElementById("dateiVorschau");v.innerHTML="";if(idee.dateien){idee.dateien.filter(f=>f&&f.id).forEach(f=>{const url=f.link;if(url){const istVeraltet = f.sichtbar===false; v.innerHTML+=`<div style="display:inline-block;margin:5px;text-align:center;max-width:150px;vertical-align:top; ${istVeraltet?'opacity:0.6;':''}"><a href="${url}" target="_blank" title="${f.name}" style="${istVeraltet?'text-decoration:line-through;':''}">${f.type?.startsWith("image/")?'<img src="'+url+'" style="max-height:80px;display:block;margin:auto;object-fit:cover;">':''}${f.type==="application/pdf"?'<iframe src="'+url+'" style="width:100%;height:80px;border:1px solid #ccc;"></iframe>':''}${!f.type?.startsWith("image/")&&f.type!=="application/pdf"?'<span style="font-size:2em;display:block;">'+(f.link?'🌐':'📎')+'</span>':''}<span style="font-size:.8em;word-break:break-all;display:block;">${f.name}</span></a><div style="font-size:.7em;color:grey;">${f.link?'OneDrive':'Lokal'} (${f.sichtbar?'Sichtbar':'Veraltet'})</div></div>`}})}document.getElementById("speichernBtn").textContent="💾 Aktualisieren";document.getElementById("abbrechenBtn").style.display="";istGespeichert=false}
+function abbrechenBearbeiten(){bearbeiteId=null;document.getElementById("ideeText").value="";document.getElementById("ideeDetails").value="";document.getElementById("mandantennummer").value="";document.getElementById("firmenname").value="";document.getElementById("dateien").value="";document.getElementById("dateiVorschau").innerHTML="";document.getElementById("speichernBtn").textContent="💾 Speichern";document.getElementById("abbrechenBtn").style.display="none";setzePrioritaet("");document.getElementById("benutzer").value="";document.getElementById("kategorie").value="";istGespeichert=true} 
+function verschiebeIdee(id,dir){let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idx=ideen.findIndex(i=>i&&i.id===id);if(idx===-1)return;const targetIdx=idx+dir;if(targetIdx>=0&&targetIdx<ideen.length){[ideen[idx],ideen[targetIdx]]=[ideen[targetIdx],ideen[idx]];localStorage.setItem("ideen",JSON.stringify(ideen));zeigeIdeen();triggerAutoSave();}}
+function loescheIdee(id){if(!confirm("Wirklich löschen?"))return;let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idx=ideen.findIndex(i=>i&&i.id===id);if(idx!==-1){const del=ideen[idx];ideen.splice(idx,1);localStorage.setItem("ideen",JSON.stringify(ideen));const mExists=ideen.some(i=>i&&i.mandantennummer&&(i.mandantennummer||"").toLowerCase()===(del.mandantennummer||"").toLowerCase());const uExists=ideen.some(i=>i&&i.benutzer&&(i.benutzer||"").toLowerCase()===(del.benutzer||"").toLowerCase());if(!mExists&&del.mandantennummer)aktualisiereMandantenFilterDropdown();if(!uExists&&del.benutzer)aktualisiereBenutzerDropdowns();ausgewaehlt=ausgewaehlt.filter(i=>i!==id);if(bearbeiteId===id)abbrechenBearbeiten();if(beschreibungFuerId===id)beschreibungAbbrechen(); if(erinnerungFuerId===id)erinnerungAbbrechen(); if(terminFuerId===id)terminDialogAbbrechen(); zeigeIdeen();triggerAutoSave();}else{zeigeWarnung("Fehler: Idee nicht gefunden.");}}
 
-/* --- START BLOCK 5d (Mit allen neuen Funktionen & Erinnerungsfunktionen - MODIFIZIERT) --- */
-function zeigeBeschreibungDialog(id,ts=null){beschreibungFuerId=id;beschreibungZuBearbeitenderTimestamp=ts;const area=document.getElementById("beschreibungText");if(ts!==null){const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idee=ideen.find(i=>i&&i.id===id);const desc=idee?.beschreibungen?.find(b=>b&&b.timestamp===ts);if(desc)area.value=desc.text;else{zeigeWarnung("Fehler: Beschreibung nicht gefunden.");beschreibungAbbrechen();return}}else{area.value=""}document.getElementById("beschreibungDialog").style.display="block";area.focus();istGespeichert=!1}
-function beschreibungAbbrechen(){document.getElementById("beschreibungDialog").style.display="none";beschreibungFuerId=null;beschreibungZuBearbeitenderTimestamp=null;document.getElementById("beschreibungText").value=""}
+function zeigeBeschreibungDialog(id,ts=null){beschreibungFuerId=id;beschreibungZuBearbeitenderTimestamp=ts;const area=document.getElementById("beschreibungText");if(ts!==null){const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idee=ideen.find(i=>i&&i.id===id);const desc=idee?.beschreibungen?.find(b=>b&&b.timestamp===ts);if(desc)area.value=desc.text;else{zeigeWarnung("Fehler: Beschreibung nicht gefunden.");beschreibungAbbrechen();return}}else{area.value=""}document.getElementById("beschreibungDialog").style.display="block";area.focus();istGespeichert=false}
+function beschreibungAbbrechen(){document.getElementById("beschreibungDialog").style.display="none";beschreibungFuerId=null;beschreibungZuBearbeitenderTimestamp=null;document.getElementById("beschreibungText").value="";istGespeichert=true}
 
 function beschreibungSpeichern(){
     let t = document.getElementById("beschreibungText").value;
@@ -930,8 +930,8 @@ function beschreibungSpeichern(){
         localStorage.setItem("ideen",JSON.stringify(ideen));
         zeigeIdeen();
     } else { zeigeWarnung("Fehler: Idee nicht gefunden."); }
-    beschreibungAbbrechen(); istGespeichert=false; 
-    if (typeof saveToOneDrive === "function") saveToOneDrive();
+    beschreibungAbbrechen(); 
+    triggerAutoSave();
 }
 
 function starteAnhangUploadFuerBeschreibung(ideeId, timestamp) {
@@ -1000,8 +1000,7 @@ async function handleBeschreibungAnhangUpload(event) {
     localStorage.setItem("ideen", JSON.stringify(ideen));
     zeigeWarnung(`${neueAnhaenge.length} Anhang/Anhänge zur Beschreibung hinzugefügt.`, 'success');
     zeigeIdeen();
-    istGespeichert = false;
-    if (typeof saveToOneDrive === "function") saveToOneDrive();
+    triggerAutoSave();
 
     anhangFuerBeschreibungZiel = { ideeId: null, timestamp: null };
 }
@@ -1009,8 +1008,8 @@ async function handleBeschreibungAnhangUpload(event) {
 
 function bearbeiteEinzelneBeschreibung(id,ts){if(ts)zeigeBeschreibungDialog(id,ts);else zeigeWarnung("Interner Fehler: Timestamp fehlt.")}
 function toggleAuswahl(id,box){if(box.checked){if(!ausgewaehlt.includes(id))ausgewaehlt.push(id)}else{ausgewaehlt=ausgewaehlt.filter(i=>i!==id)}}
-function ausgewaehlteNotizenLoeschen(){if(ausgewaehlt.length===0){zeigeWarnung("Keine Notizen ausgewählt.");return}if(!confirm(`Wirklich ${ausgewaehlt.length} Notiz(en) löschen?`))return;let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const delM=new Set();const delU=new Set();ideen.filter(i=>i&&ausgewaehlt.includes(i.id)).forEach(i=>{if(i.mandantennummer)delM.add((i.mandantennummer).toLowerCase());if(i.benutzer)delU.add((i.benutzer).toLowerCase())});const newList=ideen.filter(i=>!i || !ausgewaehlt.includes(i.id));localStorage.setItem("ideen",JSON.stringify(newList));const remM=new Set(newList.filter(i=>i).map(i=>(i.mandantennummer||"").toLowerCase()).filter(m=>m!==""));const remU=new Set(newList.filter(i=>i).map(i=>(i.benutzer||"").toLowerCase()).filter(b=>b!==""));let uM=!1;delM.forEach(m=>{if(!remM.has(m))uM=!0});let uU=!1;delU.forEach(u=>{if(!remU.has(u))uU=!0});if(uM)aktualisiereMandantenFilterDropdown();if(uU)aktualisiereBenutzerDropdowns();if(bearbeiteId!==null&&ausgewaehlt.includes(bearbeiteId))abbrechenBearbeiten();if(beschreibungFuerId!==null&&ausgewaehlt.includes(beschreibungFuerId))beschreibungAbbrechen(); if(erinnerungFuerId!==null&&ausgewaehlt.includes(erinnerungFuerId))erinnerungAbbrechen(); if(terminFuerId!==null&&ausgewaehlt.includes(terminFuerId))terminDialogAbbrechen(); ausgewaehlt=[];zeigeIdeen();istGespeichert=false;if (typeof saveToOneDrive === "function") saveToOneDrive()}
-function alleIdeenLoeschen(){if(!confirm("Wirklich ALLE Ideen, Kategorien, Benutzer etc. löschen?"))return;localStorage.removeItem("ideen"); localStorage.removeItem("kategorien"); localStorage.removeItem("benutzerliste"); localStorage.removeItem("naechsteVorgangsnummer"); naechsteVorgangsnummer=1; kategorien = []; benutzerliste = []; zeigeNaechsteNummer(); initialisiereKategorien(); initialisiereBenutzer(); aktualisiereMandantenFilterDropdown(); ausgewaehlt=[];bearbeiteId=null;beschreibungFuerId=null;beschreibungZuBearbeitenderTimestamp=null; erinnerungFuerId=null; terminFuerId=null; zeigeIdeen();abbrechenBearbeiten();istGespeichert=true;if (typeof saveToOneDrive === "function") saveToOneDrive()}
+function ausgewaehlteNotizenLoeschen(){if(ausgewaehlt.length===0){zeigeWarnung("Keine Notizen ausgewählt.");return}if(!confirm(`Wirklich ${ausgewaehlt.length} Notiz(en) löschen?`))return;let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const delM=new Set();const delU=new Set();ideen.filter(i=>i&&ausgewaehlt.includes(i.id)).forEach(i=>{if(i.mandantennummer)delM.add((i.mandantennummer).toLowerCase());if(i.benutzer)delU.add((i.benutzer).toLowerCase())});const newList=ideen.filter(i=>!i || !ausgewaehlt.includes(i.id));localStorage.setItem("ideen",JSON.stringify(newList));const remM=new Set(newList.filter(i=>i).map(i=>(i.mandantennummer||"").toLowerCase()).filter(m=>m!==""));const remU=new Set(newList.filter(i=>i).map(i=>(i.benutzer||"").toLowerCase()).filter(b=>b!==""));let uM=!1;delM.forEach(m=>{if(!remM.has(m))uM=!0});let uU=!1;delU.forEach(u=>{if(!remU.has(u))uU=!0});if(uM)aktualisiereMandantenFilterDropdown();if(uU)aktualisiereBenutzerDropdowns();if(bearbeiteId!==null&&ausgewaehlt.includes(bearbeiteId))abbrechenBearbeiten();if(beschreibungFuerId!==null&&ausgewaehlt.includes(beschreibungFuerId))beschreibungAbbrechen(); if(erinnerungFuerId!==null&&ausgewaehlt.includes(erinnerungFuerId))erinnerungAbbrechen(); if(terminFuerId!==null&&ausgewaehlt.includes(terminFuerId))terminDialogAbbrechen(); ausgewaehlt=[];zeigeIdeen();triggerAutoSave();}
+function alleIdeenLoeschen(){if(!confirm("Wirklich ALLE Ideen, Kategorien, Benutzer etc. löschen?"))return;localStorage.removeItem("ideen"); localStorage.removeItem("kategorien"); localStorage.removeItem("benutzerliste"); localStorage.removeItem("naechsteVorgangsnummer"); naechsteVorgangsnummer=1; kategorien = []; benutzerliste = []; zeigeNaechsteNummer(); initialisiereKategorien(); initialisiereBenutzer(); aktualisiereMandantenFilterDropdown(); ausgewaehlt=[];bearbeiteId=null;beschreibungFuerId=null;beschreibungZuBearbeitenderTimestamp=null; erinnerungFuerId=null; terminFuerId=null; zeigeIdeen();abbrechenBearbeiten();triggerAutoSave();}
 
 function toggleAnhangSichtbarkeit(ideeId, anhangId) {
     if (!ideeId || !anhangId) { return; }
@@ -1022,8 +1021,8 @@ function toggleAnhangSichtbarkeit(ideeId, anhangId) {
     if (anhangIndex === -1) { zeigeWarnung("Fehler: Anhang nicht gefunden."); return; }
     ideen[ideeIndex].dateien[anhangIndex].sichtbar = !(ideen[ideeIndex].dateien[anhangIndex].sichtbar === true);
     localStorage.setItem("ideen", JSON.stringify(ideen));
-    zeigeIdeen(); istGespeichert = false; 
-    if (typeof saveToOneDrive === "function") saveToOneDrive();
+    zeigeIdeen(); 
+    triggerAutoSave();
 }
 
 function verschiebeBeschreibung(ideeId, beschreibungTimestamp, richtung) {
@@ -1039,8 +1038,8 @@ function verschiebeBeschreibung(ideeId, beschreibungTimestamp, richtung) {
     if (targetIndex < 0 || targetIndex >= beschreibungen.length) { return; }
     [beschreibungen[currentIndex], beschreibungen[targetIndex]] = [beschreibungen[targetIndex], beschreibungen[currentIndex]];
     localStorage.setItem("ideen", JSON.stringify(ideen));
-    zeigeIdeen(); istGespeichert = false; 
-    if (typeof saveToOneDrive === "function") saveToOneDrive();
+    zeigeIdeen(); 
+    triggerAutoSave();
 }
 
 function aendereEinrueckungBeschreibung(ideeId, beschreibungTimestamp, richtung) {
@@ -1059,8 +1058,8 @@ function aendereEinrueckungBeschreibung(ideeId, beschreibungTimestamp, richtung)
     if (aktuellesLevel === neuesLevel) { return; }
     ideen[ideeIndex].beschreibungen[beschrIndex].level = neuesLevel;
     localStorage.setItem("ideen", JSON.stringify(ideen));
-    zeigeIdeen(); istGespeichert = false; 
-    if (typeof saveToOneDrive === "function") saveToOneDrive();
+    zeigeIdeen(); 
+    triggerAutoSave();
 }
 
 function toggleBeschreibungSichtbarkeit(ideeId, beschreibungTimestamp) {
@@ -1073,8 +1072,8 @@ function toggleBeschreibungSichtbarkeit(ideeId, beschreibungTimestamp) {
     if (beschrIndex === -1) { zeigeWarnung("Fehler: Beschreibung nicht gefunden."); return; }
     ideen[ideeIndex].beschreibungen[beschrIndex].sichtbar = !(ideen[ideeIndex].beschreibungen[beschrIndex].sichtbar === true);
     localStorage.setItem("ideen", JSON.stringify(ideen));
-    zeigeIdeen(); istGespeichert = false; 
-    if (typeof saveToOneDrive === "function") saveToOneDrive();
+    zeigeIdeen(); 
+    triggerAutoSave();
 }
 
 function getDefaultErinnerung(titel = "", vorgangsnummer = null) {
@@ -1108,7 +1107,6 @@ function zeigeErinnerungDialog(id) {
 
     document.getElementById("erinnerungDialog").style.display = "block";
     document.getElementById("erinnerungTerminInput").focus();
-    istGespeichert = false;
 }
 
 function zeigeBeschreibungErinnerungDialog(ideeId, beschreibungTimestamp) {
@@ -1136,7 +1134,6 @@ function zeigeBeschreibungErinnerungDialog(ideeId, beschreibungTimestamp) {
     
     document.getElementById("erinnerungDialog").style.display = "block";
     document.getElementById("erinnerungTerminInput").focus();
-    istGespeichert = false;
 }
 
 function erinnerungAbbrechen() {
@@ -1210,9 +1207,9 @@ function erinnerungSpeichern() {
         localStorage.setItem("ideen", JSON.stringify(ideen));
         zeigeWarnung("Erinnerung gespeichert.", "success");
         zeigeIdeen(); 
-        if (typeof saveToOneDrive === "function") saveToOneDrive();
+        triggerAutoSave();
     } else { zeigeWarnung("Fehler: Idee zum Speichern der Erinnerung nicht gefunden."); }
-    erinnerungAbbrechen(); istGespeichert = false;
+    erinnerungAbbrechen();
 }
 
 function erinnerungLoeschen() {
@@ -1240,9 +1237,9 @@ function erinnerungLoeschen() {
         localStorage.setItem("ideen", JSON.stringify(ideen));
         zeigeWarnung("Erinnerung gelöscht.", "success");
         zeigeIdeen(); 
-        if (typeof saveToOneDrive === "function") saveToOneDrive();
+        triggerAutoSave();
     } else { zeigeWarnung("Fehler: Idee zum Löschen der Erinnerung nicht gefunden."); }
-    erinnerungAbbrechen(); istGespeichert = false;
+    erinnerungAbbrechen();
 }
 
 
@@ -1255,8 +1252,7 @@ function toggleErinnerungVorabDetails() {
     const checked = document.getElementById("erinnerungVorabCheckbox").checked;
     document.getElementById("erinnerungVorabDetailsContainer").style.display = checked ? 'block' : 'none';
 }
-/* --- END BLOCK 5d --- */
-/* --- START BLOCK 6 (MODIFIZIERT) --- */
+
 function getFormattedDate(timestamp) { if (timestamp) { let ts = timestamp; if (typeof ts === 'string' && ts.includes('_')) { ts = ts.split('_')[0]; } try { const d = new Date(ts); if (!isNaN(d.getTime())) { return d.toLocaleString("de-DE", { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }); } } catch (e) { } } return 'N/A'; }
 function getExportIdeen() { let resultIdeen = []; try { let ideen = []; try { ideen = JSON.parse(localStorage.getItem("ideen") || "[]"); if (!Array.isArray(ideen)) { ideen = []; localStorage.setItem("ideen", "[]"); } } catch (e) { localStorage.removeItem("ideen"); ideen = []; } const aktuellAusgewaehlteCheckboxes = Array.from(document.querySelectorAll('.idee-checkbox:checked')); let aktuellAusgewaehlteIDs = []; if (aktuellAusgewaehlteCheckboxes.length > 0) { aktuellAusgewaehlteIDs = aktuellAusgewaehlteCheckboxes.map(cb => { try { let parentIdeeDiv = cb.closest('.idee'); if (parentIdeeDiv) { return parentIdeeDiv.dataset.ideeId; } } catch (e) { } return null; }).filter(id => id !== null); if (aktuellAusgewaehlteIDs.length > 0) { resultIdeen = ideen.filter(i => i && i.id && aktuellAusgewaehlteIDs.includes(i.id)); } else { resultIdeen = []; } } else { let fIdeen = [...ideen.filter(i=>i&&i.id)]; const fKat = document.getElementById("filterKategorie")?.value; if (fKat) fIdeen = fIdeen.filter(i => i.kategorie === fKat); const fMdt = document.getElementById("filterMandant")?.value; if (fMdt) fIdeen = fIdeen.filter(i => (i.mandantennummer || "").toLowerCase() === fMdt.toLowerCase()); const fUser = document.getElementById("filterBenutzer")?.value; if (fUser) fIdeen = fIdeen.filter(i => (i.benutzer || "").toLowerCase() === fUser.toLowerCase()); const fArchiv = document.getElementById("filterArchiv")?.value; if (fArchiv === "nicht_erledigt") fIdeen = fIdeen.filter(i => !(i.erledigt || false)); else if (fArchiv === "erledigt") fIdeen = fIdeen.filter(i => (i.erledigt || false)); const sort=document.getElementById("sortierung")?.value; if(sort && sort!=="standard"){ fIdeen.sort((a,b)=>{ if (!a || !b) return 0; if(sort==="prio"){ const p={"Hoch":3,"Mittel":2,"Niedrig":1}; return(p[b.prioritaet]||0)-(p[a.prioritaet]||0); } let tA=-Infinity,tB=-Infinity; try{tA=new Date(a.timestamp?.split('_')[0]).getTime();if(isNaN(tA))tA=(sort==="neu"?-Infinity:Infinity)}catch(e){tA=(sort==="neu"?-Infinity:Infinity)} try{tB=new Date(b.timestamp?.split('_')[0]).getTime();if(isNaN(tB))tB=(sort==="neu"?-Infinity:Infinity)}catch(e){tB=(sort==="neu"?-Infinity:Infinity)} if(sort==="neu")return tB-tA; if(sort==="alt")return tA-tB; return 0; }); } resultIdeen = fIdeen; } } catch (error) { resultIdeen = []; } if (!Array.isArray(resultIdeen)) { return []; } return resultIdeen; }
 
@@ -1640,8 +1636,7 @@ async function teilePerEmail() {
     if (changed) {
         localStorage.setItem("ideen", JSON.stringify(ideenImSpeicher));
         zeigeIdeen();
-        istGespeichert = false;
-        if (typeof saveToOneDrive === "function") await saveToOneDrive();
+        triggerAutoSave();
     }
 }
 
@@ -1697,7 +1692,7 @@ async function teilePerWhatsApp(){
     }).filter(s => s !== "").join("\n\n------------------------------------\n\n");
 
     const exportTimestamp = new Date().toLocaleString("de-DE"); const weitergeleitetText = `\n\n_[Notiz(en) markiert als: Weitergeleitet an ${recipientInfo} am ${exportTimestamp}]_`; text += weitergeleitetText; const waLink = `https://wa.me/?text=${encodeURIComponent(text)}`; try { const waWindow = window.open(waLink,"_blank"); if (!waWindow) { zeigeWarnung("WhatsApp konnte nicht geöffnet werden.", "warning"); } } catch (e) { console.error("WhatsApp Fehler:", e); zeigeWarnung("Fehler WhatsApp: " + e.message); }
-    await new Promise(resolve => setTimeout(resolve, 100)); let ideenImSpeicher = JSON.parse(localStorage.getItem("ideen") || "[]"); let changed = false; const ausgewaehlteIDsFuerWA = ideenToExport.map(i => i.id); ideenImSpeicher.forEach(idee => { if (idee && idee.id && ausgewaehlteIDsFuerWA.includes(idee.id)) { const desc = `Weitergeleitet via WhatsApp an: ${recipientInfo} am ${exportTimestamp}`; if (!idee.beschreibungen){idee.beschreibungen = [];} const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); idee.beschreibungen.push({ text: desc, timestamp: ts, level: 0, sichtbar: true, attachments: [], erinnerung: getDefaultErinnerung() }); changed = true; }}); if (changed) { localStorage.setItem("ideen", JSON.stringify(ideenImSpeicher)); zeigeIdeen(); istGespeichert = false; if (typeof saveToOneDrive === "function") await saveToOneDrive(); }
+    await new Promise(resolve => setTimeout(resolve, 100)); let ideenImSpeicher = JSON.parse(localStorage.getItem("ideen") || "[]"); let changed = false; const ausgewaehlteIDsFuerWA = ideenToExport.map(i => i.id); ideenImSpeicher.forEach(idee => { if (idee && idee.id && ausgewaehlteIDsFuerWA.includes(idee.id)) { const desc = `Weitergeleitet via WhatsApp an: ${recipientInfo} am ${exportTimestamp}`; if (!idee.beschreibungen){idee.beschreibungen = [];} const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); idee.beschreibungen.push({ text: desc, timestamp: ts, level: 0, sichtbar: true, attachments: [], erinnerung: getDefaultErinnerung() }); changed = true; }}); if (changed) { localStorage.setItem("ideen", JSON.stringify(ideenImSpeicher)); zeigeIdeen(); triggerAutoSave(); }
 }
 
 async function teileBeschreibungPerWhatsApp(ideeId, beschreibungTimestamp) {
@@ -1765,15 +1760,11 @@ async function teileBeschreibungPerWhatsApp(ideeId, beschreibungTimestamp) {
         
         localStorage.setItem("ideen", JSON.stringify(ideen));
         zeigeIdeen();
-        istGespeichert = false;
-        if (typeof saveToOneDrive === "function") {
-            await saveToOneDrive();
-        }
+        triggerAutoSave();
     }
 }
 
 
-/* --- END BLOCK 6 --- */
 // --- FUNKTIONEN FÜR KALENDERTERMINERSTELLUNG ---
 
 function zeigeTerminDialog(ideeId) {
@@ -1935,19 +1926,11 @@ async function kalenderTerminErstellenUndSpeichern() {
 
     localStorage.setItem("ideen", JSON.stringify(ideen));
     zeigeIdeen(); 
-    if (typeof saveToOneDrive === "function") { 
-      await saveToOneDrive();
-    } else {
-      console.warn("saveToOneDrive Funktion nicht gefunden, Überspringe OneDrive Sync für Terminvermerk.");
-    }
+    triggerAutoSave();
 
     terminDialogAbbrechen();
-    istGespeichert = false; 
 }
-// --- ENDE FUNKTIONEN FÜR KALENDERTERMINERSTELLUNG ---
 
-
-/* --- FUNKTIONEN FÜR BROWSER-BENACHRICHTIGUNGEN (MODIFIZIERT) --- */
 async function initialisiereUndStarteBenachrichtigungspruefung() {
     if (!("Notification" in window)) {
         console.warn("Dieser Browser unterstützt keine Desktop-Benachrichtigungen.");
@@ -2071,23 +2054,54 @@ function pruefeUndZeigeBenachrichtigungen() {
     if (aenderungenVorgenommen) {
         localStorage.setItem("ideen", JSON.stringify(ideen));
         zeigeIdeen(); 
-        if (typeof saveToOneDrive === "function") { 
-            saveToOneDrive(); 
-        } else {
-            console.warn("saveToOneDrive Funktion nicht gefunden, Überspringe OneDrive Sync für Benachrichtigungsupdate.");
-        }
+        triggerAutoSave();
         console.log("Ideenliste nach Benachrichtigungsprüfung aktualisiert.");
     }
 }
-/* --- ENDE FUNKTIONEN FÜR BROWSER-BENACHRICHTIGUNGEN --- */
-/* --- START BLOCK 7: File & OneDrive --- */
+
 async function uploadToOneDrive(f){if(currentLoginType !== 'microsoft' || !accessToken){zeigeWarnung("Bitte zuerst mit Microsoft anmelden!");return null;}try{const n=`ideenapp/${Date.now()}_${f.name}`;const u=await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${n}:/content`,{method:"PUT",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":f.type},body:f});const d=await u.json();if(!u.ok){throw new Error(`OneDrive Upload Error ${u.status}: ${d?.error?.message||'Unknown'}`);}const s=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${d.id}/createLink`,{method:"POST",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":"application/json"},body:JSON.stringify({type:"view",scope:"anonymous"})});const j=await s.json();if(!s.ok){throw new Error(`OneDrive Link Error ${s.status}: ${j?.error?.message||'Unknown'}`);}return j.link.webUrl;}catch(e){console.error("OneDrive Upload/Link Fehler:",e);zeigeWarnung("OneDrive-Fehler: "+e.message);return null;}}
-async function saveToOneDrive(){ if(currentLoginType !== 'microsoft' || !accessToken){ return; } try { const ideen=JSON.parse(localStorage.getItem("ideen")||"[]"); const benutzer=JSON.parse(localStorage.getItem("benutzerliste")||"[]"); const kategorien=JSON.parse(localStorage.getItem("kategorien")||"[]"); const nummer=localStorage.getItem("naechsteVorgangsnummer")||"1"; const data={ideen,benutzerliste:benutzer,kategorien,naechsteVorgangsnummer:nummer}; const dataStr=JSON.stringify(data,null,2); const path=(document.getElementById("onedrivePath").value.trim()||"/ideenapp/ideen.json"); const finalPath=path.startsWith('/')?path:'/'+path; if(!finalPath||finalPath==='/'){zeigeWarnung("OneDrive Speichern: Ungültiger Pfad.");return;} const url=`https://graph.microsoft.com/v1.0/me/drive/root:${finalPath}:/content`; const res=await fetch(url,{method:"PUT",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":"application/json"},body:dataStr}); if(res.ok){istGespeichert=true;}else{const err=await res.json().catch(()=>null); const msg=err?.error?.message||res.statusText; zeigeWarnung(`OneDrive Speichern Fehler: ${msg}`);}}catch(e){zeigeWarnung("OneDrive Speichern Fehler: "+e.message);}}
+
+async function saveToOneDrive(){ 
+    if(currentLoginType !== 'microsoft' || !accessToken){ return; } 
+    clearTimeout(debounceTimer); // Stoppt den Timer, da wir jetzt aktiv speichern
+    try { 
+        const ideen=JSON.parse(localStorage.getItem("ideen")||"[]"); 
+        const benutzer=JSON.parse(localStorage.getItem("benutzerliste")||"[]"); 
+        const kategorien=JSON.parse(localStorage.getItem("kategorien")||"[]"); 
+        const nummer=localStorage.getItem("naechsteVorgangsnummer")||"1"; 
+        const data={ideen,benutzerliste:benutzer,kategorien,naechsteVorgangsnummer:nummer}; 
+        const dataStr=JSON.stringify(data,null,2); 
+        const path=(document.getElementById("onedrivePath").value.trim()||"/ideenapp/ideen.json"); 
+        const finalPath=path.startsWith('/')?path:'/'+path; 
+        if(!finalPath||finalPath==='/'){zeigeWarnung("OneDrive Speichern: Ungültiger Pfad.");return;} 
+        const url=`https://graph.microsoft.com/v1.0/me/drive/root:${finalPath}:/content`; 
+        const res=await fetch(url,{method:"PUT",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":"application/json"},body:dataStr}); 
+        if(res.ok){
+            istGespeichert=true; // Setzt den Status auf "gespeichert" nach erfolgreichem Upload
+            console.log("Daten erfolgreich auf OneDrive gespeichert.");
+        }else{
+            const err=await res.json().catch(()=>null); 
+            const msg=err?.error?.message||res.statusText; 
+            zeigeWarnung(`OneDrive Speichern Fehler: ${msg}`);
+            istGespeichert = false; // Bei Fehler bleibt der Status auf "ungespeichert"
+        }
+    }catch(e){
+        zeigeWarnung("OneDrive Speichern Fehler: "+e.message);
+        istGespeichert = false; // Bei Fehler bleibt der Status auf "ungespeichert"
+    }
+}
 
 async function loadFromOneDrive(){ 
+    // Wenn es ungespeicherte Änderungen gibt, wird der manuelle Klick benötigt.
+    if (!istGespeichert && !confirm("Sie haben ungespeicherte lokale Änderungen. Möchten Sie diese verwerfen und die Daten von OneDrive neu laden?")) {
+        return;
+    }
+
     if(currentLoginType !== 'microsoft' || !accessToken){ 
         const ok=await handleMicrosoftLogin(); 
         if(!ok || !accessToken){return;} 
+        // handleMicrosoftLogin ruft loadFromOneDrive bereits am Ende auf, also hier abbrechen
+        return; 
     } 
     const path=(document.getElementById("onedrivePath").value.trim()||"/ideenapp/ideen.json"); 
     const finalPath=path.startsWith('/')?path:'/'+path; 
@@ -2153,25 +2167,36 @@ async function loadFromOneDrive(){
 
 async function speichereIdeenAlsDatei(){ try{ const ideen = JSON.parse(localStorage.getItem("ideen")||"[]"); const benutzerData = JSON.parse(localStorage.getItem("benutzerliste")||"[]"); const kategorienData = JSON.parse(localStorage.getItem("kategorien")||"[]"); const nummer = localStorage.getItem("naechsteVorgangsnummer")||"1"; const combinedData = { ideen, benutzerliste: benutzerData, kategorien: kategorienData, naechsteVorgangsnummer: nummer }; const dataToSave = JSON.stringify(combinedData, null, 2); if(window.showSaveFilePicker){ fileHandle = await window.showSaveFilePicker({ suggestedName: "ideen.json", types: [{ description: "JSON-Dateien", accept: { "application/json": [".json"] } }] }); const writable = await fileHandle.createWritable(); await writable.write(dataToSave); await writable.close(); zeigeWarnung("Datei lokal gespeichert!", 'success'); istGespeichert = true; } else { const blob = new Blob([dataToSave], { type: "application/json" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "ideen.json"; link.click(); URL.revokeObjectURL(url); zeigeWarnung("Datei-Download gestartet.", 'success'); istGespeichert = true; }} catch(e) { if(e.name !== "AbortError") { zegeWarnung("Fehler beim lokalen Speichern: " + e.message); } }}
 async function ladeIdeenAusDatei(){ try{ let fileContent; if(window.showOpenFilePicker){ [fileHandle] = await window.showOpenFilePicker({ types: [{ description: "JSON-Dateien", accept: { "application/json": [".json"] } }] }); const file = await fileHandle.getFile(); fileContent = await file.text(); } else { const input = document.createElement('input'); input.type = 'file'; input.accept = '.json'; await new Promise((resolve, reject) => { input.onchange = async (e) => { if (e.target.files && e.target.files.length > 0) { const file = e.target.files[0]; const reader = new FileReader(); reader.onload = (event) => { fileContent = event.target.result; resolve(); }; reader.onerror = (error) => reject(error); reader.readAsText(file); } else { reject(new Error("Keine Datei ausgewählt")); } }; input.click(); }); } if (!fileContent) { throw new Error("Kein Dateiinhalt geladen."); } const loadedData = JSON.parse(fileContent); let ideen = [], benutzerliste = [], kategorienAusDatei = null, nummer = 1; if (loadedData && typeof loadedData === 'object' && Array.isArray(loadedData.ideen)) { ideen = loadedData.ideen; benutzerliste = Array.isArray(loadedData.benutzerliste) ? loadedData.benutzerliste : []; kategorienAusDatei = Array.isArray(loadedData.kategorien) ? loadedData.kategorien : null; nummer = parseInt(loadedData.naechsteVorgangsnummer, 10) || 1; } else if (Array.isArray(loadedData)) { ideen = loadedData; benutzerliste = []; kategorienAusDatei = null; nummer = 1; } else { throw new Error("Ungültiges Dateiformat"); } localStorage.setItem("ideen", JSON.stringify(ideen)); localStorage.setItem("benutzerliste", JSON.stringify(benutzerliste)); if (kategorienAusDatei !== null) { localStorage.setItem("kategorien", JSON.stringify(kategorienAusDatei)); } localStorage.setItem("naechsteVorgangsnummer", nummer.toString()); ausgewaehlt = []; initialisiereKategorien(); initialisiereBenutzer(); initialisiereVorgangsnummer(); ensureIdeasHaveIds(); aktualisiereMandantenFilterDropdown(); zeigeIdeen(); zeigeWarnung(`Daten lokal geladen!`, 'success'); istGespeichert = true; } catch(e) { if(e.name !== "AbortError" && e.message !== "Keine Datei ausgewählt" && e.message !== "Kein Dateiinhalt geladen.") { zeigeWarnung("Fehler beim lokalen Laden: " + e.message); } }}
-/* --- END BLOCK 7 --- */
-/* --- START BLOCK 8: Init & Listeners (MODIFIZIERT) --- */
-document.getElementById("ideeText").addEventListener("input",()=>{istGespeichert=!1});
-document.getElementById("ideeDetails").addEventListener("input",()=>{istGespeichert=!1});
-document.getElementById("mandantennummer").addEventListener("input",()=>{istGespeichert=!1});
-document.getElementById("firmenname").addEventListener("input",()=>{istGespeichert=!1});
-document.getElementById("kategorie").addEventListener("change",()=>{istGespeichert=!1});
-document.getElementById("neueKategorie").addEventListener("input",()=>{istGespeichert=!1});
-document.getElementById("benutzer").addEventListener("change",()=>{istGespeichert=!1});
-document.getElementById("neuerBenutzer").addEventListener("input",()=>{istGespeichert=!1});
+
+// --- Event Listener für Änderungen und Auto-Save ---
+document.getElementById("ideeText").addEventListener("input", triggerAutoSave);
+document.getElementById("ideeDetails").addEventListener("input", triggerAutoSave);
+document.getElementById("mandantennummer").addEventListener("input", triggerAutoSave);
+document.getElementById("firmenname").addEventListener("input", triggerAutoSave);
+document.getElementById("kategorie").addEventListener("change", triggerAutoSave);
+document.getElementById("benutzer").addEventListener("change", triggerAutoSave);
 document.getElementById("dateien").addEventListener("change",function(e){
     const v=document.getElementById("dateiVorschau");
     v.innerHTML="Ausgewählte Dateien (werden beim Speichern hinzugefügt):<br>";
     Array.from(e.target.files).forEach(file=>{
        v.innerHTML+=`<span style="display:inline-block; margin:3px; font-size:0.9em; background:#eee; padding: 2px 5px; border-radius: 3px;">📄 ${file.name}</span>`;
     });
-    istGespeichert=!1;
+    istGespeichert=false;
 });
 window.addEventListener("beforeunload",function(e){if(!istGespeichert){const msg="Ungespeicherte Änderungen! Seite wirklich verlassen?";e.preventDefault();e.returnValue=msg;return msg;}});
+
+// --- NEU: Event Listener für Auto-Load beim Reaktivieren des Tabs ---
+window.addEventListener('focus', () => {
+    // Nur laden, wenn ein Microsoft-Login besteht und keine lokalen Änderungen vorliegen
+    if (currentLoginType === 'microsoft' && accessToken && istGespeichert) {
+        console.log("Fenster reaktiviert, lade neueste Daten von OneDrive...");
+        loadFromOneDrive();
+    } else if (currentLoginType === 'microsoft' && accessToken && !istGespeichert) {
+        console.log("Fenster reaktiviert, aber es gibt lokale, ungespeicherte Änderungen. Automatisches Laden übersprungen.");
+        zeigeWarnung("Es gibt lokale, ungespeicherte Änderungen. Bitte speichern oder manuell laden, um Daten zu synchronisieren.", "info");
+    }
+});
+
 
 function ensureIdeasHaveIds() {
     let ideen = [];
@@ -2311,7 +2336,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (githubCode) {
             handleGithubCallback(githubCode);
         } else {
-             // Initialer Zustand der Buttons, wenn kein Login-Prozess läuft
+            // Versucht, einen stillen Login, wenn die Seite neu geladen wird
+            if (msalInstance) {
+                const account = msalInstance.getActiveAccount();
+                if (account) {
+                    // Wenn ein Account da ist, lade automatisch die Daten
+                    console.log("Aktiver Account gefunden, lade Daten von OneDrive...");
+                    loadFromOneDrive();
+                }
+            }
             updateButtonVisibility(null);
         }
 
@@ -2321,7 +2354,7 @@ document.addEventListener('DOMContentLoaded', () => {
         zeigeWarnung("Ein Fehler ist beim Starten der App aufgetreten.", "warnung");
     }
 });
-/* --- END BLOCK 8 --- */
 </script>
 </body>
 </html>
+
