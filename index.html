@@ -88,7 +88,7 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
 
 <div class="app-container">
     <h1>Ideen-App Pro <span id="loggedInUser" style="display:none; font-size: 0.6em; font-weight: normal; color: #555;"></span></h1>
-    <div id="warnung"></div> <div id="loginHinweis" class="warnung" style="display:none;">Anmeldung erforderlich: Bitte melden Sie sich zuerst mit Ihrem Microsoft-Konto an. Ohne Anmeldung sind keine Cloud-Links und keine Synchronisation möglich.</div>
+    <div id="warnung"></div> <div id="loginHinweis" class="warnung" style="display:none;">Anmeldung erforderlich: Bitte melden Sie sich an, um Cloud-Funktionen wie Synchronisation und Dateianhänge zu nutzen.</div>
 
     <div id="vorgangsnummerAnzeigeInput">Nächste Vorgangsnummer: <span id="naechsteNummerAnzeige">1</span></div>
     <input type="text" id="ideeText" placeholder="Titel*" />
@@ -113,9 +113,10 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
     <input type="text" id="onedrivePath" placeholder="/ideenapp/ideen.json" style="width: 250px; margin-top: 0;"/> <button class="onedrive-btn" onclick="saveToOneDrive()">☁️ OneDrive Speichern</button> <button class="onedrive-btn" onclick="loadFromOneDrive()">☁️ OneDrive Laden</button>
     <button onclick="alleIdeenLoeschen()" style="background:#eee;border:1px solid #c00;color:#c00;">Alle löschen</button> <button onclick="ausgewaehlteNotizenLoeschen()" style="background:#eee;border:1px solid #c00;color:#c00;">Auswahl löschen</button>
     <button id="speicherDateiBtn" onclick="speichereIdeenAlsDatei()">Datei speichern</button> <button id="oeffneDateiBtn" onclick="ladeIdeenAusDatei()">Datei öffnen</button>
-    <button onclick="anmeldenUndLaden()" style="background:#005a9e; color: white; border-color: #004578;">🔑☁️ Anmelden & Laden</button>
-    <button onclick="handleLogin()" style="background:#e6f4ff;border-color:#0067b8;color:#0067b8;">🔑 Anmelden</button> 
-    <button onclick="handleLogout()" style="background:#ffe0e0;border-color:#c00;color:#c00;">🔒 Abmelden</button>
+    
+    <button id="microsoftLoginBtn" onclick="handleMicrosoftLogin()" style="background:#e6f4ff;border-color:#0067b8;color:#0067b8;">🔑 Anmelden (Microsoft)</button>
+    <button id="githubLoginBtn" onclick="handleGithubLogin()" style="display:none; background:#333;border-color:#111;color:white;">🔑 Anmelden (GitHub)</button>
+    <button id="logoutBtn" onclick="handleLogout()" style="display:none; background:#ffe0e0;border-color:#c00;color:#c00;">🔒 Abmelden</button>
     </div>
 
     <div id="ideenListe"></div>
@@ -201,20 +202,36 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
 console.log("Script started");
 /* --- START BLOCK 4: Script Start, Variables & Initializers --- */
 // WICHTIG: Ersetzen Sie diesen Link mit einem DIREKTEN Link zur userlist.json.
-// Ein Link von GitHub Raw ist ideal, z.B.: https://raw.githubusercontent.com/IHR-NAME/IHR-REPO/main/userlist.json
-// Ein normaler SharePoint-Link wird durch Browser-Sicherheit (CORS) blockiert!
 const whitelistUrl = "https://raw.githubusercontent.com/Ecki-Android/Ideen-App/main/userlist.json";
 
 const adminEmail = "admin@unimakgmbh.onmicrosoft.com";
 const adminPasswordHash = "NDUwMV9raXdpMg=="; // Base64 kodiertes Passwort "4501_kiwi2"
 
-const msalConfig={auth:{clientId:"c3cd3be4-3540-46dd-a24c-82eb6ed5542d",authority:"https://login.microsoftonline.com/common",redirectUri: "https://ecki-android.github.io"}};
-let accessToken=null, msalInstance=null, prioritaet="", bearbeiteId=null, ausgewaehlt=[], fileHandle=null, beschreibungFuerId=null, beschreibungZuBearbeitenderTimestamp=null, istGespeichert=!0;
+// --- Microsoft MSAL Konfiguration ---
+const msalConfig={auth:{clientId:"c3cd3be4-3540-46dd-a24c-82eb6ed5542d",authority:"https://login.microsoftonline.com/common",redirectUri: window.location.origin + window.location.pathname}};
+
+// --- NEU: GitHub OAuth Konfiguration ---
+// BITTE ERSETZEN: Holen Sie sich diese ID von Ihrer GitHub OAuth App
+const githubClientId = "Ov23liCVFN3ohObMAPqA"; 
+// BITTE ERSETZEN: Die URL zu Ihrer bereitgestellten Serverless Function (siehe Teil 2)
+const tokenProxyUrl = "https://musical-praline-fc16d2.netlify.app/.netlify/functions/github-auth"; 
+
+let accessToken = null, // Microsoft Access Token
+    githubAccessToken = null, // GitHub Access Token
+    msalInstance = null, 
+    prioritaet = "", 
+    bearbeiteId = null, 
+    ausgewaehlt = [], 
+    fileHandle = null, 
+    beschreibungFuerId = null, 
+    beschreibungZuBearbeitenderTimestamp = null, 
+    istGespeichert = true;
 let erinnerungFuerId = null;
 let erinnerungFuerBeschreibungTimestamp = null;
 let terminFuerId = null;
 let anhangFuerBeschreibungZiel = { ideeId: null, timestamp: null };
 let whitelist = [];
+let currentLoginType = null; // 'microsoft' or 'github'
 
 const standardKategorien=["Aufgaben","Projekte","Privat","Arbeit","Später"];
 let kategorien=[];
@@ -225,15 +242,118 @@ let naechsteVorgangsnummer=1;
 let benachrichtigungsIntervallId = null;
 
 function generateUUID(){return'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0,v=c=='x'?r:(r&0x3|0x8);return v.toString(16)})}
-function pruebeLoginHinweis(){document.getElementById("loginHinweis").style.display=accessToken?"none":"block"}
+function pruebeLoginHinweis(){document.getElementById("loginHinweis").style.display=(accessToken || githubAccessToken)?"none":"block"}
 
-async function handleLogin() {
+
+// --- ZENTRALE FUNKTION ZUR BUTTON-STEUERUNG (KORRIGIERT) ---
+function updateButtonVisibility(userEmail = null) {
+    const microsoftLoginBtn = document.getElementById('microsoftLoginBtn');
+    const githubLoginBtn = document.getElementById('githubLoginBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const adminBtn = document.getElementById('adminButton');
+
+    const isLoggedIn = !!userEmail;
+    const isAdmin = isLoggedIn && (userEmail.toLowerCase() === adminEmail.toLowerCase());
+
+    if (microsoftLoginBtn) microsoftLoginBtn.style.display = 'inline-block';
+    if (logoutBtn) logoutBtn.style.display = 'inline-block';
+    
+    // Admin-spezifische Buttons
+    if (adminBtn) adminBtn.style.display = isAdmin ? 'inline-block' : 'none';
+    if (githubLoginBtn) githubLoginBtn.style.display = isAdmin ? 'inline-block' : 'none';
+}
+
+
+// --- NEUE GITHUB LOGIN FUNKTIONEN ---
+
+function handleGithubLogin() {
+    if (!githubClientId || githubClientId === "IHRE_GITHUB_CLIENT_ID") {
+        zeigeWarnung("GitHub Client ID ist nicht konfiguriert.", "warnung");
+        return;
+    }
+    const redirectUri = window.location.origin + window.location.pathname;
+    const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${githubClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=read:user,user:email`;
+    window.location.href = githubAuthUrl;
+}
+
+async function handleGithubCallback(code) {
+    if (!tokenProxyUrl || tokenProxyUrl === "IHRE_PROXY_SERVER_URL") {
+        zeigeWarnung("Der GitHub Token-Proxy ist nicht konfiguriert.", "warnung");
+        return;
+    }
+    
+    zeigeWarnung("GitHub-Anmeldung wird überprüft...", "info");
+    try {
+        const response = await fetch(tokenProxyUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: code })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || data.error) {
+            throw new Error(data.error_description || data.error || "Unbekannter Fehler beim Token-Austausch.");
+        }
+        
+        githubAccessToken = data.access_token;
+        if (!githubAccessToken) {
+            throw new Error("Kein Access Token von GitHub erhalten.");
+        }
+
+        const userResponse = await fetch('https://api.github.com/user', {
+            headers: { 'Authorization': `token ${githubAccessToken}` }
+        });
+        const emailsResponse = await fetch('https://api.github.com/user/emails', {
+             headers: { 'Authorization': `token ${githubAccessToken}` }
+        });
+
+        if (!userResponse.ok || !emailsResponse.ok) {
+            throw new Error("Fehler beim Abrufen der GitHub Benutzerdaten.");
+        }
+
+        const userData = await userResponse.json();
+        const emailsData = await emailsResponse.json();
+        
+        const primaryEmail = emailsData.find(email => email.primary && email.verified);
+        if (!primaryEmail) {
+             throw new Error("Keine verifizierte primäre E-Mail-Adresse im GitHub-Konto gefunden.");
+        }
+        const userEmail = primaryEmail.email.toLowerCase();
+
+        const isAllowed = await checkUserAccess(userEmail);
+        if (!isAllowed) {
+            blockAppAccess();
+            return;
+        }
+        
+        currentLoginType = 'github';
+        updateLoggedInUI(userData.name || userData.login, userEmail);
+        updateButtonVisibility(userEmail); 
+        zeigeWarnung("Erfolgreich mit GitHub angemeldet!", 'success');
+        
+        window.history.replaceState({}, document.title, window.location.pathname);
+
+    } catch (e) {
+        zeigeWarnung("GitHub Login fehlgeschlagen: " + e.message, "warnung");
+        console.error("GitHub Callback-Fehler:", e);
+        githubAccessToken = null;
+        currentLoginType = null;
+        updateButtonVisibility(null); 
+    } finally {
+        pruebeLoginHinweis();
+    }
+}
+
+// --- ANGEPASSTE MICROSOFT LOGIN FUNKTION ---
+
+async function handleMicrosoftLogin() {
     try {
         if (!msalInstance) {
             msalInstance = new msal.PublicClientApplication(msalConfig);
         }
         const loginRequest = {
-            scopes: ["Files.ReadWrite", "offline_access"],
+            scopes: ["Files.ReadWrite", "User.Read", "offline_access"],
             prompt: 'select_account' 
         };
         const loginResponse = await msalInstance.loginPopup(loginRequest);
@@ -247,44 +367,50 @@ async function handleLogin() {
             return false;
         }
         
-        const tokenResponse = await msalInstance.acquireTokenSilent({ scopes: ["Files.ReadWrite"], account: account });
+        const tokenResponse = await msalInstance.acquireTokenSilent({ scopes: ["Files.ReadWrite", "User.Read"], account: account });
         accessToken = tokenResponse.accessToken;
+        currentLoginType = 'microsoft';
         
-        // UI-Update für den angemeldeten Benutzer
-        const userDisplay = document.getElementById('loggedInUser');
-        const displayName = account.name || '';
-        const userIdentifier = displayName ? `${displayName} (${userEmail})` : userEmail;
-        userDisplay.textContent = `(Angemeldet als: ${userIdentifier})`;
-        userDisplay.style.display = 'inline';
-
-        zeigeWarnung("Erfolgreich angemeldet!", 'success');
-        pruebeLoginHinweis();
+        updateLoggedInUI(account.name, userEmail);
+        updateButtonVisibility(userEmail); 
         
-        if (userEmail === adminEmail.toLowerCase()) {
-            document.getElementById("adminButton").style.display = 'inline-block';
-        }
-
-        document.querySelector('.app-container').classList.remove('hidden');
-        document.getElementById('accessDeniedMessage').style.display = 'none';
-
+        await loadFromOneDrive(); 
         return true;
+
     } catch (e) {
-        zeigeWarnung("Login fehlgeschlagen: " + e.message, "warnung");
+        zeigeWarnung("Microsoft Login fehlgeschlagen: " + e.message, "warnung");
         console.error("Login-Fehler:", e);
         accessToken = null;
         msalInstance = null;
+        currentLoginType = null;
+        updateButtonVisibility(null); 
         return false;
+    } finally {
+        pruebeLoginHinweis();
     }
 }
 
+// --- HILFSFUNKTIONEN FÜR LOGIN ---
+
+function updateLoggedInUI(displayName, userEmail) {
+    const userDisplay = document.getElementById('loggedInUser');
+    const userIdentifier = displayName ? `${displayName} (${userEmail})` : userEmail;
+    userDisplay.textContent = `(Angemeldet als: ${userIdentifier})`;
+    userDisplay.style.display = 'inline';
+
+    document.querySelector('.app-container').classList.remove('hidden');
+    document.getElementById('accessDeniedMessage').style.display = 'none';
+}
+
 async function checkUserAccess(userEmail) {
-    if (userEmail === adminEmail.toLowerCase()) {
+    if (userEmail.toLowerCase() === adminEmail.toLowerCase()) {
         return true;
     }
     console.log(`Prüfe Zugriff für: ${userEmail}`);
 
-    if (!whitelistUrl || whitelistUrl.includes("BITTE_HIER_DEN")) {
+    if (!whitelistUrl || whitelistUrl.includes("IHR-NAME")) {
         console.warn("Whitelist-URL ist nicht konfiguriert.");
+        zeigeWarnung("Fehler: Der Link zur Benutzerliste ist nicht konfiguriert.", "warnung");
         return false;
     }
 
@@ -297,7 +423,7 @@ async function checkUserAccess(userEmail) {
         const userList = await response.json();
         whitelist = userList.map(email => email.toLowerCase());
         
-        return whitelist.includes(userEmail);
+        return whitelist.includes(userEmail.toLowerCase());
 
     } catch (error) {
         console.error("Fehler beim Prüfen der Zugriffsberechtigung:", error);
@@ -316,14 +442,21 @@ function blockAppAccess() {
     document.querySelector('.app-container').classList.add('hidden');
     document.getElementById('accessDeniedMessage').style.display = 'block';
     accessToken = null;
+    githubAccessToken = null;
+    currentLoginType = null;
+    updateButtonVisibility(null);
 }
 
 async function handleLogout() {
-    let accountToLogout = msalInstance ? msalInstance.getActiveAccount() : null;
     let confirmMessage = "Wirklich abmelden?";
 
-    if (accountToLogout) {
-        confirmMessage = `Vom Konto "${accountToLogout.username}" abmelden?`;
+    if (currentLoginType === 'microsoft' && msalInstance) {
+        const accountToLogout = msalInstance.getActiveAccount();
+        if (accountToLogout) {
+             confirmMessage = `Vom Microsoft-Konto "${accountToLogout.username}" abmelden?`;
+        }
+    } else if (currentLoginType === 'github') {
+        confirmMessage = "Vom GitHub-Konto abmelden?";
     }
 
     if (!istGespeichert) {
@@ -336,39 +469,46 @@ async function handleLogout() {
         }
     }
 
-    try {
-        if (msalInstance && accountToLogout) {
-            await msalInstance.logoutPopup({ account: accountToLogout });
+    if (currentLoginType === 'microsoft' && msalInstance) {
+        try {
+            const accountToLogout = msalInstance.getActiveAccount();
+            if (accountToLogout) {
+                await msalInstance.logoutPopup({ account: accountToLogout });
+            }
+        } catch (e) {
+            console.error("Microsoft Abmeldung fehlgeschlagen:", e);
         }
-    } catch (e) {
-        console.error("Abmeldung fehlgeschlagen:", e);
-        zeigeWarnung("Abmeldung fehlgeschlagen: " + e.message, "warnung");
-    } finally {
-        accessToken = null;
-        msalInstance = null;
-        istGespeichert = true;
-        
-        // UI-Update, um den Benutzernamen zu entfernen
-        document.getElementById('loggedInUser').textContent = '';
-        document.getElementById('loggedInUser').style.display = 'none';
-        
-        document.getElementById("adminButton").style.display = 'none';
-        localStorage.removeItem("ideen");
-        localStorage.removeItem("kategorien");
-        localStorage.removeItem("benutzerliste");
-        localStorage.removeItem("naechsteVorgangsnummer");
-        
-        initialisiereKategorien();
-        initialisiereBenutzer();
-        initialisiereVorgangsnummer();
-        zeigeIdeen();
-        pruebeLoginHinweis();
-        
-        zeigeWarnung("Erfolgreich abgemeldet.", 'success');
     }
+
+    accessToken = null;
+    githubAccessToken = null;
+    msalInstance = null;
+    currentLoginType = null;
+    istGespeichert = true;
+    
+    document.getElementById('loggedInUser').textContent = '';
+    document.getElementById('loggedInUser').style.display = 'none';
+    updateButtonVisibility(null);
+    
+    localStorage.removeItem("ideen");
+    localStorage.removeItem("kategorien");
+    localStorage.removeItem("benutzerliste");
+    localStorage.removeItem("naechsteVorgangsnummer");
+    
+    initialisiereKategorien();
+    initialisiereBenutzer();
+    initialisiereVorgangsnummer();
+    zeigeIdeen();
+    pruebeLoginHinweis();
+    
+    zeigeWarnung("Erfolgreich abgemeldet.", 'success');
 }
 
-async function anmeldenUndLaden() { const anmeldungErfolgreich = await handleLogin(); if (anmeldungErfolgreich) { await loadFromOneDrive(); }}
+async function anmeldenUndLaden() { 
+    const anmeldungErfolgreich = await handleMicrosoftLogin(); 
+    // Das Laden wird jetzt direkt in handleMicrosoftLogin ausgelöst.
+}
+
 function zeigeWarnung(msg,type='warning'){const w=document.getElementById("warnung");w.textContent=msg;w.style.display="block";w.className="";if(type==='success')w.classList.add('success-message');else if(type==='info')w.classList.add('info-message');else w.classList.add('warnung');setTimeout(()=>w.style.display="none",6e3)}
 
 // --- Admin Panel Funktionen ---
@@ -406,17 +546,15 @@ function saveWhitelistToLocalStorage() {
 }
 
 async function saveWhitelistToOneDrive() {
-    // Diese Funktion ist jetzt nur noch für Backup-Zwecke relevant,
-    // da die primäre Benutzerliste auf GitHub liegt.
-    if (!accessToken) {
-        zeigeWarnung("Sie müssen als Administrator angemeldet sein.", "warnung");
+    if (currentLoginType !== 'microsoft' || !accessToken) {
+        zeigeWarnung("Sie müssen als Administrator mit einem Microsoft-Konto angemeldet sein.", "warnung");
         return;
     }
     const editorValue = document.getElementById('whitelistEditor').value;
     const userArray = editorValue.split('\n').map(email => email.trim()).filter(email => email);
     const userListString = JSON.stringify(userArray, null, 2);
 
-    const whitelistPath = "/ideenapp/userlist_backup.json"; // Geänderter Pfad für Backup
+    const whitelistPath = "/ideenapp/userlist_backup.json";
     zeigeWarnung("Speichere Backup der Benutzerliste in OneDrive...", "info");
     try {
         const url = `https://graph.microsoft.com/v1.0/me/drive/root:${whitelistPath}:/content`;
@@ -427,7 +565,6 @@ async function saveWhitelistToOneDrive() {
         });
         if (res.ok) {
             zeigeWarnung("Backup der Benutzerliste erfolgreich in OneDrive gespeichert!", 'success');
-            // Hinweis: Um die Live-Liste zu ändern, muss die Datei auf GitHub bearbeitet werden.
             alert("Hinweis: Dies hat nur ein Backup auf OneDrive gespeichert. Um die Benutzerberechtigungen live zu ändern, müssen Sie die 'userlist.json' Datei direkt auf GitHub bearbeiten.");
             closeAdminPanel();
         } else {
@@ -439,6 +576,8 @@ async function saveWhitelistToOneDrive() {
         zeigeWarnung("Fehler beim Speichern des Backups: " + e.message, "warnung");
     }
 }
+
+// ... (Restlicher Code von initialisiereKategorien bis zum Ende bleibt unverändert) ...
 
 function initialisiereKategorien(){
     let loadedKategorien = null;
@@ -456,7 +595,7 @@ function initialisiereBenutzer(){benutzerliste=JSON.parse(localStorage.getItem("
 function neuenBenutzerHinzufuegen(){const input=document.getElementById("neuerBenutzer");const name=input.value.trim();if(!name){zeigeWarnung("Bitte Benutzernamen eingeben.");return}benutzerliste=JSON.parse(localStorage.getItem("benutzerliste")||"[]");if(!Array.isArray(benutzerliste))benutzerliste=[];if(benutzerliste.includes(name)){zeigeWarnung(`Benutzer "${name}" existiert bereits!`);return}benutzerliste.push(name);benutzerliste.sort();localStorage.setItem("benutzerliste",JSON.stringify(benutzerliste));saveToOneDrive();aktualisiereBenutzerDropdowns();input.value="";input.focus();zeigeWarnung(`Benutzer "${name}" hinzugefügt.`,'success');istGespeichert=!1}
 function benutzerLoeschen(){const sel=document.getElementById("benutzer");const name=sel.value;if(!name||name===""){zeigeWarnung("Bitte Benutzer zum Löschen wählen.");return}benutzerliste=JSON.parse(localStorage.getItem("benutzerliste")||"[]");if(!Array.isArray(benutzerliste))benutzerliste=[];if(!benutzerliste.includes(name)){zeigeWarnung(`Benutzer "${name}" nicht gefunden.`);return}if(!confirm(`Benutzer "${name}" WIRKLICH löschen? ALLE Notizen dieses Benutzers werden gelöscht!`))return;const idx=benutzerliste.indexOf(name);if(idx>-1){benutzerliste.splice(idx,1);localStorage.setItem("benutzerliste",JSON.stringify(benutzerliste));saveToOneDrive();let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const len=ideen.length;const origIdeen=JSON.parse(localStorage.getItem("ideen")||"[]");ideen=ideen.filter(i=>i&&i.benutzer!==name);const deletedCount=len-ideen.length;if(deletedCount>0){localStorage.setItem("ideen",JSON.stringify(ideen));saveToOneDrive();const remM=new Set(ideen.filter(i=>i).map(i=>(i.mandantennummer||"").toLowerCase()).filter(m=>m!==""));const allM=new Set(origIdeen.filter(i=>i).map(i=>(i.mandantennummer||"").toLowerCase()).filter(m=>m!==""));let updM=!1;allM.forEach(m=>{if(!remM.has(m))updM=!0});if(updM)aktualisiereMandantenFilterDropdown()}aktualisiereBenutzerDropdowns();if(filterBenutzerValue===name){filterBenutzerValue="";document.getElementById("filterBenutzer").value=""}if(bearbeiteId!==null&&!ideen.some(i=>i&&i.id===bearbeiteId)){abbrechenBearbeiten()}if(beschreibungFuerId!==null&&!ideen.some(i=>i&&i.id===beschreibungFuerId)){beschreibungAbbrechen()}zeigeWarnung(`Benutzer "${name}" und ${deletedCount} Notiz(en) gelöscht.`,'success');zeigeIdeen();istGespeichert=false;}else{zeigeWarnung(`Interner Fehler: Benutzer "${name}" nicht gefunden.`);}}
 function aktualisiereBenutzerDropdowns(){initialisiereBenutzer()}
-function aktualisiereMandantenFilterDropdown(){const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const set=new Set(ideen.filter(i=>i).map(i=>(i.mandantennummer||"").trim()).filter(m=>m!==""));const list=Array.from(set).sort();const sel=document.getElementById("filterMandant");const current=sel.value;sel.innerHTML='<option value="">🏢 Alle Mandanten</option>';list.forEach(m=>sel.add(new Option(m,m)));if(current&&list.includes(current)){sel.value=current;filterMandantValue=current}else{sel.value="";filterMandantValue=""}}
+function aktualisiereMandantenFilterDropdown(){const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");if(!Array.isArray(ideen))return; const set=new Set(ideen.filter(i=>i).map(i=>(i.mandantennummer||"").trim()).filter(m=>m!==""));const list=Array.from(set).sort();const sel=document.getElementById("filterMandant");const current=sel.value;sel.innerHTML='<option value="">🏢 Alle Mandanten</option>';list.forEach(m=>sel.add(new Option(m,m)));if(current&&list.includes(current)){sel.value=current;filterMandantValue=current}else{sel.value="";filterMandantValue=""}}
 function initialisiereVorgangsnummer(){const saved=localStorage.getItem("naechsteVorgangsnummer");naechsteVorgangsnummer=saved?parseInt(saved,10):1;if(isNaN(naechsteVorgangsnummer)||naechsteVorgangsnummer<1){naechsteVorgangsnummer=1;localStorage.setItem("naechsteVorgangsnummer",naechsteVorgangsnummer.toString())}zeigeNaechsteNummer()}
 function zeigeNaechsteNummer(){const el=document.getElementById("naechsteNummerAnzeige");if(el)el.textContent=naechsteVorgangsnummer}
 function filterNachMandant(){filterMandantValue=document.getElementById("filterMandant").value;zeigeIdeen()}
@@ -467,12 +606,11 @@ async function speichereIdee() {
     const text = document.getElementById("ideeText").value.trim();
     if (!text) return zeigeWarnung("Titel ist erforderlich!");
 
-    let dateienFuerSpeicherung = [];
     const fileInput = document.getElementById("dateien");
     let neuHochgeladeneDateien = [];
 
     if (fileInput.files.length > 0) {
-        if (accessToken) {
+        if (currentLoginType === 'microsoft' && accessToken) {
             zeigeWarnung("Lade Dateien hoch...", 'info');
             try {
                 neuHochgeladeneDateien = await Promise.all(Array.from(fileInput.files).map(async f => {
@@ -486,6 +624,9 @@ async function speichereIdee() {
                 neuHochgeladeneDateien = [];
             }
         } else {
+             if (currentLoginType === 'github') {
+                zeigeWarnung("Dateianhänge sind nur mit Microsoft-Login möglich. Dateien werden lokal vermerkt.", "info");
+             }
             neuHochgeladeneDateien = Array.from(fileInput.files).map(f => ({
                 id: generateUUID(), name: f.name, type: f.type, sichtbar: true, isLocal: true
             }));
@@ -620,9 +761,9 @@ function zeigeIdeen() {
                     let erinnerungText = `🔔 Erinnerung: ${getFormattedDate(b.erinnerung.termin)}`;
                      if (b.erinnerung.intervallTyp !== 'einmalig') {
                          erinnerungText += `, Intervall: ${b.erinnerung.intervallTyp}`;
-                          if(b.erinnerung.intervallTyp === 'tage' && b.erinnerung.intervallWert) {
-                               erinnerungText += ` (${b.erinnerung.intervallWert} Tage)`;
-                          }
+                           if(b.erinnerung.intervallTyp === 'tage' && b.erinnerung.intervallWert) {
+                                erinnerungText += ` (${b.erinnerung.intervallWert} Tage)`;
+                           }
                     }
                     beschreibungErinnerungHtml = `<div class="beschreibung-erinnerung-info">${erinnerungText}</div>`;
                 } else if (b.erinnerung && !b.erinnerung.aktiv && b.erinnerung.termin) {
@@ -787,7 +928,7 @@ async function handleBeschreibungAnhangUpload(event) {
     zeigeWarnung(`Lade ${files.length} Datei(en) für Beschreibung hoch...`, 'info');
 
     let neueAnhaenge = [];
-    if (accessToken) {
+    if (currentLoginType === 'microsoft' && accessToken) {
         try {
             neueAnhaenge = await Promise.all(Array.from(files).map(async f => {
                 const link = await uploadToOneDrive(f);
@@ -799,6 +940,9 @@ async function handleBeschreibungAnhangUpload(event) {
             return;
         }
     } else {
+        if (currentLoginType === 'github') {
+            zeigeWarnung("Dateianhänge sind nur mit Microsoft-Login möglich. Dateien werden lokal vermerkt.", "info");
+        }
         neueAnhaenge = Array.from(files).map(f => ({
             id: generateUUID(), name: f.name, link: null, type: f.type
         }));
@@ -1089,7 +1233,7 @@ function toggleErinnerungVorabDetails() {
 /* --- END BLOCK 5d --- */
 /* --- START BLOCK 6 (MODIFIZIERT) --- */
 function getFormattedDate(timestamp) { if (timestamp) { let ts = timestamp; if (typeof ts === 'string' && ts.includes('_')) { ts = ts.split('_')[0]; } try { const d = new Date(ts); if (!isNaN(d.getTime())) { return d.toLocaleString("de-DE", { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }); } } catch (e) { } } return 'N/A'; }
-function getExportIdeen() { let resultIdeen = []; try { let ideen = []; try { ideen = JSON.parse(localStorage.getItem("ideen") || "[]"); if (!Array.isArray(ideen)) { ideen = []; localStorage.setItem("ideen", "[]"); } } catch (e) { localStorage.removeItem("ideen"); ideen = []; } const aktuellAusgewaehlteCheckboxes = Array.from(document.querySelectorAll('.idee-checkbox:checked')); let aktuellAusgewaehlteIDs = []; if (aktuellAusgewaehlteCheckboxes.length > 0) { aktuellAusgewaehlteIDs = aktuellAusgewaehlteCheckboxes.map(cb => { try { let parentIdeeDiv = cb.closest('.idee'); if (parentIdeeDiv) { const buttonsMitId = parentIdeeDiv.querySelectorAll('button[onclick*="loescheIdee("], button[onclick*="bearbeiteIdee("], button[onclick*="toggleErledigt("]'); for(let btn of buttonsMitId) { if (btn.onclick) { const match = btn.onclick.toString().match(/\('([^']+)'\)/); if (match && match[1]) return match[1]; } } } } catch (e) { } return null; }).filter(id => id !== null); if (aktuellAusgewaehlteIDs.length > 0) { resultIdeen = ideen.filter(i => i && i.id && aktuellAusgewaehlteIDs.includes(i.id)); } else { resultIdeen = []; } } else { let fIdeen = [...ideen.filter(i=>i&&i.id)]; const fKat = document.getElementById("filterKategorie")?.value; if (fKat) fIdeen = fIdeen.filter(i => i.kategorie === fKat); const fMdt = document.getElementById("filterMandant")?.value; if (fMdt) fIdeen = fIdeen.filter(i => (i.mandantennummer || "").toLowerCase() === fMdt.toLowerCase()); const fUser = document.getElementById("filterBenutzer")?.value; if (fUser) fIdeen = fIdeen.filter(i => (i.benutzer || "").toLowerCase() === fUser.toLowerCase()); const fArchiv = document.getElementById("filterArchiv")?.value; if (fArchiv === "nicht_erledigt") fIdeen = fIdeen.filter(i => !(i.erledigt || false)); else if (fArchiv === "erledigt") fIdeen = fIdeen.filter(i => (i.erledigt || false)); const sort=document.getElementById("sortierung")?.value; if(sort && sort!=="standard"){ fIdeen.sort((a,b)=>{ if (!a || !b) return 0; if(sort==="prio"){ const p={"Hoch":3,"Mittel":2,"Niedrig":1}; return(p[b.prioritaet]||0)-(p[a.prioritaet]||0); } let tA=-Infinity,tB=-Infinity; try{tA=new Date(a.timestamp?.split('_')[0]).getTime();if(isNaN(tA))tA=(sort==="neu"?-Infinity:Infinity)}catch(e){tA=(sort==="neu"?-Infinity:Infinity)} try{tB=new Date(b.timestamp?.split('_')[0]).getTime();if(isNaN(tB))tB=(sort==="neu"?-Infinity:Infinity)}catch(e){tB=(sort==="neu"?-Infinity:Infinity)} if(sort==="neu")return tB-tA; if(sort==="alt")return tA-tB; return 0; }); } resultIdeen = fIdeen; } } catch (error) { resultIdeen = []; } if (!Array.isArray(resultIdeen)) { return []; } return resultIdeen; }
+function getExportIdeen() { let resultIdeen = []; try { let ideen = []; try { ideen = JSON.parse(localStorage.getItem("ideen") || "[]"); if (!Array.isArray(ideen)) { ideen = []; localStorage.setItem("ideen", "[]"); } } catch (e) { localStorage.removeItem("ideen"); ideen = []; } const aktuellAusgewaehlteCheckboxes = Array.from(document.querySelectorAll('.idee-checkbox:checked')); let aktuellAusgewaehlteIDs = []; if (aktuellAusgewaehlteCheckboxes.length > 0) { aktuellAusgewaehlteIDs = aktuellAusgewaehlteCheckboxes.map(cb => { try { let parentIdeeDiv = cb.closest('.idee'); if (parentIdeeDiv) { return parentIdeeDiv.dataset.ideeId; } } catch (e) { } return null; }).filter(id => id !== null); if (aktuellAusgewaehlteIDs.length > 0) { resultIdeen = ideen.filter(i => i && i.id && aktuellAusgewaehlteIDs.includes(i.id)); } else { resultIdeen = []; } } else { let fIdeen = [...ideen.filter(i=>i&&i.id)]; const fKat = document.getElementById("filterKategorie")?.value; if (fKat) fIdeen = fIdeen.filter(i => i.kategorie === fKat); const fMdt = document.getElementById("filterMandant")?.value; if (fMdt) fIdeen = fIdeen.filter(i => (i.mandantennummer || "").toLowerCase() === fMdt.toLowerCase()); const fUser = document.getElementById("filterBenutzer")?.value; if (fUser) fIdeen = fIdeen.filter(i => (i.benutzer || "").toLowerCase() === fUser.toLowerCase()); const fArchiv = document.getElementById("filterArchiv")?.value; if (fArchiv === "nicht_erledigt") fIdeen = fIdeen.filter(i => !(i.erledigt || false)); else if (fArchiv === "erledigt") fIdeen = fIdeen.filter(i => (i.erledigt || false)); const sort=document.getElementById("sortierung")?.value; if(sort && sort!=="standard"){ fIdeen.sort((a,b)=>{ if (!a || !b) return 0; if(sort==="prio"){ const p={"Hoch":3,"Mittel":2,"Niedrig":1}; return(p[b.prioritaet]||0)-(p[a.prioritaet]||0); } let tA=-Infinity,tB=-Infinity; try{tA=new Date(a.timestamp?.split('_')[0]).getTime();if(isNaN(tA))tA=(sort==="neu"?-Infinity:Infinity)}catch(e){tA=(sort==="neu"?-Infinity:Infinity)} try{tB=new Date(b.timestamp?.split('_')[0]).getTime();if(isNaN(tB))tB=(sort==="neu"?-Infinity:Infinity)}catch(e){tB=(sort==="neu"?-Infinity:Infinity)} if(sort==="neu")return tB-tA; if(sort==="alt")return tA-tB; return 0; }); } resultIdeen = fIdeen; } } catch (error) { resultIdeen = []; } if (!Array.isArray(resultIdeen)) { return []; } return resultIdeen; }
 
 function formatErinnerungForExport(erinnerung) {
     if (!erinnerung || !erinnerung.termin) return "";
@@ -1136,7 +1280,7 @@ function exportiereAlsText() {
                       textContent += `${indentSpaces}- [${getFormattedDate(b.timestamp)}] ${praefix}${b.text}\n`;
                       if (b.attachments && b.attachments.length > 0) {
                           b.attachments.forEach(anhang => {
-                              textContent += `${indentSpaces}   -> Anhang: ${anhang.name} ${anhang.link ? `(${anhang.link})` : '(Lokal)'}\n`;
+                              textContent += `${indentSpaces}    -> Anhang: ${anhang.name} ${anhang.link ? `(${anhang.link})` : '(Lokal)'}\n`;
                           });
                       }
                       if (b.erinnerung && b.erinnerung.termin) {
@@ -1307,7 +1451,7 @@ function exportiereAlsPDF(fileName = "ideen-export.pdf") {
                     if(b.attachments && b.attachments.length > 0) {
                         checkAddPage(defaultLineSpacing);
                         b.attachments.forEach(anhang => {
-                            const anhangText = `   -> ${anhang.name}`;
+                            const anhangText = `    -> ${anhang.name}`;
                             const anhangColor = anhang.link ? [0, 0, 238] : [0,0,0];
                             addWrappedText(anhangText, startX + 5, maxWidth - 5, {fontSize: 9, color: anhangColor, lineHeight: 4, link: anhang.link});
                         });
@@ -1487,24 +1631,24 @@ async function teilePerWhatsApp(){
          let datumTextWA = getFormattedDate(idee.timestamp);
          let hauptBeschreibungTextWA = idee.details ? `\n📝 *Beschreibung:*\n${idee.details}\n` : "";
          const beschreibungenText = idee.beschreibungen && idee.beschreibungen.length ?
-               `\n*Weitere Beschreibungen:*\n${
-                     idee.beschreibungen.filter(b => b && b.text !== undefined).map(b => {
-                         const indentSpacesWA = "  ".repeat(b.level || 0);
-                         const praefix = b.sichtbar === false ? "[Ausgeblendet] " : "";
-                         let anhangTextWA = "";
-                         if(b.attachments && b.attachments.length > 0) {
-                             anhangTextWA = "\n" + b.attachments.map(anhang => {
-                                 return `${indentSpacesWA}   -> Anhang: ${anhang.name} ${anhang.link ? `(${anhang.link})` : ''}`;
-                             }).join("\n");
-                         }
-                         let erinnerungTextBWA = "";
-                         if(b.erinnerung && b.erinnerung.termin) {
-                             erinnerungTextBWA = `\n${indentSpacesWA}  🔔 _Erinnerung: ${getFormattedDate(b.erinnerung.termin)} (${b.erinnerung.intervallTyp})_`
-                         }
+              `\n*Weitere Beschreibungen:*\n${
+                   idee.beschreibungen.filter(b => b && b.text !== undefined).map(b => {
+                       const indentSpacesWA = "  ".repeat(b.level || 0);
+                       const praefix = b.sichtbar === false ? "[Ausgeblendet] " : "";
+                       let anhangTextWA = "";
+                       if(b.attachments && b.attachments.length > 0) {
+                           anhangTextWA = "\n" + b.attachments.map(anhang => {
+                               return `${indentSpacesWA}    -> Anhang: ${anhang.name} ${anhang.link ? `(${anhang.link})` : ''}`;
+                           }).join("\n");
+                       }
+                       let erinnerungTextBWA = "";
+                       if(b.erinnerung && b.erinnerung.termin) {
+                           erinnerungTextBWA = `\n${indentSpacesWA}  🔔 _Erinnerung: ${getFormattedDate(b.erinnerung.termin)} (${b.erinnerung.intervallTyp})_`
+                       }
 
-                         return `${indentSpacesWA}  - _[${getFormattedDate(b.timestamp)}]_ ${praefix}${b.text}${anhangTextWA}${erinnerungTextBWA}`;
-                     }).join("\n")
-               }` : "";
+                       return `${indentSpacesWA}  - _[${getFormattedDate(b.timestamp)}]_ ${praefix}${b.text}${anhangTextWA}${erinnerungTextBWA}`;
+                   }).join("\n")
+              }` : "";
         let anhaengeTextForWhatsApp = "\n📎 Anhänge: Keine";
         if (idee.dateien && idee.dateien.length > 0) {
             anhaengeTextForWhatsApp = `\n📎 *Anhänge:*\n${idee.dateien.filter(f => f && f.id).map(f => {
@@ -1520,11 +1664,11 @@ async function teilePerWhatsApp(){
         }
 
         return ( `${idee.erledigt ? '_[ERLEDIGT]_ ' : ''}*${idee.vorgangsnummer ? `[Vorgang ${idee.vorgangsnummer}] ` : ''}${idee.text || 'Ohne Titel'}*\n` +
-                     `📁 Kat.: ${idee.kategorie||'-'}\n` + `${idee.benutzer?`🧑‍💻 Zust.: ${idee.benutzer}\n`:""}` + `🔖 Prio: ${idee.prioritaet||"-"}\n` + `📅 ${datumTextWA}\n` +
-                     `${hauptBeschreibungTextWA}` +
-                     `${idee.mandantennummer?`🏢 Mandant: ${idee.mandantennummer}\n`:""}` + `${idee.firmenname?`🏭 Firma: ${idee.firmenname}\n`:""}` +
-                     `${erinnerungTextWA}` +
-                     `${beschreibungenText}` + `${anhaengeTextForWhatsApp}` );
+                        `📁 Kat.: ${idee.kategorie||'-'}\n` + `${idee.benutzer?`🧑‍💻 Zust.: ${idee.benutzer}\n`:""}` + `🔖 Prio: ${idee.prioritaet||"-"}\n` + `📅 ${datumTextWA}\n` +
+                        `${hauptBeschreibungTextWA}` +
+                        `${idee.mandantennummer?`🏢 Mandant: ${idee.mandantennummer}\n`:""}` + `${idee.firmenname?`🏭 Firma: ${idee.firmenname}\n`:""}` +
+                        `${erinnerungTextWA}` +
+                        `${beschreibungenText}` + `${anhaengeTextForWhatsApp}` );
     }).filter(s => s !== "").join("\n\n------------------------------------\n\n");
 
     const exportTimestamp = new Date().toLocaleString("de-DE"); const weitergeleitetText = `\n\n_[Notiz(en) markiert als: Weitergeleitet an ${recipientInfo} am ${exportTimestamp}]_`; text += weitergeleitetText; const waLink = `https://wa.me/?text=${encodeURIComponent(text)}`; try { const waWindow = window.open(waLink,"_blank"); if (!waWindow) { zeigeWarnung("WhatsApp konnte nicht geöffnet werden.", "warning"); } } catch (e) { console.error("WhatsApp Fehler:", e); zeigeWarnung("Fehler WhatsApp: " + e.message); }
@@ -1767,7 +1911,7 @@ async function kalenderTerminErstellenUndSpeichern() {
     localStorage.setItem("ideen", JSON.stringify(ideen));
     zeigeIdeen(); 
     if (typeof saveToOneDrive === "function") { 
-       await saveToOneDrive();
+      await saveToOneDrive();
     } else {
       console.warn("saveToOneDrive Funktion nicht gefunden, Überspringe OneDrive Sync für Terminvermerk.");
     }
@@ -1912,13 +2056,13 @@ function pruefeUndZeigeBenachrichtigungen() {
 }
 /* --- ENDE FUNKTIONEN FÜR BROWSER-BENACHRICHTIGUNGEN --- */
 /* --- START BLOCK 7: File & OneDrive --- */
-async function uploadToOneDrive(f){if(!accessToken){zeigeWarnung("Bitte zuerst mit Microsoft anmelden!");return null;}try{const n=`ideenapp/${Date.now()}_${f.name}`;const u=await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${n}:/content`,{method:"PUT",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":f.type},body:f});const d=await u.json();if(!u.ok){throw new Error(`OneDrive Upload Error ${u.status}: ${d?.error?.message||'Unknown'}`);}const s=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${d.id}/createLink`,{method:"POST",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":"application/json"},body:JSON.stringify({type:"view",scope:"anonymous"})});const j=await s.json();if(!s.ok){throw new Error(`OneDrive Link Error ${s.status}: ${j?.error?.message||'Unknown'}`);}return j.link.webUrl;}catch(e){console.error("OneDrive Upload/Link Fehler:",e);zeigeWarnung("OneDrive-Fehler: "+e.message);return null;}}
-async function saveToOneDrive(){ if(!accessToken){ return; } try { const ideen=JSON.parse(localStorage.getItem("ideen")||"[]"); const benutzer=JSON.parse(localStorage.getItem("benutzerliste")||"[]"); const kategorien=JSON.parse(localStorage.getItem("kategorien")||"[]"); const nummer=localStorage.getItem("naechsteVorgangsnummer")||"1"; const data={ideen,benutzerliste:benutzer,kategorien,naechsteVorgangsnummer:nummer}; const dataStr=JSON.stringify(data,null,2); const path=(document.getElementById("onedrivePath").value.trim()||"/ideenapp/ideen.json"); const finalPath=path.startsWith('/')?path:'/'+path; if(!finalPath||finalPath==='/'){zeigeWarnung("OneDrive Speichern: Ungültiger Pfad.");return;} const url=`https://graph.microsoft.com/v1.0/me/drive/root:${finalPath}:/content`; const res=await fetch(url,{method:"PUT",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":"application/json"},body:dataStr}); if(res.ok){istGespeichert=true;}else{const err=await res.json().catch(()=>null); const msg=err?.error?.message||res.statusText; zeigeWarnung(`OneDrive Speichern Fehler: ${msg}`);}}catch(e){zeigeWarnung("OneDrive Speichern Fehler: "+e.message);}}
+async function uploadToOneDrive(f){if(currentLoginType !== 'microsoft' || !accessToken){zeigeWarnung("Bitte zuerst mit Microsoft anmelden!");return null;}try{const n=`ideenapp/${Date.now()}_${f.name}`;const u=await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${n}:/content`,{method:"PUT",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":f.type},body:f});const d=await u.json();if(!u.ok){throw new Error(`OneDrive Upload Error ${u.status}: ${d?.error?.message||'Unknown'}`);}const s=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${d.id}/createLink`,{method:"POST",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":"application/json"},body:JSON.stringify({type:"view",scope:"anonymous"})});const j=await s.json();if(!s.ok){throw new Error(`OneDrive Link Error ${s.status}: ${j?.error?.message||'Unknown'}`);}return j.link.webUrl;}catch(e){console.error("OneDrive Upload/Link Fehler:",e);zeigeWarnung("OneDrive-Fehler: "+e.message);return null;}}
+async function saveToOneDrive(){ if(currentLoginType !== 'microsoft' || !accessToken){ return; } try { const ideen=JSON.parse(localStorage.getItem("ideen")||"[]"); const benutzer=JSON.parse(localStorage.getItem("benutzerliste")||"[]"); const kategorien=JSON.parse(localStorage.getItem("kategorien")||"[]"); const nummer=localStorage.getItem("naechsteVorgangsnummer")||"1"; const data={ideen,benutzerliste:benutzer,kategorien,naechsteVorgangsnummer:nummer}; const dataStr=JSON.stringify(data,null,2); const path=(document.getElementById("onedrivePath").value.trim()||"/ideenapp/ideen.json"); const finalPath=path.startsWith('/')?path:'/'+path; if(!finalPath||finalPath==='/'){zeigeWarnung("OneDrive Speichern: Ungültiger Pfad.");return;} const url=`https://graph.microsoft.com/v1.0/me/drive/root:${finalPath}:/content`; const res=await fetch(url,{method:"PUT",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":"application/json"},body:dataStr}); if(res.ok){istGespeichert=true;}else{const err=await res.json().catch(()=>null); const msg=err?.error?.message||res.statusText; zeigeWarnung(`OneDrive Speichern Fehler: ${msg}`);}}catch(e){zeigeWarnung("OneDrive Speichern Fehler: "+e.message);}}
 
 async function loadFromOneDrive(){ 
-    if(!accessToken){ 
-        const ok=await handleLogin(); 
-        if(!ok||!accessToken){return;} 
+    if(currentLoginType !== 'microsoft' || !accessToken){ 
+        const ok=await handleMicrosoftLogin(); 
+        if(!ok || !accessToken){return;} 
     } 
     const path=(document.getElementById("onedrivePath").value.trim()||"/ideenapp/ideen.json"); 
     const finalPath=path.startsWith('/')?path:'/'+path; 
@@ -2131,11 +2275,22 @@ document.addEventListener('DOMContentLoaded', () => {
         initialisiereKategorien();
         initialisiereBenutzer();
         initialisiereVorgangsnummer();
-        ensureIdeasHaveIds(); // Stellt die Datenintegrität sicher
+        ensureIdeasHaveIds(); 
         aktualisiereMandantenFilterDropdown();
         zeigeIdeen();
         initialisiereUndStarteBenachrichtigungspruefung();
-        pruebeLoginHinweis(); // Initialer Check, ob der User angemeldet sein sollte
+
+        // GitHub Callback-Handling
+        const urlParams = new URLSearchParams(window.location.search);
+        const githubCode = urlParams.get('code');
+        if (githubCode) {
+            handleGithubCallback(githubCode);
+        } else {
+             // Initialer Zustand der Buttons, wenn kein Login-Prozess läuft
+            updateButtonVisibility(null);
+        }
+
+        pruebeLoginHinweis(); 
     } catch (initError) {
         console.error("Fehler während der Initialisierung:", initError);
         zeigeWarnung("Ein Fehler ist beim Starten der App aufgetreten.", "warnung");
