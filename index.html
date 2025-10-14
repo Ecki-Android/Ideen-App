@@ -12,6 +12,7 @@ input,select,textarea{margin-top:10px;padding:10px;font-size:1em;width:400px;max
 textarea{min-height:60px;}
 button{padding:10px 18px;font-size:1em;margin-top:10px;margin-right:8px;border-radius:4px;border:1px solid #bbb;background:#eee;cursor:pointer;width:auto;min-width:44px;display:inline-block;}
 button:disabled { cursor: not-allowed; opacity: 0.6; }
+input:disabled, textarea:disabled, select:disabled { background-color: #f0f0f0; }
 .buttons,.top-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;}
 .filter-bar{margin:20px 0;}
 .filter-bar label, .filter-bar select,.filter-bar input{width:auto;display:inline-block;margin-right:10px;margin-top:0;}
@@ -37,6 +38,7 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
 #warnung.warnung{ color:#d32f2f; border: 1px solid #d32f2f; background-color: #ffe0e0; }
 #warnung.success-message { color: #388e3c; border: 1px solid #388e3c; background-color: #e8f5e9; }
 #warnung.info-message { color: #1a73e8; border: 1px solid #1a73e8; background-color: #e8f0fe; }
+#sessionExpiredWarning { display: none; background-color: #fff3cd; color: #856404; padding: 15px; margin: 10px 0; border: 1px solid #ffeeba; border-radius: 4px; text-align: center; }
 .beschreibung-item .edit-beschreibung-btn, .beschreibung-item .add-anhang-beschreibung-btn { padding: 3px 6px; font-size: 0.8em; margin-top: 0; min-width: auto; width: auto; height: 24px; line-height: 1; display: flex; align-items: center; justify-content: center; }
 .top-actions .onedrive-btn { background: #0078d4; color: white; border-color: #005a9e; }
 .anhang-veraltet { opacity: 0.7; }
@@ -88,7 +90,9 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
 
 <div class="app-container">
     <h1>Ideen-App Pro <span id="loggedInUser" style="display:none; font-size: 0.6em; font-weight: normal; color: #555;"></span></h1>
-    <div id="warnung"></div> <div id="loginHinweis" class="warnung" style="display:none;">Anmeldung erforderlich: Bitte melden Sie sich an, um Cloud-Funktionen wie Synchronisation und Dateianhänge zu nutzen.</div>
+    <div id="warnung"></div>
+    <div id="sessionExpiredWarning">Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an, um Datenverlust zu vermeiden.</div>
+    <div id="loginHinweis" class="warnung" style="display:none;">Anmeldung erforderlich: Bitte melden Sie sich an, um Cloud-Funktionen wie Synchronisation und Dateianhänge zu nutzen.</div>
 
     <div id="vorgangsnummerAnzeigeInput">Nächste Vorgangsnummer: <span id="naechsteNummerAnzeige">1</span></div>
     <input type="text" id="ideeText" placeholder="Titel*" />
@@ -234,6 +238,7 @@ let terminFuerId = null;
 let anhangFuerBeschreibungZiel = { ideeId: null, timestamp: null };
 let whitelist = [];
 let currentLoginType = null; // 'microsoft' or 'github'
+let tokenCheckIntervalId = null; // Für den "Wachhund"
 
 const standardKategorien=["Aufgaben","Projekte","Privat","Arbeit","Später"];
 let kategorien=[];
@@ -243,7 +248,7 @@ let filterBenutzerValue="";
 let naechsteVorgangsnummer=1;
 let benachrichtigungsIntervallId = null;
 
-// --- NEU: Debounce-Funktion für automatisches Speichern ---
+// --- Debounce-Funktion für automatisches Speichern ---
 let debounceTimer;
 function triggerAutoSave() {
     istGespeichert = false;
@@ -267,20 +272,76 @@ function updateButtonVisibility(userEmail = null) {
     const isLoggedIn = !!userEmail;
     const isAdmin = isLoggedIn && (userEmail.toLowerCase() === adminEmail.toLowerCase());
 
-    // Anmelde-Buttons nur zeigen, wenn ausgeloggt
     microsoftLoginBtn.style.display = isLoggedIn ? 'none' : 'inline-block';
     githubLoginBtn.style.display = isLoggedIn ? 'none' : 'inline-block';
-    
-    // Abmelde-Button nur zeigen, wenn eingeloggt
     logoutBtn.style.display = isLoggedIn ? 'inline-block' : 'none';
-    
-    // Admin-Button nur für den Admin
     adminBtn.style.display = isAdmin ? 'inline-block' : 'none';
 }
 
+// --- NEU: Funktionen zur Behandlung abgelaufener Sitzungen ---
+function handleExpiredSession() {
+    console.warn("Sitzung ist abgelaufen. Benutzer muss sich erneut anmelden.");
+    accessToken = null;
+    currentLoginType = null;
+    aktuellerBenutzerName = null;
 
-// --- GITHUB LOGIN FUNKTIONEN (ANGEPASST FÜR ANTRAGS-SYSTEM) ---
+    // UI aktualisieren, um den abgelaufenen Zustand anzuzeigen
+    document.getElementById('sessionExpiredWarning').style.display = 'block';
+    updateButtonVisibility(null); // Zeigt Anmelde-Buttons an
+    document.getElementById('logoutBtn').style.display = 'none';
+    document.getElementById('loggedInUser').style.display = 'none';
+    
+    // Eingabefelder und Speicher-Button deaktivieren, um Datenverlust zu verhindern
+    const inputFields = ['ideeText', 'ideeDetails', 'mandantennummer', 'firmenname', 'neueKategorie', 'neuerBenutzer', 'dateien', 'speichernBtn'];
+    inputFields.forEach(id => document.getElementById(id).setAttribute('disabled', 'true'));
+    
+    // Interval-Prüfung stoppen, da die Sitzung abgelaufen ist
+    if (tokenCheckIntervalId) {
+        clearInterval(tokenCheckIntervalId);
+        tokenCheckIntervalId = null;
+    }
+}
 
+function restoreSessionUI() {
+    document.getElementById('sessionExpiredWarning').style.display = 'none';
+    const inputFields = ['ideeText', 'ideeDetails', 'mandantennummer', 'firmenname', 'neueKategorie', 'neuerBenutzer', 'dateien', 'speichernBtn'];
+    inputFields.forEach(id => document.getElementById(id).removeAttribute('disabled'));
+}
+
+// --- NEU: Intelligente Token-Prüfung ---
+async function pruefeUndErneuereToken() {
+    if (currentLoginType !== 'microsoft' || !msalInstance) {
+        return true; // Kein Microsoft-Login, also nichts zu tun
+    }
+
+    const account = msalInstance.getActiveAccount();
+    if (!account) {
+        handleExpiredSession();
+        return false;
+    }
+    
+    try {
+        const tokenResponse = await msalInstance.acquireTokenSilent({
+            scopes: ["Files.ReadWrite", "User.Read"],
+            account: account
+        });
+        accessToken = tokenResponse.accessToken;
+        console.log("Token still erneuert.");
+        return true;
+    } catch (error) {
+        // Dieser Fehler bedeutet, dass eine erneute Interaktion (Login) erforderlich ist
+        if (error instanceof msal.InteractionRequiredAuthError) {
+            handleExpiredSession();
+            return false;
+        } else {
+            console.error("Fehler beim stillen Erneuern des Tokens:", error);
+            zeigeWarnung("Ein Authentifizierungsfehler ist aufgetreten.", "warnung");
+            return false;
+        }
+    }
+}
+
+// --- GITHUB LOGIN FUNKTIONEN ---
 function handleGithubLogin() {
     if (!githubClientId || githubClientId.includes("IHRE")) {
         zeigeWarnung("GitHub Client ID ist nicht konfiguriert.", "warnung");
@@ -292,9 +353,7 @@ function handleGithubLogin() {
 }
 
 async function handleGithubCallback(code) {
-    // URL nach der Verarbeitung bereinigen
     window.history.replaceState({}, document.title, window.location.pathname);
-
     if (!tokenProxyUrl || tokenProxyUrl.includes("IHRE")) {
         zeigeWarnung("Der GitHub Token-Proxy ist nicht konfiguriert.", "warnung");
         return;
@@ -307,63 +366,41 @@ async function handleGithubCallback(code) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ code: code })
         });
-
         const data = await response.json();
-
-        if (!response.ok || data.error) {
-            throw new Error(data.error_description || data.error || "Unbekannter Fehler beim Token-Austausch.");
-        }
-        
+        if (!response.ok || data.error) throw new Error(data.error_description || data.error || "Unbekannter Fehler beim Token-Austausch.");
         githubAccessToken = data.access_token;
-        if (!githubAccessToken) {
-            throw new Error("Kein Access Token von GitHub erhalten.");
-        }
+        if (!githubAccessToken) throw new Error("Kein Access Token von GitHub erhalten.");
 
-        // Benutzerdaten und E-Mail von GitHub abrufen
         const [userResponse, emailsResponse] = await Promise.all([
              fetch('https://api.github.com/user', { headers: { 'Authorization': `token ${githubAccessToken}` } }),
              fetch('https://api.github.com/user/emails', { headers: { 'Authorization': `token ${githubAccessToken}` } })
         ]);
-
-        if (!userResponse.ok || !emailsResponse.ok) {
-            throw new Error("Fehler beim Abrufen der GitHub Benutzerdaten.");
-        }
+        if (!userResponse.ok || !emailsResponse.ok) throw new Error("Fehler beim Abrufen der GitHub Benutzerdaten.");
 
         const userData = await userResponse.json();
         const emailsData = await emailsResponse.json();
-        
         const primaryEmail = emailsData.find(email => email.primary && email.verified);
-        if (!primaryEmail) {
-             throw new Error("Keine verifizierte primäre E-Mail-Adresse im GitHub-Konto gefunden.");
-        }
+        if (!primaryEmail) throw new Error("Keine verifizierte primäre E-Mail-Adresse im GitHub-Konto gefunden.");
+        
         const userEmail = primaryEmail.email.toLowerCase();
-
-        // --- NEUE LOGIK: PRÜFEN UND ANTRAG STELLEN ---
         const isAllowed = await checkUserAccess(userEmail);
+        
         if (isAllowed) {
-            // Benutzer ist berechtigt -> Normaler Login
             currentLoginType = 'github';
-            // NEU: Benutzernamen speichern
             aktuellerBenutzerName = userData.name || userData.login;
+            restoreSessionUI();
             updateLoggedInUI(aktuellerBenutzerName, userEmail);
             updateButtonVisibility(userEmail);
             zeigeWarnung("Erfolgreich mit GitHub angemeldet!", 'success');
         } else {
-            // Benutzer ist NICHT berechtigt -> Antrags-Prozess
             promptForAccessRequest(userData.name || userData.login, userEmail);
-            // Wichtig: Token nicht speichern und UI nicht als eingeloggt anzeigen
-            githubAccessToken = null;
-            currentLoginType = null;
-            aktuellerBenutzerName = null;
+            githubAccessToken = null; currentLoginType = null; aktuellerBenutzerName = null;
             updateButtonVisibility(null);
         }
-
     } catch (e) {
         zeigeWarnung("GitHub Login fehlgeschlagen: " + e.message, "warnung");
         console.error("GitHub Callback-Fehler:", e);
-        githubAccessToken = null;
-        currentLoginType = null;
-        aktuellerBenutzerName = null;
+        githubAccessToken = null; currentLoginType = null; aktuellerBenutzerName = null;
         updateButtonVisibility(null);
     } finally {
         pruebeLoginHinweis();
@@ -372,23 +409,17 @@ async function handleGithubCallback(code) {
 
 function promptForAccessRequest(userName, userEmail) {
     const message = `Hallo ${userName},\n\nIhre E-Mail-Adresse "${userEmail}" ist noch nicht für die Nutzung dieser App freigeschaltet.\n\nMöchten Sie jetzt eine Zugriffsanfrage an den Administrator senden?`;
-    
     if (confirm(message)) {
         const subject = "Zugriffsanfrage für Ideen-App Pro";
         const body = `Hallo,\n\nbitte schalten Sie den folgenden Benutzer für die Ideen-App Pro frei:\n\nName: ${userName}\nE-Mail: ${userEmail}\n\nDiese E-Mail wurde automatisch generiert. Bitte fügen Sie die E-Mail-Adresse zur userlist.json hinzu.\n\nVielen Dank!`;
-        const mailtoLink = `mailto:${adminEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-        
-        window.location.href = mailtoLink;
-        
+        window.location.href = `mailto:${adminEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
         zeigeWarnung("Ihr E-Mail-Programm wird geöffnet, um die Anfrage zu senden.", "info");
     } else {
         zeigeWarnung("Zugriffsanfrage abgebrochen.", "info");
     }
 }
 
-
-// --- MICROSOFT LOGIN FUNKTION (Bleibt unverändert, harter Check) ---
-
+// --- MICROSOFT LOGIN FUNKTION ---
 async function handleMicrosoftLogin() {
     try {
         if (!msalInstance) {
@@ -399,37 +430,34 @@ async function handleMicrosoftLogin() {
             prompt: 'select_account' 
         };
         const loginResponse = await msalInstance.loginPopup(loginRequest);
-        
         const account = loginResponse.account;
         const userEmail = account.username.toLowerCase();
         
         const isAllowed = await checkUserAccess(userEmail);
         if (!isAllowed) {
-            blockAppAccess(); // Hier bleibt der harte Block, da kein Antragssystem vorgesehen ist.
+            blockAppAccess();
             return false;
         }
         
         const tokenResponse = await msalInstance.acquireTokenSilent({ scopes: ["Files.ReadWrite", "User.Read"], account: account });
         accessToken = tokenResponse.accessToken;
         currentLoginType = 'microsoft';
-        
-        // NEU: Benutzernamen speichern
         aktuellerBenutzerName = account.name;
         
+        restoreSessionUI();
         updateLoggedInUI(account.name, userEmail);
-        updateButtonVisibility(userEmail); 
+        updateButtonVisibility(userEmail);
         
-        await loadFromOneDrive(); 
-        return true;
+        // Starte den "Wachhund" nach erfolgreichem Login
+        if (tokenCheckIntervalId) clearInterval(tokenCheckIntervalId);
+        tokenCheckIntervalId = setInterval(pruefeUndErneuereToken, 10 * 60 * 1000); // alle 10 Minuten
 
+        await loadFromOneDrive(true); // forceLoad=true
+        return true;
     } catch (e) {
         zeigeWarnung("Microsoft Login fehlgeschlagen: " + e.message, "warnung");
         console.error("Login-Fehler:", e);
-        accessToken = null;
-        msalInstance = null;
-        currentLoginType = null;
-        aktuellerBenutzerName = null;
-        updateButtonVisibility(null); 
+        handleExpiredSession();
         return false;
     } finally {
         pruebeLoginHinweis();
@@ -437,49 +465,30 @@ async function handleMicrosoftLogin() {
 }
 
 // --- HILFSFUNKTIONEN FÜR LOGIN ---
-
 function updateLoggedInUI(displayName, userEmail) {
     const userDisplay = document.getElementById('loggedInUser');
     const userIdentifier = displayName ? `${displayName} (${userEmail})` : userEmail;
     userDisplay.textContent = `(Angemeldet als: ${userIdentifier})`;
     userDisplay.style.display = 'inline';
-
     document.querySelector('.app-container').classList.remove('hidden');
     document.getElementById('accessDeniedMessage').style.display = 'none';
 }
 
 async function checkUserAccess(userEmail) {
-    if (userEmail.toLowerCase() === adminEmail.toLowerCase()) {
-        return true;
-    }
-    console.log(`Prüfe Zugriff für: ${userEmail}`);
-
+    if (userEmail.toLowerCase() === adminEmail.toLowerCase()) return true;
     if (!whitelistUrl || whitelistUrl.includes("IHR-NAME")) {
-        console.warn("Whitelist-URL ist nicht konfiguriert.");
         zeigeWarnung("Fehler: Der Link zur Benutzerliste ist nicht konfiguriert.", "warnung");
         return false;
     }
-
     try {
         const response = await fetch(whitelistUrl, { cache: 'no-store' });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! Status: ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
         const userList = await response.json();
         whitelist = userList.map(email => email.toLowerCase());
-        
         return whitelist.includes(userEmail.toLowerCase());
-
     } catch (error) {
         console.error("Fehler beim Prüfen der Zugriffsberechtigung:", error);
-        if (error instanceof TypeError) {
-             zeigeWarnung("Zugriffs-Fehler: Der Link zur Benutzerliste wird vom Browser blockiert (CORS-Problem). Bitte verwenden Sie einen direkten Link (z.B. von GitHub Raw).", "warnung");
-        } else if (error.message.includes('HTTP error')) {
-             zeigeWarnung(`Zugriffs-Fehler: Die Benutzerliste konnte nicht geladen werden (${error.message}). Ist der Link korrekt und öffentlich?`, "warnung");
-        } else {
-             zeigeWarnung("Fehler beim Prüfen der Zugriffsberechtigung. Prüfen Sie die Browser-Konsole für Details.", "warnung");
-        }
+        zeigeWarnung("Fehler beim Prüfen der Zugriffsberechtigung. Prüfen Sie die Konsole.", "warnung");
         return false;
     }
 }
@@ -487,62 +496,42 @@ async function checkUserAccess(userEmail) {
 function blockAppAccess() {
     document.querySelector('.app-container').classList.add('hidden');
     document.getElementById('accessDeniedMessage').style.display = 'block';
-    accessToken = null;
-    githubAccessToken = null;
-    currentLoginType = null;
-    aktuellerBenutzerName = null;
+    accessToken = null; githubAccessToken = null; currentLoginType = null; aktuellerBenutzerName = null;
     updateButtonVisibility(null);
 }
 
 async function handleLogout() {
     let confirmMessage = "Wirklich abmelden?";
-
-    if (currentLoginType === 'microsoft' && msalInstance) {
-        const accountToLogout = msalInstance.getActiveAccount();
-        if (accountToLogout) {
-             confirmMessage = `Vom Microsoft-Konto "${accountToLogout.username}" abmelden?`;
-        }
+    if (currentLoginType === 'microsoft' && msalInstance?.getActiveAccount()) {
+        confirmMessage = `Vom Microsoft-Konto "${msalInstance.getActiveAccount().username}" abmelden?`;
     } else if (currentLoginType === 'github') {
         confirmMessage = "Vom GitHub-Konto abmelden?";
     }
 
-    if (!istGespeichert) {
-        if (!confirm(confirmMessage + "\n\nEs gibt ungespeicherte Änderungen, die verloren gehen! Trotzdem fortfahren?")) {
-            return;
-        }
-    } else {
-        if (!confirm(confirmMessage)) {
-            return;
-        }
+    const confirmationPrompt = !istGespeichert ? confirmMessage + "\n\nEs gibt ungespeicherte Änderungen, die verloren gehen! Trotzdem fortfahren?" : confirmMessage;
+    if (!confirm(confirmationPrompt)) return;
+    
+    if (tokenCheckIntervalId) {
+        clearInterval(tokenCheckIntervalId);
+        tokenCheckIntervalId = null;
     }
-
-    if (currentLoginType === 'microsoft' && msalInstance) {
+    
+    if (currentLoginType === 'microsoft' && msalInstance?.getActiveAccount()) {
         try {
-            const accountToLogout = msalInstance.getActiveAccount();
-            if (accountToLogout) {
-                await msalInstance.logoutPopup({ account: accountToLogout });
-            }
+            await msalInstance.logoutPopup({ account: msalInstance.getActiveAccount() });
         } catch (e) {
             console.error("Microsoft Abmeldung fehlgeschlagen:", e);
         }
     }
-
-    accessToken = null;
-    githubAccessToken = null;
-    msalInstance = null;
-    currentLoginType = null;
-    // NEU: Benutzernamen beim Abmelden zurücksetzen
-    aktuellerBenutzerName = null;
+    
+    accessToken = null; githubAccessToken = null; msalInstance = null; currentLoginType = null; aktuellerBenutzerName = null;
     istGespeichert = true;
     
-    document.getElementById('loggedInUser').textContent = '';
     document.getElementById('loggedInUser').style.display = 'none';
     updateButtonVisibility(null);
+    restoreSessionUI();
     
-    localStorage.removeItem("ideen");
-    localStorage.removeItem("kategorien");
-    localStorage.removeItem("benutzerliste");
-    localStorage.removeItem("naechsteVorgangsnummer");
+    localStorage.clear();
     
     initialisiereKategorien();
     initialisiereBenutzer();
@@ -553,10 +542,8 @@ async function handleLogout() {
     zeigeWarnung("Erfolgreich abgemeldet.", 'success');
 }
 
-
 function zeigeWarnung(msg,type='warning'){const w=document.getElementById("warnung");w.textContent=msg;w.style.display="block";w.className="";if(type==='success')w.classList.add('success-message');else if(type==='info')w.classList.add('info-message');else w.classList.add('warnung');setTimeout(()=>w.style.display="none",6e3)}
 
-// --- Admin Panel Funktionen ---
 function showAdminPanel() {
     try {
         const password = prompt("Bitte geben Sie das Administrator-Passwort ein:");
@@ -647,6 +634,10 @@ function filterNachBenutzer(){filterBenutzerValue=document.getElementById("filte
 function setzePrioritaet(p){prioritaet=p;["prioHoch","prioMittel","prioNiedrig"].forEach(id=>document.getElementById(id).classList.remove("selected"));if(p)document.getElementById(`prio${p}`).classList.add("selected");triggerAutoSave();}
 
 async function speichereIdee() {
+    if (currentLoginType === 'microsoft') {
+        const isTokenValid = await pruefeUndErneuereToken();
+        if (!isTokenValid) return;
+    }
     const text = document.getElementById("ideeText").value.trim();
     if (!text) return zeigeWarnung("Titel ist erforderlich!");
 
@@ -745,7 +736,6 @@ function saveIdeeObjekt(text, dateien) {
             erledigt: false, 
             beschreibungen: [], 
             erinnerung: erinnerung,
-            // NEU: Ersteller der Idee speichern
             ersteller: aktuellerBenutzerName || "Unbekannt"
         };
         ideen.push(neu);
@@ -757,7 +747,7 @@ function saveIdeeObjekt(text, dateien) {
     setzePrioritaet(""); document.getElementById("benutzer").value = ""; document.getElementById("kategorie").value = "";
     triggerAutoSave();
 }
-
+//... Alle weiteren Funktionen bis zu saveToOneDrive bleiben identisch zu deiner Vorlage ...
 function zeigeIdeen() {
     let fIdeen = [];
     try { fIdeen = JSON.parse(localStorage.getItem("ideen") || "[]"); } catch(e) { console.error("Fehler beim Laden der Ideen:", e); localStorage.removeItem("ideen"); fIdeen = []; }
@@ -779,7 +769,6 @@ function zeigeIdeen() {
         const erledigt = idee.erledigt || false;
         let datum = getFormattedDate(idee.timestamp);
         const vNumHtml = idee.vorgangsnummer ? `<div class="vorgangsnummer-anzeige-liste">Vorgang: <b>${idee.vorgangsnummer}</b></div>` : '';
-        // NEU: Ersteller-Info für die Anzeige vorbereiten
         const erstellerHtml = idee.ersteller ? `<small>Erstellt von: <b>${idee.ersteller.replace(/</g, "&lt;")}</b></small><br>` : '';
 
         let dateiHtml = "";
@@ -798,7 +787,6 @@ function zeigeIdeen() {
 
         const beschreibungenHtml = idee.beschreibungen?.length ? `<div class="beschreibung-historie"><b>Weitere Beschr.:</b>${
             idee.beschreibungen.filter(b => b && b.text !== undefined).map(b => {
-                // NEU: Autoren-Info für die Beschreibung vorbereiten
                 const autorInfo = b.autor ? ` von <b>${b.autor.replace(/</g, "&lt;")}</b>` : "";
                 let btsText = `${getFormattedDate(b.timestamp)}${autorInfo}`; 
                 
@@ -865,7 +853,7 @@ function zeigeIdeen() {
                 }
             }
             erinnerungHtml = `<div class="erinnerung-info">${erinnerungText}</div>`;
-        } else if (idee.erinnerung && !idee.erinnerung.aktiv && idee.erinnerung.termin) {
+        } else if (idee.erinnerung && !b.erinnerung.aktiv && idee.erinnerung.termin) {
              erinnerungHtml = `<div class="erinnerung-info" style="opacity:0.6;">🔔 Erinnerung (inaktiv): ${getFormattedDate(idee.erinnerung.termin)}</div>`;
         }
 
@@ -963,7 +951,6 @@ function beschreibungSpeichern(){
             const ts=new Date().toISOString()+'_'+Math.random().toString(36).substr(2,9);
             if(!ideen[idx].beschreibungen) ideen[idx].beschreibungen=[];
             
-            // NEU: Autor der Beschreibung speichern
             const neueBeschreibung = {
                 text:t, 
                 timestamp:ts, 
@@ -1134,7 +1121,7 @@ function getDefaultErinnerung(titel = "", vorgangsnummer = null) {
 
 function zeigeErinnerungDialog(id) {
     erinnerungFuerId = id;
-    erinnerungFuerBeschreibungTimestamp = null; // Wichtig: Zurücksetzen
+    erinnerungFuerBeschreibungTimestamp = null;
     const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
     const idee = ideen.find(i => i && i.id === id);
 
@@ -1159,7 +1146,7 @@ function zeigeErinnerungDialog(id) {
 
 function zeigeBeschreibungErinnerungDialog(ideeId, beschreibungTimestamp) {
     erinnerungFuerId = ideeId;
-    erinnerungFuerBeschreibungTimestamp = beschreibungTimestamp; // Timestamp der Beschreibung setzen
+    erinnerungFuerBeschreibungTimestamp = beschreibungTimestamp;
 
     const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
     const idee = ideen.find(i => i && i.id === ideeId);
@@ -1187,7 +1174,7 @@ function zeigeBeschreibungErinnerungDialog(ideeId, beschreibungTimestamp) {
 function erinnerungAbbrechen() {
     document.getElementById("erinnerungDialog").style.display = "none";
     erinnerungFuerId = null;
-    erinnerungFuerBeschreibungTimestamp = null; // Wichtig
+    erinnerungFuerBeschreibungTimestamp = null;
     document.getElementById("erinnerungTerminInput").value = "";
     document.getElementById("erinnerungIntervallTypSelect").value = "einmalig";
     document.getElementById("erinnerungIntervallWertInput").value = "1";
@@ -1229,27 +1216,17 @@ function erinnerungSpeichern() {
         };
 
         if (erinnerungFuerBeschreibungTimestamp) {
-            // Speichern für eine Beschreibung
             const beschreibungIndex = idee.beschreibungen.findIndex(b => b && b.timestamp === erinnerungFuerBeschreibungTimestamp);
             if (beschreibungIndex !== -1) {
-                ideen[ideeIndex].beschreibungen[beschreibungIndex].erinnerung = {
-                        ...erinnerungsDaten,
-                        titel: null,
-                        vorgangsnummer: null
-                };
+                ideen[ideeIndex].beschreibungen[beschreibungIndex].erinnerung = { ...erinnerungsDaten, titel: null, vorgangsnummer: null };
             } else {
                 zeigeWarnung("Fehler: Beschreibung zum Speichern der Erinnerung nicht gefunden.");
                 erinnerungAbbrechen();
                 return;
             }
         } else {
-            // Speichern für die Haupt-Idee
             if (idee.erledigt) { zeigeWarnung("Erinnerung kann nicht gespeichert werden (Notiz erledigt).", "info"); erinnerungAbbrechen(); return; }
-            ideen[ideeIndex].erinnerung = {
-                ...erinnerungsDaten,
-                titel: idee.text,
-                vorgangsnummer: idee.vorgangsnummer
-            };
+            ideen[ideeIndex].erinnerung = { ...erinnerungsDaten, titel: idee.text, vorgangsnummer: idee.vorgangsnummer };
         }
 
         localStorage.setItem("ideen", JSON.stringify(ideen));
@@ -1268,7 +1245,6 @@ function erinnerungLoeschen() {
     
     if (ideeIndex !== -1) {
         if (erinnerungFuerBeschreibungTimestamp) {
-            // Löschen für eine Beschreibung
             const beschreibungIndex = ideen[ideeIndex].beschreibungen.findIndex(b => b && b.timestamp === erinnerungFuerBeschreibungTimestamp);
             if (beschreibungIndex !== -1) {
                 ideen[ideeIndex].beschreibungen[beschreibungIndex].erinnerung = getDefaultErinnerung();
@@ -1278,7 +1254,6 @@ function erinnerungLoeschen() {
                 return;
             }
         } else {
-            // Löschen für die Haupt-Idee
             ideen[ideeIndex].erinnerung = getDefaultErinnerung(ideen[ideeIndex].text, ideen[ideeIndex].vorgangsnummer);
         }
 
@@ -2117,110 +2092,6 @@ function pruefeUndZeigeBenachrichtigungen() {
 
 async function uploadToOneDrive(f){if(currentLoginType !== 'microsoft' || !accessToken){zeigeWarnung("Bitte zuerst mit Microsoft anmelden!");return null;}try{const n=`ideenapp/${Date.now()}_${f.name}`;const u=await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${n}:/content`,{method:"PUT",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":f.type},body:f});const d=await u.json();if(!u.ok){throw new Error(`OneDrive Upload Error ${u.status}: ${d?.error?.message||'Unknown'}`);}const s=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${d.id}/createLink`,{method:"POST",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":"application/json"},body:JSON.stringify({type:"view",scope:"anonymous"})});const j=await s.json();if(!s.ok){throw new Error(`OneDrive Link Error ${s.status}: ${j?.error?.message||'Unknown'}`);}return j.link.webUrl;}catch(e){console.error("OneDrive Upload/Link Fehler:",e);zeigeWarnung("OneDrive-Fehler: "+e.message);return null;}}
 
-async function saveToOneDrive(){ 
-    if(currentLoginType !== 'microsoft' || !accessToken){ return; } 
-    clearTimeout(debounceTimer); // Stoppt den Timer, da wir jetzt aktiv speichern
-    try { 
-        const ideen=JSON.parse(localStorage.getItem("ideen")||"[]"); 
-        const benutzer=JSON.parse(localStorage.getItem("benutzerliste")||"[]"); 
-        const kategorien=JSON.parse(localStorage.getItem("kategorien")||"[]"); 
-        const nummer=localStorage.getItem("naechsteVorgangsnummer")||"1"; 
-        const data={ideen,benutzerliste:benutzer,kategorien,naechsteVorgangsnummer:nummer}; 
-        const dataStr=JSON.stringify(data,null,2); 
-        const path=(document.getElementById("onedrivePath").value.trim()||"/ideenapp/ideen.json"); 
-        const finalPath=path.startsWith('/')?path:'/'+path; 
-        if(!finalPath||finalPath==='/'){zeigeWarnung("OneDrive Speichern: Ungültiger Pfad.");return;} 
-        const url=`https://graph.microsoft.com/v1.0/me/drive/root:${finalPath}:/content`; 
-        const res=await fetch(url,{method:"PUT",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":"application/json"},body:dataStr}); 
-        if(res.ok){
-            istGespeichert=true; // Setzt den Status auf "gespeichert" nach erfolgreichem Upload
-            console.log("Daten erfolgreich auf OneDrive gespeichert.");
-        }else{
-            const err=await res.json().catch(()=>null); 
-            const msg=err?.error?.message||res.statusText; 
-            zeigeWarnung(`OneDrive Speichern Fehler: ${msg}`);
-            istGespeichert = false; // Bei Fehler bleibt der Status auf "ungespeichert"
-        }
-    }catch(e){
-        zeigeWarnung("OneDrive Speichern Fehler: "+e.message);
-        istGespeichert = false; // Bei Fehler bleibt der Status auf "ungespeichert"
-    }
-}
-
-async function loadFromOneDrive(){ 
-    // Wenn es ungespeicherte Änderungen gibt, wird der manuelle Klick benötigt.
-    if (!istGespeichert && !confirm("Sie haben ungespeicherte lokale Änderungen. Möchten Sie diese verwerfen und die Daten von OneDrive neu laden?")) {
-        return;
-    }
-
-    if(currentLoginType !== 'microsoft' || !accessToken){ 
-        const ok=await handleMicrosoftLogin(); 
-        if(!ok || !accessToken){return;} 
-        // handleMicrosoftLogin ruft loadFromOneDrive bereits am Ende auf, also hier abbrechen
-        return; 
-    } 
-    const path=(document.getElementById("onedrivePath").value.trim()||"/ideenapp/ideen.json"); 
-    const finalPath=path.startsWith('/')?path:'/'+path; 
-    if(!finalPath||finalPath==='/'){zeigeWarnung("OneDrive Laden: Ungültiger Pfad.");return;} 
-    zeigeWarnung(`Lade Daten von OneDrive: ${finalPath}...`,'info'); 
-    try{ 
-        const url=`https://graph.microsoft.com/v1.0/me/drive/root:${finalPath}:/content`; 
-        const res=await fetch(url,{method:"GET",headers:{"Authorization":`Bearer ${accessToken}`}}); 
-        if(res.ok){ 
-            const content=await res.text(); 
-            const loadedData=JSON.parse(content); 
-            let ideen=[], benutzerliste=[], kategorienAusDatei=null, nummer=1; 
-            if(loadedData&&typeof loadedData==='object'&&Array.isArray(loadedData.ideen)){ 
-                ideen=loadedData.ideen; 
-                benutzerliste=Array.isArray(loadedData.benutzerliste)?loadedData.benutzerliste:[]; 
-                kategorienAusDatei=Array.isArray(loadedData.kategorien)?loadedData.kategorien:null; 
-                nummer=parseInt(loadedData.naechsteVorgangsnummer,10)||1; 
-            } else if(Array.isArray(loadedData)){
-                ideen=loadedData; 
-                benutzerliste=[]; 
-                kategorienAusDatei=null; 
-                nummer=1;
-            } else {
-                throw new Error("Ungültiges Dateiformat");
-            }
-            localStorage.setItem("ideen",JSON.stringify(ideen)); 
-            localStorage.setItem("benutzerliste",JSON.stringify(benutzerliste)); 
-            if(kategorienAusDatei!==null){localStorage.setItem("kategorien",JSON.stringify(kategorienAusDatei));} 
-            localStorage.setItem("naechsteVorgangsnummer", nummer.toString()); 
-            
-            ausgewaehlt=[]; 
-            initialisiereKategorien(); 
-            initialisiereBenutzer(); 
-            initialisiereVorgangsnummer(); 
-            ensureIdeasHaveIds(); 
-            aktualisiereMandantenFilterDropdown(); 
-            zeigeIdeen(); 
-            zeigeWarnung(`Daten von OneDrive geladen! (${finalPath})`,'success'); 
-            istGespeichert=true; 
-        } else if(res.status===404){
-            zeigeWarnung(`Keine bestehende Datenbank unter '${finalPath}' gefunden. Eine neue wird beim ersten Speichern angelegt.`, 'info');
-            localStorage.removeItem("ideen");
-            localStorage.removeItem("kategorien");
-            localStorage.removeItem("benutzerliste");
-            localStorage.removeItem("naechsteVorgangsnummer");
-            naechsteVorgangsnummer = 1;
-            kategorien = [];
-            benutzerliste = [];
-            initialisiereKategorien();
-            initialisiereBenutzer();
-            initialisiereVorgangsnummer();
-            zeigeIdeen();
-            istGespeichert = true;
-        }else{ 
-            const err=await res.json().catch(()=>null); 
-            const msg=err?.error?.message||res.statusText; 
-            zeigeWarnung(`OneDrive Laden Fehler (${res.status}): ${msg}`);
-        }
-    }catch(e){
-        zeigeWarnung("OneDrive Laden Fehler: "+e.message);
-    }
-}
-
 async function speichereIdeenAlsDatei(){ try{ const ideen = JSON.parse(localStorage.getItem("ideen")||"[]"); const benutzerData = JSON.parse(localStorage.getItem("benutzerliste")||"[]"); const kategorienData = JSON.parse(localStorage.getItem("kategorien")||"[]"); const nummer = localStorage.getItem("naechsteVorgangsnummer")||"1"; const combinedData = { ideen, benutzerliste: benutzerData, kategorien: kategorienData, naechsteVorgangsnummer: nummer }; const dataToSave = JSON.stringify(combinedData, null, 2); if(window.showSaveFilePicker){ fileHandle = await window.showSaveFilePicker({ suggestedName: "ideen.json", types: [{ description: "JSON-Dateien", accept: { "application/json": [".json"] } }] }); const writable = await fileHandle.createWritable(); await writable.write(dataToSave); await writable.close(); zeigeWarnung("Datei lokal gespeichert!", 'success'); istGespeichert = true; } else { const blob = new Blob([dataToSave], { type: "application/json" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "ideen.json"; link.click(); URL.revokeObjectURL(url); zeigeWarnung("Datei-Download gestartet.", 'success'); istGespeichert = true; }} catch(e) { if(e.name !== "AbortError") { zeigeWarnung("Fehler beim lokalen Speichern: " + e.message); } }}
 async function ladeIdeenAusDatei(){ try{ let fileContent; if(window.showOpenFilePicker){ [fileHandle] = await window.showOpenFilePicker({ types: [{ description: "JSON-Dateien", accept: { "application/json": [".json"] } }] }); const file = await fileHandle.getFile(); fileContent = await file.text(); } else { const input = document.createElement('input'); input.type = 'file'; input.accept = '.json'; await new Promise((resolve, reject) => { input.onchange = async (e) => { if (e.target.files && e.target.files.length > 0) { const file = e.target.files[0]; const reader = new FileReader(); reader.onload = (event) => { fileContent = event.target.result; resolve(); }; reader.onerror = (error) => reject(error); reader.readAsText(file); } else { reject(new Error("Keine Datei ausgewählt")); } }; input.click(); }); } if (!fileContent) { throw new Error("Kein Dateiinhalt geladen."); } const loadedData = JSON.parse(fileContent); let ideen = [], benutzerliste = [], kategorienAusDatei = null, nummer = 1; if (loadedData && typeof loadedData === 'object' && Array.isArray(loadedData.ideen)) { ideen = loadedData.ideen; benutzerliste = Array.isArray(loadedData.benutzerliste) ? loadedData.benutzerliste : []; kategorienAusDatei = Array.isArray(loadedData.kategorien) ? loadedData.kategorien : null; nummer = parseInt(loadedData.naechsteVorgangsnummer, 10) || 1; } else if (Array.isArray(loadedData)) { ideen = loadedData; benutzerliste = []; kategorienAusDatei = null; nummer = 1; } else { throw new Error("Ungültiges Dateiformat"); } localStorage.setItem("ideen", JSON.stringify(ideen)); localStorage.setItem("benutzerliste", JSON.stringify(benutzerliste)); if (kategorienAusDatei !== null) { localStorage.setItem("kategorien", JSON.stringify(kategorienAusDatei)); } localStorage.setItem("naechsteVorgangsnummer", nummer.toString()); ausgewaehlt = []; initialisiereKategorien(); initialisiereBenutzer(); initialisiereVorgangsnummer(); ensureIdeasHaveIds(); aktualisiereMandantenFilterDropdown(); zeigeIdeen(); zeigeWarnung(`Daten lokal geladen!`, 'success'); istGespeichert = true; } catch(e) { if(e.name !== "AbortError" && e.message !== "Keine Datei ausgewählt" && e.message !== "Kein Dateiinhalt geladen.") { zeigeWarnung("Fehler beim lokalen Laden: " + e.message); } }}
 
@@ -2241,15 +2112,11 @@ document.getElementById("dateien").addEventListener("change",function(e){
 });
 window.addEventListener("beforeunload",function(e){if(!istGespeichert){const msg="Ungespeicherte Änderungen! Seite wirklich verlassen?";e.preventDefault();e.returnValue=msg;return msg;}});
 
-// --- NEU: Event Listener für Auto-Load beim Reaktivieren des Tabs ---
+// Angepasster Event Listener für Fenster-Fokus
 window.addEventListener('focus', () => {
-    // Nur laden, wenn ein Microsoft-Login besteht und keine lokalen Änderungen vorliegen
-    if (currentLoginType === 'microsoft' && accessToken && istGespeichert) {
-        console.log("Fenster reaktiviert, lade neueste Daten von OneDrive...");
-        loadFromOneDrive();
-    } else if (currentLoginType === 'microsoft' && accessToken && !istGespeichert) {
-        console.log("Fenster reaktiviert, aber es gibt lokale, ungespeicherte Änderungen. Automatisches Laden übersprungen.");
-        zeigeWarnung("Es gibt lokale, ungespeicherte Änderungen. Bitte speichern oder manuell laden, um Daten zu synchronisieren.", "info");
+    if (currentLoginType === 'microsoft' && msalInstance?.getActiveAccount()) {
+        console.log("Fenster reaktiviert, prüfe Token...");
+        pruefeUndErneuereToken();
     }
 });
 
@@ -2279,9 +2146,8 @@ function ensureIdeasHaveIds() {
     }
 
     ideen.forEach(idee => {
-        // NEU: Sicherstellen, dass das 'ersteller'-Feld existiert
         if (idee.ersteller === undefined) {
-            idee.ersteller = null; // oder "Unbekannt"
+            idee.ersteller = null;
             changed = true;
         }
 
@@ -2294,9 +2160,8 @@ function ensureIdeasHaveIds() {
                 const originalLengthDesc = idee.beschreibungen.length;
                 idee.beschreibungen = idee.beschreibungen.filter(b => b && typeof b === 'object' && typeof b.text === 'string');
                 idee.beschreibungen.forEach(b => {
-                    // NEU: Sicherstellen, dass das 'autor'-Feld existiert
                     if (b.autor === undefined) {
-                        b.autor = null; // oder "Unbekannt"
+                        b.autor = null;
                         changed = true;
                     }
                     if (!b.timestamp || typeof b.timestamp !== 'string') { b.timestamp = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); changed = true; }
@@ -2403,18 +2268,29 @@ document.addEventListener('DOMContentLoaded', () => {
         if (githubCode) {
             handleGithubCallback(githubCode);
         } else {
-            // Versucht, einen stillen Login, wenn die Seite neu geladen wird
-            if (msalInstance) {
-                const account = msalInstance.getActiveAccount();
-                if (account) {
-                    // Wenn ein Account da ist, lade automatisch die Daten
-                    console.log("Aktiver Account gefunden, lade Daten von OneDrive...");
-                    loadFromOneDrive();
-                }
+            // Versucht, einen stillen Login, wenn die Seite neu geladen wird und eine Sitzung existiert
+            if (!msalInstance) {
+                msalInstance = new msal.PublicClientApplication(msalConfig);
             }
-            updateButtonVisibility(null);
+            const account = msalInstance.getActiveAccount();
+            if (account) {
+                 console.log("Aktiven Account beim Laden gefunden. Versuche Token zu erneuern und Daten zu laden...");
+                 // Setzt den Login-Typ, damit der Token-Check funktioniert
+                 currentLoginType = 'microsoft';
+                 pruefeUndErneuereToken().then(isValid => {
+                     if (isValid) {
+                         aktuellerBenutzerName = account.name;
+                         updateLoggedInUI(account.name, account.username);
+                         updateButtonVisibility(account.username);
+                         if (tokenCheckIntervalId) clearInterval(tokenCheckIntervalId);
+                         tokenCheckIntervalId = setInterval(pruefeUndErneuereToken, 10 * 60 * 1000);
+                         loadFromOneDrive(true);
+                     }
+                 });
+            } else {
+                updateButtonVisibility(null);
+            }
         }
-
         pruebeLoginHinweis(); 
     } catch (initError) {
         console.error("Fehler während der Initialisierung:", initError);
@@ -2424,3 +2300,4 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+
