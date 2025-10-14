@@ -226,6 +226,8 @@ let accessToken = null, // Microsoft Access Token
     beschreibungFuerId = null, 
     beschreibungZuBearbeitenderTimestamp = null, 
     istGespeichert = true;
+// NEU: Globale Variable für den Namen des angemeldeten Benutzers
+let aktuellerBenutzerName = null;
 let erinnerungFuerId = null;
 let erinnerungFuerBeschreibungTimestamp = null;
 let terminFuerId = null;
@@ -341,7 +343,9 @@ async function handleGithubCallback(code) {
         if (isAllowed) {
             // Benutzer ist berechtigt -> Normaler Login
             currentLoginType = 'github';
-            updateLoggedInUI(userData.name || userData.login, userEmail);
+            // NEU: Benutzernamen speichern
+            aktuellerBenutzerName = userData.name || userData.login;
+            updateLoggedInUI(aktuellerBenutzerName, userEmail);
             updateButtonVisibility(userEmail);
             zeigeWarnung("Erfolgreich mit GitHub angemeldet!", 'success');
         } else {
@@ -350,6 +354,7 @@ async function handleGithubCallback(code) {
             // Wichtig: Token nicht speichern und UI nicht als eingeloggt anzeigen
             githubAccessToken = null;
             currentLoginType = null;
+            aktuellerBenutzerName = null;
             updateButtonVisibility(null);
         }
 
@@ -358,6 +363,7 @@ async function handleGithubCallback(code) {
         console.error("GitHub Callback-Fehler:", e);
         githubAccessToken = null;
         currentLoginType = null;
+        aktuellerBenutzerName = null;
         updateButtonVisibility(null);
     } finally {
         pruebeLoginHinweis();
@@ -407,6 +413,9 @@ async function handleMicrosoftLogin() {
         accessToken = tokenResponse.accessToken;
         currentLoginType = 'microsoft';
         
+        // NEU: Benutzernamen speichern
+        aktuellerBenutzerName = account.name;
+        
         updateLoggedInUI(account.name, userEmail);
         updateButtonVisibility(userEmail); 
         
@@ -419,6 +428,7 @@ async function handleMicrosoftLogin() {
         accessToken = null;
         msalInstance = null;
         currentLoginType = null;
+        aktuellerBenutzerName = null;
         updateButtonVisibility(null); 
         return false;
     } finally {
@@ -480,6 +490,7 @@ function blockAppAccess() {
     accessToken = null;
     githubAccessToken = null;
     currentLoginType = null;
+    aktuellerBenutzerName = null;
     updateButtonVisibility(null);
 }
 
@@ -520,6 +531,8 @@ async function handleLogout() {
     githubAccessToken = null;
     msalInstance = null;
     currentLoginType = null;
+    // NEU: Benutzernamen beim Abmelden zurücksetzen
+    aktuellerBenutzerName = null;
     istGespeichert = true;
     
     document.getElementById('loggedInUser').textContent = '';
@@ -656,7 +669,7 @@ async function speichereIdee() {
             }
         } else {
              if (currentLoginType === 'github') {
-                 zeigeWarnung("Dateianhänge sind nur mit Microsoft-Login möglich. Dateien werden lokal vermerkt.", "info");
+                  zeigeWarnung("Dateianhänge sind nur mit Microsoft-Login möglich. Dateien werden lokal vermerkt.", "info");
              }
             neuHochgeladeneDateien = Array.from(fileInput.files).map(f => ({
                 id: generateUUID(), name: f.name, type: f.type, sichtbar: true, isLocal: true
@@ -717,7 +730,24 @@ function saveIdeeObjekt(text, dateien) {
         const num = naechsteVorgangsnummer;
         const erinnerung = getDefaultErinnerung(text, num);
 
-        const neu = { id: generateUUID(), vorgangsnummer: num, text, details: finalDetails, kategorie: kat, prioritaet, mandantennummer: mnr, firmenname: firma, benutzer: user, dateien: prozessierteDateien, timestamp: new Date().toISOString(), erledigt: false, beschreibungen: [], erinnerung: erinnerung };
+        const neu = { 
+            id: generateUUID(), 
+            vorgangsnummer: num, 
+            text, 
+            details: finalDetails, 
+            kategorie: kat, 
+            prioritaet, 
+            mandantennummer: mnr, 
+            firmenname: firma, 
+            benutzer: user, 
+            dateien: prozessierteDateien, 
+            timestamp: new Date().toISOString(), 
+            erledigt: false, 
+            beschreibungen: [], 
+            erinnerung: erinnerung,
+            // NEU: Ersteller der Idee speichern
+            ersteller: aktuellerBenutzerName || "Unbekannt"
+        };
         ideen.push(neu);
         localStorage.setItem("ideen", JSON.stringify(ideen));
         naechsteVorgangsnummer++; localStorage.setItem("naechsteVorgangsnummer", naechsteVorgangsnummer.toString()); zeigeNaechsteNummer();
@@ -749,6 +779,8 @@ function zeigeIdeen() {
         const erledigt = idee.erledigt || false;
         let datum = getFormattedDate(idee.timestamp);
         const vNumHtml = idee.vorgangsnummer ? `<div class="vorgangsnummer-anzeige-liste">Vorgang: <b>${idee.vorgangsnummer}</b></div>` : '';
+        // NEU: Ersteller-Info für die Anzeige vorbereiten
+        const erstellerHtml = idee.ersteller ? `<small>Erstellt von: <b>${idee.ersteller.replace(/</g, "&lt;")}</b></small><br>` : '';
 
         let dateiHtml = "";
         if (idee.dateien && idee.dateien.length > 0) {
@@ -766,7 +798,11 @@ function zeigeIdeen() {
 
         const beschreibungenHtml = idee.beschreibungen?.length ? `<div class="beschreibung-historie"><b>Weitere Beschr.:</b>${
             idee.beschreibungen.filter(b => b && b.text !== undefined).map(b => {
-                let btsText = getFormattedDate(b.timestamp); const indentLevel = b.level || 0; const indentMargin = indentLevel * 20; const itemWidth = `calc(100% - ${indentMargin}px)`;
+                // NEU: Autoren-Info für die Beschreibung vorbereiten
+                const autorInfo = b.autor ? ` von <b>${b.autor.replace(/</g, "&lt;")}</b>` : "";
+                let btsText = `${getFormattedDate(b.timestamp)}${autorInfo}`; 
+                
+                const indentLevel = b.level || 0; const indentMargin = indentLevel * 20; const itemWidth = `calc(100% - ${indentMargin}px)`;
                 const istSichtbar = b.sichtbar === true; const beschreibungKlasse = istSichtbar ? "" : " beschreibung-veraltet"; const sichtbarkeitButtonSymbol = istSichtbar ? '👁️' : '🙈';
                 const sichtbarkeitButtonTitle = istSichtbar ? 'Beschreibung ausblenden' : 'Beschreibung einblenden'; const praefix = istSichtbar ? "" : "[Ausgeblendet] ";
                 const sanierterBeschreibungstext = (b.text || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -834,14 +870,15 @@ function zeigeIdeen() {
         }
 
         const sanierterIdeeText = (idee.text || 'Ohne Titel').replace(/</g, "&lt;").replace(/>/g, "&gt;");
-        const sanierterIdeeDetails = (idee.details || "").replace(/</g, "&gt;");
+        const sanierterIdeeDetails = (idee.details || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
         return `<div class="idee${erledigt ? ' erledigt' : ''}" data-idee-id="${id}">
                     <div class="idee-content">
                         ${vNumHtml}<h3>${sanierterIdeeText}</h3><p>${sanierterIdeeDetails}</p>
                         ${idee.benutzer ? `<div>Zust.: <b>${idee.benutzer}</b></div>` : ""} ${idee.mandantennummer ? `<div>Mandant: <b>${idee.mandantennummer}</b></div>` : ""} ${idee.firmenname ? `<div>Firma: <b>${idee.firmenname}</b></div>` : ""}
                         ${beschreibungenHtml}
-                        <small>${idee.kategorie || '-'} | ${idee.prioritaet || "-"} | ${datum}</small>
+                        <small>${idee.kategorie || '-'} | ${idee.prioritaet || "-"} | ${datum}</small><br>
+                        ${erstellerHtml}
                         ${erinnerungHtml}
                         ${dateiHtml}
                         <div class="idee-actions">
@@ -860,7 +897,7 @@ function zeigeIdeen() {
       } catch (e) {
         console.error("Fehler beim Darstellen einer Idee (möglicherweise korrupte Daten):", idee, e);
         if (idee && idee.id) {
-            return `<div class="idee erledigt" data-idee-id="${id}">
+            return `<div class="idee erledigt" data-idee-id="${idee.id}">
                         <div class="idee-content">
                             <h3>Fehlerhafte Idee (ID: ${idee.id})</h3>
                             <p>Diese Idee konnte nicht korrekt geladen werden. Bitte überprüfen Sie die Daten oder löschen Sie den Eintrag.</p>
@@ -925,7 +962,18 @@ function beschreibungSpeichern(){
         } else {
             const ts=new Date().toISOString()+'_'+Math.random().toString(36).substr(2,9);
             if(!ideen[idx].beschreibungen) ideen[idx].beschreibungen=[];
-            ideen[idx].beschreibungen.push({text:t, timestamp:ts, level: 0, sichtbar: true, attachments: [], erinnerung: getDefaultErinnerung()});
+            
+            // NEU: Autor der Beschreibung speichern
+            const neueBeschreibung = {
+                text:t, 
+                timestamp:ts, 
+                level: 0, 
+                sichtbar: true, 
+                attachments: [], 
+                erinnerung: getDefaultErinnerung(),
+                autor: aktuellerBenutzerName || "Unbekannt"
+            };
+            ideen[idx].beschreibungen.push(neueBeschreibung);
         }
         localStorage.setItem("ideen",JSON.stringify(ideen));
         zeigeIdeen();
@@ -1282,7 +1330,8 @@ function exportiereAlsText() {
         textContent += `${idee.erledigt ? '[ERLEDIGT] ' : ''}${idee.vorgangsnummer ? `[Vorgang ${idee.vorgangsnummer}] ` : ''}${idee.text || 'Ohne Titel'}\n--------------------------------------------------\n`;
         if (idee.kategorie) textContent += `Kategorie: ${idee.kategorie}\n`;
         if (idee.prioritaet) textContent += `Priorität: ${idee.prioritaet}\n`;
-        textContent += `Erstellt/Aktualisiert: ${getFormattedDate(idee.timestamp)}\n`;
+        textContent += `Erstellt am: ${getFormattedDate(idee.timestamp)}\n`;
+        if (idee.ersteller) textContent += `Erstellt von: ${idee.ersteller}\n`;
         if (idee.benutzer) textContent += `Zuständig: ${idee.benutzer}\n`;
         if (idee.mandantennummer) textContent += `Mandantennummer: ${idee.mandantennummer}\n`;
         if (idee.firmenname) textContent += `Firmenname: ${idee.firmenname}\n`;
@@ -1293,22 +1342,23 @@ function exportiereAlsText() {
         }
 
         if (idee.beschreibungen && idee.beschreibungen.length > 0) {
-              textContent += `\nWeitere Beschreibungen:\n`;
-              idee.beschreibungen.forEach(b => {
-                  if (b && b.text !== undefined) {
-                      const indentSpaces = "  ".repeat(b.level || 0);
-                      const praefix = b.sichtbar === false ? "[Ausgeblendet] " : "";
-                      textContent += `${indentSpaces}- [${getFormattedDate(b.timestamp)}] ${praefix}${b.text}\n`;
-                      if (b.attachments && b.attachments.length > 0) {
-                          b.attachments.forEach(anhang => {
-                              textContent += `${indentSpaces}    -> Anhang: ${anhang.name} ${anhang.link ? `(${anhang.link})` : '(Lokal)'}\n`;
-                          });
-                      }
-                      if (b.erinnerung && b.erinnerung.termin) {
-                          textContent += `${indentSpaces}  ${formatErinnerungForExport(b.erinnerung).replace(/\n/g, `\n${indentSpaces}  `)}`;
-                      }
-                  }
-              });
+             textContent += `\nWeitere Beschreibungen:\n`;
+             idee.beschreibungen.forEach(b => {
+                 if (b && b.text !== undefined) {
+                     const indentSpaces = "  ".repeat(b.level || 0);
+                     const praefix = b.sichtbar === false ? "[Ausgeblendet] " : "";
+                     const autorText = b.autor ? ` (von ${b.autor})` : "";
+                     textContent += `${indentSpaces}- [${getFormattedDate(b.timestamp)}]${autorText} ${praefix}${b.text}\n`;
+                     if (b.attachments && b.attachments.length > 0) {
+                         b.attachments.forEach(anhang => {
+                             textContent += `${indentSpaces}    -> Anhang: ${anhang.name} ${anhang.link ? `(${anhang.link})` : '(Lokal)'}\n`;
+                         });
+                     }
+                     if (b.erinnerung && b.erinnerung.termin) {
+                         textContent += `${indentSpaces}  ${formatErinnerungForExport(b.erinnerung).replace(/\n/g, `\n${indentSpaces}  `)}`;
+                     }
+                 }
+             });
         }
 
         if (idee.dateien && idee.dateien.length > 0) {
@@ -1428,8 +1478,12 @@ function exportiereAlsPDF(fileName = "ideen-export.pdf") {
         let titleText = `${idee.erledigt ? '[ERLEDIGT] ' : ''}${idee.vorgangsnummer ? `[Vorgang ${idee.vorgangsnummer}] ` : ''}${idee.text || 'Ohne Titel'}`;
         addWrappedText(titleText, leftMargin, contentWidth, { fontSize: 14, fontStyle: 'bold', lineHeight: 7 });
 
-        let metaText = `Kategorie: ${idee.kategorie || '-'} | Priorität: ${idee.prioritaet || '-'} | Datum: ${getFormattedDate(idee.timestamp)}`;
-        addWrappedText(metaText, leftMargin, contentWidth, { fontSize: 9, color: [51, 51, 51], lineHeight: 4 });
+        let metaText1 = `Kategorie: ${idee.kategorie || '-'} | Priorität: ${idee.prioritaet || '-'} | Datum: ${getFormattedDate(idee.timestamp)}`;
+        addWrappedText(metaText1, leftMargin, contentWidth, { fontSize: 9, color: [51, 51, 51], lineHeight: 4 });
+        if(idee.ersteller) {
+            let metaText2 = `Erstellt von: ${idee.ersteller}`;
+            addWrappedText(metaText2, leftMargin, contentWidth, { fontSize: 9, color: [51, 51, 51], lineHeight: 4 });
+        }
         yPosition += 2;
 
         if (idee.benutzer) addWrappedText(`Zuständig: ${idee.benutzer}`, leftMargin, contentWidth, { fontSize: 10, lineHeight: defaultLineSpacing });
@@ -1462,7 +1516,8 @@ function exportiereAlsPDF(fileName = "ideen-export.pdf") {
                     const startX = leftMargin + 5 + indentMM;
                     const maxWidth = contentWidth - 5 - indentMM;
                     const praefix = b.sichtbar === false ? "[Ausgeblendet] " : "";
-                    const textToDisplay = `- [${getFormattedDate(b.timestamp)}] ${praefix}${b.text}`;
+                    const autorText = b.autor ? ` (von ${b.autor})` : "";
+                    const textToDisplay = `- [${getFormattedDate(b.timestamp)}]${autorText} ${praefix}${b.text}`;
                     const textColor = b.sichtbar === false ? [128, 128, 128] : [0, 0, 0];
                     if (maxWidth > 0) {
                         addWrappedText(textToDisplay, startX, maxWidth, { fontSize: 10, lineHeight: defaultLineSpacing, color: textColor });
@@ -1472,7 +1527,7 @@ function exportiereAlsPDF(fileName = "ideen-export.pdf") {
                     if(b.attachments && b.attachments.length > 0) {
                         checkAddPage(defaultLineSpacing);
                         b.attachments.forEach(anhang => {
-                            const anhangText = `     -> ${anhang.name}`;
+                            const anhangText = `       -> ${anhang.name}`;
                             const anhangColor = anhang.link ? [0, 0, 238] : [0,0,0];
                             addWrappedText(anhangText, startX + 5, maxWidth - 5, {fontSize: 9, color: anhangColor, lineHeight: 4, link: anhang.link});
                         });
@@ -1628,7 +1683,7 @@ async function teilePerEmail() {
             const desc = `Informationen weitergeleitet (PDF-Download für E-Mail '${recipientInfo}') am ${exportTimestamp}. PDF-Name: ${pdfFileName}`;
             if (!idee.beschreibungen) { idee.beschreibungen = []; }
             const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9);
-            idee.beschreibungen.push({ text: desc, timestamp: ts, level: 0, sichtbar: true, attachments: [], erinnerung: getDefaultErinnerung() });
+            idee.beschreibungen.push({ text: desc, timestamp: ts, level: 0, sichtbar: true, attachments: [], erinnerung: getDefaultErinnerung(), autor: aktuellerBenutzerName || "System" });
             changed = true;
         }
     });
@@ -1651,24 +1706,25 @@ async function teilePerWhatsApp(){
          let datumTextWA = getFormattedDate(idee.timestamp);
          let hauptBeschreibungTextWA = idee.details ? `\n📝 *Beschreibung:*\n${idee.details}\n` : "";
          const beschreibungenText = idee.beschreibungen && idee.beschreibungen.length ?
-               `\n*Weitere Beschreibungen:*\n${
-                   idee.beschreibungen.filter(b => b && b.text !== undefined).map(b => {
+              `\n*Weitere Beschreibungen:*\n${
+                  idee.beschreibungen.filter(b => b && b.text !== undefined).map(b => {
                       const indentSpacesWA = "  ".repeat(b.level || 0);
                       const praefix = b.sichtbar === false ? "[Ausgeblendet] " : "";
+                      const autorTextWA = b.autor ? ` _(von ${b.autor})_` : "";
                       let anhangTextWA = "";
                       if(b.attachments && b.attachments.length > 0) {
-                          anhangTextWA = "\n" + b.attachments.map(anhang => {
-                             return `${indentSpacesWA}    -> Anhang: ${anhang.name} ${anhang.link ? `(${anhang.link})` : ''}`;
-                          }).join("\n");
+                           anhangTextWA = "\n" + b.attachments.map(anhang => {
+                               return `${indentSpacesWA}    -> Anhang: ${anhang.name} ${anhang.link ? `(${anhang.link})` : ''}`;
+                           }).join("\n");
                       }
                       let erinnerungTextBWA = "";
                       if(b.erinnerung && b.erinnerung.termin) {
-                          erinnerungTextBWA = `\n${indentSpacesWA}  🔔 _Erinnerung: ${getFormattedDate(b.erinnerung.termin)} (${b.erinnerung.intervallTyp})_`
+                           erinnerungTextBWA = `\n${indentSpacesWA}  🔔 _Erinnerung: ${getFormattedDate(b.erinnerung.termin)} (${b.erinnerung.intervallTyp})_`
                       }
 
-                      return `${indentSpacesWA}  - _[${getFormattedDate(b.timestamp)}]_ ${praefix}${b.text}${anhangTextWA}${erinnerungTextBWA}`;
-                   }).join("\n")
-               }` : "";
+                      return `${indentSpacesWA}  - _[${getFormattedDate(b.timestamp)}]_${autorTextWA} ${praefix}${b.text}${anhangTextWA}${erinnerungTextBWA}`;
+                  }).join("\n")
+              }` : "";
         let anhaengeTextForWhatsApp = "\n📎 Anhänge: Keine";
         if (idee.dateien && idee.dateien.length > 0) {
             anhaengeTextForWhatsApp = `\n📎 *Anhänge:*\n${idee.dateien.filter(f => f && f.id).map(f => {
@@ -1684,15 +1740,15 @@ async function teilePerWhatsApp(){
         }
 
         return ( `${idee.erledigt ? '_[ERLEDIGT]_ ' : ''}*${idee.vorgangsnummer ? `[Vorgang ${idee.vorgangsnummer}] ` : ''}${idee.text || 'Ohne Titel'}*\n` +
-                            `📁 Kat.: ${idee.kategorie||'-'}\n` + `${idee.benutzer?`🧑‍💻 Zust.: ${idee.benutzer}\n`:""}` + `🔖 Prio: ${idee.prioritaet||"-"}\n` + `📅 ${datumTextWA}\n` +
-                            `${hauptBeschreibungTextWA}` +
-                            `${idee.mandantennummer?`🏢 Mandant: ${idee.mandantennummer}\n`:""}` + `${idee.firmenname?`🏭 Firma: ${idee.firmenname}\n`:""}` +
-                            `${erinnerungTextWA}` +
-                            `${beschreibungenText}` + `${anhaengeTextForWhatsApp}` );
+                         `📁 Kat.: ${idee.kategorie||'-'}\n` + `${idee.benutzer?`🧑‍💻 Zust.: ${idee.benutzer}\n`:""}` + `🔖 Prio: ${idee.prioritaet||"-"}\n` + `📅 ${datumTextWA}${idee.ersteller ? ` (von ${idee.ersteller})` : ''}\n` +
+                         `${hauptBeschreibungTextWA}` +
+                         `${idee.mandantennummer?`🏢 Mandant: ${idee.mandantennummer}\n`:""}` + `${idee.firmenname?`🏭 Firma: ${idee.firmenname}\n`:""}` +
+                         `${erinnerungTextWA}` +
+                         `${beschreibungenText}` + `${anhaengeTextForWhatsApp}` );
     }).filter(s => s !== "").join("\n\n------------------------------------\n\n");
 
     const exportTimestamp = new Date().toLocaleString("de-DE"); const weitergeleitetText = `\n\n_[Notiz(en) markiert als: Weitergeleitet an ${recipientInfo} am ${exportTimestamp}]_`; text += weitergeleitetText; const waLink = `https://wa.me/?text=${encodeURIComponent(text)}`; try { const waWindow = window.open(waLink,"_blank"); if (!waWindow) { zeigeWarnung("WhatsApp konnte nicht geöffnet werden.", "warning"); } } catch (e) { console.error("WhatsApp Fehler:", e); zeigeWarnung("Fehler WhatsApp: " + e.message); }
-    await new Promise(resolve => setTimeout(resolve, 100)); let ideenImSpeicher = JSON.parse(localStorage.getItem("ideen") || "[]"); let changed = false; const ausgewaehlteIDsFuerWA = ideenToExport.map(i => i.id); ideenImSpeicher.forEach(idee => { if (idee && idee.id && ausgewaehlteIDsFuerWA.includes(idee.id)) { const desc = `Weitergeleitet via WhatsApp an: ${recipientInfo} am ${exportTimestamp}`; if (!idee.beschreibungen){idee.beschreibungen = [];} const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); idee.beschreibungen.push({ text: desc, timestamp: ts, level: 0, sichtbar: true, attachments: [], erinnerung: getDefaultErinnerung() }); changed = true; }}); if (changed) { localStorage.setItem("ideen", JSON.stringify(ideenImSpeicher)); zeigeIdeen(); triggerAutoSave(); }
+    await new Promise(resolve => setTimeout(resolve, 100)); let ideenImSpeicher = JSON.parse(localStorage.getItem("ideen") || "[]"); let changed = false; const ausgewaehlteIDsFuerWA = ideenToExport.map(i => i.id); ideenImSpeicher.forEach(idee => { if (idee && idee.id && ausgewaehlteIDsFuerWA.includes(idee.id)) { const desc = `Weitergeleitet via WhatsApp an: ${recipientInfo} am ${exportTimestamp}`; if (!idee.beschreibungen){idee.beschreibungen = [];} const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); idee.beschreibungen.push({ text: desc, timestamp: ts, level: 0, sichtbar: true, attachments: [], erinnerung: getDefaultErinnerung(), autor: aktuellerBenutzerName || "System" }); changed = true; }}); if (changed) { localStorage.setItem("ideen", JSON.stringify(ideenImSpeicher)); zeigeIdeen(); triggerAutoSave(); }
 }
 
 async function teileBeschreibungPerWhatsApp(ideeId, beschreibungTimestamp) {
@@ -1729,7 +1785,7 @@ async function teileBeschreibungPerWhatsApp(ideeId, beschreibungTimestamp) {
     }
 
     let text = `*Teil-Information aus Vorgang ${idee.vorgangsnummer || 'N/A'}: ${idee.text || 'Ohne Titel'}*\n\n`;
-    text += `*Beschreibung vom ${getFormattedDate(beschreibung.timestamp)}:*\n`;
+    text += `*Beschreibung vom ${getFormattedDate(beschreibung.timestamp)}${beschreibung.autor ? ` (von ${beschreibung.autor})` : ''}:*\n`;
     text += `${beschreibung.text || 'Kein Text'}`;
 
     if (beschreibung.attachments && beschreibung.attachments.length > 0) {
@@ -1756,7 +1812,7 @@ async function teileBeschreibungPerWhatsApp(ideeId, beschreibungTimestamp) {
     if (ideeIndex !== -1) {
         const logDesc = `Einzelne Beschreibung (vom ${getFormattedDate(beschreibung.timestamp)}) weitergeleitet via WhatsApp an: ${recipientInfo} am ${exportTimestamp}.`;
         const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9);
-        ideen[ideeIndex].beschreibungen.push({ text: logDesc, timestamp: ts, level: 0, sichtbar: true, attachments: [], erinnerung: getDefaultErinnerung() });
+        ideen[ideeIndex].beschreibungen.push({ text: logDesc, timestamp: ts, level: 0, sichtbar: true, attachments: [], erinnerung: getDefaultErinnerung(), autor: aktuellerBenutzerName || "System" });
         
         localStorage.setItem("ideen", JSON.stringify(ideen));
         zeigeIdeen();
@@ -1854,7 +1910,7 @@ async function kalenderTerminErstellenUndSpeichern() {
         terminBeschreibungText += "\n\n--- Weitere Beschreibungen ---";
         idee.beschreibungen.forEach(b => {
             if (b && b.sichtbar !== false && b.text) { 
-                terminBeschreibungText += `\n\nBeschreibung vom ${getFormattedDate(b.timestamp)}:\n${b.text}`;
+                terminBeschreibungText += `\n\nBeschreibung vom ${getFormattedDate(b.timestamp)}${b.autor ? ` (von ${b.autor})` : ''}:\n${b.text}`;
                 if (b.attachments && b.attachments.length > 0) {
                     terminBeschreibungText += "\nAnhänge zu dieser Beschreibung:";
                     b.attachments.forEach(anhang => {
@@ -1922,7 +1978,7 @@ async function kalenderTerminErstellenUndSpeichern() {
         ideen[ideeIndex].beschreibungen = [];
     }
     const timestamp = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9);
-    ideen[ideeIndex].beschreibungen.push({ text: nachweisText, timestamp: timestamp, level: 0, sichtbar: true, attachments: [], erinnerung: getDefaultErinnerung() });
+    ideen[ideeIndex].beschreibungen.push({ text: nachweisText, timestamp: timestamp, level: 0, sichtbar: true, attachments: [], erinnerung: getDefaultErinnerung(), autor: aktuellerBenutzerName || "System" });
 
     localStorage.setItem("ideen", JSON.stringify(ideen));
     zeigeIdeen(); 
@@ -2165,7 +2221,7 @@ async function loadFromOneDrive(){
     }
 }
 
-async function speichereIdeenAlsDatei(){ try{ const ideen = JSON.parse(localStorage.getItem("ideen")||"[]"); const benutzerData = JSON.parse(localStorage.getItem("benutzerliste")||"[]"); const kategorienData = JSON.parse(localStorage.getItem("kategorien")||"[]"); const nummer = localStorage.getItem("naechsteVorgangsnummer")||"1"; const combinedData = { ideen, benutzerliste: benutzerData, kategorien: kategorienData, naechsteVorgangsnummer: nummer }; const dataToSave = JSON.stringify(combinedData, null, 2); if(window.showSaveFilePicker){ fileHandle = await window.showSaveFilePicker({ suggestedName: "ideen.json", types: [{ description: "JSON-Dateien", accept: { "application/json": [".json"] } }] }); const writable = await fileHandle.createWritable(); await writable.write(dataToSave); await writable.close(); zeigeWarnung("Datei lokal gespeichert!", 'success'); istGespeichert = true; } else { const blob = new Blob([dataToSave], { type: "application/json" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "ideen.json"; link.click(); URL.revokeObjectURL(url); zeigeWarnung("Datei-Download gestartet.", 'success'); istGespeichert = true; }} catch(e) { if(e.name !== "AbortError") { zegeWarnung("Fehler beim lokalen Speichern: " + e.message); } }}
+async function speichereIdeenAlsDatei(){ try{ const ideen = JSON.parse(localStorage.getItem("ideen")||"[]"); const benutzerData = JSON.parse(localStorage.getItem("benutzerliste")||"[]"); const kategorienData = JSON.parse(localStorage.getItem("kategorien")||"[]"); const nummer = localStorage.getItem("naechsteVorgangsnummer")||"1"; const combinedData = { ideen, benutzerliste: benutzerData, kategorien: kategorienData, naechsteVorgangsnummer: nummer }; const dataToSave = JSON.stringify(combinedData, null, 2); if(window.showSaveFilePicker){ fileHandle = await window.showSaveFilePicker({ suggestedName: "ideen.json", types: [{ description: "JSON-Dateien", accept: { "application/json": [".json"] } }] }); const writable = await fileHandle.createWritable(); await writable.write(dataToSave); await writable.close(); zeigeWarnung("Datei lokal gespeichert!", 'success'); istGespeichert = true; } else { const blob = new Blob([dataToSave], { type: "application/json" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "ideen.json"; link.click(); URL.revokeObjectURL(url); zeigeWarnung("Datei-Download gestartet.", 'success'); istGespeichert = true; }} catch(e) { if(e.name !== "AbortError") { zeigeWarnung("Fehler beim lokalen Speichern: " + e.message); } }}
 async function ladeIdeenAusDatei(){ try{ let fileContent; if(window.showOpenFilePicker){ [fileHandle] = await window.showOpenFilePicker({ types: [{ description: "JSON-Dateien", accept: { "application/json": [".json"] } }] }); const file = await fileHandle.getFile(); fileContent = await file.text(); } else { const input = document.createElement('input'); input.type = 'file'; input.accept = '.json'; await new Promise((resolve, reject) => { input.onchange = async (e) => { if (e.target.files && e.target.files.length > 0) { const file = e.target.files[0]; const reader = new FileReader(); reader.onload = (event) => { fileContent = event.target.result; resolve(); }; reader.onerror = (error) => reject(error); reader.readAsText(file); } else { reject(new Error("Keine Datei ausgewählt")); } }; input.click(); }); } if (!fileContent) { throw new Error("Kein Dateiinhalt geladen."); } const loadedData = JSON.parse(fileContent); let ideen = [], benutzerliste = [], kategorienAusDatei = null, nummer = 1; if (loadedData && typeof loadedData === 'object' && Array.isArray(loadedData.ideen)) { ideen = loadedData.ideen; benutzerliste = Array.isArray(loadedData.benutzerliste) ? loadedData.benutzerliste : []; kategorienAusDatei = Array.isArray(loadedData.kategorien) ? loadedData.kategorien : null; nummer = parseInt(loadedData.naechsteVorgangsnummer, 10) || 1; } else if (Array.isArray(loadedData)) { ideen = loadedData; benutzerliste = []; kategorienAusDatei = null; nummer = 1; } else { throw new Error("Ungültiges Dateiformat"); } localStorage.setItem("ideen", JSON.stringify(ideen)); localStorage.setItem("benutzerliste", JSON.stringify(benutzerliste)); if (kategorienAusDatei !== null) { localStorage.setItem("kategorien", JSON.stringify(kategorienAusDatei)); } localStorage.setItem("naechsteVorgangsnummer", nummer.toString()); ausgewaehlt = []; initialisiereKategorien(); initialisiereBenutzer(); initialisiereVorgangsnummer(); ensureIdeasHaveIds(); aktualisiereMandantenFilterDropdown(); zeigeIdeen(); zeigeWarnung(`Daten lokal geladen!`, 'success'); istGespeichert = true; } catch(e) { if(e.name !== "AbortError" && e.message !== "Keine Datei ausgewählt" && e.message !== "Kein Dateiinhalt geladen.") { zeigeWarnung("Fehler beim lokalen Laden: " + e.message); } }}
 
 // --- Event Listener für Änderungen und Auto-Save ---
@@ -2223,15 +2279,26 @@ function ensureIdeasHaveIds() {
     }
 
     ideen.forEach(idee => {
+        // NEU: Sicherstellen, dass das 'ersteller'-Feld existiert
+        if (idee.ersteller === undefined) {
+            idee.ersteller = null; // oder "Unbekannt"
+            changed = true;
+        }
+
         if (!Array.isArray(idee.beschreibungen)) { idee.beschreibungen = []; changed = true; }
         else {
             if (idee.beschreibungen.length > 0 && typeof idee.beschreibungen[0] === 'string') {
-                idee.beschreibungen = idee.beschreibungen.map(text => ({ text: text, timestamp: new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9), level: 0, sichtbar: true, attachments: [], erinnerung: getDefaultErinnerung() }));
+                idee.beschreibungen = idee.beschreibungen.map(text => ({ text: text, timestamp: new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9), level: 0, sichtbar: true, attachments: [], erinnerung: getDefaultErinnerung(), autor: null }));
                 changed = true;
             } else {
                 const originalLengthDesc = idee.beschreibungen.length;
                 idee.beschreibungen = idee.beschreibungen.filter(b => b && typeof b === 'object' && typeof b.text === 'string');
                 idee.beschreibungen.forEach(b => {
+                    // NEU: Sicherstellen, dass das 'autor'-Feld existiert
+                    if (b.autor === undefined) {
+                        b.autor = null; // oder "Unbekannt"
+                        changed = true;
+                    }
                     if (!b.timestamp || typeof b.timestamp !== 'string') { b.timestamp = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); changed = true; }
                     if (typeof b.level !== 'number' || b.level < 0) { b.level = 0; changed = true; }
                     if (typeof b.sichtbar !== 'boolean') { b.sichtbar = true; changed = true; }
@@ -2357,4 +2424,3 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
-
