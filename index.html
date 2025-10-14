@@ -2209,19 +2209,41 @@ function pruefeUndZeigeBenachrichtigungen() {
 }
 
 async function uploadToOneDrive(f){
-    if(currentLoginType !== 'microsoft'){zeigeWarnung("Bitte zuerst mit Microsoft anmelden!");return null;}
-    const isTokenValid = await pruefeUndErneuereToken();
-    if (!isTokenValid) { zeigeWarnung("Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.", "warnung"); return null; }
+    if(currentLoginType !== 'microsoft' || !accessToken){
+        handleExpiredSession();
+        zeigeWarnung("Bitte zuerst mit Microsoft anmelden!");
+        return null;
+    }
+    try{
+        const n=`ideenapp/${Date.now()}_${f.name}`;
+        const u=await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${n}:/content`,{method:"PUT",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":f.type},body:f});
+        
+        if (u.status === 401) {
+            handleExpiredSession();
+            return null;
+        }
 
-    try{const n=`ideenapp/${Date.now()}_${f.name}`;const u=await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${n}:/content`,{method:"PUT",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":f.type},body:f});const d=await u.json();if(!u.ok){throw new Error(`OneDrive Upload Error ${u.status}: ${d?.error?.message||'Unknown'}`);}const s=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${d.id}/createLink`,{method:"POST",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":"application/json"},body:JSON.stringify({type:"view",scope:"anonymous"})});const j=await s.json();if(!s.ok){throw new Error(`OneDrive Link Error ${s.status}: ${j?.error?.message||'Unknown'}`);}return j.link.webUrl;}catch(e){console.error("OneDrive Upload/Link Fehler:",e);zeigeWarnung("OneDrive-Fehler: "+e.message);return null;}}
+        const d=await u.json();
+        if(!u.ok){throw new Error(`OneDrive Upload Error ${u.status}: ${d?.error?.message||'Unknown'}`);}
+        const s=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${d.id}/createLink`,{method:"POST",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":"application/json"},body:JSON.stringify({type:"view",scope:"anonymous"})});
+        
+        if (s.status === 401) {
+            handleExpiredSession();
+            return null;
+        }
+
+        const j=await s.json();
+        if(!s.ok){throw new Error(`OneDrive Link Error ${s.status}: ${j?.error?.message||'Unknown'}`);}return j.link.webUrl;}catch(e){console.error("OneDrive Upload/Link Fehler:",e);zeigeWarnung("OneDrive-Fehler: "+e.message);return null;}}
 
 async function saveToOneDrive(){ 
     if(currentLoginType !== 'microsoft' || !msalInstance) { return; } 
     clearTimeout(debounceTimer); // Stoppt den Timer, da wir jetzt aktiv speichern
-    
-    const isTokenValid = await pruefeUndErneuereToken();
-    if (!isTokenValid) { zeigeWarnung("Sitzung abgelaufen. Speichern nicht möglich. Bitte neu anmelden.", "warnung"); return; }
-    
+
+    if (!accessToken) {
+        handleExpiredSession();
+        return;
+    }
+
     try { 
         const ideen=JSON.parse(localStorage.getItem("ideen")||"[]"); 
         const benutzer=JSON.parse(localStorage.getItem("benutzerliste")||"[]"); 
@@ -2238,13 +2260,14 @@ async function saveToOneDrive(){
             istGespeichert=true; // Setzt den Status auf "gespeichert" nach erfolgreichem Upload
             console.log("Daten erfolgreich auf OneDrive gespeichert.");
         }else{
+             if (res.status === 401) { // Unauthorized
+                handleExpiredSession();
+                return;
+            }
             const err=await res.json().catch(()=>null); 
             const msg=err?.error?.message||res.statusText; 
             zeigeWarnung(`OneDrive Speichern Fehler: ${msg}`);
-            istGespeichert = false; // Bei Fehler bleibt der Status auf "ungespeichert"
-            if (res.status === 401) { // Unauthorized
-                handleExpiredSession();
-            }
+            istGespeichert = false;
         }
     }catch(e){
         zeigeWarnung("OneDrive Speichern Fehler: "+e.message);
@@ -2254,7 +2277,7 @@ async function saveToOneDrive(){
 
 async function loadFromOneDrive(isInitialLogin = false){ 
     // Wenn es ungespeicherte Änderungen gibt, wird der manuelle Klick benötigt.
-    if (!istGespeichert && !confirm("Sie haben ungespeicherte lokale Änderungen. Möchten Sie diese verwerfen und die Daten von OneDrive neu laden?")) {
+    if (!isInitialLogin && !istGespeichert && !confirm("Sie haben ungespeicherte lokale Änderungen. Möchten Sie diese verwerfen und die Daten von OneDrive neu laden?")) {
         return;
     }
 
@@ -2264,13 +2287,14 @@ async function loadFromOneDrive(isInitialLogin = false){
         // handleMicrosoftLogin ruft am Ende loadFromOneDrive auf, daher hier abbrechen.
         return; 
     } 
-
-    // Nur prüfen, wenn es kein initialer Login ist. Nach dem Login ist der Token garantiert frisch.
-    if (!isInitialLogin) {
-        const isTokenValid = await pruefeUndErneuereToken();
-        if (!isTokenValid) { zeigeWarnung("Sitzung abgelaufen. Laden nicht möglich. Bitte neu anmelden.", "warnung"); return; }
+    
+    // Nur prüfen, wenn es kein initialer Login ist und der Token weg ist.
+    // Die Hauptprüfung erfolgt durch die API-Antwort (401).
+    if (!isInitialLogin && !accessToken) {
+        handleExpiredSession();
+        return;
     }
-
+    
     const path=(document.getElementById("onedrivePath").value.trim()||"/ideenapp/ideen.json"); 
     const finalPath=path.startsWith('/')?path:'/'+path; 
     if(!finalPath||finalPath==='/'){zeigeWarnung("OneDrive Laden: Ungültiger Pfad.");return;} 
@@ -2324,12 +2348,13 @@ async function loadFromOneDrive(isInitialLogin = false){
             zeigeIdeen();
             istGespeichert = true;
         }else{ 
+            if (res.status === 401) { // Unauthorized
+                handleExpiredSession();
+                return;
+            }
             const err=await res.json().catch(()=>null); 
             const msg=err?.error?.message||res.statusText; 
             zeigeWarnung(`OneDrive Laden Fehler (${res.status}): ${msg}`);
-            if (res.status === 401) { // Unauthorized
-                handleExpiredSession();
-            }
         }
     }catch(e){
         zeigeWarnung("OneDrive Laden Fehler: "+e.message);
@@ -2560,4 +2585,5 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+
 
