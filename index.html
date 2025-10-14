@@ -113,7 +113,7 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
     <div class="top-actions">
     <button onclick="showAdminPanel()" id="adminButton" style="display:none; background:#ffc107; color: black; border-color: #e0a800;">👤 Admin Panel</button>
     <button onclick="exportiereAlsPDF()">📝 PDF</button> <button onclick="exportiereAlsText()">📄 Text</button> <button onclick="teilePerEmail()">✉️ E-Mail</button> <button onclick="teilePerWhatsApp()">📱 WhatsApp</button>
-    <input type="text" id="onedrivePath" placeholder="/ideenapp/ideen.json" style="width: 250px; margin-top: 0;"/> <button class="onedrive-btn" onclick="saveToOneDrive()">☁️ OneDrive Speichern</button> <button class="onedrive-btn" onclick="loadFromOneDrive()">☁️ OneDrive Laden</button>
+    <input type="text" id="onedrivePath" placeholder="/ideenapp/ideen.json" style="width: 250px; margin-top: 0;"/> <button class="onedrive-btn" onclick="loadFromOneDrive()">☁️ OneDrive Laden</button> <button class="onedrive-btn" onclick="saveToOneDrive()">☁️ OneDrive Speichern</button>
     <button onclick="alleIdeenLoeschen()" style="background:#eee;border:1px solid #c00;color:#c00;">Alle löschen</button> <button onclick="ausgewaehlteNotizenLoeschen()" style="background:#eee;border:1px solid #c00;color:#c00;">Auswahl löschen</button>
     <button id="speicherDateiBtn" onclick="speichereIdeenAlsDatei()">Datei speichern</button> <button id="oeffneDateiBtn" onclick="ladeIdeenAusDatei()">Datei öffnen</button>
     
@@ -496,7 +496,7 @@ async function handleMicrosoftLogin() {
         tokenRefreshIntervalId = setInterval(pruefeUndErneuereToken, 10 * 60 * 1000); // alle 10 Minuten
         console.log("Token-Überwachung ('Wachhund') gestartet.");
 
-        await loadFromOneDrive(); 
+        await loadFromOneDrive(true); // HIER: Wichtige Änderung -> Initial-Load ohne erneute Token-Prüfung
         return true;
 
     } catch (e) {
@@ -2252,7 +2252,8 @@ async function saveToOneDrive(){
     }
 }
 
-async function loadFromOneDrive(){ 
+async function loadFromOneDrive(isInitialLogin = false){ 
+    // Wenn es ungespeicherte Änderungen gibt, wird der manuelle Klick benötigt.
     if (!istGespeichert && !confirm("Sie haben ungespeicherte lokale Änderungen. Möchten Sie diese verwerfen und die Daten von OneDrive neu laden?")) {
         return;
     }
@@ -2264,8 +2265,11 @@ async function loadFromOneDrive(){
         return; 
     } 
 
-    const isTokenValid = await pruefeUndErneuereToken();
-    if (!isTokenValid) { zeigeWarnung("Sitzung abgelaufen. Laden nicht möglich. Bitte neu anmelden.", "warnung"); return; }
+    // Nur prüfen, wenn es kein initialer Login ist. Nach dem Login ist der Token garantiert frisch.
+    if (!isInitialLogin) {
+        const isTokenValid = await pruefeUndErneuereToken();
+        if (!isTokenValid) { zeigeWarnung("Sitzung abgelaufen. Laden nicht möglich. Bitte neu anmelden.", "warnung"); return; }
+    }
 
     const path=(document.getElementById("onedrivePath").value.trim()||"/ideenapp/ideen.json"); 
     const finalPath=path.startsWith('/')?path:'/'+path; 
@@ -2556,3 +2560,4 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+
