@@ -415,8 +415,13 @@ async function handleGithubCallback(code) {
         if (isAllowed) {
             // Benutzer ist berechtigt -> Normaler Login
             currentLoginType = 'github';
-            // NEU: Benutzernamen speichern
             aktuellerBenutzerName = userData.name || userData.login;
+
+            // *** NEUE SESSION-LOGIK ***
+            sessionStorage.setItem('loginType', 'github');
+            sessionStorage.setItem('userEmail', userEmail);
+            sessionStorage.setItem('userName', aktuellerBenutzerName);
+
             updateLoggedInUI(aktuellerBenutzerName, userEmail);
             updateButtonVisibility(userEmail);
             zeigeWarnung("Erfolgreich mit GitHub angemeldet!", 'success');
@@ -459,7 +464,7 @@ function promptForAccessRequest(userName, userEmail) {
 }
 
 
-// --- MICROSOFT LOGIN FUNKTION (Angepasst für "Wachhund") ---
+// --- MICROSOFT LOGIN FUNKTION (Angepasst für "Wachhund" und Session Storage) ---
 
 async function handleMicrosoftLogin() {
     try {
@@ -487,6 +492,13 @@ async function handleMicrosoftLogin() {
         
         aktuellerBenutzerName = account.name;
         
+        // *** NEUE SESSION-LOGIK ***
+        sessionStorage.setItem('loginType', 'microsoft');
+        sessionStorage.setItem('userEmail', userEmail);
+        sessionStorage.setItem('userName', aktuellerBenutzerName);
+        sessionStorage.setItem('msalAccountIdentifier', account.homeAccountId);
+
+
         updateLoggedInUI(account.name, userEmail);
         updateButtonVisibility(userEmail); 
         restoreSessionUI(); // Stelle sicher, dass UI aktiv ist
@@ -615,6 +627,12 @@ async function handleLogout() {
     currentLoginType = null;
     aktuellerBenutzerName = null;
     istGespeichert = true;
+
+    // *** NEUE SESSION-LOGIK: Session Storage leeren ***
+    sessionStorage.removeItem('loginType');
+    sessionStorage.removeItem('userEmail');
+    sessionStorage.removeItem('userName');
+    sessionStorage.removeItem('msalAccountIdentifier');
     
     document.getElementById('loggedInUser').textContent = '';
     document.getElementById('loggedInUser').style.display = 'none';
@@ -757,7 +775,7 @@ async function speichereIdee() {
             }
         } else {
              if (currentLoginType === 'github') {
-                  zeigeWarnung("Dateianhänge sind nur mit Microsoft-Login möglich. Dateien werden lokal vermerkt.", "info");
+                   zeigeWarnung("Dateianhänge sind nur mit Microsoft-Login möglich. Dateien werden lokal vermerkt.", "info");
              }
             neuHochgeladeneDateien = Array.from(fileInput.files).map(f => ({
                 id: generateUUID(), name: f.name, type: f.type, sichtbar: true, isLocal: true
@@ -913,9 +931,9 @@ function zeigeIdeen() {
                     let erinnerungText = `🔔 Erinnerung: ${getFormattedDate(b.erinnerung.termin)}`;
                      if (b.erinnerung.intervallTyp !== 'einmalig') {
                          erinnerungText += `, Intervall: ${b.erinnerung.intervallTyp}`;
-                           if(b.erinnerung.intervallTyp === 'tage' && b.erinnerung.intervallWert) {
-                                erinnerungText += ` (${b.erinnerung.intervallWert} Tage)`;
-                           }
+                          if(b.erinnerung.intervallTyp === 'tage' && b.erinnerung.intervallWert) {
+                               erinnerungText += ` (${b.erinnerung.intervallWert} Tage)`;
+                          }
                     }
                     beschreibungErinnerungHtml = `<div class="beschreibung-erinnerung-info">${erinnerungText}</div>`;
                 } else if (b.erinnerung && !b.erinnerung.aktiv && b.erinnerung.termin) {
@@ -1444,7 +1462,7 @@ function exportiereAlsText() {
                       textContent += `${indentSpaces}- [${getFormattedDate(b.timestamp)}]${autorText} ${praefix}${b.text}\n`;
                       if (b.attachments && b.attachments.length > 0) {
                           b.attachments.forEach(anhang => {
-                               textContent += `${indentSpaces}     -> Anhang: ${anhang.name} ${anhang.link ? `(${anhang.link})` : '(Lokal)'}\n`;
+                               textContent += `${indentSpaces}      -> Anhang: ${anhang.name} ${anhang.link ? `(${anhang.link})` : '(Lokal)'}\n`;
                           });
                       }
                       if (b.erinnerung && b.erinnerung.termin) {
@@ -1620,7 +1638,7 @@ function exportiereAlsPDF(fileName = "ideen-export.pdf") {
                     if(b.attachments && b.attachments.length > 0) {
                         checkAddPage(defaultLineSpacing);
                         b.attachments.forEach(anhang => {
-                            const anhangText = `        -> ${anhang.name}`;
+                            const anhangText = `         -> ${anhang.name}`;
                             const anhangColor = anhang.link ? [0, 0, 238] : [0,0,0];
                             addWrappedText(anhangText, startX + 5, maxWidth - 5, {fontSize: 9, color: anhangColor, lineHeight: 4, link: anhang.link});
                         });
@@ -2163,7 +2181,7 @@ async function saveToOneDrive(){
             return true;
         }else{
              if (res.status === 401) {
-                handleExpiredSession();
+                 handleExpiredSession();
             } else {
                 const err=await res.json().catch(()=>null); 
                 const msg=err?.error?.message||res.statusText; 
@@ -2286,11 +2304,7 @@ window.addEventListener("beforeunload",function(e){if(!istGespeichert){const msg
 
 // --- Event Listener für proaktive Sitzungsprüfung beim Reaktivieren des Tabs ---
 window.addEventListener('focus', async () => {
-    // Prüft nur, wenn ein Microsoft-Login besteht und die Sitzung nicht bereits als abgelaufen markiert ist.
-    if (currentLoginType === 'microsoft' && msalInstance && document.getElementById('sessionExpiredWarning').style.display === 'none') {
-        console.log("Fenster reaktiviert, prüfe proaktiv die Microsoft-Sitzung...");
-        await pruefeUndErneuereToken(); // Diese Funktion erneuert den Token still oder ruft bei Fehlschlag handleExpiredSession() auf.
-    }
+    // Diese Funktion wurde entfernt, da die neue Startlogik das Problem eleganter löst
 });
 
 
@@ -2427,7 +2441,76 @@ function ensureIdeasHaveIds() {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+// *** NEUE FUNKTION: Versucht, eine gespeicherte Sitzung wiederherzustellen ***
+async function versucheSitzungWiederherzustellen() {
+    const savedLoginType = sessionStorage.getItem('loginType');
+    const savedUserEmail = sessionStorage.getItem('userEmail');
+    const savedUserName = sessionStorage.getItem('userName');
+
+    if (!savedLoginType || !savedUserEmail || !savedUserName) {
+        console.log("Keine gespeicherte Sitzung gefunden.");
+        updateButtonVisibility(null);
+        return;
+    }
+
+    console.log(`Versuche, Sitzung für ${savedUserEmail} wiederherzustellen...`);
+
+    if (savedLoginType === 'microsoft') {
+        const savedAccountId = sessionStorage.getItem('msalAccountIdentifier');
+        if (!savedAccountId) {
+            console.warn("Microsoft-Sitzung gefunden, aber keine Account-ID. Erneute Anmeldung erforderlich.");
+            handleLogout(); // Bereinigt den Zustand
+            return;
+        }
+        
+        if (!msalInstance) {
+            msalInstance = new msal.PublicClientApplication(msalConfig);
+        }
+
+        // MSAL initialisieren, damit getAccountByHomeId funktioniert
+        await msalInstance.initialize();
+        const account = await msalInstance.getAccountByHomeId(savedAccountId);
+
+        if (account) {
+            msalInstance.setActiveAccount(account); // Wichtig für acquireTokenSilent
+            console.log("Aktiver Account wiederhergestellt. Versuche stillen Token-Abruf...");
+            currentLoginType = 'microsoft';
+            
+            const isValid = await pruefeUndErneuereToken();
+            if (isValid) {
+                aktuellerBenutzerName = savedUserName;
+                updateLoggedInUI(savedUserName, savedUserEmail);
+                updateButtonVisibility(savedUserEmail);
+                
+                // "Wachhund" starten
+                clearInterval(tokenRefreshIntervalId);
+                tokenRefreshIntervalId = setInterval(pruefeUndErneuereToken, 10 * 60 * 1000);
+                console.log("Token-Überwachung ('Wachhund') nach Sitzungswiederherstellung gestartet.");
+                
+                // Kein automatisches Laden, da dies zu Datenverlust führen könnte, wenn lokal gearbeitet wurde.
+                // Der Benutzer kann bei Bedarf manuell laden.
+            } else {
+                 // Stiller Abruf fehlgeschlagen
+                 handleLogout(); // Bereinigen
+            }
+        } else {
+             console.log("Gespeicherter MSAL Account konnte nicht gefunden werden. Erneute Anmeldung erforderlich.");
+             handleLogout(); // Bereinigen
+        }
+
+    } else if (savedLoginType === 'github') {
+        // Bei GitHub wird nur der UI-Zustand wiederhergestellt, da der Token nicht aktualisiert werden kann.
+        // Das ist für die aktuelle App-Funktionalität ausreichend.
+        currentLoginType = 'github';
+        aktuellerBenutzerName = savedUserName;
+        updateLoggedInUI(savedUserName, savedUserEmail);
+        updateButtonVisibility(savedUserEmail);
+        console.log("GitHub UI-Sitzung wiederhergestellt.");
+    }
+}
+
+// *** ANGEPASSTE STARTLOGIK ***
+document.addEventListener('DOMContentLoaded', async () => {
     try {
         initialisiereKategorien();
         initialisiereBenutzer();
@@ -2437,38 +2520,16 @@ document.addEventListener('DOMContentLoaded', () => {
         zeigeIdeen();
         initialisiereUndStarteBenachrichtigungspruefung();
 
-        // GitHub Callback-Handling
+        // Zuerst prüfen, ob ein GitHub-Code in der URL ist
         const urlParams = new URLSearchParams(window.location.search);
         const githubCode = urlParams.get('code');
+        
         if (githubCode) {
-            handleGithubCallback(githubCode);
+            // Wenn ein Code da ist, den Callback-Flow abarbeiten
+            await handleGithubCallback(githubCode);
         } else {
-            // Initialisiere MSAL, um zu prüfen, ob ein Account aus einer vorherigen Sitzung vorhanden ist
-            if (!msalInstance) {
-                msalInstance = new msal.PublicClientApplication(msalConfig);
-            }
-            const account = msalInstance.getActiveAccount();
-            if (account) {
-                // Wenn ein Account da ist, versuche stilles Token zu holen
-                console.log("Aktiver Account gefunden, prüfe Sitzung...");
-                currentLoginType = 'microsoft'; // Vorläufig setzen
-                pruefeUndErneuereToken().then(isValid => {
-                    if (isValid) {
-                        aktuellerBenutzerName = account.name;
-                        updateLoggedInUI(account.name, account.username);
-                        updateButtonVisibility(account.username);
-                        
-                        // Starte den "Wachhund"
-                        clearInterval(tokenRefreshIntervalId);
-                        tokenRefreshIntervalId = setInterval(pruefeUndErneuereToken, 10 * 60 * 1000); // 10 Minuten
-                        console.log("Token-Überwachung ('Wachhund') nach Seiten-Neuladen gestartet.");
-                        
-                        loadFromOneDrive();
-                    }
-                });
-            } else {
-                 updateButtonVisibility(null);
-            }
+            // Ansonsten versuchen, eine bestehende Sitzung wiederherzustellen
+            await versucheSitzungWiederherzustellen();
         }
 
         pruebeLoginHinweis(); 
@@ -2480,4 +2541,3 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
-
