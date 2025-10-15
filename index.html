@@ -1889,7 +1889,23 @@ async function teileBeschreibungPerWhatsApp(ideeId, beschreibungTimestamp) {
         if (!beschreibung) { zeigeWarnung("Beschreibung nicht mehr gefunden.", "warnung"); return; }
 
         let text = `*Teil-Information aus Vorgang ${idee.vorgangsnummer || 'N/A'}: ${idee.text || 'Ohne Titel'}*\n\n`;
-        // ... (rest of text generation) ...
+        
+        const autorText = beschreibung.autor ? ` (von ${beschreibung.autor})` : "";
+        text += `*Beschreibung vom ${getFormattedDate(beschreibung.timestamp)}${autorText}:*\n`;
+        text += `${beschreibung.text}\n`;
+
+        if (beschreibung.attachments && beschreibung.attachments.length > 0) {
+            text += `\n*Zugehörige Anhänge:*\n`;
+            beschreibung.attachments.forEach(anhang => {
+                text += `- ${anhang.name}`;
+                if (anhang.link) {
+                    text += `\n  Link: ${anhang.link}\n`;
+                } else {
+                    text += ` (Lokale Datei)\n`;
+                }
+            });
+        }
+        
         text += `\n\n_[Diese einzelne Beschreibung wurde weitergeleitet an: ${recipientInfo} am ${exportTimestamp}]_`;
         
         const waLink = `https://wa.me/?text=${encodeURIComponent(text)}`;
@@ -2541,3 +2557,4 @@ document.addEventListener('DOMContentLoaded', async () => {
 </script>
 </body>
 </html>
+
