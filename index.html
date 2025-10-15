@@ -449,7 +449,7 @@ async function handleGithubCallback(code) {
 }
 
 function promptForAccessRequest(userName, userEmail) {
-    const message = `Hallo ${userName},\n\nIhre E-Mail-Adresse "${userEmail}" ist noch nicht für die Nutzung dieser App freischaltet.\n\nMöchten Sie jetzt eine Zugriffsanfrage an den Administrator senden?`;
+    const message = `Hallo ${userName},\n\nIhre E-Mail-Adresse "${userEmail}" ist noch nicht für die Nutzung dieser App freigeschaltet.\n\nMöchten Sie jetzt eine Zugriffsanfrage an den Administrator senden?`;
     
     if (confirm(message)) {
         const subject = "Zugriffsanfrage für Ideen-App Pro";
@@ -1756,9 +1756,8 @@ async function teilePerEmail() {
             }
 
             const desc = `Informationen zur Weiterleitung per E-Mail an '${recipientInfo}' vorbereitet am ${exportTimestamp}.`;
-            if (!ideenImSpeicher[ideeIndex].beschreibungen) { ideenImSpeicher[ideeIndex].beschreibungen = []; }
-            const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9);
-            ideenImSpeicher[ideeIndex].beschreibungen.push({ text: desc, timestamp: ts, level: 0, sichtbar: true, attachments: [], erinnerung: getDefaultErinnerung(), autor: aktuellerBenutzerName || "System" });
+            // Diese Art von Protokolleintrag wird nicht eingerückt, da sie sich auf die Haupt-Idee bezieht
+            addProtokollEintrag(ideeId, null, desc);
         }
     });
 
@@ -1801,10 +1800,47 @@ async function teilePerEmail() {
     }
 }
 
+/**
+ * Sammelt eine Start-Beschreibung und alle hierarchisch untergeordneten Beschreibungen.
+ * @param {string} ideeId Die ID der übergeordneten Idee.
+ * @param {string} startBeschreibungTimestamp Der Timestamp der Beschreibung, bei der der Block beginnt.
+ * @returns {{idee: object, block: object[]}|null} Ein Objekt mit der Idee und dem Array des Beschreibungs-Blocks, oder null bei Fehler.
+ */
+function sammleBeschreibungsBlock(ideeId, startBeschreibungTimestamp) {
+    const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+    const idee = ideen.find(i => i.id === ideeId);
+    if (!idee || !idee.beschreibungen) {
+        return null;
+    }
+
+    const startIndex = idee.beschreibungen.findIndex(b => b.timestamp === startBeschreibungTimestamp);
+    if (startIndex === -1) {
+        return null;
+    }
+
+    const startBeschreibung = idee.beschreibungen[startIndex];
+    const startLevel = startBeschreibung.level || 0;
+    const block = [startBeschreibung];
+
+    for (let i = startIndex + 1; i < idee.beschreibungen.length; i++) {
+        const naechsteBeschreibung = idee.beschreibungen[i];
+        const naechstesLevel = naechsteBeschreibung.level || 0;
+
+        if (naechstesLevel > startLevel) {
+            block.push(naechsteBeschreibung);
+        } else {
+            // Der Block ist hier zu Ende, da das Level gleich oder kleiner ist.
+            break;
+        }
+    }
+    return { idee, block };
+}
+
+
 async function teileBeschreibungPerEmail(ideeId, beschreibungTimestamp) {
     if (!ideeId || !beschreibungTimestamp) { return; }
     
-    const recipientInput = prompt("An wen soll diese Beschreibung gesendet werden (E-Mail-Adresse)? Oder 'ich', 'mandant', 'support', 'andere' für interne Vermerke.");
+    const recipientInput = prompt("An wen soll dieser Beschreibungs-Block gesendet werden (E-Mail-Adresse)? Oder 'ich', 'mandant', 'support', 'andere' für interne Vermerke.");
     let recipientInfo = recipientInput ? recipientInput.trim().toLowerCase() : "";
     if (!recipientInfo) { zeigeWarnung("E-Mail-Versand abgebrochen.", "info"); return; }
 
@@ -1822,9 +1858,8 @@ async function teileBeschreibungPerEmail(ideeId, beschreibungTimestamp) {
         recipientInfo = `Andere: ${otherDetails.trim()}`;
     }
     
-    // 1. Log lokal erstellen
     const exportTimestamp = new Date().toLocaleString("de-DE");
-    const logDesc = `Einzelne Beschreibung (vom ${getFormattedDate(beschreibungTimestamp)}) weitergeleitet via E-Mail an: ${recipientInfo} am ${exportTimestamp}.`;
+    const logDesc = `Beschreibungs-Block (beginnend mit Eintrag vom ${getFormattedDate(beschreibungTimestamp)}) weitergeleitet via E-Mail an: ${recipientInfo} am ${exportTimestamp}.`;
     
     if (!addProtokollEintrag(ideeId, beschreibungTimestamp, logDesc)) {
         zeigeWarnung("Fehler beim Erstellen des Protokolleintrags.", "warnung");
@@ -1833,16 +1868,15 @@ async function teileBeschreibungPerEmail(ideeId, beschreibungTimestamp) {
     
     zeigeIdeen();
 
-    // 2. Speichern
     const saveSuccess = await saveToOneDrive();
 
-    // 3. Externe Aktion bei Erfolg
     if (saveSuccess) {
-        const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-        const idee = ideen.find(i => i.id === ideeId);
-        if (!idee) { zeigeWarnung("Zugehörige Idee nach Speichern nicht gefunden.", "warnung"); return; }
-        const beschreibung = idee.beschreibungen?.find(b => b.timestamp === beschreibungTimestamp);
-        if (!beschreibung) { zeigeWarnung("Beschreibung nicht mehr gefunden.", "warnung"); return; }
+        const sammlung = sammleBeschreibungsBlock(ideeId, beschreibungTimestamp);
+        if (!sammlung) {
+            zeigeWarnung("Der zu teilende Block konnte nicht gefunden werden. Der Protokolleintrag wurde dennoch gespeichert.", "warnung");
+            return;
+        }
+        const { idee, block } = sammlung;
 
         const emailSubject = `Teil-Information aus Vorgang ${idee.vorgangsnummer || 'N/A'}: ${idee.text || 'Ohne Titel'}`;
         
@@ -1851,27 +1885,35 @@ async function teileBeschreibungPerEmail(ideeId, beschreibungTimestamp) {
         emailBody += `AUS VORGANG: ${idee.vorgangsnummer || 'N/A'} - ${idee.text || 'Ohne Titel'}\n`;
         emailBody += `--------------------------------------------------\n\n`;
 
-        const autorText = beschreibung.autor ? ` (von ${beschreibung.autor})` : "";
-        emailBody += `Beschreibung vom ${getFormattedDate(beschreibung.timestamp)}${autorText}:\n`;
-        emailBody += `${beschreibung.text}\n\n`;
+        const startLevel = block[0].level || 0;
 
-        if (beschreibung.attachments && beschreibung.attachments.length > 0) {
-            emailBody += `Zugehörige Anhänge:\n`;
-            beschreibung.attachments.forEach(anhang => {
-                emailBody += `- ${anhang.name}`;
-                if (anhang.link) {
-                    emailBody += `\n  Link: ${anhang.link}\n`;
-                } else {
-                    emailBody += ` (Lokale Datei, nicht angehängt)\n`;
-                }
-            });
-            emailBody += `\n`;
-        }
-        
-        if (beschreibung.erinnerung && beschreibung.erinnerung.aktiv && beschreibung.erinnerung.termin) {
-            emailBody += `Zugehörige Erinnerung:\n`;
-            emailBody += `${formatErinnerungForExport(beschreibung.erinnerung)}\n`;
-        }
+        block.forEach(beschreibung => {
+            if (!beschreibung) return;
+            const relativerIndent = (beschreibung.level || 0) - startLevel;
+            const indentSpaces = "  ".repeat(relativerIndent);
+            const autorText = beschreibung.autor ? ` (von ${beschreibung.autor})` : "";
+            
+            emailBody += `${indentSpaces}Beschreibung vom ${getFormattedDate(beschreibung.timestamp)}${autorText}:\n`;
+            emailBody += `${indentSpaces}${beschreibung.text.replace(/\n/g, `\n${indentSpaces}`)}\n\n`;
+
+            if (beschreibung.attachments && beschreibung.attachments.length > 0) {
+                emailBody += `${indentSpaces}  Zugehörige Anhänge:\n`;
+                beschreibung.attachments.forEach(anhang => {
+                    emailBody += `${indentSpaces}  - ${anhang.name}`;
+                    if (anhang.link) {
+                        emailBody += `\n${indentSpaces}    Link: ${anhang.link}\n`;
+                    } else {
+                        emailBody += ` (Lokale Datei, nicht angehängt)\n`;
+                    }
+                });
+                emailBody += `\n`;
+            }
+            
+            if (beschreibung.erinnerung && beschreibung.erinnerung.aktiv && beschreibung.erinnerung.termin) {
+                 const erinnerungText = formatErinnerungForExport(beschreibung.erinnerung).replace(/\n/g, `\n${indentSpaces}  `);
+                 emailBody += `${indentSpaces}  Zugehörige Erinnerung:\n${indentSpaces}  ${erinnerungText}\n`;
+            }
+        });
 
         emailBody += `\nMit freundlichen Grüßen\n\nIhre Ideen-App`;
         
@@ -1903,25 +1945,18 @@ async function teilePerWhatsApp(){
         recipientInfo = `Andere: ${other.trim()}`;
     }
 
-    // 1. Log lokal erstellen
-    let ideenImSpeicher = JSON.parse(localStorage.getItem("ideen") || "[]");
     const ausgewaehlteIDs = ideenToExport.map(i => i.id);
     const exportTimestamp = new Date().toLocaleString("de-DE");
 
     ausgewaehlteIDs.forEach(ideeId => {
-        const ideeIndex = ideenImSpeicher.findIndex(i => i.id === ideeId);
-        if (ideeIndex !== -1) {
-            const desc = `Weiterleitung via WhatsApp vorbereitet für: ${recipientInfo} am ${exportTimestamp}`;
-            addProtokollEintrag(ideeId, null, desc);
-        }
+        const desc = `Weiterleitung via WhatsApp vorbereitet für: ${recipientInfo} am ${exportTimestamp}`;
+        addProtokollEintrag(ideeId, null, desc);
     });
 
     zeigeIdeen();
 
-    // 2. Speichern
     const saveSuccess = await saveToOneDrive();
 
-    // 3. Externe Aktion bei Erfolg
     if (saveSuccess) {
         let text = ideenToExport.map(idee => {
              return ( `${idee.erledigt ? '_[ERLEDIGT]_ ' : ''}*${idee.vorgangsnummer ? `[Vorgang ${idee.vorgangsnummer}] ` : ''}${idee.text || 'Ohne Titel'}*\n` + `📁 Kat.: ${idee.kategorie||'-'}\n` + `${idee.benutzer?`🧑‍💻 Zust.: ${idee.benutzer}\n`:""}` + `🔖 Prio: ${idee.prioritaet||"-"}\n` + `📅 ${getFormattedDate(idee.timestamp)}${idee.ersteller ? ` (von ${idee.ersteller})` : ''}\n` + (idee.details ? `\n📝 *Beschreibung:*\n${idee.details}\n` : "") + `${idee.mandantennummer?`🏢 Mandant: ${idee.mandantennummer}\n`:""}` + `${idee.firmenname?`🏭 Firma: ${idee.firmenname}\n`:""}` );
@@ -1944,7 +1979,7 @@ async function teilePerWhatsApp(){
 async function teileBeschreibungPerWhatsApp(ideeId, beschreibungTimestamp) {
     if (!ideeId || !beschreibungTimestamp) { return; }
     
-    const recipientInput = prompt("An wen soll diese Beschreibung gesendet werden? Info oder 'ich', 'mandant', 'support', 'andere'");
+    const recipientInput = prompt("An wen soll dieser Beschreibungs-Block gesendet werden? Info oder 'ich', 'mandant', 'support', 'andere'");
     let recipientInfo = recipientInput ? recipientInput.trim().toLowerCase() : "";
     if (!recipientInfo) { zeigeWarnung("Export abgebrochen."); return; }
 
@@ -1956,9 +1991,8 @@ async function teileBeschreibungPerWhatsApp(ideeId, beschreibungTimestamp) {
         recipientInfo = `Andere: ${other.trim()}`;
     }
 
-    // 1. Log lokal erstellen mit der neuen Helferfunktion
     const exportTimestamp = new Date().toLocaleString("de-DE");
-    const logDesc = `Einzelne Beschreibung (vom ${getFormattedDate(beschreibungTimestamp)}) weitergeleitet via WhatsApp an: ${recipientInfo} am ${exportTimestamp}.`;
+    const logDesc = `Beschreibungs-Block (beginnend mit Eintrag vom ${getFormattedDate(beschreibungTimestamp)}) weitergeleitet via WhatsApp an: ${recipientInfo} am ${exportTimestamp}.`;
     
     if (!addProtokollEintrag(ideeId, beschreibungTimestamp, logDesc)) {
         zeigeWarnung("Fehler beim Erstellen des Protokolleintrags.", "warnung");
@@ -1967,34 +2001,42 @@ async function teileBeschreibungPerWhatsApp(ideeId, beschreibungTimestamp) {
     
     zeigeIdeen();
 
-    // 2. Speichern
     const saveSuccess = await saveToOneDrive();
 
-    // 3. Externe Aktion bei Erfolg
     if (saveSuccess) {
-        const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-        const idee = ideen.find(i => i.id === ideeId);
-        if (!idee) { zeigeWarnung("Zugehörige Idee nach Speichern nicht gefunden.", "warnung"); return; }
-        const beschreibung = idee.beschreibungen?.find(b => b.timestamp === beschreibungTimestamp);
-        if (!beschreibung) { zeigeWarnung("Beschreibung nicht mehr gefunden.", "warnung"); return; }
+        const sammlung = sammleBeschreibungsBlock(ideeId, beschreibungTimestamp);
+        if (!sammlung) {
+            zeigeWarnung("Der zu teilende Block konnte nicht gefunden werden. Der Protokolleintrag wurde dennoch gespeichert.", "warnung");
+            return;
+        }
+        const { idee, block } = sammlung;
 
         let text = `*Teil-Information aus Vorgang ${idee.vorgangsnummer || 'N/A'}: ${idee.text || 'Ohne Titel'}*\n\n`;
         
-        const autorText = beschreibung.autor ? ` (von ${beschreibung.autor})` : "";
-        text += `*Beschreibung vom ${getFormattedDate(beschreibung.timestamp)}${autorText}:*\n`;
-        text += `${beschreibung.text}\n`;
+        const startLevel = block[0].level || 0;
 
-        if (beschreibung.attachments && beschreibung.attachments.length > 0) {
-            text += `\n*Zugehörige Anhänge:*\n`;
-            beschreibung.attachments.forEach(anhang => {
-                text += `- ${anhang.name}`;
-                if (anhang.link) {
-                    text += `\n  Link: ${anhang.link}\n`;
-                } else {
-                    text += ` (Lokale Datei)\n`;
-                }
-            });
-        }
+        block.forEach(beschreibung => {
+            if (!beschreibung) return;
+            const relativerIndent = (beschreibung.level || 0) - startLevel;
+            const indentSpaces = "   ".repeat(relativerIndent);
+            const autorText = beschreibung.autor ? ` _(von ${beschreibung.autor})_` : "";
+            
+            text += `${indentSpaces}*Beschreibung vom ${getFormattedDate(beschreibung.timestamp)}${autorText}:*\n`;
+            text += `${indentSpaces}${beschreibung.text}\n`;
+
+            if (beschreibung.attachments && beschreibung.attachments.length > 0) {
+                text += `${indentSpaces}  *Anhänge:*\n`;
+                beschreibung.attachments.forEach(anhang => {
+                    text += `${indentSpaces}  - ${anhang.name}`;
+                    if (anhang.link) {
+                        text += `\n${indentSpaces}    Link: ${anhang.link}\n`;
+                    } else {
+                        text += ` _(Lokale Datei)_\n`;
+                    }
+                });
+            }
+            text += '\n';
+        });
         
         text += `\n\n_[Gesendet via Ideen-App Pro]_`;
         
@@ -2137,29 +2179,35 @@ async function kalenderTerminErstellenUndSpeichern() {
     let nachweisText = "";
     
     if (terminFuerBeschreibungTimestamp) {
-        const beschreibung = idee.beschreibungen.find(b => b.timestamp === terminFuerBeschreibungTimestamp);
-        if (!beschreibung) {
-             zeigeWarnung("Zugehörige Beschreibung nicht mehr gefunden.", "warnung"); 
+        const sammlung = sammleBeschreibungsBlock(terminFuerId, terminFuerBeschreibungTimestamp);
+        if (!sammlung) {
+             zeigeWarnung("Zugehöriger Beschreibungs-Block nicht mehr gefunden.", "warnung"); 
              terminDialogAbbrechen();
              return;
         }
 
-        const autorText = beschreibung.autor ? ` (von ${beschreibung.autor})` : "";
-        terminBeschreibungText = `Teil-Information aus Vorgang ${idee.vorgangsnummer || 'N/A'}: ${idee.text || 'Ohne Titel'}\n\n`;
-        terminBeschreibungText += `Beschreibung vom ${getFormattedDate(beschreibung.timestamp)}${autorText}:\n${beschreibung.text}\n\n`;
+        terminBeschreibungText = `Teil-Informationen aus Vorgang ${idee.vorgangsnummer || 'N/A'}: ${idee.text || 'Ohne Titel'}\n\n`;
+        const startLevel = sammlung.block[0].level || 0;
+
+        sammlung.block.forEach(beschreibung => {
+            const relativerIndent = (beschreibung.level || 0) - startLevel;
+            const indentSpaces = "  ".repeat(relativerIndent);
+            const autorText = beschreibung.autor ? ` (von ${beschreibung.autor})` : "";
+            
+            terminBeschreibungText += `${indentSpaces}Beschreibung vom ${getFormattedDate(beschreibung.timestamp)}${autorText}:\n`;
+            terminBeschreibungText += `${indentSpaces}${beschreibung.text.replace(/\n/g, `\n${indentSpaces}`)}\n\n`;
+
+            if (beschreibung.attachments && beschreibung.attachments.length > 0) {
+                terminBeschreibungText += `${indentSpaces}  Zugehörige Anhänge:\n`;
+                beschreibung.attachments.forEach(anhang => {
+                    terminBeschreibungText += `${indentSpaces}  - ${anhang.name}`;
+                    if (anhang.link) { terminBeschreibungText += `\n${indentSpaces}    Link: ${anhang.link}\n`; } 
+                    else { terminBeschreibungText += ` (Lokale Datei)\n`; }
+                });
+            }
+        });
         
-        if (beschreibung.attachments && beschreibung.attachments.length > 0) {
-            terminBeschreibungText += `Zugehörige Anhänge:\n`;
-            beschreibung.attachments.forEach(anhang => {
-                terminBeschreibungText += `- ${anhang.name}`;
-                if (anhang.link) {
-                    terminBeschreibungText += `\n  Link: ${anhang.link}\n`;
-                } else {
-                    terminBeschreibungText += ` (Lokale Datei)\n`;
-                }
-            });
-        }
-        nachweisText = `Kalendertermin vorbereitet für Beschreibung (vom ${getFormattedDate(beschreibung.timestamp)}). Titel: "${titel}".`;
+        nachweisText = `Kalendertermin vorbereitet für Beschreibungs-Block (vom ${getFormattedDate(terminFuerBeschreibungTimestamp)}). Titel: "${titel}".`;
     } else {
         terminBeschreibungText = `Vorgang ${idee.vorgangsnummer || 'N/A'}: ${idee.text || 'Ohne Titel'}\n\n${idee.details || ""}`;
         nachweisText = `Kalendertermin vorbereitet für: ${getFormattedDate(startZeitValue)}. Titel: "${titel}".`;
@@ -2466,6 +2514,15 @@ async function loadFromOneDrive(isInitialLogin = false){
 
 async function speichereIdeenAlsDatei(){ try{ const ideen = JSON.parse(localStorage.getItem("ideen")||"[]"); const benutzerData = JSON.parse(localStorage.getItem("benutzerliste")||"[]"); const kategorienData = JSON.parse(localStorage.getItem("kategorien")||"[]"); const nummer = localStorage.getItem("naechsteVorgangsnummer")||"1"; const combinedData = { ideen, benutzerliste: benutzerData, kategorien: kategorienData, naechsteVorgangsnummer: nummer }; const dataToSave = JSON.stringify(combinedData, null, 2); if(window.showSaveFilePicker){ fileHandle = await window.showSaveFilePicker({ suggestedName: "ideen.json", types: [{ description: "JSON-Dateien", accept: { "application/json": [".json"] } }] }); const writable = await fileHandle.createWritable(); await writable.write(dataToSave); await writable.close(); zeigeWarnung("Datei lokal gespeichert!", 'success'); istGespeichert = true; } else { const blob = new Blob([dataToSave], { type: "application/json" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "ideen.json"; link.click(); URL.revokeObjectURL(url); zeigeWarnung("Datei-Download gestartet.", 'success'); istGespeichert = true; }} catch(e) { if(e.name !== "AbortError") { zeigeWarnung("Fehler beim lokalen Speichern: " + e.message); } }}
 async function ladeIdeenAusDatei(){ try{ let fileContent; if(window.showOpenFilePicker){ [fileHandle] = await window.showOpenFilePicker({ types: [{ description: "JSON-Dateien", accept: { "application/json": [".json"] } }] }); const file = await fileHandle.getFile(); fileContent = await file.text(); } else { const input = document.createElement('input'); input.type = 'file'; input.accept = '.json'; await new Promise((resolve, reject) => { input.onchange = async (e) => { if (e.target.files && e.target.files.length > 0) { const file = e.target.files[0]; const reader = new FileReader(); reader.onload = (event) => { fileContent = event.target.result; resolve(); }; reader.onerror = (error) => reject(error); reader.readAsText(file); } else { reject(new Error("Keine Datei ausgewählt")); } }; input.click(); }); } if (!fileContent) { throw new Error("Kein Dateiinhalt geladen."); } const loadedData = JSON.parse(fileContent); let ideen = [], benutzerliste = [], kategorienAusDatei = null, nummer = 1; if (loadedData && typeof loadedData === 'object' && Array.isArray(loadedData.ideen)) { ideen = loadedData.ideen; benutzerliste = Array.isArray(loadedData.benutzerliste) ? loadedData.benutzerliste : []; kategorienAusDatei = Array.isArray(loadedData.kategorien) ? loadedData.kategorien : null; nummer = parseInt(loadedData.naechsteVorgangsnummer, 10) || 1; } else if (Array.isArray(loadedData)) { ideen = loadedData; benutzerliste = []; kategorienAusDatei = null; nummer = 1; } else { throw new Error("Ungültiges Dateiformat"); } localStorage.setItem("ideen", JSON.stringify(ideen)); localStorage.setItem("benutzerliste", JSON.stringify(benutzerliste)); if (kategorienAusDatei !== null) { localStorage.setItem("kategorien", JSON.stringify(kategorienAusDatei)); } localStorage.setItem("naechsteVorgangsnummer", nummer.toString()); ausgewaehlt = []; initialisiereKategorien(); initialisiereBenutzer(); initialisiereVorgangsnummer(); ensureIdeasHaveIds(); aktualisiereMandantenFilterDropdown(); zeigeIdeen(); zeigeWarnung(`Daten lokal geladen!`, 'success'); istGespeichert = true; } catch(e) { if(e.name !== "AbortError" && e.message !== "Keine Datei ausgewählt" && e.message !== "Kein Dateiinhalt geladen.") { zeigeWarnung("Fehler beim lokalen Laden: " + e.message); } }}
+
+/**
+ * Fügt einen neuen Protokolleintrag (eine spezielle 'Beschreibung') hinzu,
+ * wobei dieser automatisch eine Stufe tiefer als der Quell-Eintrag eingerückt wird.
+ * @param {string} ideeId Die ID der übergeordneten Idee.
+ * @param {string|null} quellBeschreibungTimestamp Timestamp des Eintrags, der diese Aktion ausgelöst hat. Bei null wird der Eintrag auf Level 0 am Ende hinzugefügt.
+ * @param {string} protokollText Der Text für den neuen Protokolleintrag.
+ * @returns {boolean} True bei Erfolg, false bei Misserfolg.
+ */
 function addProtokollEintrag(ideeId, quellBeschreibungTimestamp, protokollText) {
     let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
     const ideeIndex = ideen.findIndex(i => i && i.id === ideeId);
@@ -2478,32 +2535,47 @@ function addProtokollEintrag(ideeId, quellBeschreibungTimestamp, protokollText) 
         ideen[ideeIndex].beschreibungen = [];
     }
     
+    let basisLevel = 0;
+    let einfuegePosition = ideen[ideeIndex].beschreibungen.length; // Standard: am Ende der Liste
+
+    if (quellBeschreibungTimestamp) {
+        const quellIndex = ideen[ideeIndex].beschreibungen.findIndex(b => b && b.timestamp === quellBeschreibungTimestamp);
+        if (quellIndex !== -1) {
+            basisLevel = (ideen[ideeIndex].beschreibungen[quellIndex].level || 0) + 1;
+            
+            // Finde das Ende des Blocks (alle untergeordneten Punkte), um den neuen Eintrag korrekt danach einzufügen
+            let letzterUnterpunktIndex = quellIndex;
+            for (let i = quellIndex + 1; i < ideen[ideeIndex].beschreibungen.length; i++) {
+                if ((ideen[ideeIndex].beschreibungen[i].level || 0) > (ideen[ideeIndex].beschreibungen[quellIndex].level || 0)) {
+                    letzterUnterpunktIndex = i;
+                } else {
+                    break; // Ende des Blocks erreicht
+                }
+            }
+            einfuegePosition = letzterUnterpunktIndex + 1;
+
+        } else {
+            console.warn("Quell-Beschreibung für Protokolleintrag nicht gefunden. Füge am Ende an.");
+        }
+    }
+
     const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9);
     const neuerEintrag = {
         text: protokollText,
         timestamp: ts,
-        level: 0,
+        level: basisLevel, // Setzt das neue, eingerückte Level
         sichtbar: true,
         attachments: [],
         erinnerung: getDefaultErinnerung(),
         autor: aktuellerBenutzerName || "System"
     };
 
-    if (quellBeschreibungTimestamp) {
-        const quellIndex = ideen[ideeIndex].beschreibungen.findIndex(b => b && b.timestamp === quellBeschreibungTimestamp);
-        if (quellIndex !== -1) {
-            ideen[ideeIndex].beschreibungen.splice(quellIndex + 1, 0, neuerEintrag);
-        } else {
-            console.warn("Quell-Beschreibung für Protokolleintrag nicht gefunden. Hänge am Ende an.");
-            ideen[ideeIndex].beschreibungen.push(neuerEintrag);
-        }
-    } else {
-        ideen[ideeIndex].beschreibungen.push(neuerEintrag);
-    }
+    ideen[ideeIndex].beschreibungen.splice(einfuegePosition, 0, neuerEintrag);
     
     localStorage.setItem("ideen", JSON.stringify(ideen));
     return true;
 }
+
 
 // --- Event Listener für Änderungen und Auto-Save ---
 document.getElementById("ideeText").addEventListener("input", triggerAutoSave);
@@ -2740,5 +2812,3 @@ document.addEventListener('DOMContentLoaded', async () => {
 </script>
 </body>
 </html>
-
-
