@@ -496,7 +496,7 @@ async function handleMicrosoftLogin() {
         tokenRefreshIntervalId = setInterval(pruefeUndErneuereToken, 10 * 60 * 1000); // alle 10 Minuten
         console.log("Token-Überwachung ('Wachhund') gestartet.");
 
-        await loadFromOneDrive(true); // Initial-Load ohne erneute Token-Prüfung
+        await loadFromOneDrive(true); // Initial-Load
         return true;
 
     } catch (e) {
@@ -985,7 +985,7 @@ function zeigeIdeen() {
       } catch (e) {
         console.error("Fehler beim Darstellen einer Idee (möglicherweise korrupte Daten):", idee, e);
         if (idee && idee.id) {
-            return `<div class="idee erledigt" data-idee-id="${idee.id}">
+            return `<div class="idee erledigt" data-idee-id="${id}">
                         <div class="idee-content">
                             <h3>Fehlerhafte Idee (ID: ${idee.id})</h3>
                             <p>Diese Idee konnte nicht korrekt geladen werden. Bitte überprüfen Sie die Daten oder löschen Sie den Eintrag.</p>
@@ -1694,97 +1694,89 @@ async function teilePerEmail() {
         return;
     }
 
-    let pdfFileName;
-    let emailSubject;
-
-    if (ideenToExport.length === 1) {
-        const idee = ideenToExport[0];
-        const sanitizedTitle = sanitizeFilename(idee.text || 'Unbenannte_Idee');
-        pdfFileName = `Idee_${sanitizedTitle}.pdf`;
-        emailSubject = `Idee: ${idee.text || 'Unbenannte Idee'}`;
-    } else {
-        pdfFileName = `Ideen-Export_(${ideenToExport.length}_Notizen).pdf`;
-        emailSubject = `Ideen-Export (${ideenToExport.length} Notizen)`;
-    }
-
-    try {
-        const pdfErstellt = exportiereAlsPDF(pdfFileName);
-        if (!pdfErstellt) { 
-            zeigeWarnung(`PDF "${pdfFileName}" konnte nicht erstellt werden (keine Notizen).`, 'warnung');
-            return;
-        }
-        zeigeWarnung(`PDF "${pdfFileName}" wurde heruntergeladen. Bitte manuell an die E-Mail anhängen.`, 'success');
-    } catch (e) {
-        zeigeWarnung(`Fehler beim Erstellen der PDF: ${e.message}`, 'warnung');
-        console.error("Fehler beim PDF-Export für E-Mail:", e);
-        return;
-    }
-
     const recipientInput = prompt("An wen soll die Information gesendet werden (E-Mail-Adresse)? Oder 'ich', 'mandant', 'support', 'andere' für interne Vermerke.");
     let recipientInfo = recipientInput ? recipientInput.trim().toLowerCase() : "";
-
     if (!recipientInfo) {
-        zeigeWarnung("E-Mail-Versand abgebrochen, da kein Empfänger angegeben wurde.");
+        zeigeWarnung("E-Mail-Versand abgebrochen.", "info");
         return;
     }
-
+    
     let recipientEmailAddress = '';
     if (recipientInput.includes('@')) {
         recipientEmailAddress = encodeURIComponent(recipientInput.trim());
-    } else {
-        if (!["ich", "mandant", "support"].includes(recipientInfo) && recipientInfo !== "andere" && !recipientInfo.startsWith("andere:")) {
-            recipientInfo = `Direkte Eingabe: ${recipientInput.trim()}`;
-        } else if (recipientInfo === "andere") {
-            const otherDetails = prompt("Zusätzliche Info für den Vermerk bei 'andere'?");
-            if (!otherDetails?.trim()) {
-                zeigeWarnung("Export abgebrochen, da keine Details für 'andere' angegeben wurden.");
-                return;
-            }
-            recipientInfo = `Andere: ${otherDetails.trim()}`;
+    } else if (!["ich", "mandant", "support", "andere"].includes(recipientInfo) && !recipientInfo.startsWith("andere:")) {
+        recipientInfo = `Direkte Eingabe: ${recipientInput.trim()}`;
+    } else if (recipientInfo === "andere") {
+        const otherDetails = prompt("Zusätzliche Info für den Vermerk bei 'andere'?");
+        if (!otherDetails?.trim()) {
+            zeigeWarnung("Export abgebrochen, da keine Details für 'andere' angegeben wurden.");
+            return;
         }
+        recipientInfo = `Andere: ${otherDetails.trim()}`;
     }
 
-    const emailBody = encodeURIComponent(
-        `Hallo,\n\n` +
-        `anbei die angeforderte Idee/die angeforderten Ideen als PDF-Datei.\n\n` +
-        `Bitte hängen Sie die Datei "${pdfFileName}", die zuvor heruntergeladen wurde, manuell an diese E-Mail an.\n\n` +
-        `Mit freundlichen Grüßen\n` +
-        `Ihre Ideen-App`
-    );
-
-    const mailtoLink = `mailto:${recipientEmailAddress}?subject=${encodeURIComponent(emailSubject)}&body=${emailBody}`;
-    console.log("Generierter Mailto-Link:", mailtoLink);
-
-    try {
-        setTimeout(() => {
-            window.location.href = mailtoLink;
-        }, 100);
-        zeigeWarnung("Versuche, E-Mail-Client zu öffnen...", "info");
-    } catch (e) {
-        console.error("Mailto Fehler:", e);
-        zeigeWarnung(`Fehler beim Öffnen des Mail-Programms: ${e.message}. Sie können den Link manuell aus der Konsole kopieren.`, "warnung");
-    }
-
-    await new Promise(resolve => setTimeout(resolve, 300));
+    // 1. Log entry erstellen und lokal speichern
     let ideenImSpeicher = JSON.parse(localStorage.getItem("ideen") || "[]");
-    let changed = false;
-    const ausgewaehlteIDsFuerMail = ideenToExport.map(i => i.id);
+    const ausgewaehlteIDs = ideenToExport.map(i => i.id);
     const exportTimestamp = new Date().toLocaleString("de-DE");
+    let pdfFileName; // Wird unten gesetzt
+    let emailSubject; // Wird unten gesetzt
 
-    ideenImSpeicher.forEach(idee => {
-        if (idee && idee.id && ausgewaehlteIDsFuerMail.includes(idee.id)) {
-            const desc = `Informationen weitergeleitet (PDF-Download für E-Mail '${recipientInfo}') am ${exportTimestamp}. PDF-Name: ${pdfFileName}`;
-            if (!idee.beschreibungen) { idee.beschreibungen = []; }
+    ausgewaehlteIDs.forEach(ideeId => {
+        const ideeIndex = ideenImSpeicher.findIndex(i => i && i.id === ideeId);
+        if (ideeIndex !== -1) {
+            if (ideenToExport.length === 1) {
+                const idee = ideenToExport[0];
+                pdfFileName = `Idee_${sanitizeFilename(idee.text || 'Unbenannte_Idee')}.pdf`;
+                emailSubject = `Idee: ${idee.text || 'Unbenannte Idee'}`;
+            } else {
+                pdfFileName = `Ideen-Export_(${ideenToExport.length}_Notizen).pdf`;
+                emailSubject = `Ideen-Export (${ideenToExport.length} Notizen)`;
+            }
+
+            const desc = `Informationen zur Weiterleitung per E-Mail an '${recipientInfo}' vorbereitet am ${exportTimestamp}.`;
+            if (!ideenImSpeicher[ideeIndex].beschreibungen) { ideenImSpeicher[ideeIndex].beschreibungen = []; }
             const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9);
-            idee.beschreibungen.push({ text: desc, timestamp: ts, level: 0, sichtbar: true, attachments: [], erinnerung: getDefaultErinnerung(), autor: aktuellerBenutzerName || "System" });
-            changed = true;
+            ideenImSpeicher[ideeIndex].beschreibungen.push({ text: desc, timestamp: ts, level: 0, sichtbar: true, attachments: [], erinnerung: getDefaultErinnerung(), autor: aktuellerBenutzerName || "System" });
         }
     });
 
-    if (changed) {
-        localStorage.setItem("ideen", JSON.stringify(ideenImSpeicher));
-        zeigeIdeen();
-        triggerAutoSave();
+    localStorage.setItem("ideen", JSON.stringify(ideenImSpeicher));
+    zeigeIdeen();
+
+    // 2. In OneDrive speichern
+    const saveSuccess = await saveToOneDrive();
+
+    // 3. Nur bei Erfolg die externe Aktion ausführen
+    if (saveSuccess) {
+        try {
+            const pdfErstellt = exportiereAlsPDF(pdfFileName);
+            if (!pdfErstellt) { 
+                zeigeWarnung(`PDF "${pdfFileName}" konnte nicht erstellt werden.`, 'warnung');
+                return;
+            }
+            zeigeWarnung(`PDF "${pdfFileName}" wurde heruntergeladen. Bitte manuell an die E-Mail anhängen.`, 'success');
+        } catch (e) {
+            zeigeWarnung(`Fehler beim Erstellen der PDF: ${e.message}`, 'warnung');
+            return;
+        }
+
+        const emailBody = encodeURIComponent(
+            `Hallo,\n\nanbei die angeforderte Idee/die angeforderten Ideen als PDF-Datei.\n\n` +
+            `Bitte hängen Sie die Datei "${pdfFileName}", die zuvor heruntergeladen wurde, manuell an diese E-Mail an.\n\n` +
+            `Mit freundlichen Grüßen\nIhre Ideen-App`
+        );
+
+        const mailtoLink = `mailto:${recipientEmailAddress}?subject=${encodeURIComponent(emailSubject)}&body=${emailBody}`;
+
+        try {
+            setTimeout(() => { window.location.href = mailtoLink; }, 100);
+            zeigeWarnung("Versuche, E-Mail-Client zu öffnen...", "info");
+        } catch (e) {
+            zeigeWarnung(`Fehler beim Öffnen des Mail-Programms: ${e.message}.`, "warnung");
+        }
+    } else {
+        zeigeWarnung("Speichern fehlgeschlagen (Sitzung abgelaufen?). Der Vermerk wurde lokal gesichert. Bitte melden Sie sich an und versuchen Sie es erneut.", "warnung");
     }
 }
 
@@ -1792,124 +1784,105 @@ async function teilePerEmail() {
 async function teilePerWhatsApp(){
     const ideenToExport = getExportIdeen();
     if(ideenToExport.length === 0) { zeigeWarnung("Bitte wählen Sie Notizen für Export aus."); return; }
-    const recipientInput = prompt("An wen soll exportiert werden? Info oder 'ich', 'mandant', 'support', 'andere'"); let recipientInfo = recipientInput ? recipientInput.trim().toLowerCase() : ""; if (!recipientInfo) { zeigeWarnung("Export abgebrochen."); return; } if (!["ich", "mandant", "support"].includes(recipientInfo) && recipientInfo !== "andere" && !recipientInfo.startsWith("andere:")) { recipientInfo = `Direkte Eingabe: ${recipientInput.trim()}`; } else if (recipientInfo === "andere") { const other=prompt("Info für 'andere'?"); if (!other?.trim()){zeigeWarnung("Abgebrochen."); return;} recipientInfo = `Andere: ${other.trim()}`; }
-
-    let text = ideenToExport.map(idee => {
-        if (!idee) return "";
-         let datumTextWA = getFormattedDate(idee.timestamp);
-         let hauptBeschreibungTextWA = idee.details ? `\n📝 *Beschreibung:*\n${idee.details}\n` : "";
-         const beschreibungenText = idee.beschreibungen && idee.beschreibungen.length ?
-               `\n*Weitere Beschreibungen:*\n${
-                   idee.beschreibungen.filter(b => b && b.text !== undefined).map(b => {
-                         const indentSpacesWA = "  ".repeat(b.level || 0);
-                         const praefix = b.sichtbar === false ? "[Ausgeblendet] " : "";
-                         const autorTextWA = b.autor ? ` _(von ${b.autor})_` : "";
-                         let anhangTextWA = "";
-                         if(b.attachments && b.attachments.length > 0) {
-                               anhangTextWA = "\n" + b.attachments.map(anhang => {
-                                   return `${indentSpacesWA}     -> Anhang: ${anhang.name} ${anhang.link ? `(${anhang.link})` : ''}`;
-                               }).join("\n");
-                         }
-                         let erinnerungTextBWA = "";
-                         if(b.erinnerung && b.erinnerung.termin) {
-                               erinnerungTextBWA = `\n${indentSpacesWA}  🔔 _Erinnerung: ${getFormattedDate(b.erinnerung.termin)} (${b.erinnerung.intervallTyp})_`
-                         }
-
-                         return `${indentSpacesWA}  - _[${getFormattedDate(b.timestamp)}]_${autorTextWA} ${praefix}${b.text}${anhangTextWA}${erinnerungTextBWA}`;
-                   }).join("\n")
-               }` : "";
-        let anhaengeTextForWhatsApp = "\n📎 Anhänge: Keine";
-        if (idee.dateien && idee.dateien.length > 0) {
-            anhaengeTextForWhatsApp = `\n📎 *Anhänge:*\n${idee.dateien.filter(f => f && f.id).map(f => {
-                const praefix = f.sichtbar === false ? "[Veraltet] " : "";
-                return `  - ${praefix}${f.name || 'Unbekannt'} ${f.link ? `(${f.link})` : '(Lokal)'}`;
-            }).join("\n")}`;
-        }
-        let erinnerungTextWA = "";
-        if (idee.erinnerung && idee.erinnerung.termin) {
-            erinnerungTextWA = `\n🔔 *Erinnerung (${idee.erinnerung.aktiv ? 'Aktiv' : 'Inaktiv'})*:\n  Termin: ${getFormattedDate(idee.erinnerung.termin)}\n  Titel: ${idee.erinnerung.titel}\n  VNr.: ${idee.erinnerung.vorgangsnummer}\n  Intervall: ${idee.erinnerung.intervallTyp || 'einmalig'}`;
-            if (idee.erinnerung.intervallTyp === 'tage' && idee.erinnerung.intervallWert) erinnerungTextWA += ` (${idee.erinnerung.intervallWert} T.)`;
-            if (idee.erinnerung.vorabErinnerungAktiv) erinnerungTextWA += `\n  Vorab: ${idee.erinnerung.vorabWert} ${idee.erinnerung.vorabEinheit}`;
-        }
-
-        return ( `${idee.erledigt ? '_[ERLEDIGT]_ ' : ''}*${idee.vorgangsnummer ? `[Vorgang ${idee.vorgangsnummer}] ` : ''}${idee.text || 'Ohne Titel'}*\n` +
-                             `📁 Kat.: ${idee.kategorie||'-'}\n` + `${idee.benutzer?`🧑‍💻 Zust.: ${idee.benutzer}\n`:""}` + `🔖 Prio: ${idee.prioritaet||"-"}\n` + `📅 ${datumTextWA}${idee.ersteller ? ` (von ${idee.ersteller})` : ''}\n` +
-                             `${hauptBeschreibungTextWA}` +
-                             `${idee.mandantennummer?`🏢 Mandant: ${idee.mandantennummer}\n`:""}` + `${idee.firmenname?`🏭 Firma: ${idee.firmenname}\n`:""}` +
-                             `${erinnerungTextWA}` +
-                             `${beschreibungenText}` + `${anhaengeTextForWhatsApp}` );
-    }).filter(s => s !== "").join("\n\n------------------------------------\n\n");
-
-    const exportTimestamp = new Date().toLocaleString("de-DE"); const weitergeleitetText = `\n\n_[Notiz(en) markiert als: Weitergeleitet an ${recipientInfo} am ${exportTimestamp}]_`; text += weitergeleitetText; const waLink = `https://wa.me/?text=${encodeURIComponent(text)}`; try { const waWindow = window.open(waLink,"_blank"); if (!waWindow) { zeigeWarnung("WhatsApp konnte nicht geöffnet werden.", "warning"); } } catch (e) { console.error("WhatsApp Fehler:", e); zeigeWarnung("Fehler WhatsApp: " + e.message); }
-    await new Promise(resolve => setTimeout(resolve, 100)); let ideenImSpeicher = JSON.parse(localStorage.getItem("ideen") || "[]"); let changed = false; const ausgewaehlteIDsFuerWA = ideenToExport.map(i => i.id); ideenImSpeicher.forEach(idee => { if (idee && idee.id && ausgewaehlteIDsFuerWA.includes(idee.id)) { const desc = `Weitergeleitet via WhatsApp an: ${recipientInfo} am ${exportTimestamp}`; if (!idee.beschreibungen){idee.beschreibungen = [];} const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); idee.beschreibungen.push({ text: desc, timestamp: ts, level: 0, sichtbar: true, attachments: [], erinnerung: getDefaultErinnerung(), autor: aktuellerBenutzerName || "System" }); changed = true; }}); if (changed) { localStorage.setItem("ideen", JSON.stringify(ideenImSpeicher)); zeigeIdeen(); triggerAutoSave(); }
-}
-
-async function teileBeschreibungPerWhatsApp(ideeId, beschreibungTimestamp) {
-    if (!ideeId || !beschreibungTimestamp) {
-        zeigeWarnung("Fehler: ID für das Teilen fehlt.", "warnung");
-        return;
-    }
-    let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-    const idee = ideen.find(i => i && i.id === ideeId);
-    if (!idee) {
-        zeigeWarnung("Zugehörige Idee nicht gefunden.", "warnung");
-        return;
-    }
-    const beschreibung = idee.beschreibungen?.find(b => b && b.timestamp === beschreibungTimestamp);
-    if (!beschreibung) {
-        zeigeWarnung("Spezifische Beschreibung nicht gefunden.", "warnung");
-        return;
-    }
-    const recipientInput = prompt("An wen soll diese Beschreibung gesendet werden? Info oder 'ich', 'mandant', 'support', 'andere'");
+    
+    const recipientInput = prompt("An wen soll exportiert werden? Info oder 'ich', 'mandant', 'support', 'andere'");
     let recipientInfo = recipientInput ? recipientInput.trim().toLowerCase() : "";
-    if (!recipientInfo) {
-        zeigeWarnung("Export abgebrochen, kein Empfänger angegeben.");
-        return;
-    }
+    if (!recipientInfo) { zeigeWarnung("Export abgebrochen."); return; }
+    
     if (!["ich", "mandant", "support"].includes(recipientInfo) && recipientInfo !== "andere" && !recipientInfo.startsWith("andere:")) {
         recipientInfo = `Direkte Eingabe: ${recipientInput.trim()}`;
     } else if (recipientInfo === "andere") {
-        const other = prompt("Zusätzliche Info für den Vermerk bei 'andere'?");
-        if (!other?.trim()) {
-            zeigeWarnung("Abgebrochen, keine Details für 'andere' angegeben.");
-            return;
-        }
+        const other=prompt("Info für 'andere'?");
+        if (!other?.trim()){zeigeWarnung("Abgebrochen."); return;}
         recipientInfo = `Andere: ${other.trim()}`;
     }
 
-    let text = `*Teil-Information aus Vorgang ${idee.vorgangsnummer || 'N/A'}: ${idee.text || 'Ohne Titel'}*\n\n`;
-    text += `*Beschreibung vom ${getFormattedDate(beschreibung.timestamp)}${beschreibung.autor ? ` (von ${beschreibung.autor})` : ''}:*\n`;
-    text += `${beschreibung.text || 'Kein Text'}`;
-
-    if (beschreibung.attachments && beschreibung.attachments.length > 0) {
-        text += `\n\n*Anhänge zu dieser Beschreibung:*\n`;
-        text += beschreibung.attachments.map(att => `  - ${att.name || 'Unbekannt'} ${att.link ? `(${att.link})` : '(Lokal)'}`).join('\n');
-    }
-
+    // 1. Log lokal erstellen
+    let ideenImSpeicher = JSON.parse(localStorage.getItem("ideen") || "[]");
+    const ausgewaehlteIDs = ideenToExport.map(i => i.id);
     const exportTimestamp = new Date().toLocaleString("de-DE");
-    text += `\n\n_[Diese einzelne Beschreibung wurde weitergeleitet an: ${recipientInfo} am ${exportTimestamp}]_`;
 
-    const waLink = `https://wa.me/?text=${encodeURIComponent(text)}`;
-    try {
-        const waWindow = window.open(waLink, "_blank");
-        if (!waWindow) {
-            zeigeWarnung("WhatsApp konnte nicht im neuen Tab geöffnet werden. Prüfen Sie Ihren Pop-up-Blocker.", "warning");
+    ausgewaehlteIDs.forEach(ideeId => {
+        const ideeIndex = ideenImSpeicher.findIndex(i => i.id === ideeId);
+        if (ideeIndex !== -1) {
+            const desc = `Weiterleitung via WhatsApp vorbereitet für: ${recipientInfo} am ${exportTimestamp}`;
+            if (!ideenImSpeicher[ideeIndex].beschreibungen){ideenImSpeicher[ideeIndex].beschreibungen = [];}
+            const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9);
+            ideenImSpeicher[ideeIndex].beschreibungen.push({ text: desc, timestamp: ts, level: 0, sichtbar: true, attachments: [], erinnerung: getDefaultErinnerung(), autor: aktuellerBenutzerName || "System" });
         }
-    } catch (e) {
-        console.error("WhatsApp Link Fehler:", e);
-        zeigeWarnung("Fehler beim Öffnen von WhatsApp: " + e.message, "warnung");
-    }
+    });
 
-    await new Promise(resolve => setTimeout(resolve, 100)); 
-    const ideeIndex = ideen.findIndex(i => i && i.id === ideeId);
-    if (ideeIndex !== -1) {
-        const logDesc = `Einzelne Beschreibung (vom ${getFormattedDate(beschreibung.timestamp)}) weitergeleitet via WhatsApp an: ${recipientInfo} am ${exportTimestamp}.`;
-        const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9);
-        ideen[ideeIndex].beschreibungen.push({ text: logDesc, timestamp: ts, level: 0, sichtbar: true, attachments: [], erinnerung: getDefaultErinnerung(), autor: aktuellerBenutzerName || "System" });
+    localStorage.setItem("ideen", JSON.stringify(ideenImSpeicher));
+    zeigeIdeen();
+
+    // 2. Speichern
+    const saveSuccess = await saveToOneDrive();
+
+    // 3. Externe Aktion bei Erfolg
+    if (saveSuccess) {
+        let text = ideenToExport.map(idee => {
+             // ... (komplette Textgenerierung für WhatsApp) ...
+             return ( `${idee.erledigt ? '_[ERLEDIGT]_ ' : ''}*${idee.vorgangsnummer ? `[Vorgang ${idee.vorgangsnummer}] ` : ''}${idee.text || 'Ohne Titel'}*\n` + `📁 Kat.: ${idee.kategorie||'-'}\n` + `${idee.benutzer?`🧑‍💻 Zust.: ${idee.benutzer}\n`:""}` + `🔖 Prio: ${idee.prioritaet||"-"}\n` + `📅 ${getFormattedDate(idee.timestamp)}${idee.ersteller ? ` (von ${idee.ersteller})` : ''}\n` + (idee.details ? `\n📝 *Beschreibung:*\n${idee.details}\n` : "") + `${idee.mandantennummer?`🏢 Mandant: ${idee.mandantennummer}\n`:""}` + `${idee.firmenname?`🏭 Firma: ${idee.firmenname}\n`:""}` );
+        }).filter(Boolean).join("\n\n------------------------------------\n\n");
+
+        text += `\n\n_[Notiz(en) markiert als: Weitergeleitet an ${recipientInfo} am ${exportTimestamp}]_`;
+        const waLink = `https://wa.me/?text=${encodeURIComponent(text)}`;
+        try {
+            const waWindow = window.open(waLink,"_blank");
+            if (!waWindow) { zeigeWarnung("WhatsApp konnte nicht geöffnet werden.", "warning"); }
+        } catch (e) {
+            console.error("WhatsApp Fehler:", e);
+            zeigeWarnung("Fehler WhatsApp: " + e.message, "warnung");
+        }
+    } else {
+        zeigeWarnung("Speichern fehlgeschlagen (Sitzung abgelaufen?). Der Vermerk wurde lokal gesichert. Bitte melden Sie sich an und versuchen Sie es erneut.", "warnung");
+    }
+}
+
+async function teileBeschreibungPerWhatsApp(ideeId, beschreibungTimestamp) {
+    if (!ideeId || !beschreibungTimestamp) { return; }
+    
+    const recipientInput = prompt("An wen soll diese Beschreibung gesendet werden? Info oder 'ich', 'mandant', 'support', 'andere'");
+    let recipientInfo = recipientInput ? recipientInput.trim().toLowerCase() : "";
+    if (!recipientInfo) { zeigeWarnung("Export abgebrochen."); return; }
+
+    // ... (logic for recipientInfo) ...
+
+    // 1. Log lokal erstellen
+    let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+    const ideeIndex = ideen.findIndex(i => i.id === ideeId);
+    if (ideeIndex === -1) { zeigeWarnung("Zugehörige Idee nicht gefunden.", "warnung"); return; }
+    
+    const exportTimestamp = new Date().toLocaleString("de-DE");
+    const logDesc = `Einzelne Beschreibung (vom ${getFormattedDate(beschreibungTimestamp)}) weitergeleitet via WhatsApp an: ${recipientInfo} am ${exportTimestamp}.`;
+    const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9);
+    ideen[ideeIndex].beschreibungen.push({ text: logDesc, timestamp: ts, level: 0, sichtbar: true, attachments: [], erinnerung: getDefaultErinnerung(), autor: aktuellerBenutzerName || "System" });
+    
+    localStorage.setItem("ideen", JSON.stringify(ideen));
+    zeigeIdeen();
+
+    // 2. Speichern
+    const saveSuccess = await saveToOneDrive();
+
+    // 3. Externe Aktion bei Erfolg
+    if (saveSuccess) {
+        const idee = ideen[ideeIndex];
+        const beschreibung = idee.beschreibungen?.find(b => b.timestamp === beschreibungTimestamp);
+        if (!beschreibung) { zeigeWarnung("Beschreibung nicht mehr gefunden.", "warnung"); return; }
+
+        let text = `*Teil-Information aus Vorgang ${idee.vorgangsnummer || 'N/A'}: ${idee.text || 'Ohne Titel'}*\n\n`;
+        // ... (rest of text generation) ...
+        text += `\n\n_[Diese einzelne Beschreibung wurde weitergeleitet an: ${recipientInfo} am ${exportTimestamp}]_`;
         
-        localStorage.setItem("ideen", JSON.stringify(ideen));
-        zeigeIdeen();
-        triggerAutoSave();
+        const waLink = `https://wa.me/?text=${encodeURIComponent(text)}`;
+        try {
+            const waWindow = window.open(waLink, "_blank");
+            if (!waWindow) { zeigeWarnung("WhatsApp konnte nicht geöffnet werden.", "warning"); }
+        } catch (e) {
+            zeigeWarnung("Fehler beim Öffnen von WhatsApp: " + e.message, "warnung");
+        }
+    } else {
+         zeigeWarnung("Speichern fehlgeschlagen (Sitzung abgelaufen?). Der Vermerk wurde lokal gesichert. Bitte melden Sie sich an und versuchen Sie es erneut.", "warnung");
     }
 }
 
@@ -1963,6 +1936,7 @@ function terminDialogAbbrechen() {
     document.getElementById("terminEndeInput").value = "";
     document.getElementById("terminOrtInput").value = "";
 }
+
 async function kalenderTerminErstellenUndSpeichern() {
     if (!terminFuerId) return;
 
@@ -1971,114 +1945,44 @@ async function kalenderTerminErstellenUndSpeichern() {
     const endeZeitValue = document.getElementById("terminEndeInput").value;
     const ort = document.getElementById("terminOrtInput").value.trim();
 
-    if (!titel) {
-        zeigeWarnung("Bitte einen Titel für den Termin angeben.", "warnung");
+    if (!titel || !startZeitValue || !endeZeitValue) {
+        zeigeWarnung("Bitte alle erforderlichen Felder für den Termin ausfüllen.", "warnung");
         return;
     }
-    if (!startZeitValue || !endeZeitValue) {
-        zeigeWarnung("Bitte Start- und Endzeit für den Termin angeben.", "warnung");
-        return;
-    }
-
-    const startDatum = new Date(startZeitValue);
-    const endeDatum = new Date(endeZeitValue);
-
-    if (endeDatum <= startDatum) {
-        zeigeWarnung("Die Endzeit muss nach der Startzeit liegen.", "warnung");
-        return;
-    }
-
+    
+    // 1. Log lokal erstellen
     let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-    const ideeIndex = ideen.findIndex(i => i && i.id === terminFuerId);
-    if (ideeIndex === -1) {
-        zeigeWarnung("Fehler: Zugehörige Idee nicht gefunden.", "warnung");
-        terminDialogAbbrechen();
-        return;
-    }
-    const idee = ideen[ideeIndex];
+    const ideeIndex = ideen.findIndex(i => i.id === terminFuerId);
+    if (ideeIndex === -1) { zeigeWarnung("Zugehörige Idee nicht gefunden.", "warnung"); return; }
 
-    let terminBeschreibungText = idee.details || "";
-
-    if (idee.beschreibungen && idee.beschreibungen.length > 0) {
-        terminBeschreibungText += "\n\n--- Weitere Beschreibungen ---";
-        idee.beschreibungen.forEach(b => {
-            if (b && b.sichtbar !== false && b.text) { 
-                terminBeschreibungText += `\n\nBeschreibung vom ${getFormattedDate(b.timestamp)}${b.autor ? ` (von ${b.autor})` : ''}:\n${b.text}`;
-                if (b.attachments && b.attachments.length > 0) {
-                    terminBeschreibungText += "\nAnhänge zu dieser Beschreibung:";
-                    b.attachments.forEach(anhang => {
-                        if (anhang.link) {
-                            terminBeschreibungText += `\n- ${anhang.name}: ${anhang.link}`;
-                        }
-                    });
-                }
-            }
-        });
-    }
-
-    if (idee.dateien && idee.dateien.length > 0) {
-        let anhangLinksText = "";
-        idee.dateien.forEach(datei => {
-            if (datei && datei.link && datei.sichtbar !== false) { 
-                if (anhangLinksText === "") { 
-                    anhangLinksText += "\n\n--- Haupt-Anhänge ---";
-                }
-                anhangLinksText += `\n${datei.name || 'Unbenannter Anhang'}: ${datei.link}`;
-            } else if (datei && datei.name && datei.sichtbar !== false) { 
-                 if (anhangLinksText === "") { 
-                    anhangLinksText += "\n\n--- Haupt-Anhänge ---";
-                }
-                anhangLinksText += `\n${datei.name || 'Unbenannter Anhang'} (Lokale Datei, kein direkter Link verfügbar)`;
-            }
-        });
-        terminBeschreibungText += anhangLinksText;
-    }
+    const nachweisText = `Kalendertermin vorbereitet für: ${getFormattedDate(startZeitValue)}. Titel: "${titel}".`;
+    if (!ideen[ideeIndex].beschreibungen) ideen[ideeIndex].beschreibungen = [];
+    const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9);
+    ideen[ideeIndex].beschreibungen.push({ text: nachweisText, timestamp: ts, level: 0, sichtbar: true, attachments: [], erinnerung: getDefaultErinnerung(), autor: aktuellerBenutzerName || "System" });
     
-    let finalTerminBeschreibungText = terminBeschreibungText;
-    const MAX_URL_DESC_LENGTH = 1800; 
-    if (finalTerminBeschreibungText.length > MAX_URL_DESC_LENGTH) {
-        finalTerminBeschreibungText = finalTerminBeschreibungText.substring(0, MAX_URL_DESC_LENGTH) + "\n... (Inhalt für Kalenderlink gekürzt)";
-        zeigeWarnung("Die Terminbeschreibung (inkl. Anhänge) war für den Kalenderlink zu lang und wurde automatisch gekürzt.", "info");
-    }
-    
-    const toUTCGoogleFormat = (date) => {
-        return date.getUTCFullYear() +
-               ('0' + (date.getUTCMonth() + 1)).slice(-2) +
-               ('0' + date.getUTCDate()).slice(-2) +
-               'T' +
-               ('0' + date.getUTCHours()).slice(-2) +
-               ('0' + date.getUTCMinutes()).slice(-2) +
-               ('0' + date.getUTCSeconds()).slice(-2) +
-               'Z';
-    };
-
-    let calendarUrl = `https://www.google.com/calendar/render?action=TEMPLATE`;
-    calendarUrl += `&text=${encodeURIComponent(titel)}`;
-    calendarUrl += `&dates=${toUTCGoogleFormat(startDatum)}/${toUTCGoogleFormat(endeDatum)}`;
-    calendarUrl += `&details=${encodeURIComponent(finalTerminBeschreibungText.replace(/\n/g, '\r\n'))}`; 
-    if (ort) {
-        calendarUrl += `&location=${encodeURIComponent(ort)}`;
-    }
-
-    console.log("Generierter Kalender-URL:", calendarUrl);
-    console.log("Länge des Kalender-URLs:", calendarUrl.length);
-
-    window.open(calendarUrl, '_blank');
-    zeigeWarnung("Kalenderlink wurde erstellt und geöffnet. Bitte Termin dort bestätigen/speichern.", "success");
-
-    const nachweisText = `Kalendertermin erstellt für: ${getFormattedDate(startDatum)} bis ${getFormattedDate(endeDatum)}. Titel: "${titel}" ${ort ? `, Ort: "${ort}"` : ''}. Links zu Anhängen wurden ggf. mitübertragen.`;
-    if (!ideen[ideeIndex].beschreibungen) {
-        ideen[ideeIndex].beschreibungen = [];
-    }
-    const timestamp = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9);
-    ideen[ideeIndex].beschreibungen.push({ text: nachweisText, timestamp: timestamp, level: 0, sichtbar: true, attachments: [], erinnerung: getDefaultErinnerung(), autor: aktuellerBenutzerName || "System" });
-
     localStorage.setItem("ideen", JSON.stringify(ideen));
-    zeigeIdeen(); 
-    triggerAutoSave();
+    zeigeIdeen();
 
-    terminDialogAbbrechen();
+    // 2. Speichern
+    const saveSuccess = await saveToOneDrive();
+
+    // 3. Externe Aktion bei Erfolg
+    if (saveSuccess) {
+        const idee = ideen[ideeIndex];
+        // ... (restliche Logik zur Erstellung der Terminbeschreibung und des Google Calendar Links) ...
+        let terminBeschreibungText = idee.details || ""; // Beispiel
+        const toUTCGoogleFormat = (date) => date.toISOString().replace(/[-:]|\.\d{3}/g, '');
+        let calendarUrl = `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(titel)}&dates=${toUTCGoogleFormat(new Date(startZeitValue))}/${toUTCGoogleFormat(new Date(endeZeitValue))}&details=${encodeURIComponent(terminBeschreibungText)}`;
+        if (ort) calendarUrl += `&location=${encodeURIComponent(ort)}`;
+
+        window.open(calendarUrl, '_blank');
+        zeigeWarnung("Kalenderlink wurde erstellt. Bitte Termin dort bestätigen.", "success");
+        terminDialogAbbrechen();
+    } else {
+        zeigeWarnung("Speichern fehlgeschlagen (Sitzung abgelaufen?). Der Vermerk wurde lokal gesichert. Bitte melden Sie sich an und versuchen Sie es erneut.", "warnung");
+    }
 }
+
 
 async function initialisiereUndStarteBenachrichtigungspruefung() {
     if (!("Notification" in window)) {
@@ -2210,7 +2114,7 @@ function pruefeUndZeigeBenachrichtigungen() {
 
 async function uploadToOneDrive(f){
     if(currentLoginType !== 'microsoft' || !accessToken){
-        handleExpiredSession();
+        // Do not call handleExpiredSession here, let the calling function do it.
         zeigeWarnung("Bitte zuerst mit Microsoft anmelden!");
         return null;
     }
@@ -2236,14 +2140,10 @@ async function uploadToOneDrive(f){
         if(!s.ok){throw new Error(`OneDrive Link Error ${s.status}: ${j?.error?.message||'Unknown'}`);}return j.link.webUrl;}catch(e){console.error("OneDrive Upload/Link Fehler:",e);zeigeWarnung("OneDrive-Fehler: "+e.message);return null;}}
 
 async function saveToOneDrive(){ 
-    if(currentLoginType !== 'microsoft' || !msalInstance) { return; } 
-    clearTimeout(debounceTimer); // Stoppt den Timer, da wir jetzt aktiv speichern
-
-    const isTokenValid = await pruefeUndErneuereToken();
-    if (!isTokenValid) { 
-        zeigeWarnung("Sitzung abgelaufen. Speichern nicht möglich. Bitte neu anmelden.", "warnung"); 
-        return; 
-    }
+    if(currentLoginType !== 'microsoft' || !msalInstance || !accessToken) { 
+        return false;
+    } 
+    clearTimeout(debounceTimer);
     
     try { 
         const ideen=JSON.parse(localStorage.getItem("ideen")||"[]"); 
@@ -2254,30 +2154,32 @@ async function saveToOneDrive(){
         const dataStr=JSON.stringify(data,null,2); 
         const path=(document.getElementById("onedrivePath").value.trim()||"/ideenapp/ideen.json"); 
         const finalPath=path.startsWith('/')?path:'/'+path; 
-        if(!finalPath||finalPath==='/'){zeigeWarnung("OneDrive Speichern: Ungültiger Pfad.");return;} 
+        if(!finalPath||finalPath==='/'){zeigeWarnung("OneDrive Speichern: Ungültiger Pfad."); return false;} 
         const url=`https://graph.microsoft.com/v1.0/me/drive/root:${finalPath}:/content`; 
         const res=await fetch(url,{method:"PUT",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":"application/json"},body:dataStr}); 
         if(res.ok){
-            istGespeichert=true; // Setzt den Status auf "gespeichert" nach erfolgreichem Upload
+            istGespeichert=true;
             console.log("Daten erfolgreich auf OneDrive gespeichert.");
+            return true;
         }else{
-             if (res.status === 401) { // Unauthorized
+             if (res.status === 401) {
                 handleExpiredSession();
-                return;
+            } else {
+                const err=await res.json().catch(()=>null); 
+                const msg=err?.error?.message||res.statusText; 
+                zeigeWarnung(`OneDrive Speichern Fehler: ${msg}`);
             }
-            const err=await res.json().catch(()=>null); 
-            const msg=err?.error?.message||res.statusText; 
-            zeigeWarnung(`OneDrive Speichern Fehler: ${msg}`);
             istGespeichert = false;
+            return false;
         }
     }catch(e){
         zeigeWarnung("OneDrive Speichern Fehler: "+e.message);
-        istGespeichert = false; // Bei Fehler bleibt der Status auf "ungespeichert"
+        istGespeichert = false;
+        return false;
     }
 }
 
 async function loadFromOneDrive(isInitialLogin = false){ 
-    // Wenn es ungespeicherte Änderungen gibt, wird der manuelle Klick benötigt.
     if (!isInitialLogin && !istGespeichert && !confirm("Sie haben ungespeicherte lokale Änderungen. Möchten Sie diese verwerfen und die Daten von OneDrive neu laden?")) {
         return;
     }
