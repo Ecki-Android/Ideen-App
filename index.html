@@ -496,7 +496,7 @@ async function handleMicrosoftLogin() {
         tokenRefreshIntervalId = setInterval(pruefeUndErneuereToken, 10 * 60 * 1000); // alle 10 Minuten
         console.log("Token-Überwachung ('Wachhund') gestartet.");
 
-        await loadFromOneDrive(true); // HIER: Wichtige Änderung -> Initial-Load ohne erneute Token-Prüfung
+        await loadFromOneDrive(true); // Initial-Load ohne erneute Token-Prüfung
         return true;
 
     } catch (e) {
@@ -2239,11 +2239,12 @@ async function saveToOneDrive(){
     if(currentLoginType !== 'microsoft' || !msalInstance) { return; } 
     clearTimeout(debounceTimer); // Stoppt den Timer, da wir jetzt aktiv speichern
 
-    if (!accessToken) {
-        handleExpiredSession();
-        return;
+    const isTokenValid = await pruefeUndErneuereToken();
+    if (!isTokenValid) { 
+        zeigeWarnung("Sitzung abgelaufen. Speichern nicht möglich. Bitte neu anmelden.", "warnung"); 
+        return; 
     }
-
+    
     try { 
         const ideen=JSON.parse(localStorage.getItem("ideen")||"[]"); 
         const benutzer=JSON.parse(localStorage.getItem("benutzerliste")||"[]"); 
@@ -2284,15 +2285,15 @@ async function loadFromOneDrive(isInitialLogin = false){
     if(currentLoginType !== 'microsoft' || !msalInstance){ 
         const ok=await handleMicrosoftLogin(); 
         if(!ok){return;} 
-        // handleMicrosoftLogin ruft am Ende loadFromOneDrive auf, daher hier abbrechen.
         return; 
     } 
     
-    // Nur prüfen, wenn es kein initialer Login ist und der Token weg ist.
-    // Die Hauptprüfung erfolgt durch die API-Antwort (401).
-    if (!isInitialLogin && !accessToken) {
-        handleExpiredSession();
-        return;
+    if (!isInitialLogin) {
+       const isTokenValid = await pruefeUndErneuereToken();
+       if (!isTokenValid) { 
+           zeigeWarnung("Sitzung abgelaufen. Laden nicht möglich. Bitte neu anmelden.", "warnung"); 
+           return; 
+       }
     }
     
     const path=(document.getElementById("onedrivePath").value.trim()||"/ideenapp/ideen.json"); 
@@ -2381,20 +2382,12 @@ document.getElementById("dateien").addEventListener("change",function(e){
 });
 window.addEventListener("beforeunload",function(e){if(!istGespeichert){const msg="Ungespeicherte Änderungen! Seite wirklich verlassen?";e.preventDefault();e.returnValue=msg;return msg;}});
 
-// --- Event Listener für Auto-Load und Token-Prüfung beim Reaktivieren des Tabs ---
+// --- Event Listener für proaktive Sitzungsprüfung beim Reaktivieren des Tabs ---
 window.addEventListener('focus', async () => {
-    if (currentLoginType === 'microsoft' && msalInstance) {
-        console.log("Fenster reaktiviert, prüfe Microsoft-Sitzung...");
-        const isTokenValid = await pruefeUndErneuereToken();
-        if (isTokenValid && istGespeichert) {
-            console.log("Sitzung gültig, lade neueste Daten von OneDrive...");
-            await loadFromOneDrive();
-        } else if (isTokenValid && !istGespeichert) {
-            console.log("Sitzung gültig, aber es gibt lokale, ungespeicherte Änderungen. Automatisches Laden übersprungen.");
-            zeigeWarnung("Es gibt lokale, ungespeicherte Änderungen. Bitte speichern oder manuell laden, um Daten zu synchronisieren.", "info");
-        } else {
-            console.log("Sitzungsprüfung fehlgeschlagen oder Sitzung abgelaufen.");
-        }
+    // Prüft nur, wenn ein Microsoft-Login besteht und die Sitzung nicht bereits als abgelaufen markiert ist.
+    if (currentLoginType === 'microsoft' && msalInstance && document.getElementById('sessionExpiredWarning').style.display === 'none') {
+        console.log("Fenster reaktiviert, prüfe proaktiv die Microsoft-Sitzung...");
+        await pruefeUndErneuereToken(); // Diese Funktion erneuert den Token still oder ruft bei Fehlschlag handleExpiredSession() auf.
     }
 });
 
@@ -2585,5 +2578,4 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
-
 
