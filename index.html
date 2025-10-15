@@ -956,6 +956,7 @@ function zeigeIdeen() {
                                 <button class="add-anhang-beschreibung-btn" title="Anhang" onclick="starteAnhangUploadFuerBeschreibung('${id}','${b.timestamp}')">📎</button>
                                 <button class="add-anhang-beschreibung-btn" title="Erinnerung" onclick="zeigeBeschreibungErinnerungDialog('${id}','${b.timestamp}')">🔔</button>
                                 <button class="add-anhang-beschreibung-btn" title="Termin erstellen" onclick="zeigeBeschreibungTerminDialog('${id}','${b.timestamp}')">🗓️</button>
+                                <button class="add-anhang-beschreibung-btn" title="Per E-Mail teilen" onclick="teileBeschreibungPerEmail('${id}','${b.timestamp}')">✉️</button>
                                 <button class="add-anhang-beschreibung-btn" title="Per WhatsApp teilen" onclick="teileBeschreibungPerWhatsApp('${id}','${b.timestamp}')">📱</button>
                                 <button class="toggle-beschreibung-sichtbarkeit-btn" title="${sichtbarkeitButtonTitle}" onclick="toggleBeschreibungSichtbarkeit('${id}', '${b.timestamp}')">${sichtbarkeitButtonSymbol}</button>
                             </div>
@@ -1800,6 +1801,91 @@ async function teilePerEmail() {
     }
 }
 
+async function teileBeschreibungPerEmail(ideeId, beschreibungTimestamp) {
+    if (!ideeId || !beschreibungTimestamp) { return; }
+    
+    const recipientInput = prompt("An wen soll diese Beschreibung gesendet werden (E-Mail-Adresse)? Oder 'ich', 'mandant', 'support', 'andere' für interne Vermerke.");
+    let recipientInfo = recipientInput ? recipientInput.trim().toLowerCase() : "";
+    if (!recipientInfo) { zeigeWarnung("E-Mail-Versand abgebrochen.", "info"); return; }
+
+    let recipientEmailAddress = '';
+    if (recipientInput.includes('@')) {
+        recipientEmailAddress = encodeURIComponent(recipientInput.trim());
+    } else if (!["ich", "mandant", "support", "andere"].includes(recipientInfo) && !recipientInfo.startsWith("andere:")) {
+        recipientInfo = `Direkte Eingabe: ${recipientInput.trim()}`;
+    } else if (recipientInfo === "andere") {
+        const otherDetails = prompt("Zusätzliche Info für den Vermerk bei 'andere'?");
+        if (!otherDetails?.trim()) {
+            zeigeWarnung("Versand abgebrochen, da keine Details für 'andere' angegeben wurden.");
+            return;
+        }
+        recipientInfo = `Andere: ${otherDetails.trim()}`;
+    }
+    
+    // 1. Log lokal erstellen
+    const exportTimestamp = new Date().toLocaleString("de-DE");
+    const logDesc = `Einzelne Beschreibung (vom ${getFormattedDate(beschreibungTimestamp)}) weitergeleitet via E-Mail an: ${recipientInfo} am ${exportTimestamp}.`;
+    
+    if (!addProtokollEintrag(ideeId, beschreibungTimestamp, logDesc)) {
+        zeigeWarnung("Fehler beim Erstellen des Protokolleintrags.", "warnung");
+        return;
+    }
+    
+    zeigeIdeen();
+
+    // 2. Speichern
+    const saveSuccess = await saveToOneDrive();
+
+    // 3. Externe Aktion bei Erfolg
+    if (saveSuccess) {
+        const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+        const idee = ideen.find(i => i.id === ideeId);
+        if (!idee) { zeigeWarnung("Zugehörige Idee nach Speichern nicht gefunden.", "warnung"); return; }
+        const beschreibung = idee.beschreibungen?.find(b => b.timestamp === beschreibungTimestamp);
+        if (!beschreibung) { zeigeWarnung("Beschreibung nicht mehr gefunden.", "warnung"); return; }
+
+        const emailSubject = `Teil-Information aus Vorgang ${idee.vorgangsnummer || 'N/A'}: ${idee.text || 'Ohne Titel'}`;
+        
+        let emailBody = `Hallo,\n\nhier die gewünschten Informationen:\n\n`;
+        emailBody += `--------------------------------------------------\n`;
+        emailBody += `AUS VORGANG: ${idee.vorgangsnummer || 'N/A'} - ${idee.text || 'Ohne Titel'}\n`;
+        emailBody += `--------------------------------------------------\n\n`;
+
+        const autorText = beschreibung.autor ? ` (von ${beschreibung.autor})` : "";
+        emailBody += `Beschreibung vom ${getFormattedDate(beschreibung.timestamp)}${autorText}:\n`;
+        emailBody += `${beschreibung.text}\n\n`;
+
+        if (beschreibung.attachments && beschreibung.attachments.length > 0) {
+            emailBody += `Zugehörige Anhänge:\n`;
+            beschreibung.attachments.forEach(anhang => {
+                emailBody += `- ${anhang.name}`;
+                if (anhang.link) {
+                    emailBody += `\n  Link: ${anhang.link}\n`;
+                } else {
+                    emailBody += ` (Lokale Datei, nicht angehängt)\n`;
+                }
+            });
+            emailBody += `\n`;
+        }
+        
+        if (beschreibung.erinnerung && beschreibung.erinnerung.aktiv && beschreibung.erinnerung.termin) {
+            emailBody += `Zugehörige Erinnerung:\n`;
+            emailBody += `${formatErinnerungForExport(beschreibung.erinnerung)}\n`;
+        }
+
+        emailBody += `\nMit freundlichen Grüßen\n\nIhre Ideen-App`;
+        
+        const mailtoLink = `mailto:${recipientEmailAddress}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
+        
+        try {
+            window.location.href = mailtoLink;
+        } catch (e) {
+            zeigeWarnung("Fehler beim Öffnen des E-Mail-Programms: " + e.message, "warnung");
+        }
+    } else {
+         zeigeWarnung("Speichern fehlgeschlagen (Sitzung abgelaufen?). Der Vermerk wurde lokal gesichert. Bitte melden Sie sich an und versuchen Sie es erneut.", "warnung");
+    }
+}
 
 async function teilePerWhatsApp(){
     const ideenToExport = getExportIdeen();
@@ -2654,4 +2740,5 @@ document.addEventListener('DOMContentLoaded', async () => {
 </script>
 </body>
 </html>
+
 
