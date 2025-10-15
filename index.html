@@ -234,6 +234,7 @@ let aktuellerBenutzerName = null;
 let erinnerungFuerId = null;
 let erinnerungFuerBeschreibungTimestamp = null;
 let terminFuerId = null;
+let terminFuerBeschreibungTimestamp = null; // NEU für Einzel-Termine
 let anhangFuerBeschreibungZiel = { ideeId: null, timestamp: null };
 let whitelist = [];
 let currentLoginType = null; // 'microsoft' or 'github'
@@ -448,7 +449,7 @@ async function handleGithubCallback(code) {
 }
 
 function promptForAccessRequest(userName, userEmail) {
-    const message = `Hallo ${userName},\n\nIhre E-Mail-Adresse "${userEmail}" ist noch nicht für die Nutzung dieser App freigeschaltet.\n\nMöchten Sie jetzt eine Zugriffsanfrage an den Administrator senden?`;
+    const message = `Hallo ${userName},\n\nIhre E-Mail-Adresse "${userEmail}" ist noch nicht für die Nutzung dieser App freischaltet.\n\nMöchten Sie jetzt eine Zugriffsanfrage an den Administrator senden?`;
     
     if (confirm(message)) {
         const subject = "Zugriffsanfrage für Ideen-App Pro";
@@ -954,6 +955,7 @@ function zeigeIdeen() {
                                 <button class="move-beschreibung-btn" title="Einrücken" onclick="aendereEinrueckungBeschreibung('${id}','${b.timestamp}', 1)">➡️</button>
                                 <button class="add-anhang-beschreibung-btn" title="Anhang" onclick="starteAnhangUploadFuerBeschreibung('${id}','${b.timestamp}')">📎</button>
                                 <button class="add-anhang-beschreibung-btn" title="Erinnerung" onclick="zeigeBeschreibungErinnerungDialog('${id}','${b.timestamp}')">🔔</button>
+                                <button class="add-anhang-beschreibung-btn" title="Termin erstellen" onclick="zeigeBeschreibungTerminDialog('${id}','${b.timestamp}')">🗓️</button>
                                 <button class="add-anhang-beschreibung-btn" title="Per WhatsApp teilen" onclick="teileBeschreibungPerWhatsApp('${id}','${b.timestamp}')">📱</button>
                                 <button class="toggle-beschreibung-sichtbarkeit-btn" title="${sichtbarkeitButtonTitle}" onclick="toggleBeschreibungSichtbarkeit('${id}', '${b.timestamp}')">${sichtbarkeitButtonSymbol}</button>
                             </div>
@@ -1824,13 +1826,10 @@ async function teilePerWhatsApp(){
         const ideeIndex = ideenImSpeicher.findIndex(i => i.id === ideeId);
         if (ideeIndex !== -1) {
             const desc = `Weiterleitung via WhatsApp vorbereitet für: ${recipientInfo} am ${exportTimestamp}`;
-            if (!ideenImSpeicher[ideeIndex].beschreibungen){ideenImSpeicher[ideeIndex].beschreibungen = [];}
-            const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9);
-            ideenImSpeicher[ideeIndex].beschreibungen.push({ text: desc, timestamp: ts, level: 0, sichtbar: true, attachments: [], erinnerung: getDefaultErinnerung(), autor: aktuellerBenutzerName || "System" });
+            addProtokollEintrag(ideeId, null, desc);
         }
     });
 
-    localStorage.setItem("ideen", JSON.stringify(ideenImSpeicher));
     zeigeIdeen();
 
     // 2. Speichern
@@ -1839,11 +1838,10 @@ async function teilePerWhatsApp(){
     // 3. Externe Aktion bei Erfolg
     if (saveSuccess) {
         let text = ideenToExport.map(idee => {
-             // ... (komplette Textgenerierung für WhatsApp) ...
              return ( `${idee.erledigt ? '_[ERLEDIGT]_ ' : ''}*${idee.vorgangsnummer ? `[Vorgang ${idee.vorgangsnummer}] ` : ''}${idee.text || 'Ohne Titel'}*\n` + `📁 Kat.: ${idee.kategorie||'-'}\n` + `${idee.benutzer?`🧑‍💻 Zust.: ${idee.benutzer}\n`:""}` + `🔖 Prio: ${idee.prioritaet||"-"}\n` + `📅 ${getFormattedDate(idee.timestamp)}${idee.ersteller ? ` (von ${idee.ersteller})` : ''}\n` + (idee.details ? `\n📝 *Beschreibung:*\n${idee.details}\n` : "") + `${idee.mandantennummer?`🏢 Mandant: ${idee.mandantennummer}\n`:""}` + `${idee.firmenname?`🏭 Firma: ${idee.firmenname}\n`:""}` );
         }).filter(Boolean).join("\n\n------------------------------------\n\n");
 
-        text += `\n\n_[Notiz(en) markiert als: Weitergeleitet an ${recipientInfo} am ${exportTimestamp}]_`;
+        text += `\n\n_[Gesendet via Ideen-App Pro]_`;
         const waLink = `https://wa.me/?text=${encodeURIComponent(text)}`;
         try {
             const waWindow = window.open(waLink,"_blank");
@@ -1864,19 +1862,23 @@ async function teileBeschreibungPerWhatsApp(ideeId, beschreibungTimestamp) {
     let recipientInfo = recipientInput ? recipientInput.trim().toLowerCase() : "";
     if (!recipientInfo) { zeigeWarnung("Export abgebrochen."); return; }
 
-    // ... (logic for recipientInfo) ...
+    if (!["ich", "mandant", "support"].includes(recipientInfo) && recipientInfo !== "andere" && !recipientInfo.startsWith("andere:")) {
+        recipientInfo = `Direkte Eingabe: ${recipientInput.trim()}`;
+    } else if (recipientInfo === "andere") {
+        const other=prompt("Info für 'andere'?");
+        if (!other?.trim()){zeigeWarnung("Abgebrochen."); return;}
+        recipientInfo = `Andere: ${other.trim()}`;
+    }
 
-    // 1. Log lokal erstellen
-    let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-    const ideeIndex = ideen.findIndex(i => i.id === ideeId);
-    if (ideeIndex === -1) { zeigeWarnung("Zugehörige Idee nicht gefunden.", "warnung"); return; }
-    
+    // 1. Log lokal erstellen mit der neuen Helferfunktion
     const exportTimestamp = new Date().toLocaleString("de-DE");
     const logDesc = `Einzelne Beschreibung (vom ${getFormattedDate(beschreibungTimestamp)}) weitergeleitet via WhatsApp an: ${recipientInfo} am ${exportTimestamp}.`;
-    const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9);
-    ideen[ideeIndex].beschreibungen.push({ text: logDesc, timestamp: ts, level: 0, sichtbar: true, attachments: [], erinnerung: getDefaultErinnerung(), autor: aktuellerBenutzerName || "System" });
     
-    localStorage.setItem("ideen", JSON.stringify(ideen));
+    if (!addProtokollEintrag(ideeId, beschreibungTimestamp, logDesc)) {
+        zeigeWarnung("Fehler beim Erstellen des Protokolleintrags.", "warnung");
+        return;
+    }
+    
     zeigeIdeen();
 
     // 2. Speichern
@@ -1884,7 +1886,9 @@ async function teileBeschreibungPerWhatsApp(ideeId, beschreibungTimestamp) {
 
     // 3. Externe Aktion bei Erfolg
     if (saveSuccess) {
-        const idee = ideen[ideeIndex];
+        const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+        const idee = ideen.find(i => i.id === ideeId);
+        if (!idee) { zeigeWarnung("Zugehörige Idee nach Speichern nicht gefunden.", "warnung"); return; }
         const beschreibung = idee.beschreibungen?.find(b => b.timestamp === beschreibungTimestamp);
         if (!beschreibung) { zeigeWarnung("Beschreibung nicht mehr gefunden.", "warnung"); return; }
 
@@ -1906,7 +1910,7 @@ async function teileBeschreibungPerWhatsApp(ideeId, beschreibungTimestamp) {
             });
         }
         
-        text += `\n\n_[Diese einzelne Beschreibung wurde weitergeleitet an: ${recipientInfo} am ${exportTimestamp}]_`;
+        text += `\n\n_[Gesendet via Ideen-App Pro]_`;
         
         const waLink = `https://wa.me/?text=${encodeURIComponent(text)}`;
         try {
@@ -1925,6 +1929,7 @@ async function teileBeschreibungPerWhatsApp(ideeId, beschreibungTimestamp) {
 
 function zeigeTerminDialog(ideeId) {
     terminFuerId = ideeId;
+    terminFuerBeschreibungTimestamp = null; // Sicherstellen, dass der alte Modus aktiv ist
     const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
     const idee = ideen.find(i => i && i.id === ideeId);
 
@@ -1962,9 +1967,59 @@ function zeigeTerminDialog(ideeId) {
     document.getElementById("terminTitelInput").focus();
 }
 
+function zeigeBeschreibungTerminDialog(ideeId, beschreibungTimestamp) {
+    terminFuerId = ideeId;
+    terminFuerBeschreibungTimestamp = beschreibungTimestamp;
+
+    const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+    const idee = ideen.find(i => i && i.id === ideeId);
+    if (!idee) {
+        zeigeWarnung("Fehler: Zugehörige Idee nicht gefunden.", "warnung");
+        return;
+    }
+    const beschreibung = idee.beschreibungen.find(b => b && b.timestamp === beschreibungTimestamp);
+    if (!beschreibung) {
+        zeigeWarnung("Fehler: Beschreibung für Termin nicht gefunden.", "warnung");
+        return;
+    }
+
+    let titelVorschlag = `${idee.text}: ${beschreibung.text}`;
+    if (titelVorschlag.length > 50) {
+        titelVorschlag = titelVorschlag.substring(0, 47) + "...";
+    }
+    document.getElementById("terminTitelInput").value = titelVorschlag;
+    
+    const jetzt = new Date();
+    const startStunde = jetzt.getHours() + 1;
+    jetzt.setHours(startStunde);
+    jetzt.setMinutes(0); 
+    jetzt.setSeconds(0);
+    jetzt.setMilliseconds(0);
+
+    const startVorschlag = new Date(jetzt);
+    const endeVorschlag = new Date(startVorschlag.getTime() + 60 * 60 * 1000);
+
+    const toLocalISOString = (date) => {
+        const year = date.getFullYear();
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const day = date.getDate().toString().padStart(2, '0');
+        const hours = date.getHours().toString().padStart(2, '0');
+        const minutes = date.getMinutes().toString().padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+    };
+
+    document.getElementById("terminStartInput").value = toLocalISOString(startVorschlag);
+    document.getElementById("terminEndeInput").value = toLocalISOString(endeVorschlag);
+    document.getElementById("terminOrtInput").value = "";
+
+    document.getElementById("terminDialog").style.display = "block";
+    document.getElementById("terminTitelInput").focus();
+}
+
 function terminDialogAbbrechen() {
     document.getElementById("terminDialog").style.display = "none";
     terminFuerId = null;
+    terminFuerBeschreibungTimestamp = null;
     document.getElementById("terminTitelInput").value = "";
     document.getElementById("terminStartInput").value = "";
     document.getElementById("terminEndeInput").value = "";
@@ -1984,29 +2039,54 @@ async function kalenderTerminErstellenUndSpeichern() {
         return;
     }
     
-    // 1. Log lokal erstellen
     let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
     const ideeIndex = ideen.findIndex(i => i.id === terminFuerId);
-    if (ideeIndex === -1) { zeigeWarnung("Zugehörige Idee nicht gefunden.", "warnung"); return; }
-
-    const nachweisText = `Kalendertermin vorbereitet für: ${getFormattedDate(startZeitValue)}. Titel: "${titel}".`;
-    if (!ideen[ideeIndex].beschreibungen) ideen[ideeIndex].beschreibungen = [];
-    const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9);
-    ideen[ideeIndex].beschreibungen.push({ text: nachweisText, timestamp: ts, level: 0, sichtbar: true, attachments: [], erinnerung: getDefaultErinnerung(), autor: aktuellerBenutzerName || "System" });
+    if (ideeIndex === -1) { 
+        zeigeWarnung("Zugehörige Idee nicht gefunden.", "warnung"); 
+        terminDialogAbbrechen();
+        return; 
+    }
+    const idee = ideen[ideeIndex];
+    let terminBeschreibungText = "";
+    let nachweisText = "";
     
-    localStorage.setItem("ideen", JSON.stringify(ideen));
+    if (terminFuerBeschreibungTimestamp) {
+        const beschreibung = idee.beschreibungen.find(b => b.timestamp === terminFuerBeschreibungTimestamp);
+        if (!beschreibung) {
+             zeigeWarnung("Zugehörige Beschreibung nicht mehr gefunden.", "warnung"); 
+             terminDialogAbbrechen();
+             return;
+        }
+
+        const autorText = beschreibung.autor ? ` (von ${beschreibung.autor})` : "";
+        terminBeschreibungText = `Teil-Information aus Vorgang ${idee.vorgangsnummer || 'N/A'}: ${idee.text || 'Ohne Titel'}\n\n`;
+        terminBeschreibungText += `Beschreibung vom ${getFormattedDate(beschreibung.timestamp)}${autorText}:\n${beschreibung.text}\n\n`;
+        
+        if (beschreibung.attachments && beschreibung.attachments.length > 0) {
+            terminBeschreibungText += `Zugehörige Anhänge:\n`;
+            beschreibung.attachments.forEach(anhang => {
+                terminBeschreibungText += `- ${anhang.name}`;
+                if (anhang.link) {
+                    terminBeschreibungText += `\n  Link: ${anhang.link}\n`;
+                } else {
+                    terminBeschreibungText += ` (Lokale Datei)\n`;
+                }
+            });
+        }
+        nachweisText = `Kalendertermin vorbereitet für Beschreibung (vom ${getFormattedDate(beschreibung.timestamp)}). Titel: "${titel}".`;
+    } else {
+        terminBeschreibungText = `Vorgang ${idee.vorgangsnummer || 'N/A'}: ${idee.text || 'Ohne Titel'}\n\n${idee.details || ""}`;
+        nachweisText = `Kalendertermin vorbereitet für: ${getFormattedDate(startZeitValue)}. Titel: "${titel}".`;
+    }
+
+    addProtokollEintrag(terminFuerId, terminFuerBeschreibungTimestamp, nachweisText);
     zeigeIdeen();
 
-    // 2. Speichern
     const saveSuccess = await saveToOneDrive();
 
-    // 3. Externe Aktion bei Erfolg
     if (saveSuccess) {
-        const idee = ideen[ideeIndex];
-        // ... (restliche Logik zur Erstellung der Terminbeschreibung und des Google Calendar Links) ...
-        let terminBeschreibungText = idee.details || ""; // Beispiel
-        const toUTCGoogleFormat = (date) => date.toISOString().replace(/[-:]|\.\d{3}/g, '');
-        let calendarUrl = `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(titel)}&dates=${toUTCGoogleFormat(new Date(startZeitValue))}/${toUTCGoogleFormat(new Date(endeZeitValue))}&details=${encodeURIComponent(terminBeschreibungText)}`;
+        const toUTCGoogleFormat = (dateStr) => new Date(dateStr).toISOString().replace(/[-:]|\.\d{3}/g, '');
+        let calendarUrl = `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(titel)}&dates=${toUTCGoogleFormat(startZeitValue)}/${toUTCGoogleFormat(endeZeitValue)}&details=${encodeURIComponent(terminBeschreibungText)}`;
         if (ort) calendarUrl += `&location=${encodeURIComponent(ort)}`;
 
         window.open(calendarUrl, '_blank');
@@ -2300,6 +2380,44 @@ async function loadFromOneDrive(isInitialLogin = false){
 
 async function speichereIdeenAlsDatei(){ try{ const ideen = JSON.parse(localStorage.getItem("ideen")||"[]"); const benutzerData = JSON.parse(localStorage.getItem("benutzerliste")||"[]"); const kategorienData = JSON.parse(localStorage.getItem("kategorien")||"[]"); const nummer = localStorage.getItem("naechsteVorgangsnummer")||"1"; const combinedData = { ideen, benutzerliste: benutzerData, kategorien: kategorienData, naechsteVorgangsnummer: nummer }; const dataToSave = JSON.stringify(combinedData, null, 2); if(window.showSaveFilePicker){ fileHandle = await window.showSaveFilePicker({ suggestedName: "ideen.json", types: [{ description: "JSON-Dateien", accept: { "application/json": [".json"] } }] }); const writable = await fileHandle.createWritable(); await writable.write(dataToSave); await writable.close(); zeigeWarnung("Datei lokal gespeichert!", 'success'); istGespeichert = true; } else { const blob = new Blob([dataToSave], { type: "application/json" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "ideen.json"; link.click(); URL.revokeObjectURL(url); zeigeWarnung("Datei-Download gestartet.", 'success'); istGespeichert = true; }} catch(e) { if(e.name !== "AbortError") { zeigeWarnung("Fehler beim lokalen Speichern: " + e.message); } }}
 async function ladeIdeenAusDatei(){ try{ let fileContent; if(window.showOpenFilePicker){ [fileHandle] = await window.showOpenFilePicker({ types: [{ description: "JSON-Dateien", accept: { "application/json": [".json"] } }] }); const file = await fileHandle.getFile(); fileContent = await file.text(); } else { const input = document.createElement('input'); input.type = 'file'; input.accept = '.json'; await new Promise((resolve, reject) => { input.onchange = async (e) => { if (e.target.files && e.target.files.length > 0) { const file = e.target.files[0]; const reader = new FileReader(); reader.onload = (event) => { fileContent = event.target.result; resolve(); }; reader.onerror = (error) => reject(error); reader.readAsText(file); } else { reject(new Error("Keine Datei ausgewählt")); } }; input.click(); }); } if (!fileContent) { throw new Error("Kein Dateiinhalt geladen."); } const loadedData = JSON.parse(fileContent); let ideen = [], benutzerliste = [], kategorienAusDatei = null, nummer = 1; if (loadedData && typeof loadedData === 'object' && Array.isArray(loadedData.ideen)) { ideen = loadedData.ideen; benutzerliste = Array.isArray(loadedData.benutzerliste) ? loadedData.benutzerliste : []; kategorienAusDatei = Array.isArray(loadedData.kategorien) ? loadedData.kategorien : null; nummer = parseInt(loadedData.naechsteVorgangsnummer, 10) || 1; } else if (Array.isArray(loadedData)) { ideen = loadedData; benutzerliste = []; kategorienAusDatei = null; nummer = 1; } else { throw new Error("Ungültiges Dateiformat"); } localStorage.setItem("ideen", JSON.stringify(ideen)); localStorage.setItem("benutzerliste", JSON.stringify(benutzerliste)); if (kategorienAusDatei !== null) { localStorage.setItem("kategorien", JSON.stringify(kategorienAusDatei)); } localStorage.setItem("naechsteVorgangsnummer", nummer.toString()); ausgewaehlt = []; initialisiereKategorien(); initialisiereBenutzer(); initialisiereVorgangsnummer(); ensureIdeasHaveIds(); aktualisiereMandantenFilterDropdown(); zeigeIdeen(); zeigeWarnung(`Daten lokal geladen!`, 'success'); istGespeichert = true; } catch(e) { if(e.name !== "AbortError" && e.message !== "Keine Datei ausgewählt" && e.message !== "Kein Dateiinhalt geladen.") { zeigeWarnung("Fehler beim lokalen Laden: " + e.message); } }}
+function addProtokollEintrag(ideeId, quellBeschreibungTimestamp, protokollText) {
+    let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+    const ideeIndex = ideen.findIndex(i => i && i.id === ideeId);
+    if (ideeIndex === -1) {
+        console.error("Idee für Protokolleintrag nicht gefunden.");
+        return false;
+    }
+
+    if (!ideen[ideeIndex].beschreibungen) {
+        ideen[ideeIndex].beschreibungen = [];
+    }
+    
+    const ts = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9);
+    const neuerEintrag = {
+        text: protokollText,
+        timestamp: ts,
+        level: 0,
+        sichtbar: true,
+        attachments: [],
+        erinnerung: getDefaultErinnerung(),
+        autor: aktuellerBenutzerName || "System"
+    };
+
+    if (quellBeschreibungTimestamp) {
+        const quellIndex = ideen[ideeIndex].beschreibungen.findIndex(b => b && b.timestamp === quellBeschreibungTimestamp);
+        if (quellIndex !== -1) {
+            ideen[ideeIndex].beschreibungen.splice(quellIndex + 1, 0, neuerEintrag);
+        } else {
+            console.warn("Quell-Beschreibung für Protokolleintrag nicht gefunden. Hänge am Ende an.");
+            ideen[ideeIndex].beschreibungen.push(neuerEintrag);
+        }
+    } else {
+        ideen[ideeIndex].beschreibungen.push(neuerEintrag);
+    }
+    
+    localStorage.setItem("ideen", JSON.stringify(ideen));
+    return true;
+}
 
 // --- Event Listener für Änderungen und Auto-Save ---
 document.getElementById("ideeText").addEventListener("input", triggerAutoSave);
@@ -2317,12 +2435,6 @@ document.getElementById("dateien").addEventListener("change",function(e){
     istGespeichert=false;
 });
 window.addEventListener("beforeunload",function(e){if(!istGespeichert){const msg="Ungespeicherte Änderungen! Seite wirklich verlassen?";e.preventDefault();e.returnValue=msg;return msg;}});
-
-// --- Event Listener für proaktive Sitzungsprüfung beim Reaktivieren des Tabs ---
-window.addEventListener('focus', async () => {
-    // Diese Funktion wurde entfernt, da die neue Startlogik das Problem eleganter löst
-});
-
 
 function ensureIdeasHaveIds() {
     let ideen = [];
@@ -2349,9 +2461,8 @@ function ensureIdeasHaveIds() {
     }
 
     ideen.forEach(idee => {
-        // NEU: Sicherstellen, dass das 'ersteller'-Feld existiert
         if (idee.ersteller === undefined) {
-            idee.ersteller = null; // oder "Unbekannt"
+            idee.ersteller = null;
             changed = true;
         }
 
@@ -2364,9 +2475,8 @@ function ensureIdeasHaveIds() {
                 const originalLengthDesc = idee.beschreibungen.length;
                 idee.beschreibungen = idee.beschreibungen.filter(b => b && typeof b === 'object' && typeof b.text === 'string');
                 idee.beschreibungen.forEach(b => {
-                    // NEU: Sicherstellen, dass das 'autor'-Feld existiert
                     if (b.autor === undefined) {
-                        b.autor = null; // oder "Unbekannt"
+                        b.autor = null;
                         changed = true;
                     }
                     if (!b.timestamp || typeof b.timestamp !== 'string') { b.timestamp = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); changed = true; }
@@ -2457,7 +2567,6 @@ function ensureIdeasHaveIds() {
     }
 }
 
-// *** NEUE FUNKTION: Versucht, eine gespeicherte Sitzung wiederherzustellen ***
 async function versucheSitzungWiederherzustellen() {
     const savedLoginType = sessionStorage.getItem('loginType');
     const savedUserEmail = sessionStorage.getItem('userEmail');
@@ -2475,7 +2584,7 @@ async function versucheSitzungWiederherzustellen() {
         const savedAccountId = sessionStorage.getItem('msalAccountIdentifier');
         if (!savedAccountId) {
             console.warn("Microsoft-Sitzung gefunden, aber keine Account-ID. Erneute Anmeldung erforderlich.");
-            handleLogout(); // Bereinigt den Zustand
+            handleLogout();
             return;
         }
         
@@ -2483,12 +2592,11 @@ async function versucheSitzungWiederherzustellen() {
             msalInstance = new msal.PublicClientApplication(msalConfig);
         }
 
-        // MSAL initialisieren, damit getAccountByHomeId funktioniert
         await msalInstance.initialize();
         const account = await msalInstance.getAccountByHomeId(savedAccountId);
 
         if (account) {
-            msalInstance.setActiveAccount(account); // Wichtig für acquireTokenSilent
+            msalInstance.setActiveAccount(account);
             console.log("Aktiver Account wiederhergestellt. Versuche stillen Token-Abruf...");
             currentLoginType = 'microsoft';
             
@@ -2498,25 +2606,18 @@ async function versucheSitzungWiederherzustellen() {
                 updateLoggedInUI(savedUserName, savedUserEmail);
                 updateButtonVisibility(savedUserEmail);
                 
-                // "Wachhund" starten
                 clearInterval(tokenRefreshIntervalId);
                 tokenRefreshIntervalId = setInterval(pruefeUndErneuereToken, 10 * 60 * 1000);
                 console.log("Token-Überwachung ('Wachhund') nach Sitzungswiederherstellung gestartet.");
-                
-                // Kein automatisches Laden, da dies zu Datenverlust führen könnte, wenn lokal gearbeitet wurde.
-                // Der Benutzer kann bei Bedarf manuell laden.
             } else {
-                 // Stiller Abruf fehlgeschlagen
-                 handleLogout(); // Bereinigen
+                 handleLogout();
             }
         } else {
              console.log("Gespeicherter MSAL Account konnte nicht gefunden werden. Erneute Anmeldung erforderlich.");
-             handleLogout(); // Bereinigen
+             handleLogout();
         }
 
     } else if (savedLoginType === 'github') {
-        // Bei GitHub wird nur der UI-Zustand wiederhergestellt, da der Token nicht aktualisiert werden kann.
-        // Das ist für die aktuelle App-Funktionalität ausreichend.
         currentLoginType = 'github';
         aktuellerBenutzerName = savedUserName;
         updateLoggedInUI(savedUserName, savedUserEmail);
@@ -2525,7 +2626,6 @@ async function versucheSitzungWiederherzustellen() {
     }
 }
 
-// *** ANGEPASSTE STARTLOGIK ***
 document.addEventListener('DOMContentLoaded', async () => {
     try {
         initialisiereKategorien();
@@ -2536,15 +2636,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         zeigeIdeen();
         initialisiereUndStarteBenachrichtigungspruefung();
 
-        // Zuerst prüfen, ob ein GitHub-Code in der URL ist
         const urlParams = new URLSearchParams(window.location.search);
         const githubCode = urlParams.get('code');
         
         if (githubCode) {
-            // Wenn ein Code da ist, den Callback-Flow abarbeiten
             await handleGithubCallback(githubCode);
         } else {
-            // Ansonsten versuchen, eine bestehende Sitzung wiederherzustellen
             await versucheSitzungWiederherzustellen();
         }
 
