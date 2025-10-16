@@ -2454,12 +2454,22 @@ async function uploadToOneDrive(f){
         if(!s.ok){throw new Error(`OneDrive Link Error ${s.status}: ${j?.error?.message||'Unknown'}`);}return j.link.webUrl;}catch(e){console.error("OneDrive Upload/Link Fehler:",e);zeigeWarnung("OneDrive-Fehler: "+e.message);return null;}}
 
 async function saveToOneDrive(isManual = false){ 
-    if(currentLoginType !== 'microsoft' || !msalInstance || !accessToken) { 
-        if (isManual) { // Nur bei manuellem Klick eine Warnung anzeigen
+    if(currentLoginType !== 'microsoft' || !msalInstance) { 
+        if (isManual) {
             zeigeWarnung("Bitte für die Speicherung mit Microsoft anmelden.", "info");
         }
         return false;
     } 
+
+    // KORRIGIERT: Token vor dem Speichern prüfen und ggf. erneuern
+    const isTokenValid = await pruefeUndErneuereToken();
+    if (!isTokenValid) {
+        if (isManual) { // Nur bei manuellem Klick eine zusätzliche Warnung anzeigen
+            zeigeWarnung("Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.", "warnung");
+        }
+        return false; // Abbrechen, wenn das Token nicht gültig/erneuert werden kann
+    }
+
     clearTimeout(debounceTimer);
     updateOneDriveStatus('saving', 'Wird gespeichert...');
     
@@ -2909,3 +2919,4 @@ document.addEventListener('DOMContentLoaded', async () => {
 </script>
 </body>
 </html>
+
