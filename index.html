@@ -2426,50 +2426,85 @@ function pruefeUndZeigeBenachrichtigungen() {
     }
 }
 
-async function uploadToOneDrive(f){
-    if(currentLoginType !== 'microsoft' || !accessToken){
-        // Do not call handleExpiredSession here, let the calling function do it.
+async function uploadToOneDrive(file) {
+    if (currentLoginType !== 'microsoft' || !accessToken) {
         zeigeWarnung("Bitte zuerst mit Microsoft anmelden!");
         return null;
     }
-    try{
-        const n=`ideenapp/${Date.now()}_${f.name}`;
-        const u=await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${n}:/content`,{method:"PUT",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":f.type},body:f});
+    try {
+        const fileName = `ideenapp/${Date.now()}_${file.name}`;
         
-        if (u.status === 401) {
-            handleExpiredSession();
-            return null;
+        // --- UPLOAD VERSUCH 1 ---
+        let uploadUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/${fileName}:/content`;
+        let uploadOptions = {
+            method: "PUT",
+            headers: { "Authorization": `Bearer ${accessToken}`, "Content-Type": file.type },
+            body: file
+        };
+        let uploadResponse = await fetch(uploadUrl, uploadOptions);
+
+        // --- TOKEN REFRESH LOGIK ---
+        if (uploadResponse.status === 401) {
+            console.log("Token expired during upload. Attempting silent refresh...");
+            const renewed = await pruefeUndErneuereToken();
+            if (renewed) {
+                console.log("Token refreshed. Retrying upload...");
+                uploadOptions.headers["Authorization"] = `Bearer ${accessToken}`; // Neuen Token verwenden
+                uploadResponse = await fetch(uploadUrl, uploadOptions); // Upload wiederholen
+            } else {
+                console.error("Token refresh failed. Aborting upload.");
+                // handleExpiredSession() wird bereits von pruefeUndErneuereToken bei Fehler aufgerufen
+                return null;
+            }
         }
 
-        const d=await u.json();
-        if(!u.ok){throw new Error(`OneDrive Upload Error ${u.status}: ${d?.error?.message||'Unknown'}`);}
-        const s=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${d.id}/createLink`,{method:"POST",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":"application/json"},body:JSON.stringify({type:"view",scope:"anonymous"})});
-        
-        if (s.status === 401) {
-            handleExpiredSession();
-            return null;
+        const uploadData = await uploadResponse.json();
+        if (!uploadResponse.ok) {
+            throw new Error(`OneDrive Upload Error ${uploadResponse.status}: ${uploadData?.error?.message || 'Unknown'}`);
         }
 
-        const j=await s.json();
-        if(!s.ok){throw new Error(`OneDrive Link Error ${s.status}: ${j?.error?.message||'Unknown'}`);}return j.link.webUrl;}catch(e){console.error("OneDrive Upload/Link Fehler:",e);zeigeWarnung("OneDrive-Fehler: "+e.message);return null;}}
+        // --- LINK ERSTELLEN VERSUCH 1 ---
+        let linkUrl = `https://graph.microsoft.com/v1.0/me/drive/items/${uploadData.id}/createLink`;
+        let linkOptions = {
+            method: "POST",
+            headers: { "Authorization": `Bearer ${accessToken}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ type: "view", scope: "anonymous" })
+        };
+        let linkResponse = await fetch(linkUrl, linkOptions);
+        
+        // --- TOKEN REFRESH LOGIK FÜR LINK ---
+        if (linkResponse.status === 401) {
+             console.log("Token expired during link creation. Attempting silent refresh...");
+             const renewed = await pruefeUndErneuereToken();
+             if(renewed) {
+                console.log("Token refreshed. Retrying link creation...");
+                linkOptions.headers["Authorization"] = `Bearer ${accessToken}`; // Neuen Token verwenden
+                linkResponse = await fetch(linkUrl, linkOptions); // Link-Erstellung wiederholen
+             } else {
+                console.error("Token refresh failed. Aborting link creation.");
+                return null;
+             }
+        }
+
+        const linkData = await linkResponse.json();
+        if (!linkResponse.ok) {
+            throw new Error(`OneDrive Link Error ${linkResponse.status}: ${linkData?.error?.message || 'Unknown'}`);
+        }
+        return linkData.link.webUrl;
+    } catch (e) {
+        console.error("OneDrive Upload/Link Fehler:", e);
+        zeigeWarnung("OneDrive-Fehler: " + e.message);
+        return null;
+    }
+}
 
 async function saveToOneDrive(isManual = false){ 
-    if(currentLoginType !== 'microsoft' || !msalInstance) { 
-        if (isManual) {
+    if(currentLoginType !== 'microsoft' || !msalInstance || !accessToken) { 
+        if (isManual) { // Nur bei manuellem Klick eine Warnung anzeigen
             zeigeWarnung("Bitte für die Speicherung mit Microsoft anmelden.", "info");
         }
         return false;
     } 
-
-    // KORRIGIERT: Token vor dem Speichern prüfen und ggf. erneuern
-    const isTokenValid = await pruefeUndErneuereToken();
-    if (!isTokenValid) {
-        if (isManual) { // Nur bei manuellem Klick eine zusätzliche Warnung anzeigen
-            zeigeWarnung("Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.", "warnung");
-        }
-        return false; // Abbrechen, wenn das Token nicht gültig/erneuert werden kann
-    }
-
     clearTimeout(debounceTimer);
     updateOneDriveStatus('saving', 'Wird gespeichert...');
     
@@ -2919,4 +2954,3 @@ document.addEventListener('DOMContentLoaded', async () => {
 </script>
 </body>
 </html>
-
