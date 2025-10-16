@@ -148,7 +148,7 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
     <button onclick="showAdminPanel()" id="adminButton" style="display:none; background:#ffc107; color: black; border-color: #e0a800;">👤 Admin Panel</button>
     <button onclick="exportiereAlsPDF()">📝 PDF</button> <button onclick="exportiereAlsText()">📄 Text</button> <button onclick="teilePerEmail()">✉️ E-Mail</button> <button onclick="teilePerWhatsApp()">📱 WhatsApp</button>
     <input type="text" id="onedrivePath" placeholder="/ideenapp/ideen.json" style="width: 250px; margin-top: 0;"/>
-    <button class="onedrive-btn" onclick="loadFromOneDrive()">☁️ OneDrive Laden</button>
+    <button class="onedrive-btn" onclick="startLoadFromOneDrive()">☁️ OneDrive Laden</button>
     <button class="onedrive-btn" onclick="saveToOneDrive(true)">☁️ OneDrive Speichern</button>
     <span id="onedriveStatus" class="onedrive-status"></span>
     <button onclick="alleIdeenLoeschen()" style="background:#eee;border:1px solid #c00;color:#c00;">Alle löschen</button> <button onclick="ausgewaehlteNotizenLoeschen()" style="background:#eee;border:1px solid #c00;color:#c00;">Auswahl löschen</button>
@@ -370,9 +370,10 @@ function restoreSessionUI() {
  * Stellt sicher, dass ein gültiges MSAL-Token vorhanden ist.
  * Versucht eine stille Erneuerung und als Fallback eine interaktive (Popup).
  * @param {boolean} interactive - Wenn true, wird bei Bedarf ein Popup zur Interaktion angezeigt.
+ * @param {boolean} onSilentFail_expireSession - Wenn true und die stille Erneuerung fehlschlägt, wird die Sitzung als abgelaufen behandelt.
  * @returns {string|null} Das gültige Access Token oder null bei Fehler.
  */
-async function getValidToken(interactive = false) {
+async function getValidToken(interactive = false, onSilentFail_expireSession = true) {
     if (currentLoginType !== 'microsoft' || !msalInstance) {
         if(interactive) zeigeWarnung("Bitte zuerst mit Microsoft anmelden.", "warnung");
         return null;
@@ -411,9 +412,10 @@ async function getValidToken(interactive = false) {
                     return null;
                 }
             } else {
-                // Wenn nicht interaktiv (z.B. Hintergrund-Check), müssen wir fehlschlagen.
                 console.warn("Stille Token-Erneuerung fehlgeschlagen, Interaktion erforderlich.", error);
-                handleExpiredSession();
+                if (onSilentFail_expireSession) {
+                     handleExpiredSession();
+                }
                 return null;
             }
         } else {
@@ -601,10 +603,10 @@ async function handleMicrosoftLogin() {
         
         // Starte den "Wachhund"
         clearInterval(tokenRefreshIntervalId);
-        tokenRefreshIntervalId = setInterval(() => getValidToken(false), 10 * 60 * 1000); // alle 10 Minuten
+        tokenRefreshIntervalId = setInterval(() => getValidToken(false, true), 10 * 60 * 1000); // alle 10 Minuten
         console.log("Token-Überwachung ('Wachhund') gestartet.");
 
-        await loadFromOneDrive(true); // Initial-Load
+        await loadFromOneDrive(); // Initial-Load
         return true;
 
     } catch (e) {
@@ -680,25 +682,27 @@ function blockAppAccess() {
     updateButtonVisibility(null);
 }
 
-async function handleLogout() {
-    let confirmMessage = "Wirklich abmelden?";
+async function handleLogout(confirmFirst = true) {
+    if(confirmFirst) {
+        let confirmMessage = "Wirklich abmelden?";
 
-    if (currentLoginType === 'microsoft' && msalInstance) {
-        const accountToLogout = msalInstance.getActiveAccount();
-        if (accountToLogout) {
-             confirmMessage = `Vom Microsoft-Konto "${accountToLogout.username}" abmelden?`;
+        if (currentLoginType === 'microsoft' && msalInstance) {
+            const accountToLogout = msalInstance.getActiveAccount();
+            if (accountToLogout) {
+                 confirmMessage = `Vom Microsoft-Konto "${accountToLogout.username}" abmelden?`;
+            }
+        } else if (currentLoginType === 'github') {
+            confirmMessage = "Vom GitHub-Konto abmelden?";
         }
-    } else if (currentLoginType === 'github') {
-        confirmMessage = "Vom GitHub-Konto abmelden?";
-    }
 
-    if (!istGespeichert) {
-        if (!confirm(confirmMessage + "\n\nEs gibt ungespeicherte Änderungen, die verloren gehen! Trotzdem fortfahren?")) {
-            return;
-        }
-    } else {
-        if (!confirm(confirmMessage)) {
-            return;
+        if (!istGespeichert) {
+            if (!confirm(confirmMessage + "\n\nEs gibt ungespeicherte Änderungen, die verloren gehen! Trotzdem fortfahren?")) {
+                return;
+            }
+        } else {
+            if (!confirm(confirmMessage)) {
+                return;
+            }
         }
     }
 
@@ -747,7 +751,9 @@ async function handleLogout() {
     zeigeIdeen();
     pruebeLoginHinweis();
     
-    zeigeWarnung("Erfolgreich abgemeldet.", 'success');
+    if (confirmFirst) {
+        zeigeWarnung("Erfolgreich abgemeldet.", 'success');
+    }
 }
 
 
@@ -2596,22 +2602,18 @@ async function saveToOneDrive(isManual = false){
     }
 }
 
-async function loadFromOneDrive(isInitialLogin = false){ 
-    if (!isInitialLogin && !istGespeichert && !confirm("Sie haben ungespeicherte lokale Änderungen. Möchten Sie diese verwerfen und die Daten von OneDrive neu laden?")) {
+async function startLoadFromOneDrive() {
+    if (!istGespeichert && !confirm("Sie haben ungespeicherte lokale Änderungen. Möchten Sie diese verwerfen und die Daten von OneDrive neu laden?")) {
         return;
     }
-
-    if(currentLoginType !== 'microsoft' || !msalInstance){ 
-        const ok=await handleMicrosoftLogin(); 
-        if(!ok){return;} 
-        return; 
-    } 
-    
-    if (!(await getValidToken(true))) { 
-       zeigeWarnung("Sitzung abgelaufen. Laden nicht möglich. Bitte neu anmelden.", "warnung"); 
-       return; 
+    if (await getValidToken(true)) {
+        await loadFromOneDrive();
+    } else {
+        zeigeWarnung("Sitzung konnte nicht erneuert werden. Laden fehlgeschlagen.", "warnung");
     }
-    
+}
+
+async function loadFromOneDrive(){ 
     const path=(document.getElementById("onedrivePath").value.trim()||"/ideenapp/ideen.json"); 
     const finalPath=path.startsWith('/')?path:'/'+path; 
     if(!finalPath||finalPath==='/'){
@@ -2920,7 +2922,7 @@ async function versucheSitzungWiederherzustellen() {
         const savedAccountId = sessionStorage.getItem('msalAccountIdentifier');
         if (!savedAccountId) {
             console.warn("Microsoft-Sitzung gefunden, aber keine Account-ID. Erneute Anmeldung erforderlich.");
-            handleLogout();
+            handleLogout(false);
             return;
         }
         
@@ -2933,23 +2935,27 @@ async function versucheSitzungWiederherzustellen() {
 
         if (account) {
             msalInstance.setActiveAccount(account);
-            console.log("Aktiver Account wiederhergestellt. Versuche stillen Token-Abruf...");
             currentLoginType = 'microsoft';
             
-            if (await getValidToken(false)) { // Stiller Versuch
+            const token = await getValidToken(false, false); 
+            
+            if (token) {
                 aktuellerBenutzerName = savedUserName;
                 updateLoggedInUI(savedUserName, savedUserEmail);
                 updateButtonVisibility(savedUserEmail);
                 
                 clearInterval(tokenRefreshIntervalId);
-                tokenRefreshIntervalId = setInterval(() => getValidToken(false), 10 * 60 * 1000);
+                tokenRefreshIntervalId = setInterval(() => getValidToken(false, true), 10 * 60 * 1000);
                 console.log("Token-Überwachung ('Wachhund') nach Sitzungswiederherstellung gestartet.");
+                
+                await loadFromOneDrive();
             } else {
-                 // getValidToken(false) ruft bei Fehler bereits handleExpiredSession() auf
+                 console.log("Stille Sitzungswiederherstellung fehlgeschlagen. Alte Sitzungsdaten werden gelöscht.");
+                 handleLogout(false);
             }
         } else {
              console.log("Gespeicherter MSAL Account konnte nicht gefunden werden. Erneute Anmeldung erforderlich.");
-             handleLogout();
+             handleLogout(false);
         }
 
     } else if (savedLoginType === 'github') {
