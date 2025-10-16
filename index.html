@@ -366,31 +366,61 @@ function restoreSessionUI() {
     document.querySelectorAll('.onedrive-btn').forEach(btn => btn.disabled = false);
 }
 
-async function pruefeUndErneuereToken() {
+/**
+ * Stellt sicher, dass ein gültiges MSAL-Token vorhanden ist.
+ * Versucht eine stille Erneuerung und als Fallback eine interaktive (Popup).
+ * @param {boolean} interactive - Wenn true, wird bei Bedarf ein Popup zur Interaktion angezeigt.
+ * @returns {string|null} Das gültige Access Token oder null bei Fehler.
+ */
+async function getValidToken(interactive = false) {
     if (currentLoginType !== 'microsoft' || !msalInstance) {
-        return false;
+        if(interactive) zeigeWarnung("Bitte zuerst mit Microsoft anmelden.", "warnung");
+        return null;
     }
     const account = msalInstance.getActiveAccount();
     if (!account) {
         handleExpiredSession();
-        return false;
+        return null;
     }
+
     try {
-        const tokenResponse = await msalInstance.acquireTokenSilent({
+        const silentResponse = await msalInstance.acquireTokenSilent({
             scopes: ["Files.ReadWrite", "User.Read", "offline_access"],
             account: account
         });
-        accessToken = tokenResponse.accessToken;
-        console.log("Token still und erfolgreich erneuert.");
-        restoreSessionUI(); // Stelle sicher, dass alles sichtbar/aktiviert ist
-        return true;
+        accessToken = silentResponse.accessToken;
+        console.log("Token still und erfolgreich abgerufen/erneuert.");
+        restoreSessionUI(); // Stellt sicher, dass die UI nach einer stillen Erneuerung aktiv ist
+        return accessToken;
     } catch (error) {
-        console.error("Fehler beim stillen Erneuern des Tokens:", error);
-        // Typischer Fehler, wenn Interaktion nötig ist
         if (error instanceof msal.InteractionRequiredAuthError) {
+            if (interactive) {
+                zeigeWarnung("Ihre Sitzung muss erneuert werden. Bitte bestätigen Sie im Popup.", "info");
+                try {
+                    const popupResponse = await msalInstance.acquireTokenPopup({
+                        scopes: ["Files.ReadWrite", "User.Read", "offline_access"],
+                        account: account
+                    });
+                    accessToken = popupResponse.accessToken;
+                    console.log("Token interaktiv erfolgreich erneuert.");
+                    restoreSessionUI();
+                    return accessToken;
+                } catch (popupError) {
+                    console.error("Fehler bei interaktiver Token-Erneuerung:", popupError);
+                    handleExpiredSession(); // Wenn das Popup fehlschlägt, ist die Sitzung wirklich verloren
+                    return null;
+                }
+            } else {
+                // Wenn nicht interaktiv (z.B. Hintergrund-Check), müssen wir fehlschlagen.
+                console.warn("Stille Token-Erneuerung fehlgeschlagen, Interaktion erforderlich.", error);
+                handleExpiredSession();
+                return null;
+            }
+        } else {
+            console.error("Unerwarteter Fehler bei Token-Erneuerung:", error);
             handleExpiredSession();
+            return null;
         }
-        return false;
     }
 }
 
@@ -571,7 +601,7 @@ async function handleMicrosoftLogin() {
         
         // Starte den "Wachhund"
         clearInterval(tokenRefreshIntervalId);
-        tokenRefreshIntervalId = setInterval(pruefeUndErneuereToken, 10 * 60 * 1000); // alle 10 Minuten
+        tokenRefreshIntervalId = setInterval(() => getValidToken(false), 10 * 60 * 1000); // alle 10 Minuten
         console.log("Token-Überwachung ('Wachhund') gestartet.");
 
         await loadFromOneDrive(true); // Initial-Load
@@ -758,8 +788,10 @@ function saveWhitelistToLocalStorage() {
 }
 
 async function saveWhitelistToOneDrive() {
-    const isTokenValid = await pruefeUndErneuereToken();
-    if (!isTokenValid) { zeigeWarnung("Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.", "warnung"); return; }
+    if (!(await getValidToken(true))) { 
+        zeigeWarnung("Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.", "warnung"); 
+        return; 
+    }
     
     if (currentLoginType !== 'microsoft' || !accessToken) {
         zeigeWarnung("Sie müssen als Administrator mit einem Microsoft-Konto angemeldet sein.", "warnung");
@@ -825,8 +857,10 @@ async function speichereIdee() {
 
     if (fileInput.files.length > 0) {
         if (currentLoginType === 'microsoft') {
-            const isTokenValid = await pruefeUndErneuereToken();
-            if (!isTokenValid) { zeigeWarnung("Sitzung abgelaufen. Bitte anmelden, um Dateien hochzuladen.", "warnung"); return; }
+            if (!(await getValidToken(true))) { 
+                zeigeWarnung("Sitzung abgelaufen. Bitte anmelden, um Dateien hochzuladen.", "warnung"); 
+                return; 
+            }
             
             zeigeWarnung("Lade Dateien hoch...", 'info');
             try {
@@ -834,7 +868,7 @@ async function speichereIdee() {
                     const link = await uploadToOneDrive(f);
                     return { id: generateUUID(), name: f.name, link: link, type: f.type, sichtbar: true };
                 }));
-                neuHochgeladeneDateien = neuHochgeladeneDateien.filter(f => f.link !== null);
+                neuHochgeladeneDateien = neuHochgeladeneDateien.filter(f => f && f.link);
                 zeigeWarnung("Upload fertig.", 'success');
             } catch (e) {
                 zeigeWarnung("Upload Fehler: " + e.message);
@@ -1174,8 +1208,10 @@ async function handleBeschreibungAnhangUpload(event) {
     if (files.length === 0) return;
     
     if (currentLoginType === 'microsoft') {
-        const isTokenValid = await pruefeUndErneuereToken();
-        if (!isTokenValid) { zeigeWarnung("Sitzung abgelaufen. Bitte anmelden, um Dateien hochzuladen.", "warnung"); return; }
+        if (!(await getValidToken(true))) { 
+            zeigeWarnung("Sitzung abgelaufen. Bitte anmelden, um Dateien hochzuladen.", "warnung"); 
+            return; 
+        }
     }
 
     zeigeWarnung(`Lade ${files.length} Datei(en) für Beschreibung hoch...`, 'info');
@@ -1187,7 +1223,7 @@ async function handleBeschreibungAnhangUpload(event) {
                 const link = await uploadToOneDrive(f);
                 return { id: generateUUID(), name: f.name, link: link, type: f.type };
             }));
-            neueAnhaenge = neueAnhaenge.filter(f => f.link !== null);
+            neueAnhaenge = neueAnhaenge.filter(f => f && f.link);
         } catch (e) {
             zeigeWarnung("Fehler beim OneDrive-Upload: " + e.message, 'warnung');
             return;
@@ -1201,8 +1237,8 @@ async function handleBeschreibungAnhangUpload(event) {
         }));
     }
 
-    if (neueAnhaenge.length === 0) {
-        zeigeWarnung("Keine Anhänge erfolgreich verarbeitet.", 'warnung');
+    if (neueAnhaenge.length === 0 && currentLoginType === 'microsoft') {
+        zeigeWarnung("Keine Anhänge erfolgreich hochgeladen.", 'warnung');
         return;
     }
 
@@ -2427,14 +2463,14 @@ function pruefeUndZeigeBenachrichtigungen() {
 }
 
 async function uploadToOneDrive(file) {
-    if (currentLoginType !== 'microsoft' || !accessToken) {
+    if (currentLoginType !== 'microsoft') {
         zeigeWarnung("Bitte zuerst mit Microsoft anmelden!");
         return null;
     }
     try {
         const fileName = `ideenapp/${Date.now()}_${file.name}`;
         
-        // --- UPLOAD VERSUCH 1 ---
+        // --- UPLOAD VERSUCH ---
         let uploadUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/${fileName}:/content`;
         let uploadOptions = {
             method: "PUT",
@@ -2445,25 +2481,24 @@ async function uploadToOneDrive(file) {
 
         // --- TOKEN REFRESH LOGIK ---
         if (uploadResponse.status === 401) {
-            console.log("Token expired during upload. Attempting silent refresh...");
-            const renewed = await pruefeUndErneuereToken();
-            if (renewed) {
-                console.log("Token refreshed. Retrying upload...");
-                uploadOptions.headers["Authorization"] = `Bearer ${accessToken}`; // Neuen Token verwenden
-                uploadResponse = await fetch(uploadUrl, uploadOptions); // Upload wiederholen
+            console.log("Token während des Uploads abgelaufen. Versuche interaktive Erneuerung...");
+            const newToken = await getValidToken(true); // Interaktiven Refresh erzwingen
+            if (newToken) {
+                console.log("Token erneuert. Wiederhole den Upload...");
+                uploadOptions.headers["Authorization"] = `Bearer ${newToken}`; 
+                uploadResponse = await fetch(uploadUrl, uploadOptions); 
             } else {
-                console.error("Token refresh failed. Aborting upload.");
-                // handleExpiredSession() wird bereits von pruefeUndErneuereToken bei Fehler aufgerufen
+                console.error("Token-Erneuerung fehlgeschlagen. Breche Upload ab.");
                 return null;
             }
         }
 
         const uploadData = await uploadResponse.json();
         if (!uploadResponse.ok) {
-            throw new Error(`OneDrive Upload Error ${uploadResponse.status}: ${uploadData?.error?.message || 'Unknown'}`);
+            throw new Error(`OneDrive Upload Fehler ${uploadResponse.status}: ${uploadData?.error?.message || 'Unbekannt'}`);
         }
 
-        // --- LINK ERSTELLEN VERSUCH 1 ---
+        // --- LINK ERSTELLEN VERSUCH ---
         let linkUrl = `https://graph.microsoft.com/v1.0/me/drive/items/${uploadData.id}/createLink`;
         let linkOptions = {
             method: "POST",
@@ -2472,23 +2507,23 @@ async function uploadToOneDrive(file) {
         };
         let linkResponse = await fetch(linkUrl, linkOptions);
         
-        // --- TOKEN REFRESH LOGIK FÜR LINK ---
+        // Es ist unwahrscheinlich, dass das Token zwischen Upload und Link-Erstellung abläuft, aber sicher ist sicher.
         if (linkResponse.status === 401) {
-             console.log("Token expired during link creation. Attempting silent refresh...");
-             const renewed = await pruefeUndErneuereToken();
-             if(renewed) {
-                console.log("Token refreshed. Retrying link creation...");
-                linkOptions.headers["Authorization"] = `Bearer ${accessToken}`; // Neuen Token verwenden
-                linkResponse = await fetch(linkUrl, linkOptions); // Link-Erstellung wiederholen
+             console.log("Token während der Link-Erstellung abgelaufen. Versuche interaktive Erneuerung...");
+             const newToken = await getValidToken(true);
+             if(newToken) {
+                console.log("Token erneuert. Wiederhole die Link-Erstellung...");
+                linkOptions.headers["Authorization"] = `Bearer ${newToken}`;
+                linkResponse = await fetch(linkUrl, linkOptions);
              } else {
-                console.error("Token refresh failed. Aborting link creation.");
+                console.error("Token-Erneuerung fehlgeschlagen. Breche Link-Erstellung ab.");
                 return null;
              }
         }
 
         const linkData = await linkResponse.json();
         if (!linkResponse.ok) {
-            throw new Error(`OneDrive Link Error ${linkResponse.status}: ${linkData?.error?.message || 'Unknown'}`);
+            throw new Error(`OneDrive Link Fehler ${linkResponse.status}: ${linkData?.error?.message || 'Unbekannt'}`);
         }
         return linkData.link.webUrl;
     } catch (e) {
@@ -2499,12 +2534,17 @@ async function uploadToOneDrive(file) {
 }
 
 async function saveToOneDrive(isManual = false){ 
-    if(currentLoginType !== 'microsoft' || !msalInstance || !accessToken) { 
-        if (isManual) { // Nur bei manuellem Klick eine Warnung anzeigen
+    if(currentLoginType !== 'microsoft' || !msalInstance) { 
+        if (isManual) { 
             zeigeWarnung("Bitte für die Speicherung mit Microsoft anmelden.", "info");
         }
         return false;
     } 
+    if (!(await getValidToken(isManual))) { // Bei manuellem Speichern interaktiven Refresh erlauben
+        if (isManual) zeigeWarnung("Sitzung konnte nicht erneuert werden. Speichern fehlgeschlagen.", "warnung");
+        return false;
+    }
+
     clearTimeout(debounceTimer);
     updateOneDriveStatus('saving', 'Wird gespeichert...');
     
@@ -2528,10 +2568,9 @@ async function saveToOneDrive(isManual = false){
             istGespeichert=true;
             updateOneDriveStatus('saved', '✓ Gespeichert');
             console.log("Daten erfolgreich auf OneDrive gespeichert.");
-            // Bei Auto-Save die Meldung nach einer Weile ausblenden
             if (!isManual) {
                 setTimeout(() => {
-                    if (istGespeichert) { // Nur ausblenden, wenn sich in der Zwischenzeit nichts geändert hat
+                    if (istGespeichert) { 
                         updateOneDriveStatus('hidden', '');
                     }
                 }, 4000);
@@ -2568,12 +2607,9 @@ async function loadFromOneDrive(isInitialLogin = false){
         return; 
     } 
     
-    if (!isInitialLogin) {
-       const isTokenValid = await pruefeUndErneuereToken();
-       if (!isTokenValid) { 
-           zeigeWarnung("Sitzung abgelaufen. Laden nicht möglich. Bitte neu anmelden.", "warnung"); 
-           return; 
-       }
+    if (!(await getValidToken(true))) { 
+       zeigeWarnung("Sitzung abgelaufen. Laden nicht möglich. Bitte neu anmelden.", "warnung"); 
+       return; 
     }
     
     const path=(document.getElementById("onedrivePath").value.trim()||"/ideenapp/ideen.json"); 
@@ -2900,17 +2936,16 @@ async function versucheSitzungWiederherzustellen() {
             console.log("Aktiver Account wiederhergestellt. Versuche stillen Token-Abruf...");
             currentLoginType = 'microsoft';
             
-            const isValid = await pruefeUndErneuereToken();
-            if (isValid) {
+            if (await getValidToken(false)) { // Stiller Versuch
                 aktuellerBenutzerName = savedUserName;
                 updateLoggedInUI(savedUserName, savedUserEmail);
                 updateButtonVisibility(savedUserEmail);
                 
                 clearInterval(tokenRefreshIntervalId);
-                tokenRefreshIntervalId = setInterval(pruefeUndErneuereToken, 10 * 60 * 1000);
+                tokenRefreshIntervalId = setInterval(() => getValidToken(false), 10 * 60 * 1000);
                 console.log("Token-Überwachung ('Wachhund') nach Sitzungswiederherstellung gestartet.");
             } else {
-                 handleLogout();
+                 // getValidToken(false) ruft bei Fehler bereits handleExpiredSession() auf
             }
         } else {
              console.log("Gespeicherter MSAL Account konnte nicht gefunden werden. Erneute Anmeldung erforderlich.");
@@ -2954,3 +2989,4 @@ document.addEventListener('DOMContentLoaded', async () => {
 </script>
 </body>
 </html>
+
