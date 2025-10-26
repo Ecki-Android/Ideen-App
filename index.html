@@ -2037,6 +2037,81 @@ async function teileBeschreibungPerEmail(ideeId, beschreibungTimestamp) {
     }
 }
 
+/**
+ * NEU: Generiert einen vollständigen Text-String für eine Idee, inkl. aller Beschreibungen und Anhänge.
+ * @param {object} idee - Das Ideen-Objekt.
+ * @param {'text' | 'plain'} format - 'text' für WhatsApp (mit Markdown), 'plain' für Kalender (ohne).
+ * @param {number | null} maxLaenge - Maximale Länge, wenn null, unbegrenzt.
+ * @returns {string} Der formatierte Text-String.
+ */
+function generiereIdeenTextKomplett(idee, format = 'text', maxLaenge = null) {
+    if (!idee) return "";
+
+    const boldStart = format === 'text' ? '*' : '';
+    const boldEnd = format === 'text' ? '*' : '';
+    const italicStart = format === 'text' ? '_' : '';
+    const italicEnd = format === 'text' ? '_' : '';
+    const nl = '\n';
+    let content = "";
+
+    // 1. Titel und Metadaten
+    content += `${idee.erledigt ? (format === 'text' ? '_[ERLEDIGT]_ ' : '[ERLEDIGT] ') : ''}${boldStart}${idee.vorgangsnummer ? `[Vorgang ${idee.vorgangsnummer}] ` : ''}${idee.text || 'Ohne Titel'}${boldEnd}${nl}`;
+    content += `📁 Kat.: ${idee.kategorie||'-'}${nl}`;
+    if(idee.benutzer) content += `🧑‍💻 Zust.: ${idee.benutzer}${nl}`;
+    content += `🔖 Prio: ${idee.prioritaet||"-"}${nl}`;
+    content += `📅 ${getFormattedDate(idee.timestamp)}${idee.ersteller ? ` (von ${idee.ersteller})` : ''}${nl}`;
+    if(idee.mandantennummer) content += `🏢 Mandant: ${idee.mandantennummer}${nl}`;
+    if(idee.firmenname) content += `🏭 Firma: ${idee.firmenname}${nl}`;
+
+    // 2. Hauptbeschreibung
+    if (idee.details) {
+        content += `${nl}${boldStart}📝 Beschreibung:${boldEnd}${nl}${idee.details}${nl}`;
+    }
+
+    // 3. Haupt-Anhänge
+    if (idee.dateien && idee.dateien.length > 0) {
+        let sichtbareDateien = idee.dateien.filter(f => f && f.id && f.sichtbar !== false && f.link);
+        if (sichtbareDateien.length > 0) {
+            content += `${nl}${italicStart}Anhänge (Haupt):${italicEnd}${nl}`;
+            sichtbareDateien.forEach(f => {
+                content += `  - ${f.name || 'Anhang'}:${nl}    ${f.link}${nl}`;
+            });
+        }
+    }
+
+    // 4. Weitere Beschreibungen
+    if (idee.beschreibungen && idee.beschreibungen.length > 0) {
+        let sichtbareBeschreibungen = idee.beschreibungen.filter(b => b && b.text !== undefined && b.sichtbar !== false);
+        if (sichtbareBeschreibungen.length > 0) {
+            content += `${nl}${boldStart}Weitere Beschreibungen:${boldEnd}${nl}`;
+            sichtbareBeschreibungen.forEach(b => {
+                const indentSpaces = "  ".repeat(b.level || 0);
+                const autorText = b.autor ? ` ${italicStart}(von ${b.autor})${italicEnd}` : "";
+                content += `${nl}${indentSpaces}- [${getFormattedDate(b.timestamp)}]${autorText}:${nl}${indentSpaces}  ${b.text.replace(/\n/g, `\n${indentSpaces}  `)}${nl}`;
+                
+                if (b.attachments && b.attachments.length > 0) {
+                    let sichtbareAnhaenge = b.attachments.filter(a => a && a.link);
+                    if (sichtbareAnhaenge.length > 0) {
+                         content += `${indentSpaces}  ${italicStart}Zugehörige Anhänge:${italicEnd}${nl}`;
+                        sichtbareAnhaenge.forEach(anhang => {
+                            content += `${indentSpaces}    - ${anhang.name}:${nl}${indentSpaces}      ${anhang.link}${nl}`;
+                        });
+                    }
+                }
+            });
+        }
+    }
+    
+    // 5. Längenprüfung und Kürzung
+    if (maxLaenge !== null && content.length > maxLaenge) {
+        const kuerzungsHinweis = `${nl}${nl}[... Inhalt gekürzt, da zu lang für Kalendereintrag.]`;
+        content = content.substring(0, maxLaenge - kuerzungsHinweis.length) + kuerzungsHinweis;
+    }
+
+    return content;
+}
+
+
 async function teilePerWhatsApp(){
     const ideenToExport = getExportIdeen();
     if(ideenToExport.length === 0) { zeigeWarnung("Bitte wählen Sie Notizen für Export aus."); return; }
@@ -2066,44 +2141,12 @@ async function teilePerWhatsApp(){
     const saveSuccess = await saveToOneDrive();
 
     if (saveSuccess) {
+        // *** START ÄNDERUNG ***
+        // Der alte map-Block wurde ersetzt, um die neue, vollständige Textgenerierung zu nutzen.
         let text = ideenToExport.map(idee => {
-             // START: Anpassung für detaillierten WhatsApp-Export
-             let hauptText = ( `${idee.erledigt ? '_[ERLEDIGT]_ ' : ''}*${idee.vorgangsnummer ? `[Vorgang ${idee.vorgangsnummer}] ` : ''}${idee.text || 'Ohne Titel'}*\n` + `📁 Kat.: ${idee.kategorie||'-'}\n` + `${idee.benutzer?`🧑‍💻 Zust.: ${idee.benutzer}\n`:""}` + `🔖 Prio: ${idee.prioritaet||"-"}\n` + `📅 ${getFormattedDate(idee.timestamp)}${idee.ersteller ? ` (von ${idee.ersteller})` : ''}\n` + (idee.details ? `\n📝 *Beschreibung:*\n${idee.details}\n` : "") + `${idee.mandantennummer?`🏢 Mandant: ${idee.mandantennummer}\n`:""}` + `${idee.firmenname?`🏭 Firma: ${idee.firmenname}\n`:""}` );
-             
-             // 1. Weitere Beschreibungen hinzufügen
-             if (idee.beschreibungen && idee.beschreibungen.length > 0) {
-                 hauptText += `\n\n*Weitere Beschreibungen:*\n`;
-                 idee.beschreibungen.forEach(b => {
-                     if (b && b.text !== undefined && b.sichtbar !== false) { // Nur sichtbare teilen
-                          const indentSpaces = "   ".repeat(b.level || 0); // Einrückung für WA
-                          const autorText = b.autor ? ` _(von ${b.autor})_` : "";
-                          hauptText += `${indentSpaces}▪️ *[${getFormattedDate(b.timestamp)}]${autorText}:*\n${indentSpaces}   ${b.text}\n`;
-                          
-                          // Anhänge der Beschreibung (nur sichtbare)
-                          if (b.attachments && b.attachments.length > 0) {
-                              hauptText += `${indentSpaces}     *Anhänge (Details):*\n`;
-                              b.attachments.forEach(anhang => {
-                                   hauptText += `${indentSpaces}     - ${anhang.name}${anhang.link ? `\n${indentSpaces}       ${anhang.link}\n` : ' _(Lokal)_\n'}`;
-                              });
-                          }
-                     }
-                 });
-             }
-
-             // 2. Anhänge der Haupt-Notiz hinzufügen (nur sichtbare)
-             if (idee.dateien && idee.dateien.length > 0) {
-                 const sichtbareDateien = idee.dateien.filter(f => f && f.id && f.sichtbar !== false);
-                 if (sichtbareDateien.length > 0) {
-                    hauptText += `\n\n*Anhänge (Haupt-Notiz):*\n`;
-                    sichtbareDateien.forEach(f => {
-                         hauptText += ` - ${f.name}${f.link ? `\n   ${f.link}\n` : ' _(Lokal)_\n'}`;
-                    });
-                 }
-             }
-             
-             return hauptText;
-             // ENDE: Anpassung
+             return generiereIdeenTextKomplett(idee, 'text', null);
         }).filter(Boolean).join("\n\n------------------------------------\n\n");
+        // *** ENDE ÄNDERUNG ***
 
         text += `\n\n_[Gesendet via Ideen-App Pro]_`;
         const waLink = `https://wa.me/?text=${encodeURIComponent(text)}`;
@@ -2159,7 +2202,7 @@ async function teileBeschreibungPerWhatsApp(ideeId, beschreibungTimestamp) {
         const startLevel = block[0].level || 0;
 
         block.forEach(beschreibung => {
-            if (!beschreibung || beschreibung.sichtbar === false) return; // Nur sichtbare teilen
+            if (!beschreibung) return;
             const relativerIndent = (beschreibung.level || 0) - startLevel;
             const indentSpaces = "   ".repeat(relativerIndent);
             const autorText = beschreibung.autor ? ` _(von ${beschreibung.autor})_` : "";
@@ -2300,6 +2343,11 @@ function terminDialogAbbrechen() {
 async function kalenderTerminErstellenUndSpeichern() {
     if (!terminFuerId) return;
 
+    // *** START ÄNDERUNG ***
+    // Konservatives Längenlimit für Google Kalender (ca. 8KB, wir nehmen 7.5KB als Puffer)
+    const MAX_KALENDER_BESCHREIBUNG = 7500;
+    // *** ENDE ÄNDERUNG ***
+
     const titel = document.getElementById("terminTitelInput").value.trim();
     const startZeitValue = document.getElementById("terminStartInput").value;
     const endeZeitValue = document.getElementById("terminEndeInput").value;
@@ -2322,7 +2370,6 @@ async function kalenderTerminErstellenUndSpeichern() {
     let nachweisText = "";
     
     if (terminFuerBeschreibungTimestamp) {
-        // --- MODUS: TERMIN FÜR BESCHREIBUNG ---
         const sammlung = sammleBeschreibungsBlock(terminFuerId, terminFuerBeschreibungTimestamp);
         if (!sammlung) {
              zeigeWarnung("Zugehöriger Beschreibungs-Block nicht mehr gefunden.", "warnung"); 
@@ -2334,7 +2381,6 @@ async function kalenderTerminErstellenUndSpeichern() {
         const startLevel = sammlung.block[0].level || 0;
 
         sammlung.block.forEach(beschreibung => {
-            if (beschreibung.sichtbar === false) return; // Nur sichtbare
             const relativerIndent = (beschreibung.level || 0) - startLevel;
             const indentSpaces = "  ".repeat(relativerIndent);
             const autorText = beschreibung.autor ? ` (von ${beschreibung.autor})` : "";
@@ -2351,48 +2397,22 @@ async function kalenderTerminErstellenUndSpeichern() {
                 });
             }
         });
+
+        // *** START ÄNDERUNG ***
+        // Längenprüfung für Beschreibungs-Block
+        if (terminBeschreibungText.length > MAX_KALENDER_BESCHREIBUNG) {
+            const kuerzungsHinweis = `\n\n[... Inhalt gekürzt, da zu lang für Kalendereintrag.]`;
+            terminBeschreibungText = terminBeschreibungText.substring(0, MAX_KALENDER_BESCHREIBUNG - kuerzungsHinweis.length) + kuerzungsHinweis;
+        }
+        // *** ENDE ÄNDERUNG ***
         
         nachweisText = `Kalendertermin vorbereitet für Beschreibungs-Block (vom ${getFormattedDate(terminFuerBeschreibungTimestamp)}). Titel: "${titel}".`;
-    
     } else {
-        // --- MODUS: TERMIN FÜR HAUPT-NOTIZ (ANGEPASST) ---
-        terminBeschreibungText = `Vorgang ${idee.vorgangsnummer || 'N/A'}: ${idee.text || 'Ohne Titel'}\n\n*Hauptbeschreibung:*\n${idee.details || "(Keine)"}\n\n`;
-        
-        // 1. Weitere Beschreibungen (sichtbare)
-        if (idee.beschreibungen && idee.beschreibungen.length > 0) {
-            terminBeschreibungText += `\n------------------------------------\n*Weitere Beschreibungen:*\n------------------------------------\n`;
-            idee.beschreibungen.forEach(b => {
-                 if (b && b.text !== undefined && b.sichtbar !== false) {
-                      const indentSpaces = "  ".repeat(b.level || 0);
-                      const autorText = b.autor ? ` (von ${b.autor})` : "";
-                      terminBeschreibungText += `\n${indentSpaces}*Beschreibung [${getFormattedDate(b.timestamp)}]${autorText}:*\n${indentSpaces}${b.text}\n`;
-                      
-                      // 2. Anhänge der Beschreibung (sichtbare)
-                      if (b.attachments && b.attachments.length > 0) {
-                           terminBeschreibungText += `${indentSpaces}  Zugehörige Anhänge:\n`;
-                           b.attachments.forEach(anhang => {
-                                terminBeschreibungText += `${indentSpaces}  - ${anhang.name}`;
-                                if (anhang.link) { terminBeschreibungText += `\n${indentSpaces}    Link: ${anhang.link}\n`; } 
-                                else { terminBeschreibungText += ` (Lokale Datei)\n`; }
-                           });
-                      }
-                 }
-             });
-        }
-
-        // 3. Anhänge der Haupt-Notiz (sichtbare)
-        if (idee.dateien && idee.dateien.length > 0) {
-            const sichtbareDateien = idee.dateien.filter(f => f && f.id && f.sichtbar !== false);
-            if (sichtbareDateien.length > 0) {
-                terminBeschreibungText += `\n------------------------------------\n*Anhänge (Haupt-Notiz):*\n------------------------------------\n`;
-                sichtbareDateien.forEach(f => {
-                    terminBeschreibungText += `\n- ${f.name}`;
-                    if (f.link) { terminBeschreibungText += `\n  Link: ${f.link}\n`; }
-                    else { terminBeschreibungText += ` (Lokale Datei)\n`; }
-                });
-            }
-        }
-        
+        // *** START ÄNDERUNG ***
+        // Alte, einfache Zuweisung ersetzt durch die neue Komplett-Funktion mit Längenlimit
+        // ALT: terminBeschreibungText = `Vorgang ${idee.vorgangsnummer || 'N/A'}: ${idee.text || 'Ohne Titel'}\n\n${idee.details || ""}`;
+        terminBeschreibungText = generiereIdeenTextKomplett(idee, 'plain', MAX_KALENDER_BESCHREIBUNG);
+        // *** ENDE ÄNDERUNG ***
         nachweisText = `Kalendertermin vorbereitet für: ${getFormattedDate(startZeitValue)}. Titel: "${titel}".`;
     }
 
@@ -3070,4 +3090,3 @@ document.addEventListener('DOMContentLoaded', async () => {
 </script>
 </body>
 </html>
-
