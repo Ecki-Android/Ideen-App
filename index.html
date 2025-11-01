@@ -1261,10 +1261,38 @@ function zeigeIdeen() {
             dateiHtml = idee.dateien.filter(f => f && f.id).map(f => {
                 const url = f.link || '#'; const istSichtbar = f.sichtbar === true; const anhangKlasse = istSichtbar ? "" : " anhang-veraltet"; const anhangPraefix = istSichtbar ? "" : "[Veraltet] ";
                 const icon = f.link ? '🌐' : '📎'; const buttonSymbol = istSichtbar ? '👁️' : '🙈'; const buttonTitle = istSichtbar ? 'Anhang ausblenden' : 'Anhang einblenden';
-                return `<div class="anhang-eintrag${anhangKlasse}" style="margin-bottom: 3px; display: flex; align-items: center;">
-                            <a class="datei-link" href="${url}" target="_blank" title="${f.name || ''}">${icon} ${anhangPraefix}${f.name || 'Unbekannt'}</a>
-                            <span class="datei-info" style="font-size:0.8em; color: #555; margin-left: 5px;"> (${f.link ? 'OneDrive' : 'Lokal'})</span>
-                            <button class="toggle-anhang-sichtbarkeit-btn" title="${buttonTitle}" onclick="toggleAnhangSichtbarkeit('${id}', '${f.id}')">${buttonSymbol}</button>
+                
+                let anhangElementHtml = '';
+
+                // --- NEUE AUDIO-PLAYER-LOGIK ---
+                // Prüft, ob der Anhang-Typ mit 'audio/' beginnt UND ob es ein umwandelbarer OneDrive-Link ist
+                if (f.type && f.type.startsWith('audio/') && f.link && f.link.includes('onedrive.live.com/redir?')) {
+                    // Wandle den OneDrive 'view' Link (redir?) in einen 'embed' Link um
+                    const embedUrl = f.link.replace('/redir?', '/embed?');
+                    
+                    anhangElementHtml = `
+                        <div style="margin-bottom: 5px; width: 100%;">
+                            <span class="datei-info" style="font-size: 0.9em; font-weight: bold; display: block; margin-bottom: 3px;">
+                                ${icon} ${anhangPraefix}${f.name || 'Unbekannt'}
+                            </span>
+                            <audio controls style="width: 100%; height: 40px;" preload="metadata">
+                                <source src="${embedUrl}" type="${f.type}">
+                                Ihr Browser unterstützt dieses Audio-Format nicht.
+                            </audio>
+                        </div>
+                    `;
+                } else {
+                    // Fallback: Die Bisherige-Link-Anzeige für alle anderen Dateitypen
+                    anhangElementHtml = `
+                        <a class="datei-link" href="${url}" target="_blank" title="${f.name || ''}">${icon} ${anhangPraefix}${f.name || 'Unbekannt'}</a>
+                        <span class="datei-info" style="font-size:0.8em; color: #555; margin-left: 5px;"> (${f.link ? 'OneDrive' : 'Lokal'})</span>
+                    `;
+                }
+                // --- ENDE NEUE LOGIK ---
+
+                return `<div class="anhang-eintrag${anhangKlasse}" style="margin-bottom: 3px; display: flex; align-items: center; flex-wrap: wrap;">
+                            <div style="flex-grow: 1; min-width: 200px; max-width: 100%;">${anhangElementHtml}</div>
+                            <button class="toggle-anhang-sichtbarkeit-btn" title="${buttonTitle}" onclick="toggleAnhangSichtbarkeit('${id}', '${f.id}')" style="margin-left: auto; flex-shrink: 0;">${buttonSymbol}</button>
                         </div>`;
             }).join("");
             if (dateiHtml) { dateiHtml = `<div class="anhaenge-liste" style="margin-top: 8px; display: flex; flex-direction: column; align-items: flex-start;"><b>Anhänge:</b>${dateiHtml}</div>`; }
@@ -1288,9 +1316,23 @@ function zeigeIdeen() {
                         b.attachments.map(anhang => {
                             const anhangUrl = anhang.link || '#';
                             const anhangIcon = anhang.link ? '🌐' : '📎';
-                            return `<div class="beschreibung-anhang-item">
-                                        <a href="${anhangUrl}" target="_blank" title="${anhang.name || ''}">${anhangIcon} ${anhang.name || 'Unbekannt'}</a>
-                                    </div>`;
+
+                            // --- NEUE AUDIO-PLAYER-LOGIK (BESCHR.) ---
+                            if (anhang.type && anhang.type.startsWith('audio/') && anhangUrl.includes('onedrive.live.com/redir?')) {
+                                const embedUrl = anhangUrl.replace('/redir?', '/embed?');
+                                return `<div class="beschreibung-anhang-item" style="display: block; margin-top: 5px;">
+                                            <span style="font-size: 0.95em; display: block; margin-bottom: 3px;">${anhangIcon} ${anhang.name || 'Unbekannt'}</span>
+                                            <audio controls style="width: 100%; height: 35px;" preload="metadata">
+                                                <source src="${embedUrl}" type="${anhang.type}">
+                                            </audio>
+                                        </div>`;
+                            } else {
+                                // Fallback: Bisherige-Link-Anzeige
+                                return `<div class="beschreibung-anhang-item">
+                                            <a href="${anhangUrl}" target="_blank" title="${anhang.name || ''}">${anhangIcon} ${anhang.name || 'Unbekannt'}</a>
+                                        </div>`;
+                            }
+                            // --- ENDE NEUE LOGIK (BESCHR.) ---
                         }).join('')
                     }</div>`;
                 }
@@ -3470,4 +3512,5 @@ document.addEventListener('DOMContentLoaded', async () => {
 </script>
 </body>
 </html>
+
 
