@@ -109,6 +109,104 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
     .erinnerung-dialog-content input[type="datetime-local"], .erinnerung-dialog-content select, .erinnerung-dialog-content input[type="number"], .erinnerung-dialog-content input[type="text"] { width: 100%; }
     .onedrive-status { margin-top: 5px; width: 100%; justify-content: center; box-sizing: border-box;} /* NEU: Für mobile Ansicht */
 }
+
+/* --- NEU: Stile für Telefonnummern-Liste --- */
+#telefonNummerContainer {
+    border: 1px solid #ddd;
+    background: #fdfdfd;
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: 5px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+.telefon-nummer-zeile {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+    align-items: center;
+}
+.telefon-nummer-zeile input[type="text"] {
+    flex: 1;
+    margin-top: 0;
+    width: auto;
+    min-width: 100px;
+}
+.telefon-nummer-zeile input[type="tel"] {
+    flex: 2;
+    margin-top: 0;
+    width: auto;
+}
+.telefon-loeschen-btn {
+    padding: 6px 10px !important;
+    font-size: 0.9em !important;
+    margin-top: 0 !important;
+    min-width: auto !important;
+    width: auto !important;
+    background: #fbe9e7 !important;
+    color: #c00 !important;
+    border-color: #ffccbc !important;
+    cursor: pointer;
+}
+#addTelefonNummerBtn {
+    margin-top: 5px;
+    padding: 8px 12px;
+    font-size: 0.9em;
+    background: #e8f5e9;
+    border-color: #c8e6c9;
+    color: #2e7d32;
+}
+
+/* --- NEU: Stile für Anruf-Auswahl-Dialog (Modal) --- */
+.anruf-modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.6);
+    z-index: 2500;
+    justify-content: center;
+    align-items: center;
+}
+.anruf-modal-content {
+    background: white;
+    padding: 25px;
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    width: 90%;
+    max-width: 450px;
+}
+.anruf-modal-content h3 {
+    margin-top: 0;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+.anruf-modal-content .nummer-wahl-btn {
+    display: block;
+    width: 100%;
+    text-align: left;
+    margin-top: 10px;
+    padding: 12px;
+    font-size: 1em;
+    background: #f4f4f4;
+    border-color: #ddd;
+}
+.anruf-modal-content .nummer-wahl-btn:hover {
+    background: #e0e0e0;
+}
+.anruf-modal-content .nummer-wahl-btn strong {
+    color: #0078d4;
+    display: block;
+    font-size: 0.9em;
+}
+.anruf-modal-content .modal-abbrechen-btn {
+    margin-top: 20px;
+    background: #eee;
+    border-color: #ccc;
+    width: 100%;
+}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://alcdn.msauth.net/browser/2.24.0/js/msal-browser.min.js"></script>
@@ -131,6 +229,17 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
     <input type="text" id="ideeText" placeholder="Titel*" />
     <textarea id="ideeDetails" placeholder="Beschreibung" rows="3"></textarea>
     <input type="text" id="mandantennummer" placeholder="Mandantennummer (optional)" />
+
+    <!-- NEU: Container für dynamische Telefonnummern -->
+    <div id="telefonNummerContainerVorschau" style="font-size: 0.9em; margin-top: 10px; padding: 5px; background: #f9f9f9; border-radius: 4px; display: none;">
+        <b>Gespeicherte Nummern:</b> <span id="telefonNummerListeAnzeige"></span>
+    </div>
+    <div id="telefonNummerContainer">
+        <!-- Dynamische Telefonnummer-Zeilen werden hier per JS eingefügt -->
+    </div>
+    <button id="addTelefonNummerBtn" type="button">+ Telefonnummer hinzufügen</button>
+    <!-- ENDE: Container für dynamische Telefonnummern -->
+
     <input type="text" id="firmenname" placeholder="Firmenname (optional)" />
     <select id="kategorie"></select> <input type="text" id="neueKategorie" placeholder="Neue Kategorie" /> <button onclick="neueKategorieHinzufuegen()">+ Kat</button> <button class="katLoeschBtn" onclick="kategorieLoeschen()">Kat löschen</button> <select id="benutzer"></select> <input type="text" id="neuerBenutzer" placeholder="Neuer Benutzer" /> <button onclick="neuenBenutzerHinzufuegen()">+ User</button> <button class="benutzerLoeschBtn" onclick="benutzerLoeschen()">User löschen</button> <div class="buttons"> <button id="prioHoch" class="prio-btn" onclick="setzePrioritaet('Hoch')">🔴 Hoch</button> <button id="prioMittel" class="prio-btn" onclick="setzePrioritaet('Mittel')">🟠 Mittel</button> <button id="prioNiedrig" class="prio-btn" onclick="setzePrioritaet('Niedrig')">🟢 Niedrig</button> </div>
     <input type="file" id="dateien" multiple /> <div class="datei-vorschau" id="dateiVorschau"></div>
@@ -239,6 +348,18 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
     </div>
 </div>
 
+<!-- NEU: Anruf-Auswahl-Dialog (Modal) -->
+<div id="anrufModalOverlay" class="anruf-modal-overlay">
+    <div class="anruf-modal-content">
+        <h3 id="anrufModalTitel">Nummer für Anruf auswählen</h3>
+        <div id="anrufModalNummerListe">
+            <!-- Nummern-Buttons werden hier per JS eingefügt -->
+        </div>
+        <button id="anrufModalAbbrechenBtn" class="modal-abbrechen-btn" onclick="closeAnrufModal()">Abbrechen</button>
+    </div>
+</div>
+<!-- ENDE: Anruf-Auswahl-Dialog -->
+
 <script>
 console.log("Script started");
 /* --- START BLOCK 4: Script Start, Variables & Initializers --- */
@@ -273,6 +394,8 @@ let erinnerungFuerBeschreibungTimestamp = null;
 let terminFuerId = null;
 let terminFuerBeschreibungTimestamp = null; // NEU für Einzel-Termine
 let anhangFuerBeschreibungZiel = { ideeId: null, timestamp: null };
+// NEU: Globale Variablen für Anruf-Dialog
+let anrufModalCallbackData = { ideeId: null, timestamp: null };
 let whitelist = [];
 let currentLoginType = null; // 'microsoft' or 'github'
 let tokenRefreshIntervalId = null; // "Wachhund" Intervall ID
@@ -854,6 +977,99 @@ function filterNachMandant(){filterMandantValue=document.getElementById("filterM
 function filterNachBenutzer(){filterBenutzerValue=document.getElementById("filterBenutzer").value;zeigeIdeen()}
 function setzePrioritaet(p){prioritaet=p;["prioHoch","prioMittel","prioNiedrig"].forEach(id=>document.getElementById(id).classList.remove("selected"));if(p)document.getElementById(`prio${p}`).classList.add("selected");triggerAutoSave();}
 
+/* --- NEU: Funktion zum Hinzufügen einer Telefonnummer-Zeile (UI) --- */
+function addTelefonNummerInput(bezeichnung = '', nummer = '') {
+    const container = document.getElementById('telefonNummerContainer');
+    const zeile = document.createElement('div');
+    zeile.className = 'telefon-nummer-zeile';
+    
+    // Erstellt die HTML-Struktur für eine Eingabezeile
+    zeile.innerHTML = `
+        <input type="text" class="telefon-bezeichnung" placeholder="Bezeichnung (z.B. Zentrale)" value="${bezeichnung.replace(/"/g, '&quot;')}">
+        <input type="tel" class="telefon-nummer" placeholder="Telefonnummer" value="${nummer.replace(/"/g, '&quot;')}">
+        <button type="button" class="telefon-loeschen-btn" onclick="this.parentElement.remove(); triggerAutoSave();">🗑️</button>
+    `;
+    container.appendChild(zeile);
+    
+    // Event Listener für Auto-Save hinzufügen, wenn sich der Inhalt ändert
+    zeile.querySelector('.telefon-bezeichnung').addEventListener('input', triggerAutoSave);
+    zeile.querySelector('.telefon-nummer').addEventListener('input', triggerAutoSave);
+}
+
+/* --- NEU: Anruf-Auswahl-Dialog (Modal) Funktionen --- */
+// Schließt das Auswahlfenster für Telefonnummern
+function closeAnrufModal() {
+    document.getElementById('anrufModalOverlay').style.display = 'none';
+}
+
+// Öffnet das Auswahlfenster und zeigt die Nummern der Idee an
+async function starteAnrufDialog(ideeId, beschreibungTimestamp) {
+    const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+    const idee = ideen.find(i => i && i.id === ideeId);
+
+    if (!idee) {
+        return zeigeWarnung("Fehler: Zugehörige Idee nicht gefunden.", "warnung");
+    }
+    
+    const telefonNummern = idee.telefonNummern || [];
+    if (telefonNummern.length === 0) {
+        // Zeigt eine Info, wenn keine Nummern gespeichert sind
+        return zeigeWarnung("Für diese Idee sind keine Telefonnummern hinterlegt.", "info");
+    }
+
+    // Speichert, von wo der Anruf gestartet wurde (um den Protokolleintrag korrekt zu platzieren)
+    anrufModalCallbackData = { ideeId, beschreibungTimestamp };
+
+    const nummerListeDiv = document.getElementById('anrufModalNummerListe');
+    nummerListeDiv.innerHTML = ''; // Alte Liste leeren
+
+    if (telefonNummern.length === 1) {
+        // Wenn nur eine Nummer da ist -> nicht fragen, sofort anrufen!
+        await finalisiereAnruf(telefonNummern[0].nummer, telefonNummern[0].bezeichnung);
+    } else {
+        // Bei mehreren Nummern -> Auswahlfenster (Modal) anzeigen
+        telefonNummern.forEach(tel => {
+            const btn = document.createElement('button');
+            btn.className = 'nummer-wahl-btn';
+            btn.innerHTML = `<strong>${tel.bezeichnung || 'Ohne Bezeichnung'}</strong>${tel.nummer}`;
+            // Setzt den Klick-Handler, um den Anruf mit dieser Nummer zu finalisieren
+            btn.onclick = () => finalisiereAnruf(tel.nummer, tel.bezeichnung);
+            nummerListeDiv.appendChild(btn);
+        });
+        
+        document.getElementById('anrufModalTitel').textContent = `Anruf für "${idee.text}"`;
+        document.getElementById('anrufModalOverlay').style.display = 'flex';
+    }
+}
+
+// Wird aufgerufen, wenn eine Nummer ausgewählt wurde (oder wenn es nur eine gab)
+async function finalisiereAnruf(nummer, bezeichnung) {
+    const { ideeId, beschreibungTimestamp } = anrufModalCallbackData;
+    if (!ideeId) {
+        return zeigeWarnung("Fehler: Anruf-Kontext verloren.", "warnung");
+    }
+
+    closeAnrufModal(); // Dialog schließen
+
+    const anrufZeit = new Date().toLocaleString("de-DE");
+    const protokollText = `Anruf an "${bezeichnung || 'Unbekannt'}" (${nummer}) gestartet am ${anrufZeit}.`;
+
+    // Fügt einen Protokolleintrag (als "Beschreibung") hinzu
+    addProtokollEintrag(ideeId, beschreibungTimestamp, protokollText);
+    
+    // UI aktualisieren, damit der neue Eintrag sofort sichtbar ist
+    zeigeIdeen(); 
+
+    // Speichern in der Cloud (OneDrive) auslösen
+    // Wichtig: Wir warten NICHT auf das Speichern, der Anruf soll sofort erfolgen.
+    // triggerAutoSave() löst das Speichern mit Verzögerung aus.
+    // Für sofortiges Speichern VOR dem Verlassen der Seite (was tel: tut):
+    await saveToOneDrive();
+    
+    // Erst jetzt den Anruf-Link (tel:) ausführen, der die App verlassen könnte
+    window.location.href = 'tel:' + nummer.replace(/[^0-9+]/g, ''); // Bereinigt die Nummer
+}
+
 async function speichereIdee() {
     const text = document.getElementById("ideeText").value.trim();
     if (!text) return zeigeWarnung("Titel ist erforderlich!");
@@ -905,6 +1121,10 @@ async function speichereIdee() {
     fileInput.value = "";
 }
 
+/**
+ * Speichert eine neue Idee oder aktualisiert eine bestehende.
+ * JETZT AKTUALISIERT: Sammelt auch Telefonnummern.
+ */
 function saveIdeeObjekt(text, dateien) {
     let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
     const details = document.getElementById("ideeDetails").value;
@@ -912,6 +1132,18 @@ function saveIdeeObjekt(text, dateien) {
     const mnr = document.getElementById("mandantennummer").value.trim();
     const firma = document.getElementById("firmenname").value.trim();
     const user = document.getElementById("benutzer").value;
+
+    // --- NEUER TEIL ---
+    // Sammelt alle eingegebenen Telefonnummern aus dem Formular
+    const telefonNummern = [];
+    document.querySelectorAll('#telefonNummerContainer .telefon-nummer-zeile').forEach(zeile => {
+        const bezeichnung = zeile.querySelector('.telefon-bezeichnung').value.trim();
+        const nummer = zeile.querySelector('.telefon-nummer').value.trim();
+        if (nummer) { // Nur speichern, wenn eine Nummer vorhanden ist
+            telefonNummern.push({ bezeichnung: bezeichnung, nummer: nummer });
+        }
+    });
+    // --- ENDE NEUER TEIL ---
 
     const prozessierteDateien = dateien.filter(d => d && d.id).map(d => ({
         id: d.id, name: d.name, link: d.link || null, type: d.type,
@@ -928,6 +1160,7 @@ function saveIdeeObjekt(text, dateien) {
 
 
     if (bearbeiteId !== null) {
+        // Idee aktualisieren
         const idx = ideen.findIndex(i => i && i.id === bearbeiteId);
         if (idx !== -1) {
             const old = ideen[idx];
@@ -935,11 +1168,15 @@ function saveIdeeObjekt(text, dateien) {
             erinnerung.titel = text; 
             erinnerung.vorgangsnummer = old.vorgangsnummer;
 
-            ideen[idx] = { ...old, text, details: finalDetails, kategorie: kat, prioritaet, mandantennummer: mnr, firmenname: firma, benutzer: user, dateien: prozessierteDateien, erinnerung: erinnerung };
+            // 'telefonNummern' zum Update-Objekt hinzugefügt
+            ideen[idx] = { ...old, text, details: finalDetails, kategorie: kat, prioritaet, mandantennummer: mnr, telefonNummern: telefonNummern, firmenname: firma, benutzer: user, dateien: prozessierteDateien, erinnerung: erinnerung };
             localStorage.setItem("ideen", JSON.stringify(ideen));
-            bearbeiteId = null; document.getElementById("speichernBtn").textContent = "💾 Speichern"; document.getElementById("abbrechenBtn").style.display = "none";
+            bearbeiteId = null; 
+            document.getElementById("speichernBtn").textContent = "💾 Speichern"; 
+            document.getElementById("abbrechenBtn").style.display = "none";
         } else { zeigeWarnung("Fehler: Idee nicht gefunden."); return; }
     } else {
+        // Neue Idee erstellen
         const num = naechsteVorgangsnummer;
         const erinnerung = getDefaultErinnerung(text, num);
 
@@ -951,6 +1188,7 @@ function saveIdeeObjekt(text, dateien) {
             kategorie: kat, 
             prioritaet, 
             mandantennummer: mnr, 
+            telefonNummern: telefonNummern, // 'telefonNummern' beim Erstellen hinzugefügt
             firmenname: firma, 
             benutzer: user, 
             dateien: prozessierteDateien, 
@@ -958,19 +1196,40 @@ function saveIdeeObjekt(text, dateien) {
             erledigt: false, 
             beschreibungen: [], 
             erinnerung: erinnerung,
-            // NEU: Ersteller der Idee speichern
             ersteller: aktuellerBenutzerName || "Unbekannt"
         };
         ideen.push(neu);
         localStorage.setItem("ideen", JSON.stringify(ideen));
-        naechsteVorgangsnummer++; localStorage.setItem("naechsteVorgangsnummer", naechsteVorgangsnummer.toString()); zeigeNaechsteNummer();
+        naechsteVorgangsnummer++; 
+        localStorage.setItem("naechsteVorgangsnummer", naechsteVorgangsnummer.toString()); 
+        zeigeNaechsteNummer();
     }
-    aktualisiereMandantenFilterDropdown(); zeigeIdeen();
-    document.getElementById("ideeText").value = ""; document.getElementById("ideeDetails").value = ""; document.getElementById("mandantennummer").value = ""; document.getElementById("firmenname").value = ""; document.getElementById("dateiVorschau").innerHTML = "";
-    setzePrioritaet(""); document.getElementById("benutzer").value = ""; document.getElementById("kategorie").value = "";
+    
+    aktualisiereMandantenFilterDropdown(); 
+    zeigeIdeen();
+    
+    // Formularfelder zurücksetzen
+    document.getElementById("ideeText").value = ""; 
+    document.getElementById("ideeDetails").value = ""; 
+    document.getElementById("mandantennummer").value = ""; 
+    document.getElementById("firmenname").value = ""; 
+    document.getElementById("dateien").value = ""; 
+    document.getElementById("dateiVorschau").innerHTML = "";
+    document.getElementById("telefonNummerContainer").innerHTML = ""; // NEU: Telefon-Container leeren
+    document.getElementById("telefonNummerContainerVorschau").style.display = "none"; // NEU: Vorschau ausblenden
+    
+    setzePrioritaet(""); 
+    document.getElementById("benutzer").value = ""; 
+    document.getElementById("kategorie").value = "";
+    
     triggerAutoSave();
 }
 
+
+/**
+ * Stellt die Liste der Ideen auf der Seite dar.
+ * JETZT AKTUALISIERT: Fügt den Anruf-Button (☎️) bei Beschreibungen hinzu.
+ */
 function zeigeIdeen() {
     let fIdeen = [];
     try { fIdeen = JSON.parse(localStorage.getItem("ideen") || "[]"); } catch(e) { console.error("Fehler beim Laden der Ideen:", e); localStorage.removeItem("ideen"); fIdeen = []; }
@@ -978,12 +1237,14 @@ function zeigeIdeen() {
 
     let filtered = fIdeen.filter(i => i && i.id); 
 
+    // ... (Filter- und Sortierlogik bleibt unverändert) ...
     const fKat=document.getElementById("filterKategorie")?.value;if(fKat)filtered=filtered.filter(i=>i.kategorie===fKat);
     filterMandantValue=document.getElementById("filterMandant")?.value;if(filterMandantValue)filtered=filtered.filter(i=>(i.mandantennummer||"").toLowerCase()===filterMandantValue.toLowerCase());
     filterBenutzerValue=document.getElementById("filterBenutzer")?.value;if(filterBenutzerValue)filtered=filtered.filter(i=>(i.benutzer||"").toLowerCase()===filterBenutzerValue.toLowerCase());
     const fArchiv=document.getElementById("filterArchiv")?.value;if(fArchiv==="nicht_erledigt")filtered=filtered.filter(i=>!(i.erledigt||false));else if(fArchiv==="erledigt")filtered=filtered.filter(i=>(i.erledigt||false));
 
     const sort=document.getElementById("sortierung")?.value;if(sort && sort!=="standard"){filtered.sort((a,b)=>{if (!a || !b) return 0; if(sort==="prio"){const p={"Hoch":3,"Mittel":2,"Niedrig":1};return(p[b.prioritaet]||0)-(p[a.prioritaet]||0)}let tA=-Infinity,tB=-Infinity;try{tA=new Date(a.timestamp?.split('_')[0]).getTime();if(isNaN(tA))tA=(sort==="neu"?-Infinity:Infinity)}catch(e){tA=(sort==="neu"?-Infinity:Infinity)}try{tB=new Date(b.timestamp?.split('_')[0]).getTime();if(isNaN(tB))tB=(sort==="neu"?-Infinity:Infinity)}catch(e){tB=(sort==="neu"?-Infinity:Infinity)}if(sort==="neu")return tB-tA;if(sort==="alt")return tA-tB;return 0})}
+
 
     const listDiv = document.getElementById("ideenListe");
     listDiv.innerHTML = filtered.map(idee => {
@@ -992,11 +1253,11 @@ function zeigeIdeen() {
         const erledigt = idee.erledigt || false;
         let datum = getFormattedDate(idee.timestamp);
         const vNumHtml = idee.vorgangsnummer ? `<div class="vorgangsnummer-anzeige-liste">Vorgang: <b>${idee.vorgangsnummer}</b></div>` : '';
-        // NEU: Ersteller-Info für die Anzeige vorbereiten
         const erstellerHtml = idee.ersteller ? `<small>Erstellt von: <b>${idee.ersteller.replace(/</g, "&lt;")}</b></small><br>` : '';
 
         let dateiHtml = "";
         if (idee.dateien && idee.dateien.length > 0) {
+            // ... (Datei-HTML-Logik bleibt unverändert) ...
             dateiHtml = idee.dateien.filter(f => f && f.id).map(f => {
                 const url = f.link || '#'; const istSichtbar = f.sichtbar === true; const anhangKlasse = istSichtbar ? "" : " anhang-veraltet"; const anhangPraefix = istSichtbar ? "" : "[Veraltet] ";
                 const icon = f.link ? '🌐' : '📎'; const buttonSymbol = istSichtbar ? '👁️' : '🙈'; const buttonTitle = istSichtbar ? 'Anhang ausblenden' : 'Anhang einblenden';
@@ -1007,11 +1268,12 @@ function zeigeIdeen() {
                         </div>`;
             }).join("");
             if (dateiHtml) { dateiHtml = `<div class="anhaenge-liste" style="margin-top: 8px; display: flex; flex-direction: column; align-items: flex-start;"><b>Anhänge:</b>${dateiHtml}</div>`; }
+        
         }
 
         const beschreibungenHtml = idee.beschreibungen?.length ? `<div class="beschreibung-historie"><b>Weitere Beschr.:</b>${
             idee.beschreibungen.filter(b => b && b.text !== undefined).map(b => {
-                // NEU: Autoren-Info für die Beschreibung vorbereiten
+                // ... (Logik für Beschreibungstext, Anhänge, Erinnerungen bleibt unverändert) ...
                 const autorInfo = b.autor ? ` von <b>${b.autor.replace(/</g, "&lt;")}</b>` : "";
                 let btsText = `${getFormattedDate(b.timestamp)}${autorInfo}`; 
                 
@@ -1047,6 +1309,9 @@ function zeigeIdeen() {
                     beschreibungErinnerungHtml = `<div class="beschreibung-erinnerung-info" style="opacity:0.6;">🔔 Erinnerung (inaktiv): ${getFormattedDate(b.erinnerung.termin)}</div>`;
                 }
 
+
+                // --- AKTUALISIERTER TEIL ---
+                // Hier wird der 'starteAnrufDialog'-Button hinzugefügt
                 return `<div class="beschreibung-item${beschreibungKlasse}" style="margin-left: ${indentMargin}px; width: ${itemWidth};">
                             <div class="beschreibung-text-zeit">
                                 <span class="beschreibung-zeit">${btsText}</span>${praefix}${sanierterBeschreibungstext}
@@ -1055,6 +1320,7 @@ function zeigeIdeen() {
                             </div>
                             <div class="beschreibung-item-actions">
                                 <button class="edit-beschreibung-btn" title="Bearbeiten" onclick="bearbeiteEinzelneBeschreibung('${id}','${b.timestamp}')">✏️</button>
+                                <button class="add-anhang-beschreibung-btn" title="Anruf starten" onclick="starteAnrufDialog('${id}','${b.timestamp}')">☎️</button>
                                 <button class="move-beschreibung-btn" title="Nach oben" onclick="verschiebeBeschreibung('${id}','${b.timestamp}', -1)">⬆️</button>
                                 <button class="move-beschreibung-btn" title="Nach unten" onclick="verschiebeBeschreibung('${id}','${b.timestamp}', 1)">⬇️</button>
                                 <button class="move-beschreibung-btn" title="Ausrücken" onclick="aendereEinrueckungBeschreibung('${id}','${b.timestamp}', -1)" ${indentLevel === 0 ? 'disabled' : ''}>⬅️</button>
@@ -1067,10 +1333,12 @@ function zeigeIdeen() {
                                 <button class="toggle-beschreibung-sichtbarkeit-btn" title="${sichtbarkeitButtonTitle}" onclick="toggleBeschreibungSichtbarkeit('${id}', '${b.timestamp}')">${sichtbarkeitButtonSymbol}</button>
                             </div>
                         </div>`;
+                // --- ENDE AKTUALISIERTER TEIL ---
             }).join("")
         }</div>` : "";
 
         let erinnerungHtml = "";
+        // ... (Logik für Haupt-Erinnerung bleibt unverändert) ...
         if (idee.erinnerung && idee.erinnerung.aktiv) {
             let erinnerungText = `🔔 Erinnerung: ${getFormattedDate(idee.erinnerung.termin)}`;
             if (idee.erinnerung.intervallTyp !== 'einmalig') {
@@ -1084,9 +1352,11 @@ function zeigeIdeen() {
              erinnerungHtml = `<div class="erinnerung-info" style="opacity:0.6;">🔔 Erinnerung (inaktiv): ${getFormattedDate(idee.erinnerung.termin)}</div>`;
         }
 
+
         const sanierterIdeeText = (idee.text || 'Ohne Titel').replace(/</g, "&lt;").replace(/>/g, "&gt;");
         const sanierterIdeeDetails = (idee.details || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
+        
+        // ... (Restlicher HTML-Aufbau bleibt unverändert) ...
         return `<div class="idee${erledigt ? ' erledigt' : ''}" data-idee-id="${id}">
                     <div class="idee-content">
                         ${vNumHtml}<h3>${sanierterIdeeText}</h3><p>${sanierterIdeeDetails}</p>
@@ -1110,6 +1380,7 @@ function zeigeIdeen() {
                     <input type="checkbox" class="idee-checkbox" onchange="toggleAuswahl('${id}',this)" ${ausgewaehlt.includes(id) ? "checked" : ""}>
                 </div>`;
       } catch (e) {
+        // ... (Error-Handling bleibt unverändert) ...
         console.error("Fehler beim Darstellen einer Idee (möglicherweise korrupte Daten):", idee, e);
         if (idee && idee.id) {
             return `<div class="idee erledigt" data-idee-id="${id}">
@@ -1125,6 +1396,7 @@ function zeigeIdeen() {
                         </div>`;
         }
         return ""; 
+      
       }
     }).join("");
 
@@ -1147,8 +1419,80 @@ function toggleErledigt(id){
         triggerAutoSave();
     }
 }
-function bearbeiteIdee(id){const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idee=ideen.find(i=>i&&i.id===id);if(!idee){zeigeWarnung("Fehler: Idee nicht gefunden.");return}document.getElementById("ideeText").value=idee.text;document.getElementById("ideeDetails").value=idee.details||"";document.getElementById("kategorie").value=idee.kategorie||"";document.getElementById("mandantennummer").value=idee.mandantennummer||"";document.getElementById("firmenname").value=idee.firmenname||"";document.getElementById("benutzer").value=idee.benutzer||"";setzePrioritaet(idee.prioritaet||"");bearbeiteId=id;const v=document.getElementById("dateiVorschau");v.innerHTML="";if(idee.dateien){idee.dateien.filter(f=>f&&f.id).forEach(f=>{const url=f.link;if(url){const istVeraltet = f.sichtbar===false; v.innerHTML+=`<div style="display:inline-block;margin:5px;text-align:center;max-width:150px;vertical-align:top; ${istVeraltet?'opacity:0.6;':''}"><a href="${url}" target="_blank" title="${f.name}" style="${istVeraltet?'text-decoration:line-through;':''}">${f.type?.startsWith("image/")?'<img src="'+url+'" style="max-height:80px;display:block;margin:auto;object-fit:cover;">':''}${f.type==="application/pdf"?'<iframe src="'+url+'" style="width:100%;height:80px;border:1px solid #ccc;"></iframe>':''}${!f.type?.startsWith("image/")&&f.type!=="application/pdf"?'<span style="font-size:2em;display:block;">'+(f.link?'🌐':'📎')+'</span>':''}<span style="font-size:.8em;word-break:break-all;display:block;">${f.name}</span></a><div style="font-size:.7em;color:grey;">${f.link?'OneDrive':'Lokal'} (${f.sichtbar?'Sichtbar':'Veraltet'})</div></div>`}})}document.getElementById("speichernBtn").textContent="💾 Aktualisieren";document.getElementById("abbrechenBtn").style.display="";istGespeichert=false}
-function abbrechenBearbeiten(){bearbeiteId=null;document.getElementById("ideeText").value="";document.getElementById("ideeDetails").value="";document.getElementById("mandantennummer").value="";document.getElementById("firmenname").value="";document.getElementById("dateien").value="";document.getElementById("dateiVorschau").innerHTML="";document.getElementById("speichernBtn").textContent="💾 Speichern";document.getElementById("abbrechenBtn").style.display="none";setzePrioritaet("");document.getElementById("benutzer").value="";document.getElementById("kategorie").value="";} 
+
+/**
+ * Öffnet eine Idee zum Bearbeiten im oberen Formular.
+ * JETZT AKTUALISIERT: Füllt auch die Telefonnummern-Felder.
+ */
+function bearbeiteIdee(id){
+    const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");
+    const idee=ideen.find(i=>i&&i.id===id);
+    if(!idee){zeigeWarnung("Fehler: Idee nicht gefunden.");return}
+    
+    document.getElementById("ideeText").value=idee.text;
+    document.getElementById("ideeDetails").value=idee.details||"";
+    document.getElementById("kategorie").value=idee.kategorie||"";
+    document.getElementById("mandantennummer").value=idee.mandantennummer||"";
+    document.getElementById("firmenname").value=idee.firmenname||"";
+    document.getElementById("benutzer").value=idee.benutzer||"";
+    setzePrioritaet(idee.prioritaet||"");
+    bearbeiteId=id;
+
+    // --- NEUER TEIL ---
+    // Füllt die Telefonnummern-Eingabefelder für die Bearbeitung
+    const telContainer = document.getElementById("telefonNummerContainer");
+    telContainer.innerHTML = ''; // Zuerst leeren
+    const telVorschau = document.getElementById("telefonNummerContainerVorschau");
+    telVorschau.style.display = 'none'; // Vorschau im Bearbeiten-Modus ausblenden
+
+    if (idee.telefonNummern && Array.isArray(idee.telefonNummern)) {
+        idee.telefonNummern.forEach(tel => {
+            addTelefonNummerInput(tel.bezeichnung, tel.nummer);
+        });
+    }
+    // --- ENDE NEUER TEIL ---
+
+    const v=document.getElementById("dateiVorschau");
+    v.innerHTML="";
+    if(idee.dateien){
+        idee.dateien.filter(f=>f&&f.id).forEach(f=>{
+            const url=f.link;
+            if(url){
+                const istVeraltet = f.sichtbar===false; 
+                v.innerHTML+=`<div style="display:inline-block;margin:5px;text-align:center;max-width:150px;vertical-align:top; ${istVeraltet?'opacity:0.6;':''}"><a href="${url}" target="_blank" title="${f.name}" style="${istVeraltet?'text-decoration:line-through;':''}">${f.type?.startsWith("image/")?'<img src="'+url+'" style="max-height:80px;display:block;margin:auto;object-fit:cover;">':''}${f.type==="application/pdf"?'<iframe src="'+url+'" style="width:100%;height:80px;border:1px solid #ccc;"></iframe>':''}${!f.type?.startsWith("image/")&&f.type!=="application/pdf"?'<span style="font-size:2em;display:block;">'+(f.link?'🌐':'📎')+'</span>':''}<span style="font-size:.8em;word-break:break-all;display:block;">${f.name}</span></a><div style="font-size:.7em;color:grey;">${f.link?'OneDrive':'Lokal'} (${f.sichtbar?'Sichtbar':'Veraltet'})</div></div>`
+            }
+        });
+    }
+    document.getElementById("speichernBtn").textContent="💾 Aktualisieren";
+    document.getElementById("abbrechenBtn").style.display="";
+    istGespeichert=false
+}
+
+/**
+ * Bricht den Bearbeitungsmodus ab und leert das Formular.
+ * JETZT AKTUALISIERT: Leert auch die Telefon-Felder.
+ */
+function abbrechenBearbeiten(){
+    bearbeiteId=null;
+    document.getElementById("ideeText").value="";
+    document.getElementById("ideeDetails").value="";
+    document.getElementById("mandantennummer").value="";
+    document.getElementById("firmenname").value="";
+    document.getElementById("dateien").value="";
+    document.getElementById("dateiVorschau").innerHTML="";
+    
+    // --- NEUER TEIL ---
+    document.getElementById("telefonNummerContainer").innerHTML = ""; 
+    document.getElementById("telefonNummerContainerVorschau").style.display = "none";
+    // --- ENDE NEUER TEIL ---
+    
+    document.getElementById("speichernBtn").textContent="💾 Speichern";
+    document.getElementById("abbrechenBtn").style.display="none";
+    setzePrioritaet("");
+    document.getElementById("benutzer").value="";
+    document.getElementById("kategorie").value="";
+} 
+
 function verschiebeIdee(id,dir){let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idx=ideen.findIndex(i=>i&&i.id===id);if(idx===-1)return;const targetIdx=idx+dir;if(targetIdx>=0&&targetIdx<ideen.length){[ideen[idx],ideen[targetIdx]]=[ideen[targetIdx],ideen[idx]];localStorage.setItem("ideen",JSON.stringify(ideen));zeigeIdeen();triggerAutoSave();}}
 function loescheIdee(id){if(!confirm("Wirklich löschen?"))return;let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idx=ideen.findIndex(i=>i&&i.id===id);if(idx!==-1){const del=ideen[idx];ideen.splice(idx,1);localStorage.setItem("ideen",JSON.stringify(ideen));const mExists=ideen.some(i=>i&&i.mandantennummer&&(i.mandantennummer||"").toLowerCase()===(del.mandantennummer||"").toLowerCase());const uExists=ideen.some(i=>i&&i.benutzer&&(i.benutzer||"").toLowerCase()===(del.benutzer||"").toLowerCase());if(!mExists&&del.mandantennummer)aktualisiereMandantenFilterDropdown();if(!uExists&&del.benutzer)aktualisiereBenutzerDropdowns();ausgewaehlt=ausgewaehlt.filter(i=>i!==id);if(bearbeiteId===id)abbrechenBearbeiten();if(beschreibungFuerId===id)beschreibungAbbrechen(); if(erinnerungFuerId===id)erinnerungAbbrechen(); if(terminFuerId===id)terminDialogAbbrechen(); zeigeIdeen();triggerAutoSave();}else{zeigeWarnung("Fehler: Idee nicht gefunden.");}}
 
@@ -1317,7 +1661,7 @@ function aendereEinrueckungBeschreibung(ideeId, beschreibungTimestamp, richtung)
     let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
     const ideeIndex = ideen.findIndex(i => i && i.id === ideeId);
     if (ideeIndex === -1) return zeigeWarnung("Idee nicht gefunden.");
-    if (!ideen[ideeIndex].beschreibungen || !Array.isArray(ideen[ideeIndex].beschreibungen)) return;
+    if (!ideen[ideeEreignisse].beschreibungen || !Array.isArray(ideen[ideeIndex].beschreibungen)) return;
     const beschrIndex = ideen[ideeIndex].beschreibungen.findIndex(b => b && b.timestamp === beschreibungTimestamp);
     if (beschrIndex === -1) return zeigeWarnung("Beschreibung nicht gefunden.");
     const aktuellesLevel = ideen[ideeIndex].beschreibungen[beschrIndex].level || 0;
@@ -1557,6 +1901,15 @@ function exportiereAlsText() {
         if (idee.benutzer) textContent += `Zuständig: ${idee.benutzer}\n`;
         if (idee.mandantennummer) textContent += `Mandantennummer: ${idee.mandantennummer}\n`;
         if (idee.firmenname) textContent += `Firmenname: ${idee.firmenname}\n`;
+        
+        // NEU: Telefonnummern zum Export hinzufügen
+        if (idee.telefonNummern && idee.telefonNummern.length > 0) {
+            textContent += `Telefonnummern:\n`;
+            idee.telefonNummern.forEach(tel => {
+                textContent += `  - ${tel.bezeichnung || 'Ohne Bezeichnung'}: ${tel.nummer}\n`;
+            });
+        }
+        
         if (idee.details) textContent += `\nBeschreibung:\n${idee.details}\n`;
 
         if (idee.erinnerung && idee.erinnerung.termin) {
@@ -1711,7 +2064,19 @@ function exportiereAlsPDF(fileName = "ideen-export.pdf") {
         if (idee.benutzer) addWrappedText(`Zuständig: ${idee.benutzer}`, leftMargin, contentWidth, { fontSize: 10, lineHeight: defaultLineSpacing });
         if (idee.mandantennummer) addWrappedText(`Mandant: ${idee.mandantennummer}`, leftMargin, contentWidth, { fontSize: 10, lineHeight: defaultLineSpacing });
         if (idee.firmenname) addWrappedText(`Firma: ${idee.firmenname}`, leftMargin, contentWidth, { fontSize: 10, lineHeight: defaultLineSpacing });
-        if (idee.benutzer || idee.mandantennummer || idee.firmenname) yPosition += (sectionSpacing / 2);
+        
+        // NEU: Telefonnummern zum PDF hinzufügen
+        if (idee.telefonNummern && idee.telefonNummern.length > 0) {
+            checkAddPage(sectionSpacing + defaultLineSpacing);
+            addWrappedText("Telefonnummern:", leftMargin, contentWidth, { fontSize: 11, fontStyle: 'bold', lineHeight: 6 });
+            idee.telefonNummern.forEach(tel => {
+                addWrappedText(`- ${tel.bezeichnung || 'Ohne Bezeichnung'}: ${tel.nummer}`, leftMargin + 5, contentWidth - 5, { fontSize: 10, lineHeight: defaultLineSpacing });
+            });
+            yPosition += (sectionSpacing / 2);
+        } else {
+             if (idee.benutzer || idee.mandantennummer || idee.firmenname) yPosition += (sectionSpacing / 2);
+        }
+
 
         if (idee.details) {
             checkAddPage(sectionSpacing + defaultLineSpacing);
@@ -2039,6 +2404,7 @@ async function teileBeschreibungPerEmail(ideeId, beschreibungTimestamp) {
 
 /**
  * NEU: Generiert einen vollständigen Text-String für eine Idee, inkl. aller Beschreibungen und Anhänge.
+ * JETZT AKTUALISIERT: Bezieht Telefonnummern mit ein.
  * @param {object} idee - Das Ideen-Objekt.
  * @param {'text' | 'plain'} format - 'text' für WhatsApp (mit Markdown), 'plain' für Kalender (ohne).
  * @param {number | null} maxLaenge - Maximale Länge, wenn null, unbegrenzt.
@@ -2062,6 +2428,14 @@ function generiereIdeenTextKomplett(idee, format = 'text', maxLaenge = null) {
     content += `📅 ${getFormattedDate(idee.timestamp)}${idee.ersteller ? ` (von ${idee.ersteller})` : ''}${nl}`;
     if(idee.mandantennummer) content += `🏢 Mandant: ${idee.mandantennummer}${nl}`;
     if(idee.firmenname) content += `🏭 Firma: ${idee.firmenname}${nl}`;
+
+    // NEU: Telefonnummern
+    if (idee.telefonNummern && idee.telefonNummern.length > 0) {
+        content += `${italicStart}Telefonnummern:${italicEnd}${nl}`;
+        idee.telefonNummern.forEach(tel => {
+            content += `  - ${tel.bezeichnung || 'Ohne Bez.'}: ${tel.nummer}${nl}`;
+        });
+    }
 
     // 2. Hauptbeschreibung
     if (idee.details) {
@@ -2141,12 +2515,9 @@ async function teilePerWhatsApp(){
     const saveSuccess = await saveToOneDrive();
 
     if (saveSuccess) {
-        // *** START ÄNDERUNG ***
-        // Der alte map-Block wurde ersetzt, um die neue, vollständige Textgenerierung zu nutzen.
         let text = ideenToExport.map(idee => {
              return generiereIdeenTextKomplett(idee, 'text', null);
         }).filter(Boolean).join("\n\n------------------------------------\n\n");
-        // *** ENDE ÄNDERUNG ***
 
         text += `\n\n_[Gesendet via Ideen-App Pro]_`;
         const waLink = `https://wa.me/?text=${encodeURIComponent(text)}`;
@@ -2343,10 +2714,7 @@ function terminDialogAbbrechen() {
 async function kalenderTerminErstellenUndSpeichern() {
     if (!terminFuerId) return;
 
-    // *** START ÄNDERUNG ***
-    // Konservatives Längenlimit für Google Kalender (ca. 8KB, wir nehmen 7.5KB als Puffer)
     const MAX_KALENDER_BESCHREIBUNG = 7500;
-    // *** ENDE ÄNDERUNG ***
 
     const titel = document.getElementById("terminTitelInput").value.trim();
     const startZeitValue = document.getElementById("terminStartInput").value;
@@ -2398,21 +2766,14 @@ async function kalenderTerminErstellenUndSpeichern() {
             }
         });
 
-        // *** START ÄNDERUNG ***
-        // Längenprüfung für Beschreibungs-Block
         if (terminBeschreibungText.length > MAX_KALENDER_BESCHREIBUNG) {
             const kuerzungsHinweis = `\n\n[... Inhalt gekürzt, da zu lang für Kalendereintrag.]`;
             terminBeschreibungText = terminBeschreibungText.substring(0, MAX_KALENDER_BESCHREIBUNG - kuerzungsHinweis.length) + kuerzungsHinweis;
         }
-        // *** ENDE ÄNDERUNG ***
         
         nachweisText = `Kalendertermin vorbereitet für Beschreibungs-Block (vom ${getFormattedDate(terminFuerBeschreibungTimestamp)}). Titel: "${titel}".`;
     } else {
-        // *** START ÄNDERUNG ***
-        // Alte, einfache Zuweisung ersetzt durch die neue Komplett-Funktion mit Längenlimit
-        // ALT: terminBeschreibungText = `Vorgang ${idee.vorgangsnummer || 'N/A'}: ${idee.text || 'Ohne Titel'}\n\n${idee.details || ""}`;
         terminBeschreibungText = generiereIdeenTextKomplett(idee, 'plain', MAX_KALENDER_BESCHREIBUNG);
-        // *** ENDE ÄNDERUNG ***
         nachweisText = `Kalendertermin vorbereitet für: ${getFormattedDate(startZeitValue)}. Titel: "${titel}".`;
     }
 
@@ -2869,6 +3230,11 @@ document.getElementById("dateien").addEventListener("change",function(e){
 });
 window.addEventListener("beforeunload",function(e){if(!istGespeichert){const msg="Ungespeicherte Änderungen! Seite wirklich verlassen?";e.preventDefault();e.returnValue=msg;return msg;}});
 
+/**
+ * Stellt sicher, dass alle Ideen-Objekte die moderne Datenstruktur haben.
+ * Führt Migrationen für alte Datenstrukturen durch.
+ * JETZT AKTUALISIERT: Fügt das 'telefonNummern'-Array hinzu, falls es fehlt.
+ */
 function ensureIdeasHaveIds() {
     let ideen = [];
     try {
@@ -2979,6 +3345,14 @@ function ensureIdeasHaveIds() {
             if(erinnerungChanged) changed = true;
         }
 
+        // --- NEUER TEIL ---
+        // Stellt sicher, dass das 'telefonNummern'-Array existiert
+        if (!Array.isArray(idee.telefonNummern)) {
+            idee.telefonNummern = [];
+            changed = true;
+        }
+        // --- ENDE NEUER TEIL ---
+
         if (idee.benutzer === undefined) { idee.benutzer = ""; changed = true; }
         if (idee.mandantennummer === undefined) { idee.mandantennummer = ""; changed = true; }
         if (idee.firmenname === undefined) { idee.firmenname = ""; changed = true; }
@@ -3067,7 +3441,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         initialisiereKategorien();
         initialisiereBenutzer();
         initialisiereVorgangsnummer();
-        ensureIdeasHaveIds(); 
+        ensureIdeasHaveIds(); // Stellt sicher, dass auch 'telefonNummern' initialisiert wird
         aktualisiereMandantenFilterDropdown();
         zeigeIdeen();
         initialisiereUndStarteBenachrichtigungspruefung();
@@ -3082,6 +3456,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         pruebeLoginHinweis(); 
+        
+        // --- NEUER TEIL ---
+        // Fügt den Klick-Listener für den "Telefonnummer hinzufügen"-Button hinzu
+        document.getElementById('addTelefonNummerBtn').onclick = () => addTelefonNummerInput();
+        // --- ENDE NEUER TEIL ---
+        
     } catch (initError) {
         console.error("Fehler während der Initialisierung:", initError);
         zeigeWarnung("Ein Fehler ist beim Starten der App aufgetreten.", "warnung");
@@ -3090,3 +3470,4 @@ document.addEventListener('DOMContentLoaded', async () => {
 </script>
 </body>
 </html>
+
