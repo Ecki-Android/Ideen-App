@@ -19,6 +19,8 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
 .idee{width:100%;max-width:100vw;box-sizing:border-box;overflow-wrap:break-word;word-break:break-word;background:white;padding:15px;margin:10px 0;border-radius:8px;box-shadow:0 0 5px #ccc;display:flex;align-items:flex-start;justify-content:space-between;}
 .idee.erledigt{background:#f0f0f0;}
 .idee-content{flex:1;max-width:100%;overflow-wrap:break-word;word-break:break-word;font-size:1em;line-height:1.5;}
+/* ANPASSUNG: Telefonnummern-Anzeige in der Liste */
+.idee-telefonnummern { font-size: 0.9em; color: #333; margin-top: 5px; padding-left: 5px; border-left: 2px solid #0078d4; }
 .idee-content h3,.idee-content p,.idee-content small{max-width:100%;overflow-wrap:break-word;word-break:break-word;font-size:1em;}
 .idee.erledigt .idee-content h3,.idee.erledigt .idee-content p,.idee.erledigt .idee-content small{text-decoration:line-through;color:#888;}
 .beschreibung-historie{margin:8px 0 12px 0;}
@@ -359,10 +361,9 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
     </div>
 </div>
 <!-- ENDE: Anruf-Auswahl-Dialog -->
-
 <script>
 console.log("Script started");
-/* --- START BLOCK 4: Script Start, Variables & Initializers --- */
+/* --- START BLOCK 3: Script Start, Variables & Initializers --- */
 // WICHTIG: Ersetzen Sie diesen Link mit einem DIREKTEN Link zur userlist.json.
 const whitelistUrl = "https://raw.githubusercontent.com/Ecki-Android/Ideen-App/main/userlist.json";
 
@@ -548,8 +549,6 @@ async function getValidToken(interactive = false, onSilentFail_expireSession = t
         }
     }
 }
-
-
 // --- ZENTRALE FUNKTION ZUR BUTTON-STEUERUNG (ANGEPASST) ---
 function updateButtonVisibility(userEmail = null) {
     const microsoftLoginBtn = document.getElementById('microsoftLoginBtn');
@@ -881,7 +880,6 @@ async function handleLogout(confirmFirst = true) {
 
 
 function zeigeWarnung(msg,type='warning'){const w=document.getElementById("warnung");w.textContent=msg;w.style.display="block";w.className="";if(type==='success')w.classList.add('success-message');else if(type==='info')w.classList.add('info-message');else w.classList.add('warnung');setTimeout(()=>w.style.display="none",6e3)}
-
 // --- Admin Panel Funktionen ---
 function showAdminPanel() {
     try {
@@ -976,7 +974,6 @@ function zeigeNaechsteNummer(){const el=document.getElementById("naechsteNummerA
 function filterNachMandant(){filterMandantValue=document.getElementById("filterMandant").value;zeigeIdeen()}
 function filterNachBenutzer(){filterBenutzerValue=document.getElementById("filterBenutzer").value;zeigeIdeen()}
 function setzePrioritaet(p){prioritaet=p;["prioHoch","prioMittel","prioNiedrig"].forEach(id=>document.getElementById(id).classList.remove("selected"));if(p)document.getElementById(`prio${p}`).classList.add("selected");triggerAutoSave();}
-
 /* --- NEU: Funktion zum Hinzufügen einer Telefonnummer-Zeile (UI) --- */
 function addTelefonNummerInput(bezeichnung = '', nummer = '') {
     const container = document.getElementById('telefonNummerContainer');
@@ -1052,7 +1049,8 @@ async function finalisiereAnruf(nummer, bezeichnung) {
     closeAnrufModal(); // Dialog schließen
 
     const anrufZeit = new Date().toLocaleString("de-DE");
-    const protokollText = `Anruf an "${bezeichnung || 'Unbekannt'}" (${nummer}) gestartet am ${anrufZeit}.`;
+    // ANPASSUNG: Protokolltext
+    const protokollText = `📞 Anruf an "${bezeichnung || 'Unbekannt'}" (${nummer}) gestartet am ${anrufZeit}.`;
 
     // Fügt einen Protokolleintrag (als "Beschreibung") hinzu
     addProtokollEintrag(ideeId, beschreibungTimestamp, protokollText);
@@ -1087,7 +1085,7 @@ async function speichereIdee() {
             zeigeWarnung("Lade Dateien hoch...", 'info');
             try {
                 neuHochgeladeneDateien = await Promise.all(Array.from(fileInput.files).map(async f => {
-                    // *** AUDIO-FIX: uploadToOneDrive gibt jetzt {link, downloadUrl} zurück ***
+                    // *** AUDIO-FIX: uploadToOneDrive gibt jetzt {link, downloadUrl, mimeType} zurück ***
                     const uploadResult = await uploadToOneDrive(f); 
                     if (!uploadResult) return null;
                     return { 
@@ -1095,7 +1093,7 @@ async function speichereIdee() {
                         name: f.name, 
                         link: uploadResult.link, // Vorschau-Link (webUrl)
                         downloadUrl: uploadResult.downloadUrl, // Direkter Link
-                        type: f.type, 
+                        type: uploadResult.mimeType, // Korrigierter MimeType
                         sichtbar: true 
                     };
                 }));
@@ -1242,7 +1240,7 @@ function saveIdeeObjekt(text, dateien) {
 
 /**
  * Stellt die Liste der Ideen auf der Seite dar.
- * JETZT AKTUALISIERT: Fügt den Anruf-Button (☎️) hinzu UND nutzt 'downloadUrl' für Audio-Player.
+ * JETZT AKTUALISIERT: Fügt den Anruf-Button (📞) hinzu UND nutzt 'downloadUrl' für Audio-Player.
  */
 function zeigeIdeen() {
     let fIdeen = [];
@@ -1268,6 +1266,16 @@ function zeigeIdeen() {
         const vNumHtml = idee.vorgangsnummer ? `<div class="vorgangsnummer-anzeige-liste">Vorgang: <b>${idee.vorgangsnummer}</b></div>` : '';
         const erstellerHtml = idee.ersteller ? `<small>Erstellt von: <b>${idee.ersteller.replace(/</g, "&lt;")}</b></small><br>` : '';
 
+        // ANPASSUNG: Telefonnummern direkt anzeigen
+        let telefonHtml = "";
+        if (idee.telefonNummern && idee.telefonNummern.length > 0) {
+            telefonHtml = '<div class="idee-telefonnummern"><b>Tel:</b> ';
+            telefonHtml += idee.telefonNummern.map(tel => {
+                return `${tel.bezeichnung || 'Nr.'}: ${tel.nummer}`;
+            }).join(' | ');
+            telefonHtml += '</div>';
+        }
+
         let dateiHtml = "";
         if (idee.dateien && idee.dateien.length > 0) {
             dateiHtml = idee.dateien.filter(f => f && f.id).map(f => {
@@ -1282,18 +1290,36 @@ function zeigeIdeen() {
                 const buttonTitle = istSichtbar ? 'Anhang ausblenden' : 'Anhang einblenden';
                 
                 let anhangElementHtml = '';
+                
+                // *** AUDIO-FIX: Prüft auf 'downloadUrl' UND relevante Typen für den Player ***
+                const istAudio = f.type && (
+                    f.type.startsWith('audio/') || 
+                    f.type === 'video/mp4' || // .m4a wird oft als video/mp4 erkannt
+                    f.type === 'application/octet-stream' // Fallback für unbekannte Typen
+                );
 
-                // *** AUDIO-FIX: Prüft auf 'downloadUrl' statt 'link' für den Player ***
-                if (f.type && f.type.startsWith('audio/') && downloadUrl) {
+                if (istAudio && downloadUrl) {
                     // --- AUDIO-PLAYER-LOGIK ---
+                    // Wir bestimmen den MimeType für den <source>-Tag
+                    let playerType = f.type;
+                    if (f.name && f.name.toLowerCase().endsWith('.m4a') && (f.type === 'video/mp4' || f.type === 'application/octet-stream')) {
+                         playerType = 'audio/mp4';
+                    } else if (f.name && f.name.toLowerCase().endsWith('.mp3') && f.type === 'application/octet-stream') {
+                         playerType = 'audio/mpeg';
+                    } else if (f.name && f.name.toLowerCase().endsWith('.wav') && f.type === 'application/octet-stream') {
+                         playerType = 'audio/wav';
+                    } else if (playerType === 'application/octet-stream') {
+                         playerType = 'audio/mpeg'; // Standard-Fallback, wenn wir es nicht besser wissen
+                    }
+
                     anhangElementHtml = `
                         <div style="margin-bottom: 5px; width: 100%;">
                             <a class="datei-link" href="${url}" target="_blank" title="Vorschau-Seite öffnen: ${f.name || ''}" style="font-size: 0.9em; font-weight: bold; display: block; margin-bottom: 3px;">
                                 ${icon} ${anhangPraefix}${f.name || 'Unbekannt'}
                             </a>
                             <audio controls style="width: 100%; height: 40px;" preload="metadata">
-                                <source src="${downloadUrl}" type="${f.type}">
-                                Ihr Browser unterstützt dieses Audio-Format nicht.
+                                <source src="${downloadUrl}" type="${playerType}">
+                                Ihr Browser unterstützt dieses Audio-Format nicht. (Typ: ${f.type})
                             </audio>
                         </div>
                     `;
@@ -1342,15 +1368,33 @@ function zeigeIdeen() {
                             const anhangDownloadUrl = anhang.downloadUrl; // downloadUrl
                             const anhangIcon = (anhang.link || anhang.downloadUrl) ? '🌐' : '📎';
 
-                            // *** AUDIO-FIX: Prüft auf 'anhangDownloadUrl' für den Player ***
-                            if (anhang.type && anhang.type.startsWith('audio/') && anhangDownloadUrl) {
+                            // *** AUDIO-FIX: Prüft auf 'anhangDownloadUrl' UND relevante Typen für den Player ***
+                            const istAudioB = anhang.type && (
+                                anhang.type.startsWith('audio/') || 
+                                anhang.type === 'video/mp4' || 
+                                anhang.type === 'application/octet-stream'
+                            );
+
+                            if (istAudioB && anhangDownloadUrl) {
                                 // --- AUDIO-PLAYER-LOGIK (BESCHR.) ---
+                                let playerTypeB = anhang.type;
+                                if (anhang.name && anhang.name.toLowerCase().endsWith('.m4a') && (anhang.type === 'video/mp4' || anhang.type === 'application/octet-stream')) {
+                                    playerTypeB = 'audio/mp4';
+                                } else if (anhang.name && anhang.name.toLowerCase().endsWith('.mp3') && anhang.type === 'application/octet-stream') {
+                                    playerTypeB = 'audio/mpeg';
+                                } else if (anhang.name && anhang.name.toLowerCase().endsWith('.wav') && anhang.type === 'application/octet-stream') {
+                                    playerTypeB = 'audio/wav';
+                                } else if (playerTypeB === 'application/octet-stream') {
+                                    playerTypeB = 'audio/mpeg'; 
+                                }
+
                                 return `<div class="beschreibung-anhang-item" style="display: block; margin-top: 5px;">
                                             <a href="${anhangUrl}" target="_blank" title="Vorschau-Seite öffnen: ${anhang.name || ''}" style="font-size: 0.95em; display: block; margin-bottom: 3px;">
                                                 ${anhangIcon} ${anhang.name || 'Unbekannt'}
                                             </a>
                                             <audio controls style="width: 100%; height: 35px;" preload="metadata">
-                                                <source src="${anhangDownloadUrl}" type="${anhang.type}">
+                                                <source src="${anhangDownloadUrl}" type="${playerTypeB}">
+                                                Ihr Browser unterstützt dieses Audio-Format nicht. (Typ: ${anhang.type})
                                             </audio>
                                         </div>`;
                             } else if (anhang.type && anhang.type.startsWith('image/') && anhangDownloadUrl) {
@@ -1394,7 +1438,8 @@ function zeigeIdeen() {
                             </div>
                             <div class="beschreibung-item-actions">
                                 <button class="edit-beschreibung-btn" title="Bearbeiten" onclick="bearbeiteEinzelneBeschreibung('${id}','${b.timestamp}')">✏️</button>
-                                <button class="add-anhang-beschreibung-btn" title="Anruf starten" onclick="starteAnrufDialog('${id}','${b.timestamp}')">☎️</button>
+                                <!-- ANPASSUNG: Button-Text und Titel geändert -->
+                                <button class="add-anhang-beschreibung-btn" title="Anruf starten & protokollieren" onclick="starteAnrufDialog('${id}','${b.timestamp}')">📞 Anruf</button>
                                 <button class="move-beschreibung-btn" title="Nach oben" onclick="verschiebeBeschreibung('${id}','${b.timestamp}', -1)">⬆️</button>
                                 <button class="move-beschreibung-btn" title="Nach unten" onclick="verschiebeBeschreibung('${id}','${b.timestamp}', 1)">⬇️</button>
                                 <button class="move-beschreibung-btn" title="Ausrücken" onclick="aendereEinrueckungBeschreibung('${id}','${b.timestamp}', -1)" ${indentLevel === 0 ? 'disabled' : ''}>⬅️</button>
@@ -1432,6 +1477,554 @@ function zeigeIdeen() {
                     <div class="idee-content">
                         ${vNumHtml}<h3>${sanierterIdeeText}</h3><p>${sanierterIdeeDetails}</p>
                         ${idee.benutzer ? `<div>Zust.: <b>${idee.benutzer}</b></div>` : ""} ${idee.mandantennummer ? `<div>Mandant: <b>${idee.mandantennummer}</b></div>` : ""} ${idee.firmenname ? `<div>Firma: <b>${idee.firmenname}</b></div>` : ""}
+                        ${telefonHtml} <!-- Telefonnummern hier eingefügt -->
+                        ${beschreibungenHtml}
+                        <small>${idee.kategorie || '-'} | ${idee.prioritaet || "-"} | ${datum}</small><br>
+                        ${erstellerHtml}
+                        ${erinnerungHtml}
+                        ${dateiHtml}
+                        <div class="idee-actions">
+                            <button onclick="verschiebeIdee('${id}',-1)">⬆️</button>
+                            <button onclick="verschiebeIdee('${id}',1)">⬇️</button>
+                            <button onclick="bearbeiteIdee('${id}')">✏️</button>
+                            <button onclick="toggleErledigt('${id}')">${erledigt ? "↩️" : "✔️"}</button>
+                            <button onclick="loescheIdee('${id}')">🗑️</button>
+                            <button onclick="zeigeBeschreibungDialog('${id}')">+ Beschr</button>
+                            <button onclick="zeigeErinnerungDialog('${id}')">🔔 Erinnerung</button>
+                            <button onclick="zeigeTerminDialog('${id}')">🗓️ Termin</button> 
+                        </div>
+                    </div>
+                    <input type="checkbox" class="idee-checkbox" onchange="toggleAuswahl('${id}',this)" ${ausgewaehlt.includes(id) ? "checked" : ""}>
+                </div>`;
+      } catch (e) {
+        console.error("Fehler beim Darstellen einer Idee (möglicherweise korrupte Daten):", idee, e);
+        if (idee && idee.id) {
+            return `<div class="idee erledigt" data-idee-id="${id}">
+                        <div class="idee-content">
+                            <h3>Fehlerhafte Idee (ID: ${idee.id})</h3>
+                            <p>Diese Idee konnte nicht korrekt geladen werden. Bitte überprüfen Sie die Daten oder löschen Sie den Eintrag.</p>
+                            <p>Fehlermeldung: ${e.message}</p>
+                            <div class="idee-actions">
+                                 <button onclick="loescheIdee('${idee.id}')">🗑️ Diesen Eintrag löschen</button>
+                            </div>
+                        </div>
+                         <input type="checkbox" class="idee-checkbox" style="display:none;">
+                        </div>`;
+        }
+        return ""; 
+      }
+    }).join("");
+
+    if (bearbeiteId !== null && !filtered.some(i => i && i.id === bearbeiteId)) abbrechenBearbeiten();
+    if (beschreibungFuerId !== null && !filtered.some(i => i && i.id === beschreibungFuerId)) beschreibungAbbrechen();
+    if (erinnerungFuerId !== null && !filtered.some(i => i && i.id === erinnerungFuerId)) erinnerungAbbrechen();
+    if (terminFuerId !== null && !filtered.some(i => i && i.id === terminFuerId)) terminDialogAbbrechen();
+}
+
+/* --- NEU: Funktion zum Hinzufügen einer Telefonnummer-Zeile (UI) --- */
+function addTelefonNummerInput(bezeichnung = '', nummer = '') {
+    const container = document.getElementById('telefonNummerContainer');
+    const zeile = document.createElement('div');
+    zeile.className = 'telefon-nummer-zeile';
+    
+    // Erstellt die HTML-Struktur für eine Eingabezeile
+    zeile.innerHTML = `
+        <input type="text" class="telefon-bezeichnung" placeholder="Bezeichnung (z.B. Zentrale)" value="${bezeichnung.replace(/"/g, '&quot;')}">
+        <input type="tel" class="telefon-nummer" placeholder="Telefonnummer" value="${nummer.replace(/"/g, '&quot;')}">
+        <button type="button" class="telefon-loeschen-btn" onclick="this.parentElement.remove(); triggerAutoSave();">🗑️</button>
+    `;
+    container.appendChild(zeile);
+    
+    // Event Listener für Auto-Save hinzufügen, wenn sich der Inhalt ändert
+    zeile.querySelector('.telefon-bezeichnung').addEventListener('input', triggerAutoSave);
+    zeile.querySelector('.telefon-nummer').addEventListener('input', triggerAutoSave);
+}
+
+/* --- NEU: Anruf-Auswahl-Dialog (Modal) Funktionen --- */
+// Schließt das Auswahlfenster für Telefonnummern
+function closeAnrufModal() {
+    document.getElementById('anrufModalOverlay').style.display = 'none';
+}
+
+// Öffnet das Auswahlfenster und zeigt die Nummern der Idee an
+async function starteAnrufDialog(ideeId, beschreibungTimestamp) {
+    const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+    const idee = ideen.find(i => i && i.id === ideeId);
+
+    if (!idee) {
+        return zeigeWarnung("Fehler: Zugehörige Idee nicht gefunden.", "warnung");
+    }
+    
+    const telefonNummern = idee.telefonNummern || [];
+    if (telefonNummern.length === 0) {
+        // Zeigt eine Info, wenn keine Nummern gespeichert sind
+        return zeigeWarnung("Für diese Idee sind keine Telefonnummern hinterlegt.", "info");
+    }
+
+    // Speichert, von wo der Anruf gestartet wurde (um den Protokolleintrag korrekt zu platzieren)
+    anrufModalCallbackData = { ideeId, beschreibungTimestamp };
+
+    const nummerListeDiv = document.getElementById('anrufModalNummerListe');
+    nummerListeDiv.innerHTML = ''; // Alte Liste leeren
+
+    if (telefonNummern.length === 1) {
+        // Wenn nur eine Nummer da ist -> nicht fragen, sofort anrufen!
+        await finalisiereAnruf(telefonNummern[0].nummer, telefonNummern[0].bezeichnung);
+    } else {
+        // Bei mehreren Nummern -> Auswahlfenster (Modal) anzeigen
+        telefonNummern.forEach(tel => {
+            const btn = document.createElement('button');
+            btn.className = 'nummer-wahl-btn';
+            btn.innerHTML = `<strong>${tel.bezeichnung || 'Ohne Bezeichnung'}</strong>${tel.nummer}`;
+            // Setzt den Klick-Handler, um den Anruf mit dieser Nummer zu finalisieren
+            btn.onclick = () => finalisiereAnruf(tel.nummer, tel.bezeichnung);
+            nummerListeDiv.appendChild(btn);
+        });
+        
+        document.getElementById('anrufModalTitel').textContent = `Anruf für "${idee.text}"`;
+        document.getElementById('anrufModalOverlay').style.display = 'flex';
+    }
+}
+
+// Wird aufgerufen, wenn eine Nummer ausgewählt wurde (oder wenn es nur eine gab)
+async function finalisiereAnruf(nummer, bezeichnung) {
+    const { ideeId, beschreibungTimestamp } = anrufModalCallbackData;
+    if (!ideeId) {
+        return zeigeWarnung("Fehler: Anruf-Kontext verloren.", "warnung");
+    }
+
+    closeAnrufModal(); // Dialog schließen
+
+    const anrufZeit = new Date().toLocaleString("de-DE");
+    // ANPASSUNG: Protokolltext
+    const protokollText = `📞 Anruf an "${bezeichnung || 'Unbekannt'}" (${nummer}) gestartet am ${anrufZeit}.`;
+
+    // Fügt einen Protokolleintrag (als "Beschreibung") hinzu
+    addProtokollEintrag(ideeId, beschreibungTimestamp, protokollText);
+    
+    // UI aktualisieren, damit der neue Eintrag sofort sichtbar ist
+    zeigeIdeen(); 
+
+    // Speichern in der Cloud (OneDrive) auslösen
+    // Wichtig: Wir warten NICHT auf das Speichern, der Anruf soll sofort erfolgen.
+    // triggerAutoSave() löst das Speichern mit Verzögerung aus.
+    // Für sofortiges Speichern VOR dem Verlassen der Seite (was tel: tut):
+    await saveToOneDrive();
+    
+    // Erst jetzt den Anruf-Link (tel:) ausführen, der die App verlassen könnte
+    window.location.href = 'tel:' + nummer.replace(/[^0-9+]/g, ''); // Bereinigt die Nummer
+}
+
+async function speichereIdee() {
+    const text = document.getElementById("ideeText").value.trim();
+    if (!text) return zeigeWarnung("Titel ist erforderlich!");
+
+    const fileInput = document.getElementById("dateien");
+    let neuHochgeladeneDateien = [];
+
+    if (fileInput.files.length > 0) {
+        if (currentLoginType === 'microsoft') {
+            if (!(await getValidToken(true))) { 
+                zeigeWarnung("Sitzung abgelaufen. Bitte anmelden, um Dateien hochzuladen.", "warnung"); 
+                return; 
+            }
+            
+            zeigeWarnung("Lade Dateien hoch...", 'info');
+            try {
+                neuHochgeladeneDateien = await Promise.all(Array.from(fileInput.files).map(async f => {
+                    // *** AUDIO-FIX: uploadToOneDrive gibt jetzt {link, downloadUrl, mimeType} zurück ***
+                    const uploadResult = await uploadToOneDrive(f); 
+                    if (!uploadResult) return null;
+                    return { 
+                        id: generateUUID(), 
+                        name: f.name, 
+                        link: uploadResult.link, // Vorschau-Link (webUrl)
+                        downloadUrl: uploadResult.downloadUrl, // Direkter Link
+                        type: uploadResult.mimeType, // Korrigierter MimeType
+                        sichtbar: true 
+                    };
+                }));
+                neuHochgeladeneDateien = neuHochgeladeneDateien.filter(f => f && f.link); // Filtert fehlerhafte Uploads
+                zeigeWarnung("Upload fertig.", 'success');
+            } catch (e) {
+                zeigeWarnung("Upload Fehler: " + e.message);
+                neuHochgeladeneDateien = [];
+            }
+        } else {
+             if (currentLoginType === 'github') {
+                   zeigeWarnung("Dateianhänge sind nur mit Microsoft-Login möglich. Dateien werden lokal vermerkt.", "info");
+             }
+            neuHochgeladeneDateien = Array.from(fileInput.files).map(f => ({
+                id: generateUUID(), name: f.name, type: f.type, sichtbar: true, isLocal: true, link: null, downloadUrl: null // Github-Uploads haben keine Links
+            }));
+        }
+    }
+
+    let finaleDateiliste = [];
+    if (bearbeiteId !== null) {
+        const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+        const idee = ideen.find(i => i && i.id === bearbeiteId);
+        if (idee && idee.dateien) {
+             finaleDateiliste = idee.dateien.filter(alt => alt && alt.id && !neuHochgeladeneDateien.some(neu => neu.name === alt.name));
+        }
+        finaleDateiliste = finaleDateiliste.concat(neuHochgeladeneDateien);
+    } else {
+        finaleDateiliste = neuHochgeladeneDateien;
+    }
+    saveIdeeObjekt(text, finaleDateiliste);
+    fileInput.value = "";
+}
+
+/**
+ * Speichert eine neue Idee oder aktualisiert eine bestehende.
+ * JETZT AKTUALISIERT: Sammelt auch Telefonnummern und 'downloadUrl' für Anhänge.
+ */
+function saveIdeeObjekt(text, dateien) {
+    let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+    const details = document.getElementById("ideeDetails").value;
+    const kat = document.getElementById("kategorie").value;
+    const mnr = document.getElementById("mandantennummer").value.trim();
+    const firma = document.getElementById("firmenname").value.trim();
+    const user = document.getElementById("benutzer").value;
+
+    // --- NEUER TEIL ---
+    // Sammelt alle eingegebenen Telefonnummern aus dem Formular
+    const telefonNummern = [];
+    document.querySelectorAll('#telefonNummerContainer .telefon-nummer-zeile').forEach(zeile => {
+        const bezeichnung = zeile.querySelector('.telefon-bezeichnung').value.trim();
+        const nummer = zeile.querySelector('.telefon-nummer').value.trim();
+        if (nummer) { // Nur speichern, wenn eine Nummer vorhanden ist
+            telefonNummern.push({ bezeichnung: bezeichnung, nummer: nummer });
+        }
+    });
+    // --- ENDE NEUER TEIL ---
+
+    // *** AUDIO-FIX: Speichert jetzt 'downloadUrl' zusätzlich zu 'link' ***
+    const prozessierteDateien = dateien.filter(d => d && d.id).map(d => ({
+        id: d.id, 
+        name: d.name, 
+        link: d.link || null, // Der Vorschau-Link (webUrl)
+        downloadUrl: d.downloadUrl || null, // Der direkte Download-Link
+        type: d.type,
+        sichtbar: typeof d.sichtbar === 'boolean' ? d.sichtbar : true
+    }));
+    
+    let finalDetails = details;
+    const MAX_DETAILS_LENGTH = 20000;
+    if (finalDetails.length > MAX_DETAILS_LENGTH) {
+        finalDetails = finalDetails.substring(0, MAX_DETAILS_LENGTH);
+        zeigeWarnung("Die Hauptbeschreibung war sehr lang und wurde gekürzt.", "info");
+    }
+    finalDetails = finalDetails.trim();
+
+
+    if (bearbeiteId !== null) {
+        // Idee aktualisieren
+        const idx = ideen.findIndex(i => i && i.id === bearbeiteId);
+        if (idx !== -1) {
+            const old = ideen[idx];
+            const erinnerung = old.erinnerung || getDefaultErinnerung(text, old.vorgangsnummer);
+            erinnerung.titel = text; 
+            erinnerung.vorgangsnummer = old.vorgangsnummer;
+
+            // 'telefonNummern' und 'prozessierteDateien' (mit downloadUrl) zum Update-Objekt hinzugefügt
+            ideen[idx] = { ...old, text, details: finalDetails, kategorie: kat, prioritaet, mandantennummer: mnr, telefonNummern: telefonNummern, firmenname: firma, benutzer: user, dateien: prozessierteDateien, erinnerung: erinnerung };
+            localStorage.setItem("ideen", JSON.stringify(ideen));
+            bearbeiteId = null; 
+            document.getElementById("speichernBtn").textContent = "💾 Speichern"; 
+            document.getElementById("abbrechenBtn").style.display = "none";
+        } else { zeigeWarnung("Fehler: Idee nicht gefunden."); return; }
+    } else {
+        // Neue Idee erstellen
+        const num = naechsteVorgangsnummer;
+        const erinnerung = getDefaultErinnerung(text, num);
+
+        const neu = { 
+            id: generateUUID(), 
+            vorgangsnummer: num, 
+            text, 
+            details: finalDetails, 
+            kategorie: kat, 
+            prioritaet, 
+            mandantennummer: mnr, 
+            telefonNummern: telefonNummern, // 'telefonNummern' beim Erstellen hinzugefügt
+            firmenname: firma, 
+            benutzer: user, 
+            dateien: prozessierteDateien, // Enthält jetzt 'downloadUrl'
+            timestamp: new Date().toISOString(), 
+            erledigt: false, 
+            beschreibungen: [], 
+            erinnerung: erinnerung,
+            ersteller: aktuellerBenutzerName || "Unbekannt"
+        };
+        ideen.push(neu);
+        localStorage.setItem("ideen", JSON.stringify(ideen));
+        naechsteVorgangsnummer++; 
+        localStorage.setItem("naechsteVorgangsnummer", naechsteVorgangsnummer.toString()); 
+        zeigeNaechsteNummer();
+    }
+    
+    aktualisiereMandantenFilterDropdown(); 
+    zeigeIdeen();
+    
+    // Formularfelder zurücksetzen
+    document.getElementById("ideeText").value = ""; 
+    document.getElementById("ideeDetails").value = ""; 
+    document.getElementById("mandantennummer").value = ""; 
+    document.getElementById("firmenname").value = ""; 
+    document.getElementById("dateien").value = ""; 
+    document.getElementById("dateiVorschau").innerHTML = "";
+    document.getElementById("telefonNummerContainer").innerHTML = ""; // NEU: Telefon-Container leeren
+    document.getElementById("telefonNummerContainerVorschau").style.display = "none"; // NEU: Vorschau ausblenden
+    
+    setzePrioritaet(""); 
+    document.getElementById("benutzer").value = ""; 
+    document.getElementById("kategorie").value = "";
+    
+    triggerAutoSave();
+}
+
+
+/**
+ * Stellt die Liste der Ideen auf der Seite dar.
+ * JETZT AKTUALISIERT: Fügt den Anruf-Button (📞) hinzu UND nutzt 'downloadUrl' für Audio-Player.
+ */
+function zeigeIdeen() {
+    let fIdeen = [];
+    try { fIdeen = JSON.parse(localStorage.getItem("ideen") || "[]"); } catch(e) { console.error("Fehler beim Laden der Ideen:", e); localStorage.removeItem("ideen"); fIdeen = []; }
+    if (!Array.isArray(fIdeen)) fIdeen = [];
+
+    let filtered = fIdeen.filter(i => i && i.id); 
+
+    const fKat=document.getElementById("filterKategorie")?.value;if(fKat)filtered=filtered.filter(i=>i.kategorie===fKat);
+    filterMandantValue=document.getElementById("filterMandant")?.value;if(filterMandantValue)filtered=filtered.filter(i=>(i.mandantennummer||"").toLowerCase()===filterMandantValue.toLowerCase());
+    filterBenutzerValue=document.getElementById("filterBenutzer")?.value;if(filterBenutzerValue)filtered=filtered.filter(i=>(i.benutzer||"").toLowerCase()===filterBenutzerValue.toLowerCase());
+    const fArchiv=document.getElementById("filterArchiv")?.value;if(fArchiv==="nicht_erledigt")filtered=filtered.filter(i=>!(i.erledigt||false));else if(fArchiv==="erledigt")filtered=filtered.filter(i=>(i.erledigt||false));
+
+    const sort=document.getElementById("sortierung")?.value;if(sort && sort!=="standard"){filtered.sort((a,b)=>{if (!a || !b) return 0; if(sort==="prio"){const p={"Hoch":3,"Mittel":2,"Niedrig":1};return(p[b.prioritaet]||0)-(p[a.prioritaet]||0)}let tA=-Infinity,tB=-Infinity;try{tA=new Date(a.timestamp?.split('_')[0]).getTime();if(isNaN(tA))tA=(sort==="neu"?-Infinity:Infinity)}catch(e){tA=(sort==="neu"?-Infinity:Infinity)}try{tB=new Date(b.timestamp?.split('_')[0]).getTime();if(isNaN(tB))tB=(sort==="neu"?-Infinity:Infinity)}catch(e){tB=(sort==="neu"?-Infinity:Infinity)}if(sort==="neu")return tB-tA;if(sort==="alt")return tA-tB;return 0})}
+
+
+    const listDiv = document.getElementById("ideenListe");
+    listDiv.innerHTML = filtered.map(idee => {
+      try { 
+        const id = idee.id;
+        const erledigt = idee.erledigt || false;
+        let datum = getFormattedDate(idee.timestamp);
+        const vNumHtml = idee.vorgangsnummer ? `<div class="vorgangsnummer-anzeige-liste">Vorgang: <b>${idee.vorgangsnummer}</b></div>` : '';
+        const erstellerHtml = idee.ersteller ? `<small>Erstellt von: <b>${idee.ersteller.replace(/</g, "&lt;")}</b></small><br>` : '';
+
+        // ANPASSUNG: Telefonnummern direkt anzeigen
+        let telefonHtml = "";
+        if (idee.telefonNummern && idee.telefonNummern.length > 0) {
+            telefonHtml = '<div class="idee-telefonnummern"><b>Tel:</b> ';
+            telefonHtml += idee.telefonNummern.map(tel => {
+                return `${tel.bezeichnung || 'Nr.'}: ${tel.nummer}`;
+            }).join(' | ');
+            telefonHtml += '</div>';
+        }
+
+        let dateiHtml = "";
+        if (idee.dateien && idee.dateien.length > 0) {
+            dateiHtml = idee.dateien.filter(f => f && f.id).map(f => {
+                // *** AUDIO-FIX: 'url' ist der Vorschau-Link, 'downloadUrl' der direkte Link ***
+                const url = f.link || '#'; // webUrl (Vorschau-Seite)
+                const downloadUrl = f.downloadUrl; // @microsoft.graph.downloadUrl (Direkt-Link)
+                const istSichtbar = f.sichtbar === true; 
+                const anhangKlasse = istSichtbar ? "" : " anhang-veraltet"; 
+                const anhangPraefix = istSichtbar ? "" : "[Veraltet] ";
+                const icon = (f.link || f.downloadUrl) ? '🌐' : '📎'; 
+                const buttonSymbol = istSichtbar ? '👁️' : '🙈'; 
+                const buttonTitle = istSichtbar ? 'Anhang ausblenden' : 'Anhang einblenden';
+                
+                let anhangElementHtml = '';
+                
+                // *** AUDIO-FIX: Prüft auf 'downloadUrl' UND relevante Typen für den Player ***
+                const istAudio = f.type && (
+                    f.type.startsWith('audio/') || 
+                    f.type === 'video/mp4' || // .m4a wird oft als video/mp4 erkannt
+                    f.type === 'application/octet-stream' // Fallback für unbekannte Typen
+                );
+
+                if (istAudio && downloadUrl) {
+                    // --- AUDIO-PLAYER-LOGIK ---
+                    // Wir bestimmen den MimeType für den <source>-Tag
+                    let playerType = f.type;
+                    if (f.name && f.name.toLowerCase().endsWith('.m4a') && (f.type === 'video/mp4' || f.type === 'application/octet-stream')) {
+                         playerType = 'audio/mp4';
+                    } else if (f.name && f.name.toLowerCase().endsWith('.mp3') && f.type === 'application/octet-stream') {
+                         playerType = 'audio/mpeg';
+                    } else if (f.name && f.name.toLowerCase().endsWith('.wav') && f.type === 'application/octet-stream') {
+                         playerType = 'audio/wav';
+                    } else if (playerType === 'application/octet-stream') {
+                         playerType = 'audio/mpeg'; // Standard-Fallback, wenn wir es nicht besser wissen
+                    }
+
+                    anhangElementHtml = `
+                        <div style="margin-bottom: 5px; width: 100%;">
+                            <a class="datei-link" href="${url}" target="_blank" title="Vorschau-Seite öffnen: ${f.name || ''}" style="font-size: 0.9em; font-weight: bold; display: block; margin-bottom: 3px;">
+                                ${icon} ${anhangPraefix}${f.name || 'Unbekannt'}
+                            </a>
+                            <audio controls style="width: 100%; height: 40px;" preload="metadata">
+                                <source src="${downloadUrl}" type="${playerType}">
+                                Ihr Browser unterstützt dieses Audio-Format nicht. (Typ: ${f.type})
+                            </audio>
+                        </div>
+                    `;
+                } else if (f.type && f.type.startsWith('image/') && downloadUrl) {
+                     // --- BILD-VORSCHAU-LOGIK ---
+                    anhangElementHtml = `
+                        <a class="datei-link" href="${url}" target="_blank" title="Vorschau-Seite öffnen: ${f.name || ''}" style="font-size: 0.9em; font-weight: bold; display: block; margin-bottom: 3px;">
+                            ${icon} ${anhangPraefix}${f.name || 'Unbekannt'}
+                        </a>
+                        <img src="${downloadUrl}" style="max-width: 100%; height: auto; max-height: 150px; border-radius: 4px; margin-top: 3px;" alt="Vorschau">
+                    `;
+                } else {
+                    // --- FALLBACK (LINK) ---
+                    // Zeigt den klickbaren Vorschau-Link
+                    anhangElementHtml = `
+                        <a class="datei-link" href="${url}" target="_blank" title="${f.name || ''}">${icon} ${anhangPraefix}${f.name || 'Unbekannt'}</a>
+                        <span class="datei-info" style="font-size:0.8em; color: #555; margin-left: 5px;"> (${(f.link || f.downloadUrl) ? 'OneDrive' : 'Lokal'})</span>
+                    `;
+                }
+
+                return `<div class="anhang-eintrag${anhangKlasse}" style="margin-bottom: 3px; display: flex; align-items: center; flex-wrap: wrap;">
+                            <div style="flex-grow: 1; min-width: 200px; max-width: 100%;">${anhangElementHtml}</div>
+                            <button class="toggle-anhang-sichtbarkeit-btn" title="${buttonTitle}" onclick="toggleAnhangSichtbarkeit('${id}', '${f.id}')" style="margin-left: auto; flex-shrink: 0;">${buttonSymbol}</button>
+                        </div>`;
+            }).join("");
+            if (dateiHtml) { dateiHtml = `<div class="anhaenge-liste" style="margin-top: 8px; display: flex; flex-direction: column; align-items: flex-start;"><b>Anhänge:</b>${dateiHtml}</div>`; }
+        
+        }
+
+        const beschreibungenHtml = idee.beschreibungen?.length ? `<div class="beschreibung-historie"><b>Weitere Beschr.:</b>${
+            idee.beschreibungen.filter(b => b && b.text !== undefined).map(b => {
+                const autorInfo = b.autor ? ` von <b>${b.autor.replace(/</g, "&lt;")}</b>` : "";
+                let btsText = `${getFormattedDate(b.timestamp)}${autorInfo}`; 
+                
+                const indentLevel = b.level || 0; const indentMargin = indentLevel * 20; const itemWidth = `calc(100% - ${indentMargin}px)`;
+                const istSichtbar = b.sichtbar === true; const beschreibungKlasse = istSichtbar ? "" : " beschreibung-veraltet"; const sichtbarkeitButtonSymbol = istSichtbar ? '👁️' : '🙈';
+                const sichtbarkeitButtonTitle = istSichtbar ? 'Beschreibung ausblenden' : 'Beschreibung einblenden'; const praefix = istSichtbar ? "" : "[Ausgeblendet] ";
+                const sanierterBeschreibungstext = (b.text || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                
+                let beschreibungAnhaengeHtml = "";
+                if (b.attachments && b.attachments.length > 0) {
+                    beschreibungAnhaengeHtml = `<div class="beschreibung-anhaenge">${
+                        b.attachments.map(anhang => {
+                            // *** AUDIO-FIX: 'anhangUrl' ist Vorschau, 'anhangDownloadUrl' ist Direkt-Link ***
+                            const anhangUrl = anhang.link || '#'; // webUrl
+                            const anhangDownloadUrl = anhang.downloadUrl; // downloadUrl
+                            const anhangIcon = (anhang.link || anhang.downloadUrl) ? '🌐' : '📎';
+
+                            // *** AUDIO-FIX: Prüft auf 'anhangDownloadUrl' UND relevante Typen für den Player ***
+                            const istAudioB = anhang.type && (
+                                anhang.type.startsWith('audio/') || 
+                                anhang.type === 'video/mp4' || 
+                                anhang.type === 'application/octet-stream'
+                            );
+
+                            if (istAudioB && anhangDownloadUrl) {
+                                // --- AUDIO-PLAYER-LOGIK (BESCHR.) ---
+                                let playerTypeB = anhang.type;
+                                if (anhang.name && anhang.name.toLowerCase().endsWith('.m4a') && (anhang.type === 'video/mp4' || anhang.type === 'application/octet-stream')) {
+                                    playerTypeB = 'audio/mp4';
+                                } else if (anhang.name && anhang.name.toLowerCase().endsWith('.mp3') && anhang.type === 'application/octet-stream') {
+                                    playerTypeB = 'audio/mpeg';
+                                } else if (anhang.name && anhang.name.toLowerCase().endsWith('.wav') && anhang.type === 'application/octet-stream') {
+                                    playerTypeB = 'audio/wav';
+                                } else if (playerTypeB === 'application/octet-stream') {
+                                    playerTypeB = 'audio/mpeg'; 
+                                }
+
+                                return `<div class="beschreibung-anhang-item" style="display: block; margin-top: 5px;">
+                                            <a href="${anhangUrl}" target="_blank" title="Vorschau-Seite öffnen: ${anhang.name || ''}" style="font-size: 0.95em; display: block; margin-bottom: 3px;">
+                                                ${anhangIcon} ${anhang.name || 'Unbekannt'}
+                                            </a>
+                                            <audio controls style="width: 100%; height: 35px;" preload="metadata">
+                                                <source src="${anhangDownloadUrl}" type="${playerTypeB}">
+                                                Ihr Browser unterstützt dieses Audio-Format nicht. (Typ: ${anhang.type})
+                                            </audio>
+                                        </div>`;
+                            } else if (anhang.type && anhang.type.startsWith('image/') && anhangDownloadUrl) {
+                                // --- BILD-VORSCHAU-LOGIK (BESCHR.) ---
+                                 return `<div class="beschreibung-anhang-item" style="display: block; margin-top: 5px;">
+                                            <a href="${anhangUrl}" target="_blank" title="Vorschau-Seite öffnen: ${anhang.name || ''}" style="font-size: 0.95em; display: block; margin-bottom: 3px;">
+                                                ${anhangIcon} ${anhang.name || 'Unbekannt'}
+                                            </a>
+                                            <img src="${anhangDownloadUrl}" style="max-width: 100%; height: auto; max-height: 100px; border-radius: 4px; margin-top: 3px;" alt="Vorschau">
+                                        </div>`;
+                            } else {
+                                // --- FALLBACK (LINK) ---
+                                return `<div class="beschreibung-anhang-item">
+                                            <a href="${anhangUrl}" target="_blank" title="${anhang.name || ''}">${anhangIcon} ${anhang.name || 'Unbekannt'}</a>
+                                        </div>`;
+                            }
+                        }).join('')
+                    }</div>`;
+                }
+
+                let beschreibungErinnerungHtml = "";
+                if (b.erinnerung && b.erinnerung.aktiv) {
+                    let erinnerungText = `🔔 Erinnerung: ${getFormattedDate(b.erinnerung.termin)}`;
+                     if (b.erinnerung.intervallTyp !== 'einmalig') {
+                         erinnerungText += `, Intervall: ${b.erinnerung.intervallTyp}`;
+                          if(b.erinnerung.intervallTyp === 'tage' && b.erinnerung.intervallWert) {
+                               erinnerungText += ` (${b.erinnerung.intervallWert} Tage)`;
+                          }
+                    }
+                    beschreibungErinnerungHtml = `<div class="beschreibung-erinnerung-info">${erinnerungText}</div>`;
+                } else if (b.erinnerung && !b.erinnerung.aktiv && b.erinnerung.termin) {
+                    beschreibungErinnerungHtml = `<div class="beschreibung-erinnerung-info" style="opacity:0.6;">🔔 Erinnerung (inaktiv): ${getFormattedDate(b.erinnerung.termin)}</div>`;
+                }
+
+
+                return `<div class="beschreibung-item${beschreibungKlasse}" style="margin-left: ${indentMargin}px; width: ${itemWidth};">
+                            <div class="beschreibung-text-zeit">
+                                <span class="beschreibung-zeit">${btsText}</span>${praefix}${sanierterBeschreibungstext}
+                                ${beschreibungAnhaengeHtml}
+                                ${beschreibungErinnerungHtml}
+                            </div>
+                            <div class="beschreibung-item-actions">
+                                <button class="edit-beschreibung-btn" title="Bearbeiten" onclick="bearbeiteEinzelneBeschreibung('${id}','${b.timestamp}')">✏️</button>
+                                <!-- ANPASSUNG: Button-Text und Titel geändert -->
+                                <button class="add-anhang-beschreibung-btn" title="Anruf starten & protokollieren" onclick="starteAnrufDialog('${id}','${b.timestamp}')">📞 Anruf</button>
+                                <button class="move-beschreibung-btn" title="Nach oben" onclick="verschiebeBeschreibung('${id}','${b.timestamp}', -1)">⬆️</button>
+                                <button class="move-beschreibung-btn" title="Nach unten" onclick="verschiebeBeschreibung('${id}','${b.timestamp}', 1)">⬇️</button>
+                                <button class="move-beschreibung-btn" title="Ausrücken" onclick="aendereEinrueckungBeschreibung('${id}','${b.timestamp}', -1)" ${indentLevel === 0 ? 'disabled' : ''}>⬅️</button>
+                                <button class="move-beschreibung-btn" title="Einrücken" onclick="aendereEinrueckungBeschreibung('${id}','${b.timestamp}', 1)">➡️</button>
+                                <button class="add-anhang-beschreibung-btn" title="Anhang" onclick="starteAnhangUploadFuerBeschreibung('${id}','${b.timestamp}')">📎</button>
+                                <button class="add-anhang-beschreibung-btn" title="Erinnerung" onclick="zeigeBeschreibungErinnerungDialog('${id}','${b.timestamp}')">🔔</button>
+                                <button class="add-anhang-beschreibung-btn" title="Termin erstellen" onclick="zeigeBeschreibungTerminDialog('${id}','${b.timestamp}')">🗓️</button>
+                                <button class="add-anhang-beschreibung-btn" title="Per E-Mail teilen" onclick="teileBeschreibungPerEmail('${id}','${b.timestamp}')">✉️</button>
+                                <button class="add-anhang-beschreibung-btn" title="Per WhatsApp teilen" onclick="teileBeschreibungPerWhatsApp('${id}','${b.timestamp}')">📱</button>
+                                <button class="toggle-beschreibung-sichtbarkeit-btn" title="${sichtbarkeitButtonTitle}" onclick="toggleBeschreibungSichtbarkeit('${id}', '${b.timestamp}')">${sichtbarkeitButtonSymbol}</button>
+                            </div>
+                        </div>`;
+            }).join("")
+        }</div>` : "";
+
+        let erinnerungHtml = "";
+        if (idee.erinnerung && idee.erinnerung.aktiv) {
+            let erinnerungText = `🔔 Erinnerung: ${getFormattedDate(idee.erinnerung.termin)}`;
+            if (idee.erinnerung.intervallTyp !== 'einmalig') {
+                erinnerungText += `, Intervall: ${idee.erinnerung.intervallTyp}`;
+                if(idee.erinnerung.intervallTyp === 'tage' && idee.erinnerung.intervallWert) {
+                    erinnerungText += ` (${idee.erinnerung.intervallWert} Tage)`;
+                }
+            }
+            erinnerungHtml = `<div class="erinnerung-info">${erinnerungText}</div>`;
+        } else if (idee.erinnerung && !idee.erinnerung.aktiv && idee.erinnerung.termin) {
+             erinnerungHtml = `<div class="erinnerung-info" style="opacity:0.6;">🔔 Erinnerung (inaktiv): ${getFormattedDate(idee.erinnerung.termin)}</div>`;
+        }
+
+
+        const sanierterIdeeText = (idee.text || 'Ohne Titel').replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const sanierterIdeeDetails = (idee.details || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        
+        return `<div class="idee${erledigt ? ' erledigt' : ''}" data-idee-id="${id}">
+                    <div class="idee-content">
+                        ${vNumHtml}<h3>${sanierterIdeeText}</h3><p>${sanierterIdeeDetails}</p>
+                        ${idee.benutzer ? `<div>Zust.: <b>${idee.benutzer}</b></div>` : ""} ${idee.mandantennummer ? `<div>Mandant: <b>${idee.mandantennummer}</b></div>` : ""} ${idee.firmenname ? `<div>Firma: <b>${idee.firmenname}</b></div>` : ""}
+                        ${telefonHtml} <!-- Telefonnummern hier eingefügt -->
                         ${beschreibungenHtml}
                         <small>${idee.kategorie || '-'} | ${idee.prioritaet || "-"} | ${datum}</small><br>
                         ${erstellerHtml}
@@ -1586,7 +2179,6 @@ function abbrechenBearbeiten(){
 
 function verschiebeIdee(id,dir){let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idx=ideen.findIndex(i=>i&&i.id===id);if(idx===-1)return;const targetIdx=idx+dir;if(targetIdx>=0&&targetIdx<ideen.length){[ideen[idx],ideen[targetIdx]]=[ideen[targetIdx],ideen[idx]];localStorage.setItem("ideen",JSON.stringify(ideen));zeigeIdeen();triggerAutoSave();}}
 function loescheIdee(id){if(!confirm("Wirklich löschen?"))return;let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idx=ideen.findIndex(i=>i&&i.id===id);if(idx!==-1){const del=ideen[idx];ideen.splice(idx,1);localStorage.setItem("ideen",JSON.stringify(ideen));const mExists=ideen.some(i=>i&&i.mandantennummer&&(i.mandantennummer||"").toLowerCase()===(del.mandantennummer||"").toLowerCase());const uExists=ideen.some(i=>i&&i.benutzer&&(i.benutzer||"").toLowerCase()===(del.benutzer||"").toLowerCase());if(!mExists&&del.mandantennummer)aktualisiereMandantenFilterDropdown();if(!uExists&&del.benutzer)aktualisiereBenutzerDropdowns();ausgewaehlt=ausgewaehlt.filter(i=>i!==id);if(bearbeiteId===id)abbrechenBearbeiten();if(beschreibungFuerId===id)beschreibungAbbrechen(); if(erinnerungFuerId===id)erinnerungAbbrechen(); if(terminFuerId===id)terminDialogAbbrechen(); zeigeIdeen();triggerAutoSave();}else{zeigeWarnung("Fehler: Idee nicht gefunden.");}}
-
 function zeigeBeschreibungDialog(id,ts=null){beschreibungFuerId=id;beschreibungZuBearbeitenderTimestamp=ts;const area=document.getElementById("beschreibungText");if(ts!==null){const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idee=ideen.find(i=>i&&i.id===id);const desc=idee?.beschreibungen?.find(b=>b&&b.timestamp===ts);if(desc)area.value=desc.text;else{zeigeWarnung("Fehler: Beschreibung nicht gefunden.");beschreibungAbbrechen();return}}else{area.value=""}document.getElementById("beschreibungDialog").style.display="block";area.focus();istGespeichert=false}
 function beschreibungAbbrechen(){document.getElementById("beschreibungDialog").style.display="none";beschreibungFuerId=null;beschreibungZuBearbeitenderTimestamp=null;document.getElementById("beschreibungText").value="";}
 function beschreibungSpeichern(){
@@ -1659,7 +2251,7 @@ async function handleBeschreibungAnhangUpload(event) {
     if (currentLoginType === 'microsoft' && accessToken) {
         try {
             neueAnhaenge = await Promise.all(Array.from(files).map(async f => {
-                // *** AUDIO-FIX: Holt beide Links ***
+                // *** AUDIO-FIX: Holt beide Links und korrigierten Typ ***
                 const uploadResult = await uploadToOneDrive(f);
                 if (!uploadResult) return null;
                 return { 
@@ -1667,7 +2259,7 @@ async function handleBeschreibungAnhangUpload(event) {
                     name: f.name, 
                     link: uploadResult.link, 
                     downloadUrl: uploadResult.downloadUrl, 
-                    type: f.type 
+                    type: uploadResult.mimeType // Korrigierter Typ
                 };
             }));
             neueAnhaenge = neueAnhaenge.filter(f => f && f.link);
@@ -1706,7 +2298,7 @@ async function handleBeschreibungAnhangUpload(event) {
         ideen[ideeIndex].beschreibungen[beschreibungIndex].attachments = [];
     }
     
-    // *** AUDIO-FIX: Fügt Anhänge mit 'downloadUrl' hinzu ***
+    // *** AUDIO-FIX: Fügt Anhänge mit 'downloadUrl' und korr. 'type' hinzu ***
     ideen[ideeIndex].beschreibungen[beschreibungIndex].attachments.push(...neueAnhaenge);
 
     localStorage.setItem("ideen", JSON.stringify(ideen));
@@ -1966,6 +2558,193 @@ function toggleErinnerungVorabDetails() {
 }
 
 function getFormattedDate(timestamp) { if (timestamp) { let ts = timestamp; if (typeof ts === 'string' && ts.includes('_')) { ts = ts.split('_')[0]; } try { const d = new Date(ts); if (!isNaN(d.getTime())) { return d.toLocaleString("de-DE", { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }); } } catch (e) { } } return 'N/A'; }
+
+// --- FUNKTIONEN FÜR KALENDERTERMINERSTELLUNG ---
+
+function zeigeTerminDialog(ideeId) {
+    terminFuerId = ideeId;
+    terminFuerBeschreibungTimestamp = null; // Sicherstellen, dass der alte Modus aktiv ist
+    const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+    const idee = ideen.find(i => i && i.id === ideeId);
+
+    if (!idee) {
+        zeigeWarnung("Fehler: Idee für Termin nicht gefunden.", "warnung");
+        return;
+    }
+
+    document.getElementById("terminTitelInput").value = idee.text || "Neuer Termin";
+
+    const jetzt = new Date();
+    const startStunde = jetzt.getHours() + 1;
+    jetzt.setHours(startStunde);
+    jetzt.setMinutes(0); 
+    jetzt.setSeconds(0);
+    jetzt.setMilliseconds(0);
+
+    const startVorschlag = new Date(jetzt);
+    const endeVorschlag = new Date(startVorschlag.getTime() + 60 * 60 * 1000);
+
+    const toLocalISOString = (date) => {
+        const year = date.getFullYear();
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const day = date.getDate().toString().padStart(2, '0');
+        const hours = date.getHours().toString().padStart(2, '0');
+        const minutes = date.getMinutes().toString().padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+    };
+
+    document.getElementById("terminStartInput").value = toLocalISOString(startVorschlag);
+    document.getElementById("terminEndeInput").value = toLocalISOString(endeVorschlag);
+    document.getElementById("terminOrtInput").value = "";
+
+    document.getElementById("terminDialog").style.display = "block";
+    document.getElementById("terminTitelInput").focus();
+}
+
+function zeigeBeschreibungTerminDialog(ideeId, beschreibungTimestamp) {
+    terminFuerId = ideeId;
+    terminFuerBeschreibungTimestamp = beschreibungTimestamp;
+
+    const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+    const idee = ideen.find(i => i && i.id === ideeId);
+    if (!idee) {
+        zeigeWarnung("Fehler: Zugehörige Idee nicht gefunden.", "warnung");
+        return;
+    }
+    const beschreibung = idee.beschreibungen.find(b => b && b.timestamp === beschreibungTimestamp);
+    if (!beschreibung) {
+        zeigeWarnung("Fehler: Beschreibung für Termin nicht gefunden.", "warnung");
+        return;
+    }
+
+    let titelVorschlag = `${idee.text}: ${beschreibung.text}`;
+    if (titelVorschlag.length > 50) {
+        titelVorschlag = titelVorschlag.substring(0, 47) + "...";
+    }
+    document.getElementById("terminTitelInput").value = titelVorschlag;
+    
+    const jetzt = new Date();
+    const startStunde = jetzt.getHours() + 1;
+    jetzt.setHours(startStunde);
+    jetzt.setMinutes(0); 
+    jetzt.setSeconds(0);
+    jetzt.setMilliseconds(0);
+
+    const startVorschlag = new Date(jetzt);
+    const endeVorschlag = new Date(startVorschlag.getTime() + 60 * 60 * 1000);
+
+    const toLocalISOString = (date) => {
+        const year = date.getFullYear();
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const day = date.getDate().toString().padStart(2, '0');
+        const hours = date.getHours().toString().padStart(2, '0');
+        const minutes = date.getMinutes().toString().padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+    };
+
+    document.getElementById("terminStartInput").value = toLocalISOString(startVorschlag);
+    document.getElementById("terminEndeInput").value = toLocalISOString(endeVorschlag);
+    document.getElementById("terminOrtInput").value = "";
+
+    document.getElementById("terminDialog").style.display = "block";
+    document.getElementById("terminTitelInput").focus();
+}
+
+function terminDialogAbbrechen() {
+    document.getElementById("terminDialog").style.display = "none";
+    terminFuerId = null;
+    terminFuerBeschreibungTimestamp = null;
+    document.getElementById("terminTitelInput").value = "";
+    document.getElementById("terminStartInput").value = "";
+    document.getElementById("terminEndeInput").value = "";
+    document.getElementById("terminOrtInput").value = "";
+}
+
+async function kalenderTerminErstellenUndSpeichern() {
+    if (!terminFuerId) return;
+
+    const MAX_KALENDER_BESCHREIBUNG = 7500;
+
+    const titel = document.getElementById("terminTitelInput").value.trim();
+    const startZeitValue = document.getElementById("terminStartInput").value;
+    const endeZeitValue = document.getElementById("terminEndeInput").value;
+    const ort = document.getElementById("terminOrtInput").value.trim();
+
+    if (!titel || !startZeitValue || !endeZeitValue) {
+        zeigeWarnung("Bitte alle erforderlichen Felder für den Termin ausfüllen.", "warnung");
+        return;
+    }
+    
+    let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+    const ideeIndex = ideen.findIndex(i => i.id === terminFuerId);
+    if (ideeIndex === -1) { 
+        zeigeWarnung("Zugehörige Idee nicht gefunden.", "warnung"); 
+        terminDialogAbbrechen();
+        return; 
+    }
+    const idee = ideen[ideeIndex];
+    let terminBeschreibungText = "";
+    let nachweisText = "";
+    
+    if (terminFuerBeschreibungTimestamp) {
+        const sammlung = sammleBeschreibungsBlock(terminFuerId, terminFuerBeschreibungTimestamp);
+        if (!sammlung) {
+             zeigeWarnung("Zugehöriger Beschreibungs-Block nicht mehr gefunden.", "warnung"); 
+             terminDialogAbbrechen();
+             return;
+        }
+
+        terminBeschreibungText = `Teil-Informationen aus Vorgang ${idee.vorgangsnummer || 'N/A'}: ${idee.text || 'Ohne Titel'}\n\n`;
+        const startLevel = sammlung.block[0].level || 0;
+
+        sammlung.block.forEach(beschreibung => {
+            const relativerIndent = (beschreibung.level || 0) - startLevel;
+            const indentSpaces = "  ".repeat(relativerIndent);
+            const autorText = beschreibung.autor ? ` (von ${beschreibung.autor})` : "";
+            
+            terminBeschreibungText += `${indentSpaces}Beschreibung vom ${getFormattedDate(beschreibung.timestamp)}${autorText}:\n`;
+            terminBeschreibungText += `${indentSpaces}${beschreibung.text.replace(/\n/g, `\n${indentSpaces}`)}\n\n`;
+
+            if (beschreibung.attachments && beschreibung.attachments.length > 0) {
+                terminBeschreibungText += `${indentSpaces}  Zugehörige Anhänge:\n`;
+                beschreibung.attachments.forEach(anhang => {
+                    terminBeschreibungText += `${indentSpaces}  - ${anhang.name}`;
+                    // *** AUDIO-FIX: Nutzt 'link' (Vorschau) als klickbaren Link ***
+                    if (anhang.link) { terminBeschreibungText += `\n${indentSpaces}    Link: ${anhang.link}\n`; } 
+                    else { terminBeschreibungText += ` (Lokale Datei)\n`; }
+                });
+            }
+        });
+
+        if (terminBeschreibungText.length > MAX_KALENDER_BESCHREIBUNG) {
+            const kuerzungsHinweis = `\n\n[... Inhalt gekürzt, da zu lang für Kalendereintrag.]`;
+            terminBeschreibungText = terminBeschreibungText.substring(0, MAX_KALENDER_BESCHREIBUNG - kuerzungsHinweis.length) + kuerzungsHinweis;
+        }
+        
+        nachweisText = `Kalendertermin vorbereitet für Beschreibungs-Block (vom ${getFormattedDate(terminFuerBeschreibungTimestamp)}). Titel: "${titel}".`;
+    } else {
+        terminBeschreibungText = generiereIdeenTextKomplett(idee, 'plain', MAX_KALENDER_BESCHREIBUNG);
+        nachweisText = `Kalendertermin vorbereitet für: ${getFormattedDate(startZeitValue)}. Titel: "${titel}".`;
+    }
+
+    addProtokollEintrag(terminFuerId, terminFuerBeschreibungTimestamp, nachweisText);
+    zeigeIdeen();
+
+    const saveSuccess = await saveToOneDrive();
+
+    if (saveSuccess) {
+        const toUTCGoogleFormat = (dateStr) => new Date(dateStr).toISOString().replace(/[-:]|\.\d{3}/g, '');
+        let calendarUrl = `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(titel)}&dates=${toUTCGoogleFormat(startZeitValue)}/${toUTCGoogleFormat(endeZeitValue)}&details=${encodeURIComponent(terminBeschreibungText)}`;
+        if (ort) calendarUrl += `&location=${encodeURIComponent(ort)}`;
+
+        window.open(calendarUrl, '_blank');
+        zeigeWarnung("Kalenderlink wurde erstellt. Bitte Termin dort bestätigen.", "success");
+        terminDialogAbbrechen();
+    } else {
+        zeigeWarnung("Speichern fehlgeschlagen (Sitzung abgelaufen?). Der Vermerk wurde lokal gesichert. Bitte melden Sie sich an und versuchen Sie es erneut.", "warnung");
+    }
+}
+
 function getExportIdeen() { let resultIdeen = []; try { let ideen = []; try { ideen = JSON.parse(localStorage.getItem("ideen") || "[]"); if (!Array.isArray(ideen)) { ideen = []; localStorage.setItem("ideen", "[]"); } } catch (e) { localStorage.removeItem("ideen"); ideen = []; } const aktuellAusgewaehlteCheckboxes = Array.from(document.querySelectorAll('.idee-checkbox:checked')); let aktuellAusgewaehlteIDs = []; if (aktuellAusgewaehlteCheckboxes.length > 0) { aktuellAusgewaehlteIDs = aktuellAusgewaehlteCheckboxes.map(cb => { try { let parentIdeeDiv = cb.closest('.idee'); if (parentIdeeDiv) { return parentIdeeDiv.dataset.ideeId; } } catch (e) { } return null; }).filter(id => id !== null); if (aktuellAusgewaehlteIDs.length > 0) { resultIdeen = ideen.filter(i => i && i.id && aktuellAusgewaehlteIDs.includes(i.id)); } else { resultIdeen = []; } } else { let fIdeen = [...ideen.filter(i=>i&&i.id)]; const fKat = document.getElementById("filterKategorie")?.value; if (fKat) fIdeen = fIdeen.filter(i => i.kategorie === fKat); const fMdt = document.getElementById("filterMandant")?.value; if (fMdt) fIdeen = fIdeen.filter(i => (i.mandantennummer || "").toLowerCase() === fMdt.toLowerCase()); const fUser = document.getElementById("filterBenutzer")?.value; if (fUser) fIdeen = fIdeen.filter(i => (i.benutzer || "").toLowerCase() === fUser.toLowerCase()); const fArchiv = document.getElementById("filterArchiv")?.value; if (fArchiv === "nicht_erledigt") fIdeen = fIdeen.filter(i => !(i.erledigt || false)); else if (fArchiv === "erledigt") fIdeen = fIdeen.filter(i => (i.erledigt || false)); const sort=document.getElementById("sortierung")?.value; if(sort && sort!=="standard"){ fIdeen.sort((a,b)=>{ if (!a || !b) return 0; if(sort==="prio"){ const p={"Hoch":3,"Mittel":2,"Niedrig":1}; return(p[b.prioritaet]||0)-(p[a.prioritaet]||0); } let tA=-Infinity,tB=-Infinity; try{tA=new Date(a.timestamp?.split('_')[0]).getTime();if(isNaN(tA))tA=(sort==="neu"?-Infinity:Infinity)}catch(e){tA=(sort==="neu"?-Infinity:Infinity)} try{tB=new Date(b.timestamp?.split('_')[0]).getTime();if(isNaN(tB))tB=(sort==="neu"?-Infinity:Infinity)}catch(e){tB=(sort==="neu"?-Infinity:Infinity)} if(sort==="neu")return tB-tA; if(sort==="alt")return tA-tB; return 0; }); } resultIdeen = fIdeen; } } catch (error) { resultIdeen = []; } if (!Array.isArray(resultIdeen)) { return []; } return resultIdeen; }
 
 function formatErinnerungForExport(erinnerung) {
@@ -2720,192 +3499,7 @@ async function teileBeschreibungPerWhatsApp(ideeId, beschreibungTimestamp) {
 }
 
 
-// --- FUNKTIONEN FÜR KALENDERTERMINERSTELLUNG ---
-
-function zeigeTerminDialog(ideeId) {
-    terminFuerId = ideeId;
-    terminFuerBeschreibungTimestamp = null; // Sicherstellen, dass der alte Modus aktiv ist
-    const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-    const idee = ideen.find(i => i && i.id === ideeId);
-
-    if (!idee) {
-        zeigeWarnung("Fehler: Idee für Termin nicht gefunden.", "warnung");
-        return;
-    }
-
-    document.getElementById("terminTitelInput").value = idee.text || "Neuer Termin";
-
-    const jetzt = new Date();
-    const startStunde = jetzt.getHours() + 1;
-    jetzt.setHours(startStunde);
-    jetzt.setMinutes(0); 
-    jetzt.setSeconds(0);
-    jetzt.setMilliseconds(0);
-
-    const startVorschlag = new Date(jetzt);
-    const endeVorschlag = new Date(startVorschlag.getTime() + 60 * 60 * 1000);
-
-    const toLocalISOString = (date) => {
-        const year = date.getFullYear();
-        const month = (date.getMonth() + 1).toString().padStart(2, '0');
-        const day = date.getDate().toString().padStart(2, '0');
-        const hours = date.getHours().toString().padStart(2, '0');
-        const minutes = date.getMinutes().toString().padStart(2, '0');
-        return `${year}-${month}-${day}T${hours}:${minutes}`;
-    };
-
-    document.getElementById("terminStartInput").value = toLocalISOString(startVorschlag);
-    document.getElementById("terminEndeInput").value = toLocalISOString(endeVorschlag);
-    document.getElementById("terminOrtInput").value = "";
-
-    document.getElementById("terminDialog").style.display = "block";
-    document.getElementById("terminTitelInput").focus();
-}
-
-function zeigeBeschreibungTerminDialog(ideeId, beschreibungTimestamp) {
-    terminFuerId = ideeId;
-    terminFuerBeschreibungTimestamp = beschreibungTimestamp;
-
-    const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-    const idee = ideen.find(i => i && i.id === ideeId);
-    if (!idee) {
-        zeigeWarnung("Fehler: Zugehörige Idee nicht gefunden.", "warnung");
-        return;
-    }
-    const beschreibung = idee.beschreibungen.find(b => b && b.timestamp === beschreibungTimestamp);
-    if (!beschreibung) {
-        zeigeWarnung("Fehler: Beschreibung für Termin nicht gefunden.", "warnung");
-        return;
-    }
-
-    let titelVorschlag = `${idee.text}: ${beschreibung.text}`;
-    if (titelVorschlag.length > 50) {
-        titelVorschlag = titelVorschlag.substring(0, 47) + "...";
-    }
-    document.getElementById("terminTitelInput").value = titelVorschlag;
-    
-    const jetzt = new Date();
-    const startStunde = jetzt.getHours() + 1;
-    jetzt.setHours(startStunde);
-    jetzt.setMinutes(0); 
-    jetzt.setSeconds(0);
-    jetzt.setMilliseconds(0);
-
-    const startVorschlag = new Date(jetzt);
-    const endeVorschlag = new Date(startVorschlag.getTime() + 60 * 60 * 1000);
-
-    const toLocalISOString = (date) => {
-        const year = date.getFullYear();
-        const month = (date.getMonth() + 1).toString().padStart(2, '0');
-        const day = date.getDate().toString().padStart(2, '0');
-        const hours = date.getHours().toString().padStart(2, '0');
-        const minutes = date.getMinutes().toString().padStart(2, '0');
-        return `${year}-${month}-${day}T${hours}:${minutes}`;
-    };
-
-    document.getElementById("terminStartInput").value = toLocalISOString(startVorschlag);
-    document.getElementById("terminEndeInput").value = toLocalISOString(endeVorschlag);
-    document.getElementById("terminOrtInput").value = "";
-
-    document.getElementById("terminDialog").style.display = "block";
-    document.getElementById("terminTitelInput").focus();
-}
-
-function terminDialogAbbrechen() {
-    document.getElementById("terminDialog").style.display = "none";
-    terminFuerId = null;
-    terminFuerBeschreibungTimestamp = null;
-    document.getElementById("terminTitelInput").value = "";
-    document.getElementById("terminStartInput").value = "";
-    document.getElementById("terminEndeInput").value = "";
-    document.getElementById("terminOrtInput").value = "";
-}
-
-async function kalenderTerminErstellenUndSpeichern() {
-    if (!terminFuerId) return;
-
-    const MAX_KALENDER_BESCHREIBUNG = 7500;
-
-    const titel = document.getElementById("terminTitelInput").value.trim();
-    const startZeitValue = document.getElementById("terminStartInput").value;
-    const endeZeitValue = document.getElementById("terminEndeInput").value;
-    const ort = document.getElementById("terminOrtInput").value.trim();
-
-    if (!titel || !startZeitValue || !endeZeitValue) {
-        zeigeWarnung("Bitte alle erforderlichen Felder für den Termin ausfüllen.", "warnung");
-        return;
-    }
-    
-    let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
-    const ideeIndex = ideen.findIndex(i => i.id === terminFuerId);
-    if (ideeIndex === -1) { 
-        zeigeWarnung("Zugehörige Idee nicht gefunden.", "warnung"); 
-        terminDialogAbbrechen();
-        return; 
-    }
-    const idee = ideen[ideeIndex];
-    let terminBeschreibungText = "";
-    let nachweisText = "";
-    
-    if (terminFuerBeschreibungTimestamp) {
-        const sammlung = sammleBeschreibungsBlock(terminFuerId, terminFuerBeschreibungTimestamp);
-        if (!sammlung) {
-             zeigeWarnung("Zugehöriger Beschreibungs-Block nicht mehr gefunden.", "warnung"); 
-             terminDialogAbbrechen();
-             return;
-        }
-
-        terminBeschreibungText = `Teil-Informationen aus Vorgang ${idee.vorgangsnummer || 'N/A'}: ${idee.text || 'Ohne Titel'}\n\n`;
-        const startLevel = sammlung.block[0].level || 0;
-
-        sammlung.block.forEach(beschreibung => {
-            const relativerIndent = (beschreibung.level || 0) - startLevel;
-            const indentSpaces = "  ".repeat(relativerIndent);
-            const autorText = beschreibung.autor ? ` (von ${beschreibung.autor})` : "";
-            
-            terminBeschreibungText += `${indentSpaces}Beschreibung vom ${getFormattedDate(beschreibung.timestamp)}${autorText}:\n`;
-            terminBeschreibungText += `${indentSpaces}${beschreibung.text.replace(/\n/g, `\n${indentSpaces}`)}\n\n`;
-
-            if (beschreibung.attachments && beschreibung.attachments.length > 0) {
-                terminBeschreibungText += `${indentSpaces}  Zugehörige Anhänge:\n`;
-                beschreibung.attachments.forEach(anhang => {
-                    terminBeschreibungText += `${indentSpaces}  - ${anhang.name}`;
-                    // *** AUDIO-FIX: Nutzt 'link' (Vorschau) als klickbaren Link ***
-                    if (anhang.link) { terminBeschreibungText += `\n${indentSpaces}    Link: ${anhang.link}\n`; } 
-                    else { terminBeschreibungText += ` (Lokale Datei)\n`; }
-                });
-            }
-        });
-
-        if (terminBeschreibungText.length > MAX_KALENDER_BESCHREIBUNG) {
-            const kuerzungsHinweis = `\n\n[... Inhalt gekürzt, da zu lang für Kalendereintrag.]`;
-            terminBeschreibungText = terminBeschreibungText.substring(0, MAX_KALENDER_BESCHREIBUNG - kuerzungsHinweis.length) + kuerzungsHinweis;
-        }
-        
-        nachweisText = `Kalendertermin vorbereitet für Beschreibungs-Block (vom ${getFormattedDate(terminFuerBeschreibungTimestamp)}). Titel: "${titel}".`;
-    } else {
-        terminBeschreibungText = generiereIdeenTextKomplett(idee, 'plain', MAX_KALENDER_BESCHREIBUNG);
-        nachweisText = `Kalendertermin vorbereitet für: ${getFormattedDate(startZeitValue)}. Titel: "${titel}".`;
-    }
-
-    addProtokollEintrag(terminFuerId, terminFuerBeschreibungTimestamp, nachweisText);
-    zeigeIdeen();
-
-    const saveSuccess = await saveToOneDrive();
-
-    if (saveSuccess) {
-        const toUTCGoogleFormat = (dateStr) => new Date(dateStr).toISOString().replace(/[-:]|\.\d{3}/g, '');
-        let calendarUrl = `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(titel)}&dates=${toUTCGoogleFormat(startZeitValue)}/${toUTCGoogleFormat(endeZeitValue)}&details=${encodeURIComponent(terminBeschreibungText)}`;
-        if (ort) calendarUrl += `&location=${encodeURIComponent(ort)}`;
-
-        window.open(calendarUrl, '_blank');
-        zeigeWarnung("Kalenderlink wurde erstellt. Bitte Termin dort bestätigen.", "success");
-        terminDialogAbbrechen();
-    } else {
-        zeigeWarnung("Speichern fehlgeschlagen (Sitzung abgelaufen?). Der Vermerk wurde lokal gesichert. Bitte melden Sie sich an und versuchen Sie es erneut.", "warnung");
-    }
-}
-
+// --- BENACHRICHTIGUNGS-FUNKTIONEN ---
 
 async function initialisiereUndStarteBenachrichtigungspruefung() {
     if (!("Notification" in window)) {
@@ -3039,8 +3633,9 @@ function pruefeUndZeigeBenachrichtigungen() {
  * Lädt eine Datei auf OneDrive hoch.
  * JETZT AKTUALISIERT: Ruft explizit den Vorschau-Link (webUrl) UND
  * den Direkt-Download-Link (@microsoft.graph.downloadUrl) ab.
+ * Korrigiert MimeType für .m4a-Dateien.
  * @param {File} file - Die hochzuladende Datei.
- * @returns {Promise<{link: string, downloadUrl: string}|null>} Ein Objekt mit beiden Links oder null bei Fehler.
+ * @returns {Promise<{link: string, downloadUrl: string, mimeType: string}|null>} Ein Objekt mit beiden Links und dem MimeType oder null bei Fehler.
  */
 async function uploadToOneDrive(file) {
     if (currentLoginType !== 'microsoft') {
@@ -3060,11 +3655,26 @@ async function uploadToOneDrive(file) {
         let currentToken = await ensureValidToken();
         const fileName = `ideenapp/${Date.now()}_${file.name}`;
         
+        // ANPASSUNG: MimeType-Korrektur
+        let uploadFileType = file.type;
+        const lowerFileName = file.name.toLowerCase();
+        
+        if ((lowerFileName.endsWith('.m4a') || lowerFileName.endsWith('.mp4a')) && (file.type === 'video/mp4' || file.type === 'application/octet-stream' || !file.type)) {
+            uploadFileType = 'audio/mp4';
+            console.log(`MimeType korrigiert für .m4a zu: ${uploadFileType}`);
+        } else if (lowerFileName.endsWith('.mp3') && (file.type === 'application/octet-stream' || !file.type)) {
+            uploadFileType = 'audio/mpeg';
+            console.log(`MimeType korrigiert für .mp3 zu: ${uploadFileType}`);
+        } else if (lowerFileName.endsWith('.wav') && (file.type === 'application/octet-stream' || !file.type)) {
+            uploadFileType = 'audio/wav';
+             console.log(`MimeType korrigiert für .wav zu: ${uploadFileType}`);
+        }
+        
         // --- 1. UPLOAD ---
         const uploadUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/${fileName}:/content`;
         let uploadResponse = await fetch(uploadUrl, {
             method: "PUT",
-            headers: { "Authorization": `Bearer ${currentToken}`, "Content-Type": file.type },
+            headers: { "Authorization": `Bearer ${currentToken}`, "Content-Type": uploadFileType }, // Verwendet korrigierten Typ
             body: file
         });
 
@@ -3073,7 +3683,7 @@ async function uploadToOneDrive(file) {
             currentToken = await ensureValidToken(); // Erneuten interaktiven Refresh erzwingen
             uploadResponse = await fetch(uploadUrl, { // Upload wiederholen
                 method: "PUT",
-                headers: { "Authorization": `Bearer ${currentToken}`, "Content-Type": file.type },
+                headers: { "Authorization": `Bearer ${currentToken}`, "Content-Type": uploadFileType },
                 body: file
             });
         }
@@ -3141,7 +3751,7 @@ async function uploadToOneDrive(file) {
         }
 
         // Beide Links erfolgreich abgerufen
-        return { link: webUrl, downloadUrl: downloadUrl };
+        return { link: webUrl, downloadUrl: downloadUrl, mimeType: uploadFileType };
 
     } catch (e) {
         console.error("OneDrive Upload/Link Fehler:", e);
@@ -3642,4 +4252,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 </script>
 </body>
 </html>
+
+
+
+
 
