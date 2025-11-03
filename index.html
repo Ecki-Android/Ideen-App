@@ -207,6 +207,22 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
     border-color: #ccc;
     width: 100%;
 }
+
+/* --- NEU: Stile für Telefonnummern-Anzeige in der Liste --- */
+.telefon-nummer-anzeige-liste {
+    font-size: 0.95em;
+    margin-top: 8px;
+    padding-left: 10px;
+    border-left: 2px solid #0078d4;
+}
+.telefon-nummer-anzeige-item {
+    display: block;
+    margin-bottom: 3px;
+    color: #333;
+}
+.telefon-nummer-anzeige-item strong {
+    color: #005a9e;
+}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://alcdn.msauth.net/browser/2.24.0/js/msal-browser.min.js"></script>
@@ -1228,7 +1244,9 @@ function saveIdeeObjekt(text, dateien) {
 
 /**
  * Stellt die Liste der Ideen auf der Seite dar.
- * JETZT AKTUALISIERT: Fügt den Anruf-Button (☎️) bei Beschreibungen hinzu.
+ * JETZT AKTUALISIERT: Fügt den Anruf-Button (📞) bei Beschreibungen hinzu.
+ * JETZT AKTUALISIERT: Zeigt Telefonnummern in der Hauptansicht an.
+ * JETZT AKTUALISIERT: Zeigt Dateiendungen bei Audio-Dateien an.
  */
 function zeigeIdeen() {
     let fIdeen = [];
@@ -1245,6 +1263,12 @@ function zeigeIdeen() {
 
     const sort=document.getElementById("sortierung")?.value;if(sort && sort!=="standard"){filtered.sort((a,b)=>{if (!a || !b) return 0; if(sort==="prio"){const p={"Hoch":3,"Mittel":2,"Niedrig":1};return(p[b.prioritaet]||0)-(p[a.prioritaet]||0)}let tA=-Infinity,tB=-Infinity;try{tA=new Date(a.timestamp?.split('_')[0]).getTime();if(isNaN(tA))tA=(sort==="neu"?-Infinity:Infinity)}catch(e){tA=(sort==="neu"?-Infinity:Infinity)}try{tB=new Date(b.timestamp?.split('_')[0]).getTime();if(isNaN(tB))tB=(sort==="neu"?-Infinity:Infinity)}catch(e){tB=(sort==="neu"?-Infinity:Infinity)}if(sort==="neu")return tB-tA;if(sort==="alt")return tA-tB;return 0})}
 
+    // Helper-Funktion zum Extrahieren der Dateiendung
+    const getFileExtension = (filename) => {
+        if (!filename || !filename.includes('.')) return '';
+        const ext = filename.split('.').pop();
+        return ext ? `.${ext}` : '';
+    };
 
     const listDiv = document.getElementById("ideenListe");
     listDiv.innerHTML = filtered.map(idee => {
@@ -1257,18 +1281,17 @@ function zeigeIdeen() {
 
         let dateiHtml = "";
         if (idee.dateien && idee.dateien.length > 0) {
-            // ... (Datei-HTML-Logik bleibt unverändert) ...
+            // ... (Datei-HTML-Logik) ...
             dateiHtml = idee.dateien.filter(f => f && f.id).map(f => {
                 const url = f.link || '#'; const istSichtbar = f.sichtbar === true; const anhangKlasse = istSichtbar ? "" : " anhang-veraltet"; const anhangPraefix = istSichtbar ? "" : "[Veraltet] ";
                 const icon = f.link ? '🌐' : '📎'; const buttonSymbol = istSichtbar ? '👁️' : '🙈'; const buttonTitle = istSichtbar ? 'Anhang ausblenden' : 'Anhang einblenden';
                 
                 let anhangElementHtml = '';
 
-                // --- NEUE AUDIO-PLAYER-LOGIK ---
-                // Prüft, ob der Anhang-Typ mit 'audio/' beginnt UND ob es ein umwandelbarer OneDrive-Link ist
+                // --- NEUE AUDIO-PLAYER-LOGIK (mit Dateiendung) ---
                 if (f.type && f.type.startsWith('audio/') && f.link && f.link.includes('onedrive.live.com/redir?')) {
-                    // Wandle den OneDrive 'view' Link (redir?) in einen 'embed' Link um
                     const embedUrl = f.link.replace('/redir?', '/embed?');
+                    const fileExt = getFileExtension(f.name); // Dateiendung holen
                     
                     anhangElementHtml = `
                         <div style="margin-bottom: 5px; width: 100%;">
@@ -1277,12 +1300,12 @@ function zeigeIdeen() {
                             </span>
                             <audio controls style="width: 100%; height: 40px;" preload="metadata">
                                 <source src="${embedUrl}" type="${f.type}">
-                                Ihr Browser unterstützt dieses Audio-Format nicht.
+                                Ihr Browser unterstützt dieses Audio-Format nicht (${fileExt}).
                             </audio>
                         </div>
                     `;
                 } else {
-                    // Fallback: Die Bisherige-Link-Anzeige für alle anderen Dateitypen
+                    // Fallback: Die Bisherige-Link-Anzeige
                     anhangElementHtml = `
                         <a class="datei-link" href="${url}" target="_blank" title="${f.name || ''}">${icon} ${anhangPraefix}${f.name || 'Unbekannt'}</a>
                         <span class="datei-info" style="font-size:0.8em; color: #555; margin-left: 5px;"> (${f.link ? 'OneDrive' : 'Lokal'})</span>
@@ -1298,10 +1321,21 @@ function zeigeIdeen() {
             if (dateiHtml) { dateiHtml = `<div class="anhaenge-liste" style="margin-top: 8px; display: flex; flex-direction: column; align-items: flex-start;"><b>Anhänge:</b>${dateiHtml}</div>`; }
         
         }
+        
+        // --- NEUER TEIL: Telefonnummern-HTML-Anzeige ---
+        let telefonNummernHtml = "";
+        if (idee.telefonNummern && idee.telefonNummern.length > 0) {
+            telefonNummernHtml = `<div class="telefon-nummer-anzeige-liste"><b>Telefonnummern:</b>${
+                idee.telefonNummern.map(tel => {
+                    return `<span class="telefon-nummer-anzeige-item"><strong>${tel.bezeichnung || 'Ohne Bez.'}:</strong> ${tel.nummer}</span>`;
+                }).join("")
+            }</div>`;
+        }
+        // --- ENDE NEUER TEIL ---
 
         const beschreibungenHtml = idee.beschreibungen?.length ? `<div class="beschreibung-historie"><b>Weitere Beschr.:</b>${
             idee.beschreibungen.filter(b => b && b.text !== undefined).map(b => {
-                // ... (Logik für Beschreibungstext, Anhänge, Erinnerungen bleibt unverändert) ...
+                // ... (Logik für Beschreibungstext, Anhänge, Erinnerungen) ...
                 const autorInfo = b.autor ? ` von <b>${b.autor.replace(/</g, "&lt;")}</b>` : "";
                 let btsText = `${getFormattedDate(b.timestamp)}${autorInfo}`; 
                 
@@ -1317,13 +1351,15 @@ function zeigeIdeen() {
                             const anhangUrl = anhang.link || '#';
                             const anhangIcon = anhang.link ? '🌐' : '📎';
 
-                            // --- NEUE AUDIO-PLAYER-LOGIK (BESCHR.) ---
+                            // --- NEUE AUDIO-PLAYER-LOGIK (BESCHR. mit Dateiendung) ---
                             if (anhang.type && anhang.type.startsWith('audio/') && anhangUrl.includes('onedrive.live.com/redir?')) {
                                 const embedUrl = anhangUrl.replace('/redir?', '/embed?');
+                                const fileExt = getFileExtension(anhang.name); // Dateiendung holen
                                 return `<div class="beschreibung-anhang-item" style="display: block; margin-top: 5px;">
                                             <span style="font-size: 0.95em; display: block; margin-bottom: 3px;">${anhangIcon} ${anhang.name || 'Unbekannt'}</span>
                                             <audio controls style="width: 100%; height: 35px;" preload="metadata">
                                                 <source src="${embedUrl}" type="${anhang.type}">
+                                                Browser unterstützt Audio nicht (${fileExt}).
                                             </audio>
                                         </div>`;
                             } else {
@@ -1352,8 +1388,7 @@ function zeigeIdeen() {
                 }
 
 
-                // --- AKTUALISIERTER TEIL ---
-                // Hier wird der 'starteAnrufDialog'-Button hinzugefügt
+                // --- AKTUALISIERTER TEIL (📞 Symbol) ---
                 return `<div class="beschreibung-item${beschreibungKlasse}" style="margin-left: ${indentMargin}px; width: ${itemWidth};">
                             <div class="beschreibung-text-zeit">
                                 <span class="beschreibung-zeit">${btsText}</span>${praefix}${sanierterBeschreibungstext}
@@ -1362,7 +1397,7 @@ function zeigeIdeen() {
                             </div>
                             <div class="beschreibung-item-actions">
                                 <button class="edit-beschreibung-btn" title="Bearbeiten" onclick="bearbeiteEinzelneBeschreibung('${id}','${b.timestamp}')">✏️</button>
-                                <button class="add-anhang-beschreibung-btn" title="Anruf starten" onclick="starteAnrufDialog('${id}','${b.timestamp}')">☎️</button>
+                                <button class="add-anhang-beschreibung-btn" title="Anruf starten" onclick="starteAnrufDialog('${id}','${b.timestamp}')">📞</button>
                                 <button class="move-beschreibung-btn" title="Nach oben" onclick="verschiebeBeschreibung('${id}','${b.timestamp}', -1)">⬆️</button>
                                 <button class="move-beschreibung-btn" title="Nach unten" onclick="verschiebeBeschreibung('${id}','${b.timestamp}', 1)">⬇️</button>
                                 <button class="move-beschreibung-btn" title="Ausrücken" onclick="aendereEinrueckungBeschreibung('${id}','${b.timestamp}', -1)" ${indentLevel === 0 ? 'disabled' : ''}>⬅️</button>
@@ -1380,7 +1415,7 @@ function zeigeIdeen() {
         }</div>` : "";
 
         let erinnerungHtml = "";
-        // ... (Logik für Haupt-Erinnerung bleibt unverändert) ...
+        // ... (Logik für Haupt-Erinnerung) ...
         if (idee.erinnerung && idee.erinnerung.aktiv) {
             let erinnerungText = `🔔 Erinnerung: ${getFormattedDate(idee.erinnerung.termin)}`;
             if (idee.erinnerung.intervallTyp !== 'einmalig') {
@@ -1398,11 +1433,12 @@ function zeigeIdeen() {
         const sanierterIdeeText = (idee.text || 'Ohne Titel').replace(/</g, "&lt;").replace(/>/g, "&gt;");
         const sanierterIdeeDetails = (idee.details || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         
-        // ... (Restlicher HTML-Aufbau bleibt unverändert) ...
+        // --- AKTUALISIERTER TEIL (Telefonnummern-HTML eingefügt) ---
         return `<div class="idee${erledigt ? ' erledigt' : ''}" data-idee-id="${id}">
                     <div class="idee-content">
                         ${vNumHtml}<h3>${sanierterIdeeText}</h3><p>${sanierterIdeeDetails}</p>
                         ${idee.benutzer ? `<div>Zust.: <b>${idee.benutzer}</b></div>` : ""} ${idee.mandantennummer ? `<div>Mandant: <b>${idee.mandantennummer}</b></div>` : ""} ${idee.firmenname ? `<div>Firma: <b>${idee.firmenname}</b></div>` : ""}
+                        ${telefonNummernHtml}
                         ${beschreibungenHtml}
                         <small>${idee.kategorie || '-'} | ${idee.prioritaet || "-"} | ${datum}</small><br>
                         ${erstellerHtml}
@@ -1422,7 +1458,7 @@ function zeigeIdeen() {
                     <input type="checkbox" class="idee-checkbox" onchange="toggleAuswahl('${id}',this)" ${ausgewaehlt.includes(id) ? "checked" : ""}>
                 </div>`;
       } catch (e) {
-        // ... (Error-Handling bleibt unverändert) ...
+        // ... (Error-Handling) ...
         console.error("Fehler beim Darstellen einer Idee (möglicherweise korrupte Daten):", idee, e);
         if (idee && idee.id) {
             return `<div class="idee erledigt" data-idee-id="${id}">
@@ -1703,7 +1739,7 @@ function aendereEinrueckungBeschreibung(ideeId, beschreibungTimestamp, richtung)
     let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
     const ideeIndex = ideen.findIndex(i => i && i.id === ideeId);
     if (ideeIndex === -1) return zeigeWarnung("Idee nicht gefunden.");
-    if (!ideen[ideeEreignisse].beschreibungen || !Array.isArray(ideen[ideeIndex].beschreibungen)) return;
+    if (!ideen[ideeIndex].beschreibungen || !Array.isArray(ideen[ideeIndex].beschreibungen)) return;
     const beschrIndex = ideen[ideeIndex].beschreibungen.findIndex(b => b && b.timestamp === beschreibungTimestamp);
     if (beschrIndex === -1) return zeigeWarnung("Beschreibung nicht gefunden.");
     const aktuellesLevel = ideen[ideeIndex].beschreibungen[beschrIndex].level || 0;
@@ -2314,7 +2350,6 @@ async function teilePerEmail() {
         zeigeWarnung("Speichern fehlgeschlagen (Sitzung abgelaufen?). Der Vermerk wurde lokal gesichert. Bitte melden Sie sich an und versuchen Sie es erneut.", "warnung");
     }
 }
-
 /**
  * Sammelt eine Start-Beschreibung und alle hierarchisch untergeordneten Beschreibungen.
  * @param {string} ideeId Die ID der übergeordneten Idee.
@@ -2836,7 +2871,6 @@ async function kalenderTerminErstellenUndSpeichern() {
         zeigeWarnung("Speichern fehlgeschlagen (Sitzung abgelaufen?). Der Vermerk wurde lokal gesichert. Bitte melden Sie sich an und versuchen Sie es erneut.", "warnung");
     }
 }
-
 
 async function initialisiereUndStarteBenachrichtigungspruefung() {
     if (!("Notification" in window)) {
