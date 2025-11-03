@@ -1087,19 +1087,10 @@ async function speichereIdee() {
             zeigeWarnung("Lade Dateien hoch...", 'info');
             try {
                 neuHochgeladeneDateien = await Promise.all(Array.from(fileInput.files).map(async f => {
-                    // *** AUDIO-FIX: uploadToOneDrive gibt jetzt {link, downloadUrl} zurück ***
-                    const uploadResult = await uploadToOneDrive(f); 
-                    if (!uploadResult) return null;
-                    return { 
-                        id: generateUUID(), 
-                        name: f.name, 
-                        link: uploadResult.link, // Vorschau-Link (webUrl)
-                        downloadUrl: uploadResult.downloadUrl, // Direkter Link
-                        type: f.type, 
-                        sichtbar: true 
-                    };
+                    const link = await uploadToOneDrive(f);
+                    return { id: generateUUID(), name: f.name, link: link, type: f.type, sichtbar: true };
                 }));
-                neuHochgeladeneDateien = neuHochgeladeneDateien.filter(f => f && f.link); // Filtert fehlerhafte Uploads
+                neuHochgeladeneDateien = neuHochgeladeneDateien.filter(f => f && f.link);
                 zeigeWarnung("Upload fertig.", 'success');
             } catch (e) {
                 zeigeWarnung("Upload Fehler: " + e.message);
@@ -1110,7 +1101,7 @@ async function speichereIdee() {
                    zeigeWarnung("Dateianhänge sind nur mit Microsoft-Login möglich. Dateien werden lokal vermerkt.", "info");
              }
             neuHochgeladeneDateien = Array.from(fileInput.files).map(f => ({
-                id: generateUUID(), name: f.name, type: f.type, sichtbar: true, isLocal: true, link: null, downloadUrl: null // Github-Uploads haben keine Links
+                id: generateUUID(), name: f.name, type: f.type, sichtbar: true, isLocal: true
             }));
         }
     }
@@ -1132,7 +1123,7 @@ async function speichereIdee() {
 
 /**
  * Speichert eine neue Idee oder aktualisiert eine bestehende.
- * JETZT AKTUALISIERT: Sammelt auch Telefonnummern und 'downloadUrl' für Anhänge.
+ * JETZT AKTUALISIERT: Sammelt auch Telefonnummern.
  */
 function saveIdeeObjekt(text, dateien) {
     let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
@@ -1154,13 +1145,8 @@ function saveIdeeObjekt(text, dateien) {
     });
     // --- ENDE NEUER TEIL ---
 
-    // *** AUDIO-FIX: Speichert jetzt 'downloadUrl' zusätzlich zu 'link' ***
     const prozessierteDateien = dateien.filter(d => d && d.id).map(d => ({
-        id: d.id, 
-        name: d.name, 
-        link: d.link || null, // Der Vorschau-Link (webUrl)
-        downloadUrl: d.downloadUrl || null, // Der direkte Download-Link
-        type: d.type,
+        id: d.id, name: d.name, link: d.link || null, type: d.type,
         sichtbar: typeof d.sichtbar === 'boolean' ? d.sichtbar : true
     }));
     
@@ -1182,7 +1168,7 @@ function saveIdeeObjekt(text, dateien) {
             erinnerung.titel = text; 
             erinnerung.vorgangsnummer = old.vorgangsnummer;
 
-            // 'telefonNummern' und 'prozessierteDateien' (mit downloadUrl) zum Update-Objekt hinzugefügt
+            // 'telefonNummern' zum Update-Objekt hinzugefügt
             ideen[idx] = { ...old, text, details: finalDetails, kategorie: kat, prioritaet, mandantennummer: mnr, telefonNummern: telefonNummern, firmenname: firma, benutzer: user, dateien: prozessierteDateien, erinnerung: erinnerung };
             localStorage.setItem("ideen", JSON.stringify(ideen));
             bearbeiteId = null; 
@@ -1205,7 +1191,7 @@ function saveIdeeObjekt(text, dateien) {
             telefonNummern: telefonNummern, // 'telefonNummern' beim Erstellen hinzugefügt
             firmenname: firma, 
             benutzer: user, 
-            dateien: prozessierteDateien, // Enthält jetzt 'downloadUrl'
+            dateien: prozessierteDateien, 
             timestamp: new Date().toISOString(), 
             erledigt: false, 
             beschreibungen: [], 
@@ -1242,7 +1228,7 @@ function saveIdeeObjekt(text, dateien) {
 
 /**
  * Stellt die Liste der Ideen auf der Seite dar.
- * JETZT AKTUALISIERT: Fügt den Anruf-Button (☎️) hinzu UND nutzt 'downloadUrl' für Audio-Player.
+ * JETZT AKTUALISIERT: Fügt den Anruf-Button (☎️) bei Beschreibungen hinzu.
  */
 function zeigeIdeen() {
     let fIdeen = [];
@@ -1251,6 +1237,7 @@ function zeigeIdeen() {
 
     let filtered = fIdeen.filter(i => i && i.id); 
 
+    // ... (Filter- und Sortierlogik bleibt unverändert) ...
     const fKat=document.getElementById("filterKategorie")?.value;if(fKat)filtered=filtered.filter(i=>i.kategorie===fKat);
     filterMandantValue=document.getElementById("filterMandant")?.value;if(filterMandantValue)filtered=filtered.filter(i=>(i.mandantennummer||"").toLowerCase()===filterMandantValue.toLowerCase());
     filterBenutzerValue=document.getElementById("filterBenutzer")?.value;if(filterBenutzerValue)filtered=filtered.filter(i=>(i.benutzer||"").toLowerCase()===filterBenutzerValue.toLowerCase());
@@ -1270,49 +1257,38 @@ function zeigeIdeen() {
 
         let dateiHtml = "";
         if (idee.dateien && idee.dateien.length > 0) {
+            // ... (Datei-HTML-Logik bleibt unverändert) ...
             dateiHtml = idee.dateien.filter(f => f && f.id).map(f => {
-                // *** AUDIO-FIX: 'url' ist der Vorschau-Link, 'downloadUrl' der direkte Link ***
-                const url = f.link || '#'; // webUrl (Vorschau-Seite)
-                const downloadUrl = f.downloadUrl; // @microsoft.graph.downloadUrl (Direkt-Link)
-                const istSichtbar = f.sichtbar === true; 
-                const anhangKlasse = istSichtbar ? "" : " anhang-veraltet"; 
-                const anhangPraefix = istSichtbar ? "" : "[Veraltet] ";
-                const icon = (f.link || f.downloadUrl) ? '🌐' : '📎'; 
-                const buttonSymbol = istSichtbar ? '👁️' : '🙈'; 
-                const buttonTitle = istSichtbar ? 'Anhang ausblenden' : 'Anhang einblenden';
+                const url = f.link || '#'; const istSichtbar = f.sichtbar === true; const anhangKlasse = istSichtbar ? "" : " anhang-veraltet"; const anhangPraefix = istSichtbar ? "" : "[Veraltet] ";
+                const icon = f.link ? '🌐' : '📎'; const buttonSymbol = istSichtbar ? '👁️' : '🙈'; const buttonTitle = istSichtbar ? 'Anhang ausblenden' : 'Anhang einblenden';
                 
                 let anhangElementHtml = '';
 
-                // *** AUDIO-FIX: Prüft auf 'downloadUrl' statt 'link' für den Player ***
-                if (f.type && f.type.startsWith('audio/') && downloadUrl) {
-                    // --- AUDIO-PLAYER-LOGIK ---
+                // --- NEUE AUDIO-PLAYER-LOGIK ---
+                // Prüft, ob der Anhang-Typ mit 'audio/' beginnt UND ob es ein umwandelbarer OneDrive-Link ist
+                if (f.type && f.type.startsWith('audio/') && f.link && f.link.includes('onedrive.live.com/redir?')) {
+                    // Wandle den OneDrive 'view' Link (redir?) in einen 'embed' Link um
+                    const embedUrl = f.link.replace('/redir?', '/embed?');
+                    
                     anhangElementHtml = `
                         <div style="margin-bottom: 5px; width: 100%;">
-                            <a class="datei-link" href="${url}" target="_blank" title="Vorschau-Seite öffnen: ${f.name || ''}" style="font-size: 0.9em; font-weight: bold; display: block; margin-bottom: 3px;">
+                            <span class="datei-info" style="font-size: 0.9em; font-weight: bold; display: block; margin-bottom: 3px;">
                                 ${icon} ${anhangPraefix}${f.name || 'Unbekannt'}
-                            </a>
+                            </span>
                             <audio controls style="width: 100%; height: 40px;" preload="metadata">
-                                <source src="${downloadUrl}" type="${f.type}">
+                                <source src="${embedUrl}" type="${f.type}">
                                 Ihr Browser unterstützt dieses Audio-Format nicht.
                             </audio>
                         </div>
                     `;
-                } else if (f.type && f.type.startsWith('image/') && downloadUrl) {
-                     // --- BILD-VORSCHAU-LOGIK ---
-                    anhangElementHtml = `
-                        <a class="datei-link" href="${url}" target="_blank" title="Vorschau-Seite öffnen: ${f.name || ''}" style="font-size: 0.9em; font-weight: bold; display: block; margin-bottom: 3px;">
-                            ${icon} ${anhangPraefix}${f.name || 'Unbekannt'}
-                        </a>
-                        <img src="${downloadUrl}" style="max-width: 100%; height: auto; max-height: 150px; border-radius: 4px; margin-top: 3px;" alt="Vorschau">
-                    `;
                 } else {
-                    // --- FALLBACK (LINK) ---
-                    // Zeigt den klickbaren Vorschau-Link
+                    // Fallback: Die Bisherige-Link-Anzeige für alle anderen Dateitypen
                     anhangElementHtml = `
                         <a class="datei-link" href="${url}" target="_blank" title="${f.name || ''}">${icon} ${anhangPraefix}${f.name || 'Unbekannt'}</a>
-                        <span class="datei-info" style="font-size:0.8em; color: #555; margin-left: 5px;"> (${(f.link || f.downloadUrl) ? 'OneDrive' : 'Lokal'})</span>
+                        <span class="datei-info" style="font-size:0.8em; color: #555; margin-left: 5px;"> (${f.link ? 'OneDrive' : 'Lokal'})</span>
                     `;
                 }
+                // --- ENDE NEUE LOGIK ---
 
                 return `<div class="anhang-eintrag${anhangKlasse}" style="margin-bottom: 3px; display: flex; align-items: center; flex-wrap: wrap;">
                             <div style="flex-grow: 1; min-width: 200px; max-width: 100%;">${anhangElementHtml}</div>
@@ -1325,6 +1301,7 @@ function zeigeIdeen() {
 
         const beschreibungenHtml = idee.beschreibungen?.length ? `<div class="beschreibung-historie"><b>Weitere Beschr.:</b>${
             idee.beschreibungen.filter(b => b && b.text !== undefined).map(b => {
+                // ... (Logik für Beschreibungstext, Anhänge, Erinnerungen bleibt unverändert) ...
                 const autorInfo = b.autor ? ` von <b>${b.autor.replace(/</g, "&lt;")}</b>` : "";
                 let btsText = `${getFormattedDate(b.timestamp)}${autorInfo}`; 
                 
@@ -1337,36 +1314,25 @@ function zeigeIdeen() {
                 if (b.attachments && b.attachments.length > 0) {
                     beschreibungAnhaengeHtml = `<div class="beschreibung-anhaenge">${
                         b.attachments.map(anhang => {
-                            // *** AUDIO-FIX: 'anhangUrl' ist Vorschau, 'anhangDownloadUrl' ist Direkt-Link ***
-                            const anhangUrl = anhang.link || '#'; // webUrl
-                            const anhangDownloadUrl = anhang.downloadUrl; // downloadUrl
-                            const anhangIcon = (anhang.link || anhang.downloadUrl) ? '🌐' : '📎';
+                            const anhangUrl = anhang.link || '#';
+                            const anhangIcon = anhang.link ? '🌐' : '📎';
 
-                            // *** AUDIO-FIX: Prüft auf 'anhangDownloadUrl' für den Player ***
-                            if (anhang.type && anhang.type.startsWith('audio/') && anhangDownloadUrl) {
-                                // --- AUDIO-PLAYER-LOGIK (BESCHR.) ---
+                            // --- NEUE AUDIO-PLAYER-LOGIK (BESCHR.) ---
+                            if (anhang.type && anhang.type.startsWith('audio/') && anhangUrl.includes('onedrive.live.com/redir?')) {
+                                const embedUrl = anhangUrl.replace('/redir?', '/embed?');
                                 return `<div class="beschreibung-anhang-item" style="display: block; margin-top: 5px;">
-                                            <a href="${anhangUrl}" target="_blank" title="Vorschau-Seite öffnen: ${anhang.name || ''}" style="font-size: 0.95em; display: block; margin-bottom: 3px;">
-                                                ${anhangIcon} ${anhang.name || 'Unbekannt'}
-                                            </a>
+                                            <span style="font-size: 0.95em; display: block; margin-bottom: 3px;">${anhangIcon} ${anhang.name || 'Unbekannt'}</span>
                                             <audio controls style="width: 100%; height: 35px;" preload="metadata">
-                                                <source src="${anhangDownloadUrl}" type="${anhang.type}">
+                                                <source src="${embedUrl}" type="${anhang.type}">
                                             </audio>
                                         </div>`;
-                            } else if (anhang.type && anhang.type.startsWith('image/') && anhangDownloadUrl) {
-                                // --- BILD-VORSCHAU-LOGIK (BESCHR.) ---
-                                 return `<div class="beschreibung-anhang-item" style="display: block; margin-top: 5px;">
-                                            <a href="${anhangUrl}" target="_blank" title="Vorschau-Seite öffnen: ${anhang.name || ''}" style="font-size: 0.95em; display: block; margin-bottom: 3px;">
-                                                ${anhangIcon} ${anhang.name || 'Unbekannt'}
-                                            </a>
-                                            <img src="${anhangDownloadUrl}" style="max-width: 100%; height: auto; max-height: 100px; border-radius: 4px; margin-top: 3px;" alt="Vorschau">
-                                        </div>`;
                             } else {
-                                // --- FALLBACK (LINK) ---
+                                // Fallback: Bisherige-Link-Anzeige
                                 return `<div class="beschreibung-anhang-item">
                                             <a href="${anhangUrl}" target="_blank" title="${anhang.name || ''}">${anhangIcon} ${anhang.name || 'Unbekannt'}</a>
                                         </div>`;
                             }
+                            // --- ENDE NEUE LOGIK (BESCHR.) ---
                         }).join('')
                     }</div>`;
                 }
@@ -1386,6 +1352,8 @@ function zeigeIdeen() {
                 }
 
 
+                // --- AKTUALISIERTER TEIL ---
+                // Hier wird der 'starteAnrufDialog'-Button hinzugefügt
                 return `<div class="beschreibung-item${beschreibungKlasse}" style="margin-left: ${indentMargin}px; width: ${itemWidth};">
                             <div class="beschreibung-text-zeit">
                                 <span class="beschreibung-zeit">${btsText}</span>${praefix}${sanierterBeschreibungstext}
@@ -1407,10 +1375,12 @@ function zeigeIdeen() {
                                 <button class="toggle-beschreibung-sichtbarkeit-btn" title="${sichtbarkeitButtonTitle}" onclick="toggleBeschreibungSichtbarkeit('${id}', '${b.timestamp}')">${sichtbarkeitButtonSymbol}</button>
                             </div>
                         </div>`;
+                // --- ENDE AKTUALISIERTER TEIL ---
             }).join("")
         }</div>` : "";
 
         let erinnerungHtml = "";
+        // ... (Logik für Haupt-Erinnerung bleibt unverändert) ...
         if (idee.erinnerung && idee.erinnerung.aktiv) {
             let erinnerungText = `🔔 Erinnerung: ${getFormattedDate(idee.erinnerung.termin)}`;
             if (idee.erinnerung.intervallTyp !== 'einmalig') {
@@ -1428,6 +1398,7 @@ function zeigeIdeen() {
         const sanierterIdeeText = (idee.text || 'Ohne Titel').replace(/</g, "&lt;").replace(/>/g, "&gt;");
         const sanierterIdeeDetails = (idee.details || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         
+        // ... (Restlicher HTML-Aufbau bleibt unverändert) ...
         return `<div class="idee${erledigt ? ' erledigt' : ''}" data-idee-id="${id}">
                     <div class="idee-content">
                         ${vNumHtml}<h3>${sanierterIdeeText}</h3><p>${sanierterIdeeDetails}</p>
@@ -1451,6 +1422,7 @@ function zeigeIdeen() {
                     <input type="checkbox" class="idee-checkbox" onchange="toggleAuswahl('${id}',this)" ${ausgewaehlt.includes(id) ? "checked" : ""}>
                 </div>`;
       } catch (e) {
+        // ... (Error-Handling bleibt unverändert) ...
         console.error("Fehler beim Darstellen einer Idee (möglicherweise korrupte Daten):", idee, e);
         if (idee && idee.id) {
             return `<div class="idee erledigt" data-idee-id="${id}">
@@ -1466,6 +1438,7 @@ function zeigeIdeen() {
                         </div>`;
         }
         return ""; 
+      
       }
     }).join("");
 
@@ -1491,7 +1464,7 @@ function toggleErledigt(id){
 
 /**
  * Öffnet eine Idee zum Bearbeiten im oberen Formular.
- * JETZT AKTUALISIERT: Füllt Telefonnummern und nutzt 'downloadUrl' für Vorschauen.
+ * JETZT AKTUALISIERT: Füllt auch die Telefonnummern-Felder.
  */
 function bearbeiteIdee(id){
     const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");
@@ -1507,6 +1480,7 @@ function bearbeiteIdee(id){
     setzePrioritaet(idee.prioritaet||"");
     bearbeiteId=id;
 
+    // --- NEUER TEIL ---
     // Füllt die Telefonnummern-Eingabefelder für die Bearbeitung
     const telContainer = document.getElementById("telefonNummerContainer");
     telContainer.innerHTML = ''; // Zuerst leeren
@@ -1518,45 +1492,22 @@ function bearbeiteIdee(id){
             addTelefonNummerInput(tel.bezeichnung, tel.nummer);
         });
     }
+    // --- ENDE NEUER TEIL ---
 
     const v=document.getElementById("dateiVorschau");
     v.innerHTML="";
     if(idee.dateien){
-        // *** AUDIO-FIX: Zeigt jetzt Vorschau basierend auf 'downloadUrl' an ***
         idee.dateien.filter(f=>f&&f.id).forEach(f=>{
-            const previewLink = f.link || '#'; // Der klickbare Link zur OD Vorschau-Seite
-            const istVeraltet = f.sichtbar===false; 
-            
-            let previewHtml = '';
-            // Priorisiere downloadUrl für die direkte Anzeige von Medien
-            if (f.type?.startsWith("image/") && f.downloadUrl) {
-                previewHtml = `<img src="${f.downloadUrl}" style="max-height:80px;display:block;margin:auto;object-fit:cover;">`;
-            } else if (f.type==="application/pdf" && f.downloadUrl) {
-                // PDF-Vorschau in 'bearbeiteIdee' kann problematisch sein, Fallback auf Icon
-                 previewHtml = `<span style="font-size:2em;display:block;">📄</span>`;
-            } else if (f.type?.startsWith("audio/") && f.downloadUrl) {
-                // Zeigt Audio-Player auch in der Vorschau an
-                previewHtml = `<audio controls style="width: 100%; height: 40px;" preload="none">
-                                <source src="${f.downloadUrl}" type="${f.type}">
-                               </audio>`;
+            const url=f.link;
+            if(url){
+                const istVeraltet = f.sichtbar===false; 
+                v.innerHTML+=`<div style="display:inline-block;margin:5px;text-align:center;max-width:150px;vertical-align:top; ${istVeraltet?'opacity:0.6;':''}"><a href="${url}" target="_blank" title="${f.name}" style="${istVeraltet?'text-decoration:line-through;':''}">${f.type?.startsWith("image/")?'<img src="'+url+'" style="max-height:80px;display:block;margin:auto;object-fit:cover;">':''}${f.type==="application/pdf"?'<iframe src="'+url+'" style="width:100%;height:80px;border:1px solid #ccc;"></iframe>':''}${!f.type?.startsWith("image/")&&f.type!=="application/pdf"?'<span style="font-size:2em;display:block;">'+(f.link?'🌐':'📎')+'</span>':''}<span style="font-size:.8em;word-break:break-all;display:block;">${f.name}</span></a><div style="font-size:.7em;color:grey;">${f.link?'OneDrive':'Lokal'} (${f.sichtbar?'Sichtbar':'Veraltet'})</div></div>`
             }
-            else {
-                // Fallback für andere Typen oder wenn downloadUrl fehlt
-                previewHtml = `<span style="font-size:2em;display:block;">${(f.link || f.downloadUrl) ? '🌐' : '📎'}</span>`;
-            }
-
-            v.innerHTML+=`<div style="display:inline-block;margin:5px;text-align:center;max-width:150px;vertical-align:top; ${istVeraltet?'opacity:0.6;':''}">
-                <a href="${previewLink}" target="_blank" title="${f.name}" style="${istVeraltet?'text-decoration:line-through;':''}">
-                    ${previewHtml}
-                    <span style="font-size:.8em;word-break:break-all;display:block;">${f.name}</span>
-                </a>
-                <div style="font-size:.7em;color:grey;">${(f.link || f.downloadUrl)?'OneDrive':'Lokal'} (${f.sichtbar?'Sichtbar':'Veraltet'})</div>
-            </div>`;
         });
     }
     document.getElementById("speichernBtn").textContent="💾 Aktualisieren";
     document.getElementById("abbrechenBtn").style.display="";
-    istGespeichert=false;
+    istGespeichert=false
 }
 
 /**
@@ -1589,6 +1540,7 @@ function loescheIdee(id){if(!confirm("Wirklich löschen?"))return;let ideen=JSON
 
 function zeigeBeschreibungDialog(id,ts=null){beschreibungFuerId=id;beschreibungZuBearbeitenderTimestamp=ts;const area=document.getElementById("beschreibungText");if(ts!==null){const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idee=ideen.find(i=>i&&i.id===id);const desc=idee?.beschreibungen?.find(b=>b&&b.timestamp===ts);if(desc)area.value=desc.text;else{zeigeWarnung("Fehler: Beschreibung nicht gefunden.");beschreibungAbbrechen();return}}else{area.value=""}document.getElementById("beschreibungDialog").style.display="block";area.focus();istGespeichert=false}
 function beschreibungAbbrechen(){document.getElementById("beschreibungDialog").style.display="none";beschreibungFuerId=null;beschreibungZuBearbeitenderTimestamp=null;document.getElementById("beschreibungText").value="";}
+
 function beschreibungSpeichern(){
     let t = document.getElementById("beschreibungText").value;
     const MAX_DESC_LENGTH = 10000; 
@@ -1612,6 +1564,7 @@ function beschreibungSpeichern(){
             const ts=new Date().toISOString()+'_'+Math.random().toString(36).substr(2,9);
             if(!ideen[idx].beschreibungen) ideen[idx].beschreibungen=[];
             
+            // NEU: Autor der Beschreibung speichern
             const neueBeschreibung = {
                 text:t, 
                 timestamp:ts, 
@@ -1659,16 +1612,8 @@ async function handleBeschreibungAnhangUpload(event) {
     if (currentLoginType === 'microsoft' && accessToken) {
         try {
             neueAnhaenge = await Promise.all(Array.from(files).map(async f => {
-                // *** AUDIO-FIX: Holt beide Links ***
-                const uploadResult = await uploadToOneDrive(f);
-                if (!uploadResult) return null;
-                return { 
-                    id: generateUUID(), 
-                    name: f.name, 
-                    link: uploadResult.link, 
-                    downloadUrl: uploadResult.downloadUrl, 
-                    type: f.type 
-                };
+                const link = await uploadToOneDrive(f);
+                return { id: generateUUID(), name: f.name, link: link, type: f.type };
             }));
             neueAnhaenge = neueAnhaenge.filter(f => f && f.link);
         } catch (e) {
@@ -1680,7 +1625,7 @@ async function handleBeschreibungAnhangUpload(event) {
             zeigeWarnung("Dateianhänge sind nur mit Microsoft-Login möglich. Dateien werden lokal vermerkt.", "info");
         }
         neueAnhaenge = Array.from(files).map(f => ({
-            id: generateUUID(), name: f.name, link: null, downloadUrl: null, type: f.type
+            id: generateUUID(), name: f.name, link: null, type: f.type
         }));
     }
 
@@ -1706,7 +1651,6 @@ async function handleBeschreibungAnhangUpload(event) {
         ideen[ideeIndex].beschreibungen[beschreibungIndex].attachments = [];
     }
     
-    // *** AUDIO-FIX: Fügt Anhänge mit 'downloadUrl' hinzu ***
     ideen[ideeIndex].beschreibungen[beschreibungIndex].attachments.push(...neueAnhaenge);
 
     localStorage.setItem("ideen", JSON.stringify(ideen));
@@ -1759,7 +1703,7 @@ function aendereEinrueckungBeschreibung(ideeId, beschreibungTimestamp, richtung)
     let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
     const ideeIndex = ideen.findIndex(i => i && i.id === ideeId);
     if (ideeIndex === -1) return zeigeWarnung("Idee nicht gefunden.");
-    if (!ideen[ideeIndex].beschreibungen || !Array.isArray(ideen[ideeIndex].beschreibungen)) return;
+    if (!ideen[ideeEreignisse].beschreibungen || !Array.isArray(ideen[ideeIndex].beschreibungen)) return;
     const beschrIndex = ideen[ideeIndex].beschreibungen.findIndex(b => b && b.timestamp === beschreibungTimestamp);
     if (beschrIndex === -1) return zeigeWarnung("Beschreibung nicht gefunden.");
     const aktuellesLevel = ideen[ideeIndex].beschreibungen[beschrIndex].level || 0;
@@ -2024,9 +1968,7 @@ function exportiereAlsText() {
                       textContent += `${indentSpaces}- [${getFormattedDate(b.timestamp)}]${autorText} ${praefix}${b.text}\n`;
                       if (b.attachments && b.attachments.length > 0) {
                           b.attachments.forEach(anhang => {
-                               // *** AUDIO-FIX: Nutzt 'link' (Vorschau) oder 'downloadUrl' (Direkt) wenn 'link' fehlt ***
-                               const anhangLink = anhang.link || anhang.downloadUrl;
-                               textContent += `${indentSpaces}      -> Anhang: ${anhang.name} ${anhangLink ? `(${anhangLink})` : '(Lokal)'}\n`;
+                               textContent += `${indentSpaces}      -> Anhang: ${anhang.name} ${anhang.link ? `(${anhang.link})` : '(Lokal)'}\n`;
                           });
                       }
                       if (b.erinnerung && b.erinnerung.termin) {
@@ -2042,9 +1984,7 @@ function exportiereAlsText() {
                  if (!f || !f.id) return;
                 const praefix = f.sichtbar === false ? "[Veraltet] " : "";
                 textContent += `  - Name: ${praefix}${f.name || 'Unbekannt'}\n`;
-                // *** AUDIO-FIX: Nutzt 'link' (Vorschau) oder 'downloadUrl' (Direkt) wenn 'link' fehlt ***
-                const anhangLink = f.link || f.downloadUrl;
-                if (anhangLink) { textContent += `    Link: ${anhangLink}\n`; }
+                if (f.link) { textContent += `    Link: ${f.link}\n`; }
                 else { textContent += `    (Lokale Datei)\n`; }
             });
         }
@@ -2124,8 +2064,7 @@ function exportiereAlsPDF(fileName = "ideen-export.pdf") {
         const lines = doc.splitTextToSize(text || "N/A", maxWidth);
         for (let i = 0; i < lines.length; i++) {
             checkAddPage(lineHeight);
-            // *** AUDIO-FIX: Verwendet options.link (was der Vorschau-Link sein sollte) ***
-            if (options.link && i === 0) { 
+            if (options.link && i === 0) {
                 const textWidth = doc.getTextWidth(lines[i]);
                 const charHeight = doc.getFontSize() / doc.internal.scaleFactor;
                 doc.text(lines[i], x, yPosition);
@@ -2217,7 +2156,6 @@ function exportiereAlsPDF(fileName = "ideen-export.pdf") {
                     if(b.attachments && b.attachments.length > 0) {
                         checkAddPage(defaultLineSpacing);
                         b.attachments.forEach(anhang => {
-                            // *** AUDIO-FIX: Nutzt 'link' (Vorschau) als klickbaren Link ***
                             const anhangText = `         -> ${anhang.name}`;
                             const anhangColor = anhang.link ? [0, 0, 238] : [0,0,0];
                             addWrappedText(anhangText, startX + 5, maxWidth - 5, {fontSize: 9, color: anhangColor, lineHeight: 4, link: anhang.link});
@@ -2259,15 +2197,13 @@ function exportiereAlsPDF(fileName = "ideen-export.pdf") {
                 const textY = yPosition;
                 const charHeight = doc.getFontSize() / doc.internal.scaleFactor;
 
-                // *** AUDIO-FIX: Nutzt 'link' (Vorschau) als klickbaren Link ***
-                const anhangLink = f.link;
-                if (anhangLink) {
+                if (f.link) {
                     const linkColor = istVeraltet ? [128, 128, 128] : [0, 0, 238];
                     doc.setTextColor(linkColor[0], linkColor[1], linkColor[2]);
                     doc.text(anhangTextMitKomma, currentX, textY);
                     doc.setDrawColor(linkColor[0], linkColor[1], linkColor[2]);
                     doc.line(currentX, textY + 1, currentX + nameWidthForLink, textY + 1); 
-                    doc.link(currentX, textY - charHeight + 1, nameWidthForLink, charHeight, { url: anhangLink });
+                    doc.link(currentX, textY - charHeight + 1, nameWidthForLink, charHeight, { url: f.link });
                     doc.setTextColor(0, 0, 0); 
                 } else {
                     const textColor = istVeraltet ? [128, 128, 128] : [0, 0, 0];
@@ -2479,7 +2415,6 @@ async function teileBeschreibungPerEmail(ideeId, beschreibungTimestamp) {
                 emailBody += `${indentSpaces}  Zugehörige Anhänge:\n`;
                 beschreibung.attachments.forEach(anhang => {
                     emailBody += `${indentSpaces}  - ${anhang.name}`;
-                    // *** AUDIO-FIX: Nutzt 'link' (Vorschau) als klickbaren Link ***
                     if (anhang.link) {
                         emailBody += `\n${indentSpaces}    Link: ${anhang.link}\n`;
                     } else {
@@ -2551,7 +2486,6 @@ function generiereIdeenTextKomplett(idee, format = 'text', maxLaenge = null) {
 
     // 3. Haupt-Anhänge
     if (idee.dateien && idee.dateien.length > 0) {
-        // *** AUDIO-FIX: Nutzt 'link' (Vorschau) als klickbaren Link ***
         let sichtbareDateien = idee.dateien.filter(f => f && f.id && f.sichtbar !== false && f.link);
         if (sichtbareDateien.length > 0) {
             content += `${nl}${italicStart}Anhänge (Haupt):${italicEnd}${nl}`;
@@ -2572,7 +2506,6 @@ function generiereIdeenTextKomplett(idee, format = 'text', maxLaenge = null) {
                 content += `${nl}${indentSpaces}- [${getFormattedDate(b.timestamp)}]${autorText}:${nl}${indentSpaces}  ${b.text.replace(/\n/g, `\n${indentSpaces}  `)}${nl}`;
                 
                 if (b.attachments && b.attachments.length > 0) {
-                    // *** AUDIO-FIX: Nutzt 'link' (Vorschau) als klickbaren Link ***
                     let sichtbareAnhaenge = b.attachments.filter(a => a && a.link);
                     if (sichtbareAnhaenge.length > 0) {
                          content += `${indentSpaces}  ${italicStart}Zugehörige Anhänge:${italicEnd}${nl}`;
@@ -2694,7 +2627,6 @@ async function teileBeschreibungPerWhatsApp(ideeId, beschreibungTimestamp) {
                 text += `${indentSpaces}  *Anhänge:*\n`;
                 beschreibung.attachments.forEach(anhang => {
                     text += `${indentSpaces}  - ${anhang.name}`;
-                    // *** AUDIO-FIX: Nutzt 'link' (Vorschau) als klickbaren Link ***
                     if (anhang.link) {
                         text += `\n${indentSpaces}    Link: ${anhang.link}\n`;
                     } else {
@@ -2870,7 +2802,6 @@ async function kalenderTerminErstellenUndSpeichern() {
                 terminBeschreibungText += `${indentSpaces}  Zugehörige Anhänge:\n`;
                 beschreibung.attachments.forEach(anhang => {
                     terminBeschreibungText += `${indentSpaces}  - ${anhang.name}`;
-                    // *** AUDIO-FIX: Nutzt 'link' (Vorschau) als klickbaren Link ***
                     if (anhang.link) { terminBeschreibungText += `\n${indentSpaces}    Link: ${anhang.link}\n`; } 
                     else { terminBeschreibungText += ` (Lokale Datei)\n`; }
                 });
@@ -3035,121 +2966,76 @@ function pruefeUndZeigeBenachrichtigungen() {
     }
 }
 
-/**
- * Lädt eine Datei auf OneDrive hoch.
- * JETZT AKTUALISIERT: Ruft explizit den Vorschau-Link (webUrl) UND
- * den Direkt-Download-Link (@microsoft.graph.downloadUrl) ab.
- * @param {File} file - Die hochzuladende Datei.
- * @returns {Promise<{link: string, downloadUrl: string}|null>} Ein Objekt mit beiden Links oder null bei Fehler.
- */
 async function uploadToOneDrive(file) {
     if (currentLoginType !== 'microsoft') {
         zeigeWarnung("Bitte zuerst mit Microsoft anmelden!");
         return null;
     }
-    
-    // Hilfsfunktion, um Token zu prüfen und ggf. zu erneuern
-    const ensureValidToken = async () => {
-        if (!(await getValidToken(true))) { // Interaktiven Refresh erzwingen
-            throw new Error("Sitzung konnte nicht erneuert werden. Upload abgebrochen.");
-        }
-        return accessToken;
-    };
-
     try {
-        let currentToken = await ensureValidToken();
         const fileName = `ideenapp/${Date.now()}_${file.name}`;
         
-        // --- 1. UPLOAD ---
-        const uploadUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/${fileName}:/content`;
-        let uploadResponse = await fetch(uploadUrl, {
+        // --- UPLOAD VERSUCH ---
+        let uploadUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/${fileName}:/content`;
+        let uploadOptions = {
             method: "PUT",
-            headers: { "Authorization": `Bearer ${currentToken}`, "Content-Type": file.type },
+            headers: { "Authorization": `Bearer ${accessToken}`, "Content-Type": file.type },
             body: file
-        });
+        };
+        let uploadResponse = await fetch(uploadUrl, uploadOptions);
 
-        if (uploadResponse.status === 401) { // Token abgelaufen
-            console.log("Token während Upload abgelaufen. Erneuere...");
-            currentToken = await ensureValidToken(); // Erneuten interaktiven Refresh erzwingen
-            uploadResponse = await fetch(uploadUrl, { // Upload wiederholen
-                method: "PUT",
-                headers: { "Authorization": `Bearer ${currentToken}`, "Content-Type": file.type },
-                body: file
-            });
+        // --- TOKEN REFRESH LOGIK ---
+        if (uploadResponse.status === 401) {
+            console.log("Token während des Uploads abgelaufen. Versuche interaktive Erneuerung...");
+            const newToken = await getValidToken(true); // Interaktiven Refresh erzwingen
+            if (newToken) {
+                console.log("Token erneuert. Wiederhole den Upload...");
+                uploadOptions.headers["Authorization"] = `Bearer ${newToken}`; 
+                uploadResponse = await fetch(uploadUrl, uploadOptions); 
+            } else {
+                console.error("Token-Erneuerung fehlgeschlagen. Breche Upload ab.");
+                return null;
+            }
         }
 
         const uploadData = await uploadResponse.json();
         if (!uploadResponse.ok) {
             throw new Error(`OneDrive Upload Fehler ${uploadResponse.status}: ${uploadData?.error?.message || 'Unbekannt'}`);
         }
-        
-        const itemId = uploadData.id;
-        if (!itemId) {
-            throw new Error("Keine Item-ID nach Upload erhalten.");
-        }
 
-        // --- 2. VORSCHAU-LINK (webUrl) ERSTELLEN ---
-        const linkUrl = `https://graph.microsoft.com/v1.0/me/drive/items/${itemId}/createLink`;
-        let linkResponse = await fetch(linkUrl, {
+        // --- LINK ERSTELLEN VERSUCH ---
+        let linkUrl = `https://graph.microsoft.com/v1.0/me/drive/items/${uploadData.id}/createLink`;
+        let linkOptions = {
             method: "POST",
-            headers: { "Authorization": `Bearer ${currentToken}`, "Content-Type": "application/json" },
+            headers: { "Authorization": `Bearer ${accessToken}`, "Content-Type": "application/json" },
             body: JSON.stringify({ type: "view", scope: "anonymous" })
-        });
+        };
+        let linkResponse = await fetch(linkUrl, linkOptions);
         
-        if (linkResponse.status === 401) { // Token unwahrscheinlich, aber sicher ist sicher
-            console.log("Token während Link-Erstellung abgelaufen. Erneuere...");
-            currentToken = await ensureValidToken();
-            linkResponse = await fetch(linkUrl, { // Link-Erstellung wiederholen
-                method: "POST",
-                headers: { "Authorization": `Bearer ${currentToken}`, "Content-Type": "application/json" },
-                body: JSON.stringify({ type: "view", scope: "anonymous" })
-            });
+        // Es ist unwahrscheinlich, dass das Token zwischen Upload und Link-Erstellung abläuft, aber sicher ist sicher.
+        if (linkResponse.status === 401) {
+             console.log("Token während der Link-Erstellung abgelaufen. Versuche interaktive Erneuerung...");
+             const newToken = await getValidToken(true);
+             if(newToken) {
+                console.log("Token erneuert. Wiederhole die Link-Erstellung...");
+                linkOptions.headers["Authorization"] = `Bearer ${newToken}`;
+                linkResponse = await fetch(linkUrl, linkOptions);
+             } else {
+                console.error("Token-Erneuerung fehlgeschlagen. Breche Link-Erstellung ab.");
+                return null;
+             }
         }
 
         const linkData = await linkResponse.json();
         if (!linkResponse.ok) {
             throw new Error(`OneDrive Link Fehler ${linkResponse.status}: ${linkData?.error?.message || 'Unbekannt'}`);
         }
-        const webUrl = linkData.link.webUrl; // Der Vorschau-Link
-
-        // --- 3. DIREKT-DOWNLOAD-LINK (downloadUrl) ABFRAGEN ---
-        // Wir fragen die Metadaten des Items erneut ab, um den @microsoft.graph.downloadUrl zu erhalten
-        const itemInfoUrl = `https://graph.microsoft.com/v1.0/me/drive/items/${itemId}?$select=id,@microsoft.graph.downloadUrl`;
-        let itemInfoResponse = await fetch(itemInfoUrl, {
-            method: "GET",
-            headers: { "Authorization": `Bearer ${currentToken}` }
-        });
-
-        if (itemInfoResponse.status === 401) { // Token...
-             console.log("Token während Download-Link-Abfrage abgelaufen. Erneuere...");
-             currentToken = await ensureValidToken();
-             itemInfoResponse = await fetch(itemInfoUrl, { // Abfrage wiederholen
-                method: "GET",
-                headers: { "Authorization": `Bearer ${currentToken}` }
-            });
-        }
-        
-        const itemInfoData = await itemInfoResponse.json();
-        if (!itemInfoResponse.ok) {
-             throw new Error(`OneDrive Item Info Fehler ${itemInfoResponse.status}: ${itemInfoData?.error?.message || 'Unbekannt'}`);
-        }
-        
-        const downloadUrl = itemInfoData["@microsoft.graph.downloadUrl"]; // Der direkte Download-Link
-        
-        if (!webUrl || !downloadUrl) {
-             throw new Error("Konnte nicht beide Links (Vorschau und Download) abrufen.");
-        }
-
-        // Beide Links erfolgreich abgerufen
-        return { link: webUrl, downloadUrl: downloadUrl };
-
+        return linkData.link.webUrl;
     } catch (e) {
         console.error("OneDrive Upload/Link Fehler:", e);
         zeigeWarnung("OneDrive-Fehler: " + e.message);
         return null;
     }
 }
-
 
 async function saveToOneDrive(isManual = false){ 
     if(currentLoginType !== 'microsoft' || !msalInstance) { 
@@ -3389,7 +3275,7 @@ window.addEventListener("beforeunload",function(e){if(!istGespeichert){const msg
 /**
  * Stellt sicher, dass alle Ideen-Objekte die moderne Datenstruktur haben.
  * Führt Migrationen für alte Datenstrukturen durch.
- * JETZT AKTUALISIERT: Fügt 'telefonNummern' UND 'downloadUrl' (für Anhänge) hinzu.
+ * JETZT AKTUALISIERT: Fügt das 'telefonNummern'-Array hinzu, falls es fehlt.
  */
 function ensureIdeasHaveIds() {
     let ideen = [];
@@ -3437,20 +3323,7 @@ function ensureIdeasHaveIds() {
                     if (!b.timestamp || typeof b.timestamp !== 'string') { b.timestamp = new Date().toISOString() + '_' + Math.random().toString(36).substr(2, 9); changed = true; }
                     if (typeof b.level !== 'number' || b.level < 0) { b.level = 0; changed = true; }
                     if (typeof b.sichtbar !== 'boolean') { b.sichtbar = true; changed = true; }
-                    
-                    // *** AUDIO-FIX: Migriert Anhänge in Beschreibungen ***
-                    if (!Array.isArray(b.attachments)) { 
-                        b.attachments = []; 
-                        changed = true; 
-                    } else {
-                        b.attachments.forEach(att => {
-                            if (att && att.downloadUrl === undefined) {
-                                att.downloadUrl = null; // Fügt fehlendes Feld hinzu
-                                changed = true;
-                            }
-                        });
-                    }
-
+                    if (!Array.isArray(b.attachments)) { b.attachments = []; changed = true; }
                     if (!b.erinnerung || typeof b.erinnerung !== 'object') { b.erinnerung = getDefaultErinnerung(); changed = true; }
                 });
                 if (idee.beschreibungen.length < originalLengthDesc) { changed = true; }
@@ -3465,13 +3338,6 @@ function ensureIdeasHaveIds() {
                 if (!datei.id || typeof datei.id !== 'string') { datei.id = generateUUID(); changed = true; }
                 if (typeof datei.sichtbar !== 'boolean') { datei.sichtbar = true; changed = true; }
                 if (datei.link === undefined) { datei.link = null; changed = true; }
-                
-                // *** AUDIO-FIX: Fügt 'downloadUrl' hinzu, falls es fehlt ***
-                if (datei.downloadUrl === undefined) {
-                    datei.downloadUrl = null;
-                    changed = true;
-                }
-
                 if (datei.data) { delete datei.data; changed = true; }
                 if (datei.pfad) { delete datei.pfad; changed = true; }
             });
@@ -3521,11 +3387,13 @@ function ensureIdeasHaveIds() {
             if(erinnerungChanged) changed = true;
         }
 
+        // --- NEUER TEIL ---
         // Stellt sicher, dass das 'telefonNummern'-Array existiert
         if (!Array.isArray(idee.telefonNummern)) {
             idee.telefonNummern = [];
             changed = true;
         }
+        // --- ENDE NEUER TEIL ---
 
         if (idee.benutzer === undefined) { idee.benutzer = ""; changed = true; }
         if (idee.mandantennummer === undefined) { idee.mandantennummer = ""; changed = true; }
@@ -3615,7 +3483,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         initialisiereKategorien();
         initialisiereBenutzer();
         initialisiereVorgangsnummer();
-        ensureIdeasHaveIds(); // Stellt sicher, dass 'telefonNummern' & 'downloadUrl' migriert werden
+        ensureIdeasHaveIds(); // Stellt sicher, dass auch 'telefonNummern' initialisiert wird
         aktualisiereMandantenFilterDropdown();
         zeigeIdeen();
         initialisiereUndStarteBenachrichtigungspruefung();
@@ -3631,8 +3499,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         pruebeLoginHinweis(); 
         
+        // --- NEUER TEIL ---
         // Fügt den Klick-Listener für den "Telefonnummer hinzufügen"-Button hinzu
         document.getElementById('addTelefonNummerBtn').onclick = () => addTelefonNummerInput();
+        // --- ENDE NEUER TEIL ---
         
     } catch (initError) {
         console.error("Fehler während der Initialisierung:", initError);
@@ -3642,4 +3512,5 @@ document.addEventListener('DOMContentLoaded', async () => {
 </script>
 </body>
 </html>
+
 
