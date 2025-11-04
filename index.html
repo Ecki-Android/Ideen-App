@@ -325,7 +325,7 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
         <div class="buttons">
             <button onclick="erinnerungSpeichern()">💾 Speichern</button>
             <button onclick="erinnerungLoeschen()">🗑️ Löschen</button>
-            <button onclick="erinnerungAbbrechen()">❌ Abbrechen</button>
+            <button onclick="beschreibungAbbrechen()">❌ Abbrechen</button>
         </div>
     </div>
 
@@ -402,6 +402,7 @@ let accessToken = null, // Microsoft Access Token
     fileHandle = null, 
     beschreibungFuerId = null, 
     beschreibungZuBearbeitenderTimestamp = null, 
+    beschreibungAntwortAufTimestamp = null, // NEU: Merkt sich die Eltern-Beschreibung für eine Antwort
     istGespeichert = true;
 // NEU: Globale Variable für den Namen des angemeldeten Benutzers
 let aktuellerBenutzerName = null;
@@ -1388,7 +1389,7 @@ function zeigeIdeen() {
                 }
 
 
-                // --- AKTUALISIERTER TEIL (📞 Symbol) ---
+                // --- AKTUALISIERTER TEIL (📞 Symbol UND ↳ Symbol) ---
                 return `<div class="beschreibung-item${beschreibungKlasse}" style="margin-left: ${indentMargin}px; width: ${itemWidth};">
                             <div class="beschreibung-text-zeit">
                                 <span class="beschreibung-zeit">${btsText}</span>${praefix}${sanierterBeschreibungstext}
@@ -1397,6 +1398,7 @@ function zeigeIdeen() {
                             </div>
                             <div class="beschreibung-item-actions">
                                 <button class="edit-beschreibung-btn" title="Bearbeiten" onclick="bearbeiteEinzelneBeschreibung('${id}','${b.timestamp}')">✏️</button>
+                                <button class="add-anhang-beschreibung-btn" title="Antworten" onclick="zeigeBeschreibungAntwortDialog('${id}','${b.timestamp}')">↳</button>
                                 <button class="add-anhang-beschreibung-btn" title="Anruf starten" onclick="starteAnrufDialog('${id}','${b.timestamp}')">📞</button>
                                 <button class="move-beschreibung-btn" title="Nach oben" onclick="verschiebeBeschreibung('${id}','${b.timestamp}', -1)">⬆️</button>
                                 <button class="move-beschreibung-btn" title="Nach unten" onclick="verschiebeBeschreibung('${id}','${b.timestamp}', 1)">⬇️</button>
@@ -1408,6 +1410,7 @@ function zeigeIdeen() {
                                 <button class="add-anhang-beschreibung-btn" title="Per E-Mail teilen" onclick="teileBeschreibungPerEmail('${id}','${b.timestamp}')">✉️</button>
                                 <button class="add-anhang-beschreibung-btn" title="Per WhatsApp teilen" onclick="teileBeschreibungPerWhatsApp('${id}','${b.timestamp}')">📱</button>
                                 <button class="toggle-beschreibung-sichtbarkeit-btn" title="${sichtbarkeitButtonTitle}" onclick="toggleBeschreibungSichtbarkeit('${id}', '${b.timestamp}')">${sichtbarkeitButtonSymbol}</button>
+
                             </div>
                         </div>`;
                 // --- ENDE AKTUALISIERTER TEIL ---
@@ -1574,8 +1577,48 @@ function abbrechenBearbeiten(){
 function verschiebeIdee(id,dir){let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idx=ideen.findIndex(i=>i&&i.id===id);if(idx===-1)return;const targetIdx=idx+dir;if(targetIdx>=0&&targetIdx<ideen.length){[ideen[idx],ideen[targetIdx]]=[ideen[targetIdx],ideen[idx]];localStorage.setItem("ideen",JSON.stringify(ideen));zeigeIdeen();triggerAutoSave();}}
 function loescheIdee(id){if(!confirm("Wirklich löschen?"))return;let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idx=ideen.findIndex(i=>i&&i.id===id);if(idx!==-1){const del=ideen[idx];ideen.splice(idx,1);localStorage.setItem("ideen",JSON.stringify(ideen));const mExists=ideen.some(i=>i&&i.mandantennummer&&(i.mandantennummer||"").toLowerCase()===(del.mandantennummer||"").toLowerCase());const uExists=ideen.some(i=>i&&i.benutzer&&(i.benutzer||"").toLowerCase()===(del.benutzer||"").toLowerCase());if(!mExists&&del.mandantennummer)aktualisiereMandantenFilterDropdown();if(!uExists&&del.benutzer)aktualisiereBenutzerDropdowns();ausgewaehlt=ausgewaehlt.filter(i=>i!==id);if(bearbeiteId===id)abbrechenBearbeiten();if(beschreibungFuerId===id)beschreibungAbbrechen(); if(erinnerungFuerId===id)erinnerungAbbrechen(); if(terminFuerId===id)terminDialogAbbrechen(); zeigeIdeen();triggerAutoSave();}else{zeigeWarnung("Fehler: Idee nicht gefunden.");}}
 
-function zeigeBeschreibungDialog(id,ts=null){beschreibungFuerId=id;beschreibungZuBearbeitenderTimestamp=ts;const area=document.getElementById("beschreibungText");if(ts!==null){const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idee=ideen.find(i=>i&&i.id===id);const desc=idee?.beschreibungen?.find(b=>b&&b.timestamp===ts);if(desc)area.value=desc.text;else{zeigeWarnung("Fehler: Beschreibung nicht gefunden.");beschreibungAbbrechen();return}}else{area.value=""}document.getElementById("beschreibungDialog").style.display="block";area.focus();istGespeichert=false}
-function beschreibungAbbrechen(){document.getElementById("beschreibungDialog").style.display="none";beschreibungFuerId=null;beschreibungZuBearbeitenderTimestamp=null;document.getElementById("beschreibungText").value="";}
+function zeigeBeschreibungDialog(id,ts=null){
+    beschreibungFuerId=id;
+    beschreibungZuBearbeitenderTimestamp=ts;
+    beschreibungAntwortAufTimestamp = null; // NEU: Zurücksetzen, da dies "Bearbeiten" oder "Neu (Level 0)" ist
+    const area=document.getElementById("beschreibungText");
+    if(ts!==null){
+        const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");
+        const idee=ideen.find(i=>i&&i.id===id);
+        const desc=idee?.beschreibungen?.find(b=>b&&b.timestamp===ts);
+        if(desc)area.value=desc.text;
+        else{zeigeWarnung("Fehler: Beschreibung nicht gefunden.");beschreibungAbbrechen();return}
+    }else{
+        area.value=""
+    }
+    document.getElementById("beschreibungDialog").style.display="block";
+    area.focus();
+    istGespeichert=false
+}
+
+// NEU: Diese Funktion wird vom "Antworten" (↳) Button aufgerufen
+function zeigeBeschreibungAntwortDialog(id, elternTimestamp) {
+    beschreibungFuerId = id;
+    beschreibungZuBearbeitenderTimestamp = null; // Wir bearbeiten nicht
+    beschreibungAntwortAufTimestamp = elternTimestamp; // Wir merken uns die Eltern-ID
+    
+    const area = document.getElementById("beschreibungText");
+    area.value = ""; // Textfeld leeren für die neue Antwort
+    area.placeholder = "Antwort auf Beschreibung..."; // Optional: Platzhalter ändern
+
+    document.getElementById("beschreibungDialog").style.display = "block";
+    area.focus();
+    istGespeichert = false;
+}
+
+function beschreibungAbbrechen(){
+    document.getElementById("beschreibungDialog").style.display="none";
+    beschreibungFuerId=null;
+    beschreibungZuBearbeitenderTimestamp=null;
+    beschreibungAntwortAufTimestamp = null; // NEU: Auch hier zurücksetzen
+    document.getElementById("beschreibungText").value="";
+    document.getElementById("beschreibungText").placeholder = "Weitere Beschreibung"; // Optional: Platzhalter zurücksetzen
+}
 
 function beschreibungSpeichern(){
     let t = document.getElementById("beschreibungText").value;
@@ -1590,21 +1633,63 @@ function beschreibungSpeichern(){
 
     let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");
     const idx=ideen.findIndex(i=>i&&i.id===beschreibungFuerId);
+    
     if(idx!==-1){
+        if (!ideen[idx].beschreibungen) ideen[idx].beschreibungen = [];
+
+        // Fall 1: Bearbeiten einer bestehenden Beschreibung
         if(beschreibungZuBearbeitenderTimestamp!==null){
-            if (!ideen[idx].beschreibungen) ideen[idx].beschreibungen = [];
             const dIdx=ideen[idx].beschreibungen.findIndex(b=>b&&b.timestamp===beschreibungZuBearbeitenderTimestamp);
-            if(dIdx!==-1) { ideen[idx].beschreibungen[dIdx].text=t; }
+            if(dIdx!==-1) { 
+                ideen[idx].beschreibungen[dIdx].text=t; 
+            }
             else { zeigeWarnung("Fehler: Beschreibung zum Bearbeiten nicht gefunden."); }
+        
+        // Fall 2: NEU - Antworten auf eine bestehende Beschreibung
+        } else if (beschreibungAntwortAufTimestamp !== null) {
+            const quellIndex = ideen[idx].beschreibungen.findIndex(b => b && b.timestamp === beschreibungAntwortAufTimestamp);
+            if (quellIndex === -1) {
+                zeigeWarnung("Fehler: Eltern-Beschreibung für Antwort nicht gefunden.");
+                beschreibungAbbrechen();
+                return;
+            }
+
+            const basisLevel = ideen[idx].beschreibungen[quellIndex].level || 0;
+            const neuesLevel = basisLevel + 1;
+            
+            // Finde die korrekte Einfügeposition:
+            // Direkt nach dem Elternteil und all seinen Kindern (ganzer Block)
+            let einfuegePosition = quellIndex + 1;
+            for (let i = quellIndex + 1; i < ideen[idx].beschreibungen.length; i++) {
+                const naechstesLevel = ideen[idx].beschreibungen[i].level || 0;
+                if (naechstesLevel > basisLevel) {
+                    einfuegePosition = i + 1; // Nach diesem Kind einfügen
+                } else {
+                    break; // Ende des Blocks erreicht
+                }
+            }
+
+            const ts = new Date().toISOString()+'_'+Math.random().toString(36).substr(2,9);
+            const neueBeschreibung = {
+                text: t, 
+                timestamp: ts, 
+                level: neuesLevel, // Ein Level tiefer als das Elternelement
+                sichtbar: true, 
+                attachments: [], 
+                erinnerung: getDefaultErinnerung(),
+                autor: aktuellerBenutzerName || "Unbekannt"
+            };
+            
+            // An der berechneten Position einfügen
+            ideen[idx].beschreibungen.splice(einfuegePosition, 0, neueBeschreibung);
+
+        // Fall 3: Hinzufügen einer neuen Top-Level-Beschreibung
         } else {
             const ts=new Date().toISOString()+'_'+Math.random().toString(36).substr(2,9);
-            if(!ideen[idx].beschreibungen) ideen[idx].beschreibungen=[];
-            
-            // NEU: Autor der Beschreibung speichern
             const neueBeschreibung = {
                 text:t, 
                 timestamp:ts, 
-                level: 0, 
+                level: 0, // Standard-Level 0
                 sichtbar: true, 
                 attachments: [], 
                 erinnerung: getDefaultErinnerung(),
@@ -1612,9 +1697,11 @@ function beschreibungSpeichern(){
             };
             ideen[idx].beschreibungen.push(neueBeschreibung);
         }
+        
         localStorage.setItem("ideen",JSON.stringify(ideen));
         zeigeIdeen();
     } else { zeigeWarnung("Fehler: Idee nicht gefunden."); }
+    
     beschreibungAbbrechen(); 
     triggerAutoSave();
 }
@@ -1701,7 +1788,7 @@ async function handleBeschreibungAnhangUpload(event) {
 function bearbeiteEinzelneBeschreibung(id,ts){if(ts)zeigeBeschreibungDialog(id,ts);else zeigeWarnung("Interner Fehler: Timestamp fehlt.")}
 function toggleAuswahl(id,box){if(box.checked){if(!ausgewaehlt.includes(id))ausgewaehlt.push(id)}else{ausgewaehlt=ausgewaehlt.filter(i=>i!==id)}}
 function ausgewaehlteNotizenLoeschen(){if(ausgewaehlt.length===0){zeigeWarnung("Keine Notizen ausgewählt.");return}if(!confirm(`Wirklich ${ausgewaehlt.length} Notiz(en) löschen?`))return;let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const delM=new Set();const delU=new Set();ideen.filter(i=>i&&ausgewaehlt.includes(i.id)).forEach(i=>{if(i.mandantennummer)delM.add((i.mandantennummer).toLowerCase());if(i.benutzer)delU.add((i.benutzer).toLowerCase())});const newList=ideen.filter(i=>!i || !ausgewaehlt.includes(i.id));localStorage.setItem("ideen",JSON.stringify(newList));const remM=new Set(newList.filter(i=>i).map(i=>(i.mandantennummer||"").toLowerCase()).filter(m=>m!==""));const remU=new Set(newList.filter(i=>i).map(i=>(i.benutzer||"").toLowerCase()).filter(b=>b!==""));let uM=!1;delM.forEach(m=>{if(!remM.has(m))uM=!0});let uU=!1;delU.forEach(u=>{if(!remU.has(u))uU=!0});if(uM)aktualisiereMandantenFilterDropdown();if(uU)aktualisiereBenutzerDropdowns();if(bearbeiteId!==null&&ausgewaehlt.includes(bearbeiteId))abbrechenBearbeiten();if(beschreibungFuerId!==null&&ausgewaehlt.includes(beschreibungFuerId))beschreibungAbbrechen(); if(erinnerungFuerId!==null&&ausgewaehlt.includes(erinnerungFuerId))erinnerungAbbrechen(); if(terminFuerId!==null&&ausgewaehlt.includes(terminFuerId))terminDialogAbbrechen(); ausgewaehlt=[];zeigeIdeen();triggerAutoSave();}
-function alleIdeenLoeschen(){if(!confirm("Wirklich ALLE Ideen, Kategorien, Benutzer etc. löschen?"))return;localStorage.removeItem("ideen"); localStorage.removeItem("kategorien"); localStorage.removeItem("benutzerliste"); localStorage.removeItem("naechsteVorgangsnummer"); naechsteVorgangsnummer=1; kategorien = []; benutzerliste = []; zeigeNaechsteNummer(); initialisiereKategorien(); initialisiereBenutzer(); aktualisiereMandantenFilterDropdown(); ausgewaehlt=[];bearbeiteId=null;beschreibungFuerId=null;beschreibungZuBearbeitenderTimestamp=null; erinnerungFuerId=null; terminFuerId=null; zeigeIdeen();abbrechenBearbeiten();triggerAutoSave();}
+function alleIdeenLoeschen(){if(!confirm("Wirklich ALLE Ideen, Kategorien, Benutzer etc. löschen?"))return;localStorage.removeItem("ideen"); localStorage.removeItem("kategorien"); localStorage.removeItem("benutzerliste"); localStorage.removeItem("naechsteVorgangsnummer"); naechsteVorgangsnummer=1; kategorien = []; benutzerliste = []; zeigeNaechsteNummer(); initialisiereKategorien(); initialisiereBenutzer(); aktualisiereMandantenFilterDropdown(); ausgewaehlt=[];bearbeiteId=null;beschreibungFuerId=null;beschreibungZuBearbeitenderTimestamp=null;beschreibungAntwortAufTimestamp=null; erinnerungFuerId=null; terminFuerId=null; zeigeIdeen();abbrechenBearbeiten();triggerAutoSave();}
 
 function toggleAnhangSichtbarkeit(ideeId, anhangId) {
     if (!ideeId || !anhangId) { return; }
@@ -3546,5 +3633,4 @@ document.addEventListener('DOMContentLoaded', async () => {
 </script>
 </body>
 </html>
-
 
