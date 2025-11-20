@@ -3117,77 +3117,139 @@ function pruefeUndZeigeBenachrichtigungen() {
     }
 }
 
+/* ANFANG ÄNDERUNG: Neuer Upload für große Dateien (Chunking) */
 async function uploadToOneDrive(file) {
     if (currentLoginType !== 'microsoft') {
         zeigeWarnung("Bitte zuerst mit Microsoft anmelden!");
         return null;
     }
-    try {
-        const fileName = `ideenapp/${Date.now()}_${file.name}`;
-        
-        // --- UPLOAD VERSUCH ---
-        let uploadUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/${fileName}:/content`;
-        let uploadOptions = {
-            method: "PUT",
-            headers: { "Authorization": `Bearer ${accessToken}`, "Content-Type": file.type },
-            body: file
-        };
-        let uploadResponse = await fetch(uploadUrl, uploadOptions);
 
-        // --- TOKEN REFRESH LOGIK ---
-        if (uploadResponse.status === 401) {
-            console.log("Token während des Uploads abgelaufen. Versuche interaktive Erneuerung...");
-            const newToken = await getValidToken(true); // Interaktiven Refresh erzwingen
-            if (newToken) {
-                console.log("Token erneuert. Wiederhole den Upload...");
-                uploadOptions.headers["Authorization"] = `Bearer ${newToken}`; 
-                uploadResponse = await fetch(uploadUrl, uploadOptions); 
-            } else {
-                console.error("Token-Erneuerung fehlgeschlagen. Breche Upload ab.");
-                return null;
+    const fileName = `ideenapp/${Date.now()}_${file.name}`;
+    // Wir teilen die Datei in 10 MB Stücke (Microsoft empfiehlt Vielfache von 320 KB)
+    const CHUNK_SIZE = 10485760; // ~10 MB
+
+    try {
+        // --- FALL 1: KLEINE DATEI (< 4 MB) ---
+        // Schneller Standard-Upload wie bisher
+        if (file.size < 4000000) {
+            let uploadUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/${fileName}:/content`;
+            let uploadOptions = {
+                method: "PUT",
+                headers: { "Authorization": `Bearer ${accessToken}`, "Content-Type": file.type },
+                body: file
+            };
+
+            let uploadResponse = await fetch(uploadUrl, uploadOptions);
+
+            // Token Refresh bei Fehler 401
+            if (uploadResponse.status === 401) {
+                const newToken = await getValidToken(true);
+                if (newToken) {
+                    uploadOptions.headers["Authorization"] = `Bearer ${newToken}`;
+                    uploadResponse = await fetch(uploadUrl, uploadOptions);
+                } else { return null; }
+            }
+
+            if (!uploadResponse.ok) {
+                const errData = await uploadResponse.json().catch(() => ({}));
+                throw new Error(errData.error?.message || uploadResponse.statusText);
+            }
+
+            const uploadData = await uploadResponse.json();
+            return await createSharingLink(uploadData.id);
+        }
+
+        // --- FALL 2: GROSSE DATEI (> 4 MB) - Neuer "Gestückelter" Upload ---
+        else {
+            zeigeWarnung(`Starte Upload für große Datei (${(file.size / 1024 / 1024).toFixed(1)} MB)... Bitte warten.`, 'info');
+
+            // Schritt A: Upload-Sitzung bei Microsoft anmelden
+            const sessionUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/${fileName}:/createUploadSession`;
+            let sessionResponse = await fetch(sessionUrl, {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${accessToken}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    item: { "@microsoft.graph.conflictBehavior": "rename" }
+                })
+            });
+
+            if (!sessionResponse.ok) throw new Error("Upload-Session konnte nicht gestartet werden.");
+            const sessionData = await sessionResponse.json();
+            const uploadUrl = sessionData.uploadUrl;
+
+            // Schritt B: Datei scheibchenweise hochladen
+            let start = 0;
+            let end = 0;
+
+            while (start < file.size) {
+                end = Math.min(start + CHUNK_SIZE, file.size);
+                const chunk = file.slice(start, end);
+
+                // Fortschritt berechnen und anzeigen
+                const percent = Math.round((end / file.size) * 100);
+                zeigeWarnung(`Upload läuft: ${percent}% (${file.name})`, 'info');
+                console.log(`Upload Chunk: ${start}-${end} von ${file.size}`);
+
+                const chunkResponse = await fetch(uploadUrl, {
+                    method: "PUT",
+                    headers: {
+                        "Content-Length": chunk.size,
+                        "Content-Range": `bytes ${start}-${end - 1}/${file.size}`
+                    },
+                    body: chunk
+                });
+
+                if (!chunkResponse.ok) {
+                    throw new Error(`Fehler beim Upload von Teil ${start}-${end}`);
+                }
+
+                // Wenn Status 201 oder 200 kommt, ist die Datei komplett fertig
+                if (chunkResponse.status === 201 || chunkResponse.status === 200) {
+                    const uploadData = await chunkResponse.json();
+                    zeigeWarnung("Upload abgeschlossen! Erstelle Freigabelink...", 'success');
+                    return await createSharingLink(uploadData.id);
+                }
+
+                // Weitermachen mit dem nächsten Stück
+                start = end;
             }
         }
 
-        const uploadData = await uploadResponse.json();
-        if (!uploadResponse.ok) {
-            throw new Error(`OneDrive Upload Fehler ${uploadResponse.status}: ${uploadData?.error?.message || 'Unbekannt'}`);
-        }
-
-        // --- LINK ERSTELLEN VERSUCH ---
-        let linkUrl = `https://graph.microsoft.com/v1.0/me/drive/items/${uploadData.id}/createLink`;
-        let linkOptions = {
-            method: "POST",
-            headers: { "Authorization": `Bearer ${accessToken}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ type: "view", scope: "anonymous" })
-        };
-        let linkResponse = await fetch(linkUrl, linkOptions);
-        
-        // Es ist unwahrscheinlich, dass das Token zwischen Upload und Link-Erstellung abläuft, aber sicher ist sicher.
-        if (linkResponse.status === 401) {
-             console.log("Token während der Link-Erstellung abgelaufen. Versuche interaktive Erneuerung...");
-             const newToken = await getValidToken(true);
-             if(newToken) {
-                console.log("Token erneuert. Wiederhole die Link-Erstellung...");
-                linkOptions.headers["Authorization"] = `Bearer ${newToken}`;
-                linkResponse = await fetch(linkUrl, linkOptions);
-             } else {
-                console.error("Token-Erneuerung fehlgeschlagen. Breche Link-Erstellung ab.");
-                return null;
-             }
-        }
-
-        const linkData = await linkResponse.json();
-        if (!linkResponse.ok) {
-            throw new Error(`OneDrive Link Fehler ${linkResponse.status}: ${linkData?.error?.message || 'Unbekannt'}`);
-        }
-        return linkData.link.webUrl;
     } catch (e) {
-        console.error("OneDrive Upload/Link Fehler:", e);
-        zeigeWarnung("OneDrive-Fehler: " + e.message);
+        console.error("OneDrive Upload Fehler:", e);
+        zeigeWarnung("Fehler beim Upload: " + e.message, 'warnung');
         return null;
     }
 }
 
+// Hilfsfunktion: Erstellt den öffentlichen Link für eine hochgeladene Datei
+async function createSharingLink(itemId) {
+    let linkUrl = `https://graph.microsoft.com/v1.0/me/drive/items/${itemId}/createLink`;
+    let linkOptions = {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "view", scope: "anonymous" })
+    };
+    
+    let linkResponse = await fetch(linkUrl, linkOptions);
+
+    // Token Refresh falls zwischendurch abgelaufen
+    if (linkResponse.status === 401) {
+        const newToken = await getValidToken(true);
+        if (newToken) {
+            linkOptions.headers["Authorization"] = `Bearer ${newToken}`;
+            linkResponse = await fetch(linkUrl, linkOptions);
+        } else { return null; }
+    }
+
+    if (!linkResponse.ok) throw new Error("Link konnte nicht erstellt werden.");
+    const linkData = await linkResponse.json();
+    return linkData.link.webUrl;
+}
+/* ENDE ÄNDERUNG */
 async function saveToOneDrive(isManual = false){ 
     if(currentLoginType !== 'microsoft' || !msalInstance) { 
         if (isManual) { 
