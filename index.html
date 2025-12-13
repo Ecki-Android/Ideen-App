@@ -2680,22 +2680,28 @@ function generiereIdeenTextKomplett(idee, format = 'text', maxLaenge = null) {
 }
 
 
-async function teilePerWhatsApp(){
+/* --- START BLOCK: WhatsApp Funktionen (Optimiert für iOS) --- */
+
+async function teilePerWhatsApp() {
     const ideenToExport = getExportIdeen();
-    if(ideenToExport.length === 0) { zeigeWarnung("Bitte wählen Sie Notizen für Export aus."); return; }
-    
-    const recipientInput = prompt("An wen soll exportiert werden? Info oder 'ich', 'mandant', 'support', 'andere'");
-    let recipientInfo = recipientInput ? recipientInput.trim().toLowerCase() : "";
-    if (!recipientInfo) { zeigeWarnung("Export abgebrochen."); return; }
-    
-    if (!["ich", "mandant", "support"].includes(recipientInfo) && recipientInfo !== "andere" && !recipientInfo.startsWith("andere:")) {
-        recipientInfo = `Direkte Eingabe: ${recipientInput.trim()}`;
-    } else if (recipientInfo === "andere") {
-        const other=prompt("Info für 'andere'?");
-        if (!other?.trim()){zeigeWarnung("Abgebrochen."); return;}
-        recipientInfo = `Andere: ${other.trim()}`;
+    if (ideenToExport.length === 0) { zeigeWarnung("Bitte wählen Sie Notizen für Export aus."); return; }
+
+    // SCHRITT 1: Fenster SOFORT öffnen (Apple-Trick), damit es nicht blockiert wird.
+    const waWindow = window.open('', '_blank');
+    if (waWindow) {
+        waWindow.document.write("<h1>WhatsApp wird vorbereitet...</h1><p>Bitte warten Sie, während Ihre Daten gespeichert werden.</p>");
     }
 
+    const recipientInput = prompt("An wen soll exportiert werden? (z.B. 'Kunde', 'Chef', 'Eigene Nummer')");
+    let recipientInfo = recipientInput ? recipientInput.trim() : "Unbekannt";
+    
+    if (!recipientInput) { 
+        zeigeWarnung("Export abgebrochen."); 
+        if(waWindow) waWindow.close(); // Fenster schließen bei Abbruch
+        return; 
+    }
+
+    // SCHRITT 2: Protokolleintrag lokal erstellen
     const ausgewaehlteIDs = ideenToExport.map(i => i.id);
     const exportTimestamp = new Date().toLocaleString("de-DE");
 
@@ -2704,10 +2710,12 @@ async function teilePerWhatsApp(){
         addProtokollEintrag(ideeId, null, desc);
     });
 
-    zeigeIdeen();
+    zeigeIdeen(); // Liste aktualisieren, damit man den Eintrag sieht
 
+    // SCHRITT 3: WARTEN auf das Speichern in der Cloud
     const saveSuccess = await saveToOneDrive();
 
+    // SCHRITT 4: Nur wenn gespeichert wurde, WhatsApp im offenen Fenster laden
     if (saveSuccess) {
         let text = ideenToExport.map(idee => {
              return generiereIdeenTextKomplett(idee, 'text', null);
@@ -2715,55 +2723,57 @@ async function teilePerWhatsApp(){
 
         text += `\n\n_[Gesendet via Ideen-App Pro]_`;
         const waLink = `https://wa.me/?text=${encodeURIComponent(text)}`;
-        try {
-            const waWindow = window.open(waLink,"_blank");
-            if (!waWindow) { zeigeWarnung("WhatsApp konnte nicht geöffnet werden.", "warning"); }
-        } catch (e) {
-            console.error("WhatsApp Fehler:", e);
-            zeigeWarnung("Fehler WhatsApp: " + e.message, "warnung");
+        
+        if (waWindow) {
+            waWindow.location.href = waLink; // Hier passiert die Weiterleitung
+        } else {
+            window.location.href = waLink;
         }
     } else {
-        zeigeWarnung("Speichern fehlgeschlagen (Sitzung abgelaufen?). Der Vermerk wurde lokal gesichert. Bitte melden Sie sich an und versuchen Sie es erneut.", "warnung");
+        zeigeWarnung("Speichern fehlgeschlagen. WhatsApp wird nicht geöffnet.", "warnung");
+        if(waWindow) waWindow.close(); // Fenster schließen bei Fehler
     }
 }
 
 async function teileBeschreibungPerWhatsApp(ideeId, beschreibungTimestamp) {
     if (!ideeId || !beschreibungTimestamp) { return; }
-    
-    const recipientInput = prompt("An wen soll dieser Beschreibungs-Block gesendet werden? Info oder 'ich', 'mandant', 'support', 'andere'");
-    let recipientInfo = recipientInput ? recipientInput.trim().toLowerCase() : "";
-    if (!recipientInfo) { zeigeWarnung("Export abgebrochen."); return; }
 
-    if (!["ich", "mandant", "support"].includes(recipientInfo) && recipientInfo !== "andere" && !recipientInfo.startsWith("andere:")) {
-        recipientInfo = `Direkte Eingabe: ${recipientInput.trim()}`;
-    } else if (recipientInfo === "andere") {
-        const other=prompt("Info für 'andere'?");
-        if (!other?.trim()){zeigeWarnung("Abgebrochen."); return;}
-        recipientInfo = `Andere: ${other.trim()}`;
+    // SCHRITT 1: Fenster SOFORT öffnen
+    const waWindow = window.open('', '_blank');
+    if (waWindow) {
+        waWindow.document.write("<h1>WhatsApp wird vorbereitet...</h1><p>Bitte warten Sie, während Ihre Daten gespeichert werden.</p>");
+    }
+    
+    const recipientInput = prompt("An wen soll dieser Block gesendet werden?");
+    let recipientInfo = recipientInput ? recipientInput.trim() : "Unbekannt";
+    
+    if (!recipientInput) { 
+        zeigeWarnung("Export abgebrochen."); 
+        if(waWindow) waWindow.close();
+        return; 
     }
 
+    // SCHRITT 2: Protokoll erstellen
     const exportTimestamp = new Date().toLocaleString("de-DE");
-    const logDesc = `Beschreibungs-Block (beginnend mit Eintrag vom ${getFormattedDate(beschreibungTimestamp)}) weitergeleitet via WhatsApp an: ${recipientInfo} am ${exportTimestamp}.`;
+    const logDesc = `Beschreibungs-Block weitergeleitet via WhatsApp an: ${recipientInfo} am ${exportTimestamp}.`;
     
-    if (!addProtokollEintrag(ideeId, beschreibungTimestamp, logDesc)) {
-        zeigeWarnung("Fehler beim Erstellen des Protokolleintrags.", "warnung");
-        return;
-    }
-    
+    addProtokollEintrag(ideeId, beschreibungTimestamp, logDesc);
     zeigeIdeen();
 
+    // SCHRITT 3: WARTEN auf das Speichern
     const saveSuccess = await saveToOneDrive();
 
+    // SCHRITT 4: Weiterleitung zu WhatsApp
     if (saveSuccess) {
         const sammlung = sammleBeschreibungsBlock(ideeId, beschreibungTimestamp);
         if (!sammlung) {
-            zeigeWarnung("Der zu teilende Block konnte nicht gefunden werden. Der Protokolleintrag wurde dennoch gespeichert.", "warnung");
+            zeigeWarnung("Datenfehler.");
+            if(waWindow) waWindow.close();
             return;
         }
         const { idee, block } = sammlung;
 
         let text = `*Teil-Information aus Vorgang ${idee.vorgangsnummer || 'N/A'}: ${idee.text || 'Ohne Titel'}*\n\n`;
-        
         const startLevel = block[0].level || 0;
 
         block.forEach(beschreibung => {
@@ -2779,30 +2789,26 @@ async function teileBeschreibungPerWhatsApp(ideeId, beschreibungTimestamp) {
                 text += `${indentSpaces}  *Anhänge:*\n`;
                 beschreibung.attachments.forEach(anhang => {
                     text += `${indentSpaces}  - ${anhang.name}`;
-                    if (anhang.link) {
-                        text += `\n${indentSpaces}    Link: ${anhang.link}\n`;
-                    } else {
-                        text += ` _(Lokale Datei)_\n`;
-                    }
+                    if (anhang.link) text += `\n${indentSpaces}    Link: ${anhang.link}\n`;
                 });
             }
             text += '\n';
         });
         
         text += `\n\n_[Gesendet via Ideen-App Pro]_`;
-        
         const waLink = `https://wa.me/?text=${encodeURIComponent(text)}`;
-        try {
-            const waWindow = window.open(waLink, "_blank");
-            if (!waWindow) { zeigeWarnung("WhatsApp konnte nicht geöffnet werden.", "warning"); }
-        } catch (e) {
-            zeigeWarnung("Fehler beim Öffnen von WhatsApp: " + e.message, "warnung");
+        
+        if (waWindow) {
+            waWindow.location.href = waLink;
+        } else {
+            window.location.href = waLink;
         }
     } else {
-         zeigeWarnung("Speichern fehlgeschlagen (Sitzung abgelaufen?). Der Vermerk wurde lokal gesichert. Bitte melden Sie sich an und versuchen Sie es erneut.", "warnung");
+         zeigeWarnung("Speichern fehlgeschlagen.", "warnung");
+         if(waWindow) waWindow.close();
     }
 }
-
+/* --- ENDE BLOCK: WhatsApp Funktionen --- */
 
 // --- FUNKTIONEN FÜR KALENDERTERMINERSTELLUNG ---
 
@@ -2905,90 +2911,105 @@ function terminDialogAbbrechen() {
     document.getElementById("terminOrtInput").value = "";
 }
 
+/* --- START BLOCK: Kalender Funktionen (ICS / Apple Kompatibel) --- */
+
+// Hilfsfunktion: Erstellt eine ICS-Datei (Standard Kalenderformat)
+function downloadICSFile(titel, startInput, endInput, beschreibung, ort) {
+    const formatDateForICS = (dateStr) => {
+        const date = new Date(dateStr);
+        return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    };
+
+    const start = formatDateForICS(startInput);
+    const end = formatDateForICS(endInput);
+    const now = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    
+    // Text sicher formatieren für Kalender-Datei
+    const escapedDesc = (beschreibung || "").replace(/\n/g, "\\n").replace(/,/g, "\\,");
+    const escapedTitel = (titel || "").replace(/,/g, "\\,");
+    const escapedOrt = (ort || "").replace(/,/g, "\\,");
+
+    const icsContent = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//IdeenAppPro//DE",
+        "CALSCALE:GREGORIAN",
+        "BEGIN:VEVENT",
+        `DTSTAMP:${now}`,
+        `DTSTART:${start}`,
+        `DTEND:${end}`,
+        `SUMMARY:${escapedTitel}`,
+        `DESCRIPTION:${escapedDesc}`,
+        `LOCATION:${escapedOrt}`,
+        "STATUS:CONFIRMED",
+        "END:VEVENT",
+        "END:VCALENDAR"
+    ].join("\r\n");
+
+    const blob = new Blob([icsContent], { type: "text/calendar;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "termin.ics"); // Dateiname
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
 async function kalenderTerminErstellenUndSpeichern() {
     if (!terminFuerId) return;
-
     const MAX_KALENDER_BESCHREIBUNG = 7500;
-
     const titel = document.getElementById("terminTitelInput").value.trim();
     const startZeitValue = document.getElementById("terminStartInput").value;
     const endeZeitValue = document.getElementById("terminEndeInput").value;
     const ort = document.getElementById("terminOrtInput").value.trim();
 
     if (!titel || !startZeitValue || !endeZeitValue) {
-        zeigeWarnung("Bitte alle erforderlichen Felder für den Termin ausfüllen.", "warnung");
+        zeigeWarnung("Bitte alle Pflichtfelder ausfüllen.", "warnung");
         return;
     }
     
     let ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
     const ideeIndex = ideen.findIndex(i => i.id === terminFuerId);
-    if (ideeIndex === -1) { 
-        zeigeWarnung("Zugehörige Idee nicht gefunden.", "warnung"); 
-        terminDialogAbbrechen();
-        return; 
-    }
+    if (ideeIndex === -1) { zeigeWarnung("Idee nicht gefunden.", "warnung"); return; }
+    
     const idee = ideen[ideeIndex];
     let terminBeschreibungText = "";
     let nachweisText = "";
     
+    // Beschreibung zusammenbauen
     if (terminFuerBeschreibungTimestamp) {
         const sammlung = sammleBeschreibungsBlock(terminFuerId, terminFuerBeschreibungTimestamp);
-        if (!sammlung) {
-             zeigeWarnung("Zugehöriger Beschreibungs-Block nicht mehr gefunden.", "warnung"); 
-             terminDialogAbbrechen();
-             return;
+        if (sammlung) {
+            terminBeschreibungText = `Auszug aus Vorgang ${idee.vorgangsnummer}: ${idee.text}\n\n`;
+            sammlung.block.forEach(b => {
+                 terminBeschreibungText += `- ${b.text}\n`;
+            });
+            nachweisText = `Kalendertermin (ICS) erstellt für Teil-Block. Titel: "${titel}".`;
         }
-
-        terminBeschreibungText = `Teil-Informationen aus Vorgang ${idee.vorgangsnummer || 'N/A'}: ${idee.text || 'Ohne Titel'}\n\n`;
-        const startLevel = sammlung.block[0].level || 0;
-
-        sammlung.block.forEach(beschreibung => {
-            const relativerIndent = (beschreibung.level || 0) - startLevel;
-            const indentSpaces = "  ".repeat(relativerIndent);
-            const autorText = beschreibung.autor ? ` (von ${beschreibung.autor})` : "";
-            
-            terminBeschreibungText += `${indentSpaces}Beschreibung vom ${getFormattedDate(beschreibung.timestamp)}${autorText}:\n`;
-            terminBeschreibungText += `${indentSpaces}${beschreibung.text.replace(/\n/g, `\n${indentSpaces}`)}\n\n`;
-
-            if (beschreibung.attachments && beschreibung.attachments.length > 0) {
-                terminBeschreibungText += `${indentSpaces}  Zugehörige Anhänge:\n`;
-                beschreibung.attachments.forEach(anhang => {
-                    terminBeschreibungText += `${indentSpaces}  - ${anhang.name}`;
-                    if (anhang.link) { terminBeschreibungText += `\n${indentSpaces}    Link: ${anhang.link}\n`; } 
-                    else { terminBeschreibungText += ` (Lokale Datei)\n`; }
-                });
-            }
-        });
-
-        if (terminBeschreibungText.length > MAX_KALENDER_BESCHREIBUNG) {
-            const kuerzungsHinweis = `\n\n[... Inhalt gekürzt, da zu lang für Kalendereintrag.]`;
-            terminBeschreibungText = terminBeschreibungText.substring(0, MAX_KALENDER_BESCHREIBUNG - kuerzungsHinweis.length) + kuerzungsHinweis;
-        }
-        
-        nachweisText = `Kalendertermin vorbereitet für Beschreibungs-Block (vom ${getFormattedDate(terminFuerBeschreibungTimestamp)}). Titel: "${titel}".`;
     } else {
         terminBeschreibungText = generiereIdeenTextKomplett(idee, 'plain', MAX_KALENDER_BESCHREIBUNG);
-        nachweisText = `Kalendertermin vorbereitet für: ${getFormattedDate(startZeitValue)}. Titel: "${titel}".`;
+        nachweisText = `Kalendertermin (ICS) erstellt für Termin: ${getFormattedDate(startZeitValue)}.`;
     }
 
+    // 1. Protokolleintrag erstellen
     addProtokollEintrag(terminFuerId, terminFuerBeschreibungTimestamp, nachweisText);
     zeigeIdeen();
 
+    // 2. ERST SPEICHERN
     const saveSuccess = await saveToOneDrive();
 
+    // 3. DANN DATEI DOWNLOADEN
     if (saveSuccess) {
-        const toUTCGoogleFormat = (dateStr) => new Date(dateStr).toISOString().replace(/[-:]|\.\d{3}/g, '');
-        let calendarUrl = `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(titel)}&dates=${toUTCGoogleFormat(startZeitValue)}/${toUTCGoogleFormat(endeZeitValue)}&details=${encodeURIComponent(terminBeschreibungText)}`;
-        if (ort) calendarUrl += `&location=${encodeURIComponent(ort)}`;
-
-        window.open(calendarUrl, '_blank');
-        zeigeWarnung("Kalenderlink wurde erstellt. Bitte Termin dort bestätigen.", "success");
+        downloadICSFile(titel, startZeitValue, endeZeitValue, terminBeschreibungText, ort);
+        zeigeWarnung("Termin-Datei (.ics) geladen. Bitte öffnen!", "success");
         terminDialogAbbrechen();
     } else {
-        zeigeWarnung("Speichern fehlgeschlagen (Sitzung abgelaufen?). Der Vermerk wurde lokal gesichert. Bitte melden Sie sich an und versuchen Sie es erneut.", "warnung");
+        zeigeWarnung("Speichern fehlgeschlagen. Termin-Datei wird nicht erstellt.", "warnung");
     }
 }
-
+/* --- ENDE BLOCK: Kalender Funktionen --- */
 async function initialisiereUndStarteBenachrichtigungspruefung() {
     if (!("Notification" in window)) {
         console.warn("Dieser Browser unterstützt keine Desktop-Benachrichtigungen.");
