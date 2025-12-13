@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kontakte-Verwaltung (Master)</title>
-    <!-- PDF-Export-Bibliothek -->
+    <!-- PDF-Export-Bibliothek & AutoTable Plugin für Tabellen -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
     <!-- Microsoft Authentication Library (MSAL) -->
     <script src="https://alcdn.msauth.net/browser/2.24.0/js/msal-browser.min.js"></script>
     
@@ -218,16 +219,11 @@
     <script>
         // --- 1. KONFIGURATION & GLOBALE VARIABLEN ---
         
-        // KONFIGURATION KORRIGIERT: Nutzt jetzt die "Multiuser"-ID (c3cd...), da Azure dafür konfiguriert wurde.
+        // Multiuser Client ID
         const msalConfig = { 
             auth: { 
-                // Client-ID der App "IdeenApp-Multiuser" (unterstützt Personal & Org Accounts)
                 clientId: "c3cd3be4-3540-46dd-a24c-82eb6ed5542d", 
-                
-                // WICHTIG: "common" ist der einzige Weg für private UND geschäftliche Konten
                 authority: "https://login.microsoftonline.com/common", 
-                
-                // Dynamischer Redirect (muss exakt so in Azure eingetragen sein: .../kontakte.html)
                 redirectUri: window.location.origin + window.location.pathname
             } 
         };
@@ -260,7 +256,6 @@
                 msalInstance = new msal.PublicClientApplication(msalConfig);
                 await msalInstance.initialize();
                 
-                // Prüfen ob User schon eingeloggt (SSO)
                 const account = msalInstance.getAllAccounts()[0];
                 if (account) {
                     msalInstance.setActiveAccount(account);
@@ -275,8 +270,6 @@
         
         async function handleMicrosoftLogin() {
             try {
-                // 'select_account' erzwingt die Kontoauswahl
-                // 'offline_access' hilft manchmal bei Token-Problemen
                 const loginResponse = await msalInstance.loginPopup({ 
                     scopes: ["Files.ReadWrite", "User.Read", "offline_access"],
                     prompt: "select_account"
@@ -296,7 +289,6 @@
             document.getElementById('cloudLoadBtn').disabled = false;
             document.getElementById('cloudSaveBtn').disabled = false;
             
-            // Token holen
             try {
                 const response = await msalInstance.acquireTokenSilent({ 
                     scopes: ["Files.ReadWrite"], 
@@ -305,7 +297,6 @@
                 accessToken = response.accessToken;
                 zeigeStatus("Angemeldet. Bereit für Cloud.", "info");
             } catch (e) {
-                // Fallback: Interaktiv anfordern
                 const response = await msalInstance.acquireTokenPopup({ 
                     scopes: ["Files.ReadWrite"], 
                     account: account 
@@ -313,9 +304,6 @@
                 accessToken = response.accessToken;
                 zeigeStatus("Angemeldet (Interaktiv). Bereit.", "info");
             }
-            
-            // Optional: Automatisch laden beim Start
-            // loadFromOneDrive(); 
         }
 
         async function handleLogout() {
@@ -798,11 +786,125 @@
             refreshAuswertungslisten();
         }
 
-        // --- PDF / VCF EXPORT (Placeholder) ---
-        function exportMandantenReportPDF() { alert("PDF Export wird generiert..."); }
-        function exportPersonenReportPDF() { alert("PDF Export wird generiert..."); }
-        function exportMandantAsVCF() { alert("VCF Download startet..."); }
-        function exportKontaktAsVCF() { alert("VCF Download startet..."); }
+        // --- PDF / VCF EXPORT (Implementierung) ---
+        
+        function exportMandantenReportPDF() { 
+            if(dbMandanten.size === 0) return alert("Keine Mandanten vorhanden.");
+            
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            doc.setFontSize(18);
+            doc.text("Mandantenliste", 14, 20);
+            doc.setFontSize(10);
+            doc.text("Stand: " + new Date().toLocaleDateString(), 14, 28);
+            
+            const data = [];
+            dbMandanten.forEach(m => {
+                const adresse = m.adresse && m.adresse[0] ? `${m.adresse[0].street}, ${m.adresse[0].zip} ${m.adresse[0].city}` : "-";
+                const tel = m.telefon && m.telefon[0] ? m.telefon[0].number : "-";
+                const kontaktCount = dbVerknuepfungen.filter(v => v.mandantennummer_fk === m.mandantennummer).length;
+                data.push([m.mandantennummer, m.firmenname, adresse, tel, kontaktCount]);
+            });
+            
+            doc.autoTable({
+                startY: 35,
+                head: [['ID', 'Firma', 'Hauptadresse', 'Telefon', 'Kontakte']],
+                body: data,
+                styles: { fontSize: 9 },
+                headStyles: { fillColor: [0, 120, 212] }
+            });
+            
+            doc.save("mandanten_liste.pdf");
+        }
+
+        function exportPersonenReportPDF() { 
+            if(dbKontakte.size === 0) return alert("Keine Kontakte vorhanden.");
+            
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            doc.setFontSize(18);
+            doc.text("Kontaktliste", 14, 20);
+            doc.setFontSize(10);
+            doc.text("Stand: " + new Date().toLocaleDateString(), 14, 28);
+            
+            const data = [];
+            dbKontakte.forEach((k, id) => {
+                const tel = k.telefon && k.telefon[0] ? k.telefon[0].number : "-";
+                const email = k.email && k.email[0] ? k.email[0].address : "-";
+                
+                // Zugeordnete Firmen finden
+                const firmenNamen = dbVerknuepfungen
+                    .filter(v => v.kontakt_id_fk === id)
+                    .map(v => {
+                        const m = dbMandanten.get(v.mandantennummer_fk);
+                        return m ? m.firmenname : "";
+                    })
+                    .filter(n => n)
+                    .join(", ");
+
+                data.push([k.fn, k.org || "-", firmenNamen || "-", tel, email]);
+            });
+            
+            doc.autoTable({
+                startY: 35,
+                head: [['Name', 'Org (VCF)', 'Zugeordnete Firmen', 'Telefon', 'E-Mail']],
+                body: data,
+                styles: { fontSize: 8 },
+                headStyles: { fillColor: [0, 120, 212] },
+                columnStyles: { 2: { cellWidth: 40 } } // Firmen-Spalte begrenzen
+            });
+            
+            doc.save("kontakt_liste.pdf");
+        }
+
+        function exportMandantAsVCF() {
+            const id = document.getElementById('mandantIdInput').value;
+            const m = dbMandanten.get(id);
+            if(!m) return;
+            
+            let vcf = "BEGIN:VCARD\nVERSION:3.0\n";
+            vcf += `ORG:${m.firmenname}\n`;
+            vcf += `FN:${m.firmenname}\n`; // Als Full Name auch Firmenname
+            
+            if(m.telefon) m.telefon.forEach(t => vcf += `TEL;TYPE=${t.type}:${t.number}\n`);
+            if(m.email) m.email.forEach(e => vcf += `EMAIL;TYPE=${e.type}:${e.address}\n`);
+            if(m.adresse) m.adresse.forEach(a => vcf += `ADR;TYPE=${a.type}:;;${a.street};${a.city};;${a.zip};Germany\n`);
+            
+            vcf += `NOTE:ID=${m.mandantennummer} | USt-ID=${m.ust_id}\n`;
+            vcf += "END:VCARD";
+            
+            downloadString(vcf, `Firma_${m.firmenname.replace(/[^a-z0-9]/gi, '_')}.vcf`);
+        }
+
+        function exportKontaktAsVCF() {
+            const id = document.getElementById('kontaktIdInput').value;
+            const k = dbKontakte.get(id);
+            if(!k) return;
+            
+            let vcf = "BEGIN:VCARD\nVERSION:3.0\n";
+            vcf += `FN:${k.fn}\n`;
+            if(k.org) vcf += `ORG:${k.org}\n`;
+            
+            if(k.telefon) k.telefon.forEach(t => vcf += `TEL;TYPE=${t.type}:${t.number}\n`);
+            if(k.email) k.email.forEach(e => vcf += `EMAIL;TYPE=${e.type}:${e.address}\n`);
+            if(k.adresse) k.adresse.forEach(a => vcf += `ADR;TYPE=${a.type}:;;${a.street};${a.city};;${a.zip};Germany\n`);
+            
+            vcf += "END:VCARD";
+            
+            downloadString(vcf, `Kontakt_${k.fn.replace(/[^a-z0-9]/gi, '_')}.vcf`);
+        }
+        
+        function downloadString(text, filename) {
+            const blob = new Blob([text], { type: 'text/vcard' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
 
     </script>
 </body>
