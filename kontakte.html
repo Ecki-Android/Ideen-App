@@ -218,15 +218,15 @@
     <script>
         // --- 1. KONFIGURATION & GLOBALE VARIABLEN ---
         
-        // KORRIGIERTE KONFIGURATION FÜR "Beliebiges Organisationsverzeichnis" (Multitenant)
-        // Diese Einstellung erlaubt JEDES Firmen-/Schulkonto, aber KEINE privaten (@outlook) Konten.
+        // KORRIGIERTE KONFIGURATION FÜR ALLE (Multitenant + Personal)
+        // Nutzt "common", damit auch private Konten funktionieren (Option 3 in Azure)
         const msalConfig = { 
             auth: { 
                 // Ihre neue Client-ID
                 clientId: "ddf69193-7eab-4847-a995-b6c08f0df9ae", 
                 
-                // WICHTIG: "organizations" erlaubt alle Firmen-Mandanten
-                authority: "https://login.microsoftonline.com/organizations", 
+                // WICHTIG: "common" ist der einzige Weg für private UND geschäftliche Konten
+                authority: "https://login.microsoftonline.com/common", 
                 
                 // Ihr registrierter Link
                 redirectUri: "https://ecki-android.github.io/Ideen-App/kontakte.html"
