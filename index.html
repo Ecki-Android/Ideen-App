@@ -2680,28 +2680,42 @@ function generiereIdeenTextKomplett(idee, format = 'text', maxLaenge = null) {
 }
 
 
-/* --- START BLOCK: WhatsApp Funktionen (Optimiert für iOS) --- */
+/* --- START BLOCK: WhatsApp Funktionen (Optimiert: Keine Kürzung + iOS/Desktop Fix) --- */
 
 async function teilePerWhatsApp() {
     const ideenToExport = getExportIdeen();
     if (ideenToExport.length === 0) { zeigeWarnung("Bitte wählen Sie Notizen für Export aus."); return; }
 
-    // SCHRITT 1: Fenster SOFORT öffnen (Apple-Trick), damit es nicht blockiert wird.
-    const waWindow = window.open('', '_blank');
-    if (waWindow) {
-        waWindow.document.write("<h1>WhatsApp wird vorbereitet...</h1><p>Bitte warten Sie, während Ihre Daten gespeichert werden.</p>");
-    }
-
-    const recipientInput = prompt("An wen soll exportiert werden? (z.B. 'Kunde', 'Chef', 'Eigene Nummer')");
-    let recipientInfo = recipientInput ? recipientInput.trim() : "Unbekannt";
+    // SCHRITT 1: ZUERST fragen (verhindert Fokus-Verlust am PC)
+    const recipientInput = prompt("An wen soll exportiert werden? (z.B. 'Kunde', 'Chef')");
     
-    if (!recipientInput) { 
+    if (recipientInput === null) { 
         zeigeWarnung("Export abgebrochen."); 
-        if(waWindow) waWindow.close(); // Fenster schließen bei Abbruch
         return; 
     }
+    
+    let recipientInfo = recipientInput.trim() || "Unbekannt";
 
-    // SCHRITT 2: Protokolleintrag lokal erstellen
+    // SCHRITT 2: Fenster SOFORT öffnen (Apple- & Popup-Blocker-Trick)
+    const waWindow = window.open('', '_blank');
+    if (waWindow) {
+        waWindow.document.write(`
+            <html>
+            <head><title>WhatsApp Export</title><style>body{font-family:sans-serif;padding:20px;text-align:center;a{text-decoration:none;}}</style></head>
+            <body>
+                <h2>WhatsApp wird vorbereitet...</h2>
+                <p>Bitte warten Sie kurz, Ihre Daten werden gesichert.</p>
+                <div id="loading" style="margin: 20px; font-size: 2em;">⏳</div>
+                <div id="manualLink" style="display:none; margin-top:30px;">
+                    <p>Daten bereit! Falls WhatsApp nicht automatisch öffnet:</p>
+                    <a id="waLinkTarget" href="#" style="background:#25D366; color:white; padding:15px 25px; border-radius:5px; font-weight:bold; font-size:1.2em; display:inline-block;">Jetzt an WhatsApp senden 🚀</a>
+                </div>
+            </body>
+            </html>
+        `);
+    }
+
+    // SCHRITT 3: Protokoll erstellen
     const ausgewaehlteIDs = ideenToExport.map(i => i.id);
     const exportTimestamp = new Date().toLocaleString("de-DE");
 
@@ -2710,66 +2724,89 @@ async function teilePerWhatsApp() {
         addProtokollEintrag(ideeId, null, desc);
     });
 
-    zeigeIdeen(); // Liste aktualisieren, damit man den Eintrag sieht
+    zeigeIdeen(); 
 
-    // SCHRITT 3: WARTEN auf das Speichern in der Cloud
+    // SCHRITT 4: Speichern (Warten auf Cloud)
     const saveSuccess = await saveToOneDrive();
 
-    // SCHRITT 4: Nur wenn gespeichert wurde, WhatsApp im offenen Fenster laden
-    if (saveSuccess) {
-        let text = ideenToExport.map(idee => {
-             return generiereIdeenTextKomplett(idee, 'text', null);
-        }).filter(Boolean).join("\n\n------------------------------------\n\n");
+    // SCHRITT 5: Link generieren und öffnen (OHNE KÜRZUNG)
+    if (waWindow) {
+        const loadingDiv = waWindow.document.getElementById('loading');
+        const manualLinkDiv = waWindow.document.getElementById('manualLink');
+        const waLinkTarget = waWindow.document.getElementById('waLinkTarget');
 
-        text += `\n\n_[Gesendet via Ideen-App Pro]_`;
-        const waLink = `https://wa.me/?text=${encodeURIComponent(text)}`;
-        
-        if (waWindow) {
-            waWindow.location.href = waLink; // Hier passiert die Weiterleitung
+        if (saveSuccess) {
+            loadingDiv.style.display = 'none';
+            manualLinkDiv.style.display = 'block';
+
+            // Hier wird 'null' übergeben = KEINE Längenbegrenzung
+            let text = ideenToExport.map(idee => {
+                 return generiereIdeenTextKomplett(idee, 'text', null); 
+            }).filter(Boolean).join("\n\n------------------------------------\n\n");
+
+            text += `\n\n_[Gesendet via Ideen-App Pro]_`;
+            
+            // Text kodieren für die URL
+            const waLink = `https://wa.me/?text=${encodeURIComponent(text)}`;
+            
+            // Link in den Button setzen (als Fallback)
+            if(waLinkTarget) waLinkTarget.href = waLink;
+
+            // Automatische Weiterleitung versuchen
+            waWindow.location.href = waLink;
+            
         } else {
-            window.location.href = waLink;
+            if(waWindow.document.body) {
+                waWindow.document.body.innerHTML = "<h2 style='color:red'>Fehler beim Speichern!</h2><p>WhatsApp wird nicht geöffnet, da die Datensicherung fehlgeschlagen ist.</p>";
+            }
+            zeigeWarnung("Speichern fehlgeschlagen.", "warnung");
         }
-    } else {
-        zeigeWarnung("Speichern fehlgeschlagen. WhatsApp wird nicht geöffnet.", "warnung");
-        if(waWindow) waWindow.close(); // Fenster schließen bei Fehler
     }
 }
 
 async function teileBeschreibungPerWhatsApp(ideeId, beschreibungTimestamp) {
     if (!ideeId || !beschreibungTimestamp) { return; }
 
-    // SCHRITT 1: Fenster SOFORT öffnen
-    const waWindow = window.open('', '_blank');
-    if (waWindow) {
-        waWindow.document.write("<h1>WhatsApp wird vorbereitet...</h1><p>Bitte warten Sie, während Ihre Daten gespeichert werden.</p>");
-    }
-    
+    // SCHRITT 1: Fragen
     const recipientInput = prompt("An wen soll dieser Block gesendet werden?");
-    let recipientInfo = recipientInput ? recipientInput.trim() : "Unbekannt";
     
-    if (!recipientInput) { 
+    if (recipientInput === null) { 
         zeigeWarnung("Export abgebrochen."); 
-        if(waWindow) waWindow.close();
         return; 
     }
+    
+    let recipientInfo = recipientInput.trim() || "Unbekannt";
 
-    // SCHRITT 2: Protokoll erstellen
+    // SCHRITT 2: Fenster öffnen
+    const waWindow = window.open('', '_blank');
+    if (waWindow) {
+        waWindow.document.write(`
+            <html>
+            <head><title>WhatsApp Export</title><style>body{font-family:sans-serif;padding:20px;text-align:center;}</style></head>
+            <body>
+                <h2>WhatsApp wird vorbereitet...</h2>
+                <div id="loading" style="margin: 20px; font-size: 2em;">⏳</div>
+            </body>
+            </html>
+        `);
+    }
+
+    // SCHRITT 3: Protokoll
     const exportTimestamp = new Date().toLocaleString("de-DE");
     const logDesc = `Beschreibungs-Block weitergeleitet via WhatsApp an: ${recipientInfo} am ${exportTimestamp}.`;
     
     addProtokollEintrag(ideeId, beschreibungTimestamp, logDesc);
     zeigeIdeen();
 
-    // SCHRITT 3: WARTEN auf das Speichern
+    // SCHRITT 4: Speichern
     const saveSuccess = await saveToOneDrive();
 
-    // SCHRITT 4: Weiterleitung zu WhatsApp
+    // SCHRITT 5: WhatsApp (OHNE KÜRZUNG)
     if (saveSuccess) {
         const sammlung = sammleBeschreibungsBlock(ideeId, beschreibungTimestamp);
         if (!sammlung) {
-            zeigeWarnung("Datenfehler.");
             if(waWindow) waWindow.close();
-            return;
+            return zeigeWarnung("Datenfehler.");
         }
         const { idee, block } = sammlung;
 
@@ -2796,12 +2833,11 @@ async function teileBeschreibungPerWhatsApp(ideeId, beschreibungTimestamp) {
         });
         
         text += `\n\n_[Gesendet via Ideen-App Pro]_`;
+        
         const waLink = `https://wa.me/?text=${encodeURIComponent(text)}`;
         
         if (waWindow) {
             waWindow.location.href = waLink;
-        } else {
-            window.location.href = waLink;
         }
     } else {
          zeigeWarnung("Speichern fehlgeschlagen.", "warnung");
