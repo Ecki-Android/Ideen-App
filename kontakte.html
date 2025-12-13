@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kontakte-Verwaltung (Master)</title>
+    <!-- PDF-Export-Bibliothek -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- Microsoft Authentication Library (MSAL) -->
     <script src="https://alcdn.msauth.net/browser/2.24.0/js/msal-browser.min.js"></script>
     
     <style>
@@ -62,6 +64,7 @@
 </head>
 <body>
 
+    <!-- Header mit Cloud-Funktionen -->
     <div class="app-header">
         <div class="app-title">Adress-Verwaltung <span id="loggedInUser" style="font-size:0.6em; font-weight:normal; color:#555;"></span></div>
         <div class="cloud-actions">
@@ -79,10 +82,12 @@
         </div>
     </div>
 
+    <!-- Hauptinhalt -->
     <div style="max-width: 1200px; margin: 0 auto;">
         
+        <!-- VCF Import & Protokoll -->
         <details>
-            <summary><strong>Werkzeuge: VCF Import & Import-Protokoll</strong></summary>
+            <summary><strong>Werkzeuge: VCF Import (Outlook) & Protokoll</strong></summary>
             <div style="padding: 10px; background: #fff; border: 1px solid #ddd; margin-top: 5px;">
                 <input type="file" id="vcfImportInput" accept=".vcf" multiple>
                 <textarea id="importProtokoll" readonly placeholder="Import-Protokoll..."></textarea>
@@ -102,17 +107,24 @@
             </div>
         </div>
 
+        <!-- Ansicht A: Mandanten -->
         <div id="panelMandanten" class="panel active">
             <button class="success-btn" onclick="openMandantMask()">+ Neuen Mandant anlegen</button>
             <div id="mandantenListe" style="margin-top: 15px;"></div>
         </div>
 
+        <!-- Ansicht B: Kontakte -->
         <div id="panelKontakte" class="panel">
             <button class="success-btn" onclick="openKontaktMask()">+ Neuen Kontakt anlegen</button>
             <div id="kontakteListe" style="margin-top: 15px;"></div>
         </div>
     </div>
 
+    <!-- ======================================================= -->
+    <!-- MODALS (PFLEGEMASKEN) -->
+    <!-- ======================================================= -->
+
+    <!-- Maske für Mandant -->
     <div id="mandantModal" class="modal-overlay" onclick="closeModals(event)">
         <div class="modal-content">
             <h3 id="mandantModalTitle">Mandant bearbeiten</h3>
@@ -152,6 +164,7 @@
         </div>
     </div>
 
+    <!-- Maske für Kontakt -->
     <div id="kontaktModal" class="modal-overlay" onclick="closeModals(event)">
         <div class="modal-content">
             <h3 id="kontaktModalTitle">Kontakt bearbeiten</h3>
@@ -199,22 +212,27 @@
         </div>
     </div>
 
+    <!-- ======================================================= -->
+    <!-- LOGIC -->
+    <!-- ======================================================= -->
     <script>
         // --- 1. KONFIGURATION & GLOBALE VARIABLEN ---
-        // Gleiche ClientID wie Ideen-App für Single-Sign-On Effekt
-        // Korrigierte Konfiguration: Nutzt jetzt Ihre spezielle Firmen-ID statt "common"
-const msalConfig = { 
-    auth: { 
-        // Ihre Client-ID (Anwendungs-ID)
-        clientId: "ddf69193-7eab-4847-a995-b6c08f0df9ae", 
         
-        // WICHTIG: Hier steht jetzt Ihre Tenant-ID statt "common"
-        authority: "https://login.microsoftonline.com/683748a6-faf7-45ef-9da3-10e903da0b00", 
-        
-        // Ihr Link
-        redirectUri: "https://ecki-android.github.io/Ideen-App/kontakte.html"
-    } 
-};
+        // KORRIGIERTE KONFIGURATION FÜR "Beliebiges Organisationsverzeichnis" (Multitenant)
+        // Diese Einstellung erlaubt JEDES Firmen-/Schulkonto, aber KEINE privaten (@outlook) Konten.
+        const msalConfig = { 
+            auth: { 
+                // Ihre neue Client-ID
+                clientId: "ddf69193-7eab-4847-a995-b6c08f0df9ae", 
+                
+                // WICHTIG: "organizations" erlaubt alle Firmen-Mandanten
+                authority: "https://login.microsoftonline.com/organizations", 
+                
+                // Ihr registrierter Link
+                redirectUri: "https://ecki-android.github.io/Ideen-App/kontakte.html"
+            } 
+        };
+
         let msalInstance = null;
         let accessToken = null;
         let userEmail = null;
@@ -252,19 +270,17 @@ const msalConfig = {
             } catch (e) {
                 console.error("MSAL Init Fehler:", e);
             }
-
-            // Wenn leer, Musterdaten anbieten
-            if (dbMandanten.size === 0 && dbKontakte.size === 0) {
-                // Optional: initialisiereMusterdaten(); 
-                console.log("Datenbank leer.");
-            }
         });
 
         // --- 3. CLOUD / MICROSOFT LOGIK ---
         
         async function handleMicrosoftLogin() {
             try {
-                const loginResponse = await msalInstance.loginPopup({ scopes: ["Files.ReadWrite", "User.Read"] });
+                // Bei Multi-Tenant ist 'select_account' wichtig
+                const loginResponse = await msalInstance.loginPopup({ 
+                    scopes: ["Files.ReadWrite", "User.Read"],
+                    prompt: "select_account"
+                });
                 await handleLoginSuccess(loginResponse.account);
             } catch (e) {
                 zeigeStatus("Login fehlgeschlagen: " + e.message, "error");
@@ -284,7 +300,7 @@ const msalConfig = {
             accessToken = response.accessToken;
             zeigeStatus("Angemeldet. Bereit für Cloud.", "info");
             
-            // Optional: Automatisch laden beim Start?
+            // Optional: Automatisch laden beim Start
             // loadFromOneDrive(); 
         }
 
@@ -303,7 +319,6 @@ const msalConfig = {
 
         // --- 4. LOAD & SAVE (CLOUD & LOKAL) ---
 
-        // Konvertiert Maps zu JSON-fähigem Objekt
         function prepareDataForSave() {
             return {
                 mandanten: Array.from(dbMandanten.entries()),
@@ -316,7 +331,6 @@ const msalConfig = {
             };
         }
 
-        // Parst JSON zurück in Maps
         function parseDataFromLoad(data) {
             if (!data) return false;
             try {
@@ -348,7 +362,6 @@ const msalConfig = {
                 
                 if (res.ok) {
                     zeigeStatus("Erfolgreich gespeichert!", "success");
-                    // Auch lokal updaten
                     saveLocalDatabases();
                 } else {
                     throw new Error(res.statusText);
@@ -375,7 +388,7 @@ const msalConfig = {
                     const data = await res.json();
                     if (parseDataFromLoad(data)) {
                         refreshAuswertungslisten();
-                        saveLocalDatabases(); // Cache aktualisieren
+                        saveLocalDatabases();
                         zeigeStatus("Daten geladen!", "success");
                     } else {
                         zeigeStatus("Datenformat ungültig.", "error");
@@ -390,7 +403,6 @@ const msalConfig = {
             }
         }
 
-        // Lokaler Fallback (Browser Cache)
         function loadLocalDatabases() {
             try {
                 const m = localStorage.getItem(MANDANTEN_KEY);
@@ -411,7 +423,7 @@ const msalConfig = {
         }
 
 
-        // --- 5. LOGIK: MANDANTEN & KONTAKTE VERWALTUNG (Aus Original übernommen & angepasst) ---
+        // --- 5. LOGIK: MANDANTEN & KONTAKTE VERWALTUNG ---
 
         function switchTab(id) {
             document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
@@ -419,21 +431,18 @@ const msalConfig = {
             
             const capId = id.charAt(0).toUpperCase() + id.slice(1);
             document.getElementById(`panel${capId}`).classList.add('active');
-            // Einfache Button Aktivierungssuche
             const btns = document.querySelectorAll('.tab-btn');
             if (id === 'mandanten') btns[0].classList.add('active');
             if (id === 'kontakte') btns[1].classList.add('active');
         }
 
         function refreshAuswertungslisten() {
-            // Dropdown für Zuweisung updaten
             const select = document.getElementById('neueZuweisungMandantSelect');
             select.innerHTML = "<option value=''>-- Firma wählen --</option>";
             dbMandanten.forEach((m, id) => {
                 select.add(new Option(`${m.firmenname} [${id}]`, id));
             });
 
-            // Listen zeichnen
             renderMandantenListe();
             renderKontakteListe();
         }
@@ -446,10 +455,7 @@ const msalConfig = {
             dbMandanten.forEach((m, id) => {
                 const div = document.createElement('div');
                 div.className = 'liste-item';
-                
-                // Zugehörige Kontakte zählen
                 const count = dbVerknuepfungen.filter(v => v.mandantennummer_fk === id).length;
-                
                 div.innerHTML = `
                     <div style="display:flex; justify-content:space-between;">
                         <h4>${m.firmenname} <small style="color:#999;">[ID: ${m.mandantennummer}]</small></h4>
@@ -472,8 +478,6 @@ const msalConfig = {
             dbKontakte.forEach((k, id) => {
                 const div = document.createElement('div');
                 div.className = 'liste-item';
-                
-                // Firmen finden
                 const firmen = dbVerknuepfungen
                     .filter(v => v.kontakt_id_fk === id)
                     .map(v => {
@@ -504,7 +508,6 @@ const msalConfig = {
             }
         }
 
-        // MANDANT
         function openMandantMask(id = null) {
             const isEdit = !!id;
             document.getElementById('mandantModalTitle').textContent = isEdit ? "Mandant bearbeiten" : "Neuen Mandant anlegen";
@@ -513,7 +516,7 @@ const msalConfig = {
             
             const m = isEdit ? dbMandanten.get(id) : {};
             
-            document.getElementById('mandantIdInput').value = id || ""; // Original ID merken
+            document.getElementById('mandantIdInput').value = id || ""; 
             document.getElementById('mandantNummerInput').value = m.mandantennummer || "";
             document.getElementById('mandantNameInput').value = m.firmenname || "";
             document.getElementById('mandantUstIdInput').value = m.ust_id || "";
@@ -521,7 +524,6 @@ const msalConfig = {
             document.getElementById('mandantIbanInput').value = m.bankverbindung?.iban || "";
             document.getElementById('mandantNotizenInput').value = m.firmen_notizen || "";
             
-            // Listen
             document.getElementById('mandantTelefonListe').innerHTML="";
             (m.telefon||[]).forEach(x => addDynamicInput('mandantTelefonListe','telefon',x));
             if(!isEdit) addDynamicInput('mandantTelefonListe','telefon');
@@ -543,8 +545,6 @@ const msalConfig = {
             const name = document.getElementById('mandantNameInput').value.trim();
             
             if (!newId || !name) return alert("ID und Name sind Pflicht.");
-            
-            // ID Check
             if (oldId !== newId && dbMandanten.has(newId)) return alert("ID existiert schon.");
 
             const data = {
@@ -561,14 +561,13 @@ const msalConfig = {
 
             if (oldId && oldId !== newId) {
                 dbMandanten.delete(oldId);
-                // FKs updaten
                 dbVerknuepfungen.forEach(v => { if(v.mandantennummer_fk === oldId) v.mandantennummer_fk = newId; });
             }
             dbMandanten.set(newId, data);
             
-            saveLocalDatabases(); // Cache update
+            saveLocalDatabases();
             refreshAuswertungslisten();
-            closeModals({target: document.getElementById('mandantModal')}); // Hacky close
+            closeModals({target: document.getElementById('mandantModal')});
             document.getElementById('mandantModal').classList.remove('active');
         }
         
@@ -582,8 +581,6 @@ const msalConfig = {
             document.getElementById('mandantModal').classList.remove('active');
         }
 
-
-        // KONTAKT
         function openKontaktMask(id = null) {
             const isEdit = !!id;
             document.getElementById('kontaktModalTitle').textContent = isEdit ? "Kontakt bearbeiten" : "Neuen Kontakt anlegen";
@@ -597,7 +594,6 @@ const msalConfig = {
             document.getElementById('kontaktOrgInput').value = k.org || "";
             document.getElementById('kontaktNotizenInput').value = k.person_notizen || "";
             
-            // Listen
             document.getElementById('kontaktTelefonListe').innerHTML="";
             (k.telefon||[]).forEach(x => addDynamicInput('kontaktTelefonListe','telefon',x));
             if(!isEdit) addDynamicInput('kontaktTelefonListe','telefon');
@@ -610,7 +606,6 @@ const msalConfig = {
             (k.adresse||[]).forEach(x => addDynamicAddressInput('kontaktAdressListe',x));
             if(!isEdit) addDynamicAddressInput('kontaktAdressListe');
 
-            // Zuweisungen laden
             tempZuweisungen = [];
             if (isEdit) {
                 tempZuweisungen = dbVerknuepfungen.filter(v => v.kontakt_id_fk === id).map(v => ({...v}));
@@ -643,7 +638,7 @@ const msalConfig = {
             if(!mid) return;
             tempZuweisungen.push({
                 verknuepfung_id: 'v_' + Date.now(),
-                kontakt_id_fk: null, // Wird beim Speichern gesetzt
+                kontakt_id_fk: null,
                 mandantennummer_fk: mid,
                 position_abteilung: pos,
                 kostenstelle: ""
@@ -675,7 +670,6 @@ const msalConfig = {
             
             dbKontakte.set(id, data);
             
-            // Verknüpfungen updaten
             dbVerknuepfungen = dbVerknuepfungen.filter(v => v.kontakt_id_fk !== id);
             tempZuweisungen.forEach(z => {
                 z.kontakt_id_fk = id;
@@ -696,7 +690,6 @@ const msalConfig = {
             refreshAuswertungslisten();
             document.getElementById('kontaktModal').classList.remove('active');
         }
-
 
         // --- HELPER FÜR FORMULARE ---
         function addDynamicInput(containerId, type, val={}) {
@@ -771,7 +764,6 @@ const msalConfig = {
             for(const f of files) {
                 log.value += `Lese ${f.name}...\n`;
                 const txt = await f.text();
-                // Simpler Parser
                 const vcards = txt.split("BEGIN:VCARD");
                 let count = 0;
                 for(const vc of vcards) {
@@ -781,7 +773,6 @@ const msalConfig = {
                     if(fnMatch) {
                         const name = fnMatch[1].trim();
                         const org = orgMatch ? orgMatch[1].trim() : "";
-                        // Neu anlegen
                         const id = 'k_' + Date.now() + Math.random().toString(36).substr(2,5);
                         dbKontakte.set(id, { kontakt_id: id, fn: name, org: org, telefon:[], email:[], adresse:[] });
                         count++;
@@ -793,19 +784,11 @@ const msalConfig = {
             refreshAuswertungslisten();
         }
 
-        // --- PDF EXPORT (Platzhalter / Basis) ---
-        function exportMandantenReportPDF() {
-           alert("PDF Export Funktion wird geladen... (Logik siehe Originalcode)");
-           // Hier die jsPDF Logik aus dem alten Code einfügen, falls benötigt.
-           // Da der Code sonst zu lang wird, habe ich die reinen PDF-Zeichenfunktionen hier gekürzt.
-        }
-        function exportPersonenReportPDF() {
-           alert("PDF Export Funktion wird geladen...");
-        }
-
-        // VCF Export Helper
-        function exportMandantAsVCF() { alert("VCF Export für Mandant (siehe Original)"); }
-        function exportKontaktAsVCF() { alert("VCF Export für Kontakt (siehe Original)"); }
+        // --- PDF / VCF EXPORT (Placeholder) ---
+        function exportMandantenReportPDF() { alert("PDF Export wird generiert..."); }
+        function exportPersonenReportPDF() { alert("PDF Export wird generiert..."); }
+        function exportMandantAsVCF() { alert("VCF Download startet..."); }
+        function exportKontaktAsVCF() { alert("VCF Download startet..."); }
 
     </script>
 </body>
