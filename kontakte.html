@@ -219,17 +219,18 @@
         // --- 1. KONFIGURATION & GLOBALE VARIABLEN ---
         
         // KORRIGIERTE KONFIGURATION FÜR ALLE (Multitenant + Personal)
-        // Nutzt "common", damit auch private Konten funktionieren (Option 3 in Azure)
+        // Nutzt die Client-ID aus der funktionierenden index.html, da diese für persönliche Konten freigeschaltet ist.
         const msalConfig = { 
             auth: { 
-                // Ihre neue Client-ID
-                clientId: "ddf69193-7eab-4847-a995-b6c08f0df9ae", 
+                // Client-ID aus index.html (unterstützt Personal Accounts)
+                clientId: "c3cd3be4-3540-46dd-a24c-82eb6ed5542d", 
                 
                 // WICHTIG: "common" ist der einzige Weg für private UND geschäftliche Konten
                 authority: "https://login.microsoftonline.com/common", 
                 
-                // Ihr registrierter Link
-                redirectUri: "https://ecki-android.github.io/Ideen-App/kontakte.html"
+                // Dynamischer Redirect (funktioniert lokal und auf GitHub)
+                // WICHTIG: "https://ecki-android.github.io/Ideen-App/kontakte.html" muss in Azure registriert sein!
+                redirectUri: window.location.origin + window.location.pathname
             } 
         };
 
@@ -276,14 +277,16 @@
         
         async function handleMicrosoftLogin() {
             try {
-                // Bei Multi-Tenant ist 'select_account' wichtig
+                // 'select_account' erzwingt die Kontoauswahl
+                // 'offline_access' hilft manchmal bei Token-Problemen
                 const loginResponse = await msalInstance.loginPopup({ 
-                    scopes: ["Files.ReadWrite", "User.Read"],
+                    scopes: ["Files.ReadWrite", "User.Read", "offline_access"],
                     prompt: "select_account"
                 });
                 await handleLoginSuccess(loginResponse.account);
             } catch (e) {
                 zeigeStatus("Login fehlgeschlagen: " + e.message, "error");
+                console.error(e);
             }
         }
 
@@ -296,9 +299,22 @@
             document.getElementById('cloudSaveBtn').disabled = false;
             
             // Token holen
-            const response = await msalInstance.acquireTokenSilent({ scopes: ["Files.ReadWrite"], account: account });
-            accessToken = response.accessToken;
-            zeigeStatus("Angemeldet. Bereit für Cloud.", "info");
+            try {
+                const response = await msalInstance.acquireTokenSilent({ 
+                    scopes: ["Files.ReadWrite"], 
+                    account: account 
+                });
+                accessToken = response.accessToken;
+                zeigeStatus("Angemeldet. Bereit für Cloud.", "info");
+            } catch (e) {
+                // Fallback: Interaktiv anfordern
+                const response = await msalInstance.acquireTokenPopup({ 
+                    scopes: ["Files.ReadWrite"], 
+                    account: account 
+                });
+                accessToken = response.accessToken;
+                zeigeStatus("Angemeldet (Interaktiv). Bereit.", "info");
+            }
             
             // Optional: Automatisch laden beim Start
             // loadFromOneDrive(); 
