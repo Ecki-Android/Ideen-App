@@ -202,12 +202,17 @@
     <script>
         // --- 1. KONFIGURATION & GLOBALE VARIABLEN ---
         // Gleiche ClientID wie Ideen-App für Single-Sign-On Effekt
-        // ÄNDERUNG: Feste Adresse, damit sie exakt mit Azure übereinstimmt
+        // Korrigierte Konfiguration: Nutzt jetzt Ihre spezielle Firmen-ID statt "common"
 const msalConfig = { 
     auth: { 
+        // Ihre Client-ID (Anwendungs-ID)
         clientId: "ddf69193-7eab-4847-a995-b6c08f0df9ae", 
-        authority: "https://login.microsoftonline.com/common", 
-        redirectUri: "https://ecki-android.github.io/Ideen-App/kontakte.html" 
+        
+        // WICHTIG: Hier steht jetzt Ihre Tenant-ID statt "common"
+        authority: "https://login.microsoftonline.com/683748a6-faf7-45ef-9da3-10e903da0b00", 
+        
+        // Ihr Link
+        redirectUri: "https://ecki-android.github.io/Ideen-App/kontakte.html"
     } 
 };
         let msalInstance = null;
