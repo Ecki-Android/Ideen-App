@@ -218,18 +218,16 @@
     <script>
         // --- 1. KONFIGURATION & GLOBALE VARIABLEN ---
         
-        // KORRIGIERTE KONFIGURATION FÜR ALLE (Multitenant + Personal)
-        // Nutzt die Client-ID aus der funktionierenden index.html, da diese für persönliche Konten freigeschaltet ist.
+        // KONFIGURATION KORRIGIERT: Nutzt jetzt die "Multiuser"-ID (c3cd...), da Azure dafür konfiguriert wurde.
         const msalConfig = { 
             auth: { 
-                // Client-ID aus index.html (unterstützt Personal Accounts)
+                // Client-ID der App "IdeenApp-Multiuser" (unterstützt Personal & Org Accounts)
                 clientId: "c3cd3be4-3540-46dd-a24c-82eb6ed5542d", 
                 
                 // WICHTIG: "common" ist der einzige Weg für private UND geschäftliche Konten
                 authority: "https://login.microsoftonline.com/common", 
                 
-                // Dynamischer Redirect (funktioniert lokal und auf GitHub)
-                // WICHTIG: "https://ecki-android.github.io/Ideen-App/kontakte.html" muss in Azure registriert sein!
+                // Dynamischer Redirect (muss exakt so in Azure eingetragen sein: .../kontakte.html)
                 redirectUri: window.location.origin + window.location.pathname
             } 
         };
