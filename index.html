@@ -244,9 +244,12 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
     <div id="vorgangsnummerAnzeigeInput">Nächste Vorgangsnummer: <span id="naechsteNummerAnzeige">1</span></div>
     <input type="text" id="ideeText" placeholder="Titel*" />
     <textarea id="ideeDetails" placeholder="Beschreibung" rows="3"></textarea>
-    <input type="text" id="mandantennummer" placeholder="Mandantennummer (optional)" />
+    
+    <!-- MANDANTEN LOGIK -->
+    <input type="text" id="mandantennummer" placeholder="Mandantennummer (optional) - Tippen für Auto-Fill" />
+    <input type="text" id="firmenname" placeholder="Firmenname (optional)" />
 
-    <!-- NEU: Container für dynamische Telefonnummern -->
+    <!-- KONTAINER für Telefonnummern -->
     <div id="telefonNummerContainerVorschau" style="font-size: 0.9em; margin-top: 10px; padding: 5px; background: #f9f9f9; border-radius: 4px; display: none;">
         <b>Gespeicherte Nummern:</b> <span id="telefonNummerListeAnzeige"></span>
     </div>
@@ -254,10 +257,25 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
         <!-- Dynamische Telefonnummer-Zeilen werden hier per JS eingefügt -->
     </div>
     <button id="addTelefonNummerBtn" type="button">+ Telefonnummer hinzufügen</button>
-    <!-- ENDE: Container für dynamische Telefonnummern -->
-
-    <input type="text" id="firmenname" placeholder="Firmenname (optional)" />
-    <select id="kategorie"></select> <input type="text" id="neueKategorie" placeholder="Neue Kategorie" /> <button onclick="neueKategorieHinzufuegen()">+ Kat</button> <button class="katLoeschBtn" onclick="kategorieLoeschen()">Kat löschen</button> <select id="benutzer"></select> <input type="text" id="neuerBenutzer" placeholder="Neuer Benutzer" /> <button onclick="neuenBenutzerHinzufuegen()">+ User</button> <button class="benutzerLoeschBtn" onclick="benutzerLoeschen()">User löschen</button> <div class="buttons"> <button id="prioHoch" class="prio-btn" onclick="setzePrioritaet('Hoch')">🔴 Hoch</button> <button id="prioMittel" class="prio-btn" onclick="setzePrioritaet('Mittel')">🟠 Mittel</button> <button id="prioNiedrig" class="prio-btn" onclick="setzePrioritaet('Niedrig')">🟢 Niedrig</button> </div>
+    
+    <!-- KATEGORIE & BENUTZER -->
+    <select id="kategorie"></select> 
+    <input type="text" id="neueKategorie" placeholder="Neue Kategorie" /> 
+    <button onclick="neueKategorieHinzufuegen()">+ Kat</button> 
+    <button class="katLoeschBtn" onclick="kategorieLoeschen()">Kat löschen</button> 
+    
+    <!-- INTELLIGENTER BENUTZER SELECT -->
+    <select id="benutzer" onchange="handleBenutzerChange()"></select> 
+    <input type="text" id="neuerBenutzer" placeholder="Neuer Benutzer" /> 
+    <button onclick="neuenBenutzerHinzufuegen()">+ User</button> 
+    <button class="benutzerLoeschBtn" onclick="benutzerLoeschen()">User löschen</button> 
+    
+    <div class="buttons"> 
+        <button id="prioHoch" class="prio-btn" onclick="setzePrioritaet('Hoch')">🔴 Hoch</button> 
+        <button id="prioMittel" class="prio-btn" onclick="setzePrioritaet('Mittel')">🟠 Mittel</button> 
+        <button id="prioNiedrig" class="prio-btn" onclick="setzePrioritaet('Niedrig')">🟢 Niedrig</button> 
+    </div>
+    
     <input type="file" id="dateien" multiple /> <div class="datei-vorschau" id="dateiVorschau"></div>
     <button id="speichernBtn" onclick="speichereIdee()">💾 Speichern</button> <button id="abbrechenBtn" onclick="abbrechenBearbeiten()" style="display:none;">Abbrechen</button>
 
@@ -267,11 +285,11 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
         <option value="" class="filter-option-alle">🎯 Alle Ideen</option>
     </select>
     <label>Archiv:</label> 
-<select id="filterArchiv" onchange="zeigeIdeen(); updateVorgangsnummerDropdown()">
-    <option value="nicht_erledigt">Nur nicht erledigt</option>
-    <option value="erledigt">Nur erledigt</option>
-    <option value="alle">Alle anzeigen</option>
-</select>
+    <select id="filterArchiv" onchange="zeigeIdeen(); updateVorgangsnummerDropdown()">
+        <option value="nicht_erledigt">Nur nicht erledigt</option>
+        <option value="erledigt">Nur erledigt</option>
+        <option value="alle">Alle anzeigen</option>
+    </select>
 
     <label>Benutzer:</label> 
     <select id="filterBenutzer" onchange="filterNachBenutzer(); updateVorgangsnummerDropdown()"></select>
@@ -447,6 +465,141 @@ let filterMandantValue="";
 let filterBenutzerValue="";
 let naechsteVorgangsnummer=1;
 let benachrichtigungsIntervallId = null;
+
+// --- SHARED DATA LOGIC (STAMMDATEN) ---
+let sharedStammdaten = { mandanten: [], kontakte: [] };
+let selectedUserEmail = null; // Zum Merken der E-Mail des ausgewählten Benutzers
+
+async function loadSharedStammdaten() {
+    if (currentLoginType !== 'microsoft' || !accessToken) return;
+    
+    // Pfad zur Datei, die von kontakte.html erstellt wird
+    const path = "/ideenapp/stammdaten.json"; 
+    
+    try {
+        const url = `https://graph.microsoft.com/v1.0/me/drive/root:${path}:/content`;
+        const res = await fetch(url, {
+            method: "GET",
+            headers: { "Authorization": `Bearer ${accessToken}` }
+        });
+        
+        if (res.ok) {
+            const data = await res.json();
+            
+            // Konvertieren der Map-Struktur (Arrays von Arrays) in nutzbare Objekte
+            if (data.mandanten) {
+                // Map to Array of Objects
+                sharedStammdaten.mandanten = data.mandanten.map(entry => entry[1]); // entry[0] ist Key, entry[1] ist Value
+            }
+            if (data.kontakte) {
+                sharedStammdaten.kontakte = data.kontakte.map(entry => entry[1]);
+            }
+            
+            console.log("Stammdaten geladen:", sharedStammdaten);
+            
+            // UI aktualisieren: Benutzerliste mit echten Kontakten erweitern
+            initialisiereBenutzer();
+            
+        } else {
+            console.warn("Stammdaten konnten nicht geladen werden (404?).");
+        }
+    } catch (e) {
+        console.error("Fehler beim Laden der Stammdaten:", e);
+    }
+}
+
+// Event Listener für Mandantennummer-Eingabe (Auto-Fill)
+document.getElementById('mandantennummer').addEventListener('input', function(e) {
+    const val = e.target.value.trim();
+    if (!val || !sharedStammdaten.mandanten.length) return;
+    
+    const mandant = sharedStammdaten.mandanten.find(m => m.mandantennummer === val);
+    if (mandant) {
+        document.getElementById('firmenname').value = mandant.firmenname || "";
+        triggerAutoSave();
+    }
+});
+
+// Erweiterte Benutzer-Initialisierung (mischt lokale und Stammdaten-Kontakte)
+function initialisiereBenutzer() {
+    // 1. Lokale Benutzerliste laden
+    let localUsers = JSON.parse(localStorage.getItem("benutzerliste") || "[]");
+    if (!Array.isArray(localUsers)) localUsers = [];
+    
+    // 2. Kontakte aus Stammdaten holen
+    const kontaktNamen = sharedStammdaten.kontakte.map(k => k.fn).filter(n => n);
+    
+    // 3. Listen zusammenführen und Duplikate entfernen
+    const alleBenutzer = [...new Set([...localUsers, ...kontaktNamen])].sort();
+    
+    // 4. Dropdowns füllen
+    const sel = document.getElementById("benutzer");
+    const currentVal = sel.value;
+    sel.innerHTML = '<option value="">-- Benutzer / Zuständig --</option>';
+    alleBenutzer.forEach(b => sel.add(new Option(b, b)));
+    if (currentVal && alleBenutzer.includes(currentVal)) sel.value = currentVal;
+
+    const fSel = document.getElementById("filterBenutzer");
+    const currentFilter = fSel.value;
+    fSel.innerHTML = '<option value="">👤 Alle Benutzer</option>';
+    alleBenutzer.forEach(b => fSel.add(new Option(b, b)));
+    if (currentFilter && alleBenutzer.includes(currentFilter)) fSel.value = currentFilter;
+}
+
+// Handler wenn Benutzer ausgewählt wird
+function handleBenutzerChange() {
+    const userName = document.getElementById('benutzer').value;
+    selectedUserEmail = null; // Reset
+    
+    if (!userName || !sharedStammdaten.kontakte.length) return;
+    
+    const kontakt = sharedStammdaten.kontakte.find(k => k.fn === userName);
+    if (kontakt) {
+        // 1. Telefonnummern übernehmen (wenn noch leer oder Bestätigung?) -> Wir adden sie einfach, wenn nicht vorhanden
+        if (kontakt.telefon && Array.isArray(kontakt.telefon)) {
+            const container = document.getElementById('telefonNummerContainer');
+            // Prüfen ob Container leer ist, sonst fragen? Wir machen es einfach additiv.
+            kontakt.telefon.forEach(t => {
+                // Check if number already exists in input fields to avoid dupes
+                const exists = Array.from(container.querySelectorAll('.telefon-nummer')).some(inp => inp.value === t.number);
+                if (!exists) {
+                    addTelefonNummerInput(t.type || 'WORK', t.number);
+                }
+            });
+        }
+        
+        // 2. E-Mail merken (für Mail-Button Logik später)
+        if (kontakt.email && kontakt.email.length > 0) {
+            selectedUserEmail = kontakt.email[0].address;
+            zeigeWarnung(`E-Mail für ${userName} gemerkt: ${selectedUserEmail}`, "info");
+        }
+        
+        // 3. Mandant/Firma setzen (Logik: Wir suchen in den Stammdaten Verknüpfungen)
+        // Hinweis: Die Verknüpfungstabelle ist in der JSON root, wir haben oben nur mandanten/kontakte extrahiert.
+        // Das ist etwas komplexer, da wir die Verknüpfungen bräuchten.
+        // VEREINFACHUNG: Wir schauen, ob der Kontakt eine 'org' hat, die einem Firmennamen entspricht.
+        if (kontakt.org) {
+            const mandant = sharedStammdaten.mandanten.find(m => m.firmenname === kontakt.org);
+            if (mandant) {
+                document.getElementById('mandantennummer').value = mandant.mandantennummer || "";
+                document.getElementById('firmenname').value = mandant.firmenname || "";
+            } else {
+                // Nur Firmenname setzen, wenn kein Mandant gefunden
+                if(!document.getElementById('firmenname').value) {
+                    document.getElementById('firmenname').value = kontakt.org;
+                }
+            }
+        }
+        
+        triggerAutoSave();
+    }
+}
+
+// Modifizierte teilePerEmail Funktion, die selectedUserEmail nutzt
+const originalTeilePerEmail = teilePerEmail; // Backup (falls wir es brauchen)
+// Wir überschreiben die Funktion im Hauptblock unten nicht, sondern passen sie dort an.
+
+// --- ENDE SHARED DATA LOGIC ---
 
 
 // --- NEU: Funktion zur Anzeige des OneDrive-Status ---
@@ -770,6 +923,10 @@ async function handleMicrosoftLogin() {
         console.log("Token-Überwachung ('Wachhund') gestartet.");
 
         await loadFromOneDrive(); // Initial-Load
+        
+        // NEU: Stammdaten laden
+        loadSharedStammdaten();
+        
         return true;
 
     } catch (e) {
@@ -1006,10 +1163,9 @@ function initialisiereKategorien(){
 
 function neueKategorieHinzufuegen(){const input=document.getElementById("neueKategorie");const name=input.value.trim();if(!name){zeigeWarnung("Bitte Kategorienamen eingeben.");return}kategorien=JSON.parse(localStorage.getItem("kategorien")||"[]");if(!Array.isArray(kategorien))kategorien=[...standardKategorien];if(kategorien.includes(name)){zeigeWarnung(`Kategorie "${name}" existiert bereits!`);return}kategorien.push(name);kategorien.sort();localStorage.setItem("kategorien",JSON.stringify(kategorien));triggerAutoSave();initialisiereKategorien();input.value="";input.focus();zeigeWarnung(`Kategorie "${name}" hinzugefügt.`,'success');}
 function kategorieLoeschen(){const sel=document.getElementById("kategorie");const name=sel.value;const noDel=["Aufgaben","Projekte","Privat","Arbeit","Später"];if(!name||name===""){zeigeWarnung("Bitte Kategorie zum Löschen wählen.");return}if(noDel.includes(name)){zeigeWarnung(`Standardkategorie "${name}" kann nicht gelöscht werden.`);return}kategorien=JSON.parse(localStorage.getItem("kategorien")||"[]");if(!Array.isArray(kategorien))kategorien=[];if(!kategorien.includes(name)){zeigeWarnung(`Kategorie "${name}" nicht gefunden.`);return}const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const count=ideen.filter(i=>i&&i.kategorie===name).length;let msg=`Kategorie "${name}" wirklich löschen?`;if(count>0)msg+=` ${count} Notiz(en) verlieren diese Kategorie.`;if(!confirm(msg))return;const idx=kategorien.indexOf(name);if(idx>-1){kategorien.splice(idx,1);localStorage.setItem("kategorien",JSON.stringify(kategorien));let changed=!1;ideen.forEach(i=>{if(i&&i.kategorie===name){i.kategorie="";changed=!0}});if(changed){localStorage.setItem("ideen",JSON.stringify(ideen));}initialisiereKategorien();triggerAutoSave();const fSel=document.getElementById("filterKategorie");if(fSel.value===name)fSel.value="";zeigeWarnung(`Kategorie "${name}" gelöscht.`,'success');zeigeIdeen();}else{zeigeWarnung(`Interner Fehler: Kategorie "${name}" nicht gefunden.`);}}
-function initialisiereBenutzer(){benutzerliste=JSON.parse(localStorage.getItem("benutzerliste")||"[]");if(!Array.isArray(benutzerliste)){benutzerliste=[];localStorage.setItem("benutzerliste","[]")}const sel=document.getElementById("benutzer");sel.innerHTML='<option value="">-- Benutzer --</option>';benutzerliste.forEach(b=>sel.add(new Option(b,b)));const fSel=document.getElementById("filterBenutzer");fSel.innerHTML='<option value="">👤 Alle Benutzer</option>';benutzerliste.forEach(b=>fSel.add(new Option(b,b)))}
-function neuenBenutzerHinzufuegen(){const input=document.getElementById("neuerBenutzer");const name=input.value.trim();if(!name){zeigeWarnung("Bitte Benutzernamen eingeben.");return}benutzerliste=JSON.parse(localStorage.getItem("benutzerliste")||"[]");if(!Array.isArray(benutzerliste))benutzerliste=[];if(benutzerliste.includes(name)){zeigeWarnung(`Benutzer "${name}" existiert bereits!`);return}benutzerliste.push(name);benutzerliste.sort();localStorage.setItem("benutzerliste",JSON.stringify(benutzerliste));triggerAutoSave();aktualisiereBenutzerDropdowns();input.value="";input.focus();zeigeWarnung(`Benutzer "${name}" hinzugefügt.`,'success');}
-function benutzerLoeschen(){const sel=document.getElementById("benutzer");const name=sel.value;if(!name||name===""){zeigeWarnung("Bitte Benutzer zum Löschen wählen.");return}benutzerliste=JSON.parse(localStorage.getItem("benutzerliste")||"[]");if(!Array.isArray(benutzerliste))benutzerliste=[];if(!benutzerliste.includes(name)){zeigeWarnung(`Benutzer "${name}" nicht gefunden.`);return}if(!confirm(`Benutzer "${name}" WIRKLICH löschen? ALLE Notizen dieses Benutzers werden gelöscht!`))return;const idx=benutzerliste.indexOf(name);if(idx>-1){benutzerliste.splice(idx,1);localStorage.setItem("benutzerliste",JSON.stringify(benutzerliste));let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const len=ideen.length;const origIdeen=JSON.parse(localStorage.getItem("ideen")||"[]");ideen=ideen.filter(i=>i&&i.benutzer!==name);const deletedCount=len-ideen.length;if(deletedCount>0){localStorage.setItem("ideen",JSON.stringify(ideen));const remM=new Set(ideen.filter(i=>i).map(i=>(i.mandantennummer||"").toLowerCase()).filter(m=>m!==""));const allM=new Set(origIdeen.filter(i=>i).map(i=>(i.mandantennummer||"").toLowerCase()).filter(m=>m!==""));let updM=!1;allM.forEach(m=>{if(!remM.has(m))updM=!0});if(updM)aktualisiereMandantenFilterDropdown()}aktualisiereBenutzerDropdowns();triggerAutoSave();if(filterBenutzerValue===name){filterBenutzerValue="";document.getElementById("filterBenutzer").value=""}if(bearbeiteId!==null&&!ideen.some(i=>i&&i.id===bearbeiteId)){abbrechenBearbeiten()}if(beschreibungFuerId!==null&&!ideen.some(i=>i&&i.id===beschreibungFuerId)){beschreibungAbbrechen()}zeigeWarnung(`Benutzer "${name}" und ${deletedCount} Notiz(en) gelöscht.`,'success');zeigeIdeen();}else{zeigeWarnung(`Interner Fehler: Benutzer "${name}" nicht gefunden.`);}}
-function aktualisiereBenutzerDropdowns(){initialisiereBenutzer()}
+// initialisiereBenutzer und neuenBenutzerHinzufuegen sind oben bei SHARED DATA angepasst oder ersetzt.
+function neuenBenutzerHinzufuegen(){const input=document.getElementById("neuerBenutzer");const name=input.value.trim();if(!name){zeigeWarnung("Bitte Benutzernamen eingeben.");return}benutzerliste=JSON.parse(localStorage.getItem("benutzerliste")||"[]");if(!Array.isArray(benutzerliste))benutzerliste=[];if(benutzerliste.includes(name)){zeigeWarnung(`Benutzer "${name}" existiert bereits!`);return}benutzerliste.push(name);benutzerliste.sort();localStorage.setItem("benutzerliste",JSON.stringify(benutzerliste));triggerAutoSave();initialisiereBenutzer();input.value="";input.focus();zeigeWarnung(`Benutzer "${name}" hinzugefügt.`,'success');}
+function benutzerLoeschen(){const sel=document.getElementById("benutzer");const name=sel.value;if(!name||name===""){zeigeWarnung("Bitte Benutzer zum Löschen wählen.");return}benutzerliste=JSON.parse(localStorage.getItem("benutzerliste")||"[]");if(!Array.isArray(benutzerliste))benutzerliste=[];if(!benutzerliste.includes(name)){zeigeWarnung(`Benutzer "${name}" nicht gefunden.`);return}if(!confirm(`Benutzer "${name}" WIRKLICH löschen? ALLE Notizen dieses Benutzers werden gelöscht!`))return;const idx=benutzerliste.indexOf(name);if(idx>-1){benutzerliste.splice(idx,1);localStorage.setItem("benutzerliste",JSON.stringify(benutzerliste));let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const len=ideen.length;const origIdeen=JSON.parse(localStorage.getItem("ideen")||"[]");ideen=ideen.filter(i=>i&&i.benutzer!==name);const deletedCount=len-ideen.length;if(deletedCount>0){localStorage.setItem("ideen",JSON.stringify(ideen));const remM=new Set(ideen.filter(i=>i).map(i=>(i.mandantennummer||"").toLowerCase()).filter(m=>m!==""));const allM=new Set(origIdeen.filter(i=>i).map(i=>(i.mandantennummer||"").toLowerCase()).filter(m=>m!==""));let updM=!1;allM.forEach(m=>{if(!remM.has(m))updM=!0});if(updM)aktualisiereMandantenFilterDropdown()}initialisiereBenutzer();triggerAutoSave();if(filterBenutzerValue===name){filterBenutzerValue="";document.getElementById("filterBenutzer").value=""}if(bearbeiteId!==null&&!ideen.some(i=>i&&i.id===bearbeiteId)){abbrechenBearbeiten()}if(beschreibungFuerId!==null&&!ideen.some(i=>i&&i.id===beschreibungFuerId)){beschreibungAbbrechen()}zeigeWarnung(`Benutzer "${name}" und ${deletedCount} Notiz(en) gelöscht.`,'success');zeigeIdeen();}else{zeigeWarnung(`Interner Fehler: Benutzer "${name}" nicht gefunden.`);}}
 function aktualisiereMandantenFilterDropdown(){const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");if(!Array.isArray(ideen))return; const set=new Set(ideen.filter(i=>i).map(i=>(i.mandantennummer||"").trim()).filter(m=>m!==""));const list=Array.from(set).sort();const sel=document.getElementById("filterMandant");const current=sel.value;sel.innerHTML='<option value="">🏢 Alle Mandanten</option>';list.forEach(m=>sel.add(new Option(m,m)));if(current&&list.includes(current)){sel.value=current;filterMandantValue=current}else{sel.value="";filterMandantValue=""}}
 function initialisiereVorgangsnummer(){const saved=localStorage.getItem("naechsteVorgangsnummer");naechsteVorgangsnummer=saved?parseInt(saved,10):1;if(isNaN(naechsteVorgangsnummer)||naechsteVorgangsnummer<1){naechsteVorgangsnummer=1;localStorage.setItem("naechsteVorgangsnummer",naechsteVorgangsnummer.toString())}zeigeNaechsteNummer()}
 function zeigeNaechsteNummer(){const el=document.getElementById("naechsteNummerAnzeige");if(el)el.textContent=naechsteVorgangsnummer}
@@ -1261,6 +1417,7 @@ function saveIdeeObjekt(text, dateien) {
     setzePrioritaet(""); 
     document.getElementById("benutzer").value = ""; 
     document.getElementById("kategorie").value = "";
+    selectedUserEmail = null; // Reset
     
     triggerAutoSave();
 }
@@ -1602,6 +1759,7 @@ function abbrechenBearbeiten(){
     setzePrioritaet("");
     document.getElementById("benutzer").value="";
     document.getElementById("kategorie").value="";
+    selectedUserEmail = null; // Reset
 } 
 
 function verschiebeIdee(id,dir){let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const idx=ideen.findIndex(i=>i&&i.id===id);if(idx===-1)return;const targetIdx=idx+dir;if(targetIdx>=0&&targetIdx<ideen.length){[ideen[idx],ideen[targetIdx]]=[ideen[targetIdx],ideen[idx]];localStorage.setItem("ideen",JSON.stringify(ideen));zeigeIdeen();triggerAutoSave();}}
@@ -1819,6 +1977,7 @@ function bearbeiteEinzelneBeschreibung(id,ts){if(ts)zeigeBeschreibungDialog(id,t
 function toggleAuswahl(id,box){if(box.checked){if(!ausgewaehlt.includes(id))ausgewaehlt.push(id)}else{ausgewaehlt=ausgewaehlt.filter(i=>i!==id)}}
 function ausgewaehlteNotizenLoeschen(){if(ausgewaehlt.length===0){zeigeWarnung("Keine Notizen ausgewählt.");return}if(!confirm(`Wirklich ${ausgewaehlt.length} Notiz(en) löschen?`))return;let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const delM=new Set();const delU=new Set();ideen.filter(i=>i&&ausgewaehlt.includes(i.id)).forEach(i=>{if(i.mandantennummer)delM.add((i.mandantennummer).toLowerCase());if(i.benutzer)delU.add((i.benutzer).toLowerCase())});const newList=ideen.filter(i=>!i || !ausgewaehlt.includes(i.id));localStorage.setItem("ideen",JSON.stringify(newList));const remM=new Set(newList.filter(i=>i).map(i=>(i.mandantennummer||"").toLowerCase()).filter(m=>m!==""));const remU=new Set(newList.filter(i=>i).map(i=>(i.benutzer||"").toLowerCase()).filter(b=>b!==""));let uM=!1;delM.forEach(m=>{if(!remM.has(m))uM=!0});let uU=!1;delU.forEach(u=>{if(!remU.has(u))uU=!0});if(uM)aktualisiereMandantenFilterDropdown();if(uU)aktualisiereBenutzerDropdowns();if(bearbeiteId!==null&&ausgewaehlt.includes(bearbeiteId))abbrechenBearbeiten();if(beschreibungFuerId!==null&&ausgewaehlt.includes(beschreibungFuerId))beschreibungAbbrechen(); if(erinnerungFuerId!==null&&ausgewaehlt.includes(erinnerungFuerId))erinnerungAbbrechen(); if(terminFuerId!==null&&ausgewaehlt.includes(terminFuerId))terminDialogAbbrechen(); ausgewaehlt=[];zeigeIdeen();triggerAutoSave();}
 function alleIdeenLoeschen(){if(!confirm("Wirklich ALLE Ideen, Kategorien, Benutzer etc. löschen?"))return;localStorage.removeItem("ideen"); localStorage.removeItem("kategorien"); localStorage.removeItem("benutzerliste"); localStorage.removeItem("naechsteVorgangsnummer"); naechsteVorgangsnummer=1; kategorien = []; benutzerliste = []; zeigeNaechsteNummer(); initialisiereKategorien(); initialisiereBenutzer(); aktualisiereMandantenFilterDropdown(); ausgewaehlt=[];bearbeiteId=null;beschreibungFuerId=null;beschreibungZuBearbeitenderTimestamp=null;beschreibungAntwortAufTimestamp=null; erinnerungFuerId=null; terminFuerId=null; zeigeIdeen();abbrechenBearbeiten();triggerAutoSave();}
+//aktualisiereBenutzerDropdowns wurde durch initialisiereBenutzer() ersetzt im SHARED Teil
 
 function toggleAnhangSichtbarkeit(ideeId, anhangId) {
     if (!ideeId || !anhangId) { return; }
@@ -2383,7 +2542,12 @@ async function teilePerEmail() {
         return;
     }
 
-    const recipientInput = prompt("An wen soll die Information gesendet werden (E-Mail-Adresse)? Oder 'ich', 'mandant', 'support', 'andere' für interne Vermerke.");
+    // --- MODIFIZIERTER EMAIL TEIL ---
+    // Standard: Ausgewählter Benutzer-Email
+    let vorschlag = selectedUserEmail || "";
+    
+    const recipientInput = prompt("An wen soll die Information gesendet werden (E-Mail-Adresse)? Oder 'ich', 'mandant', 'support', 'andere' für interne Vermerke.", vorschlag);
+    
     let recipientInfo = recipientInput ? recipientInput.trim().toLowerCase() : "";
     if (!recipientInfo) {
         zeigeWarnung("E-Mail-Versand abgebrochen.", "info");
@@ -2507,7 +2671,12 @@ function sammleBeschreibungsBlock(ideeId, startBeschreibungTimestamp) {
 async function teileBeschreibungPerEmail(ideeId, beschreibungTimestamp) {
     if (!ideeId || !beschreibungTimestamp) { return; }
     
-    const recipientInput = prompt("An wen soll dieser Beschreibungs-Block gesendet werden (E-Mail-Adresse)? Oder 'ich', 'mandant', 'support', 'andere' für interne Vermerke.");
+    // --- MODIFIZIERTER EMAIL TEIL (Beschreibung) ---
+    // Da Beschreibungen einen Autor haben können, könnten wir hier auch schauen. 
+    // Aber wir nehmen den global ausgewählten User als Vorschlag.
+    
+    const recipientInput = prompt("An wen soll dieser Beschreibungs-Block gesendet werden (E-Mail-Adresse)? Oder 'ich', 'mandant', 'support', 'andere' für interne Vermerke.", selectedUserEmail || "");
+    
     let recipientInfo = recipientInput ? recipientInput.trim().toLowerCase() : "";
     if (!recipientInfo) { zeigeWarnung("E-Mail-Versand abgebrochen.", "info"); return; }
 
@@ -3730,6 +3899,9 @@ async function versucheSitzungWiederherzustellen() {
                 console.log("Token-Überwachung ('Wachhund') nach Sitzungswiederherstellung gestartet.");
                 
                 await loadFromOneDrive();
+                
+                // NEU: Auch beim Reload Stammdaten laden
+                loadSharedStammdaten();
             } else {
                  console.log("Stille Sitzungswiederherstellung fehlgeschlagen. Alte Sitzungsdaten werden gelöscht.");
                  handleLogout(false);
@@ -3839,4 +4011,3 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
-
