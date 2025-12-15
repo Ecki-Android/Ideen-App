@@ -487,25 +487,12 @@ async function loadSharedStammdaten() {
         if (res.ok) {
             const data = await res.json();
             
-            // Konvertieren der Map-Strukturen (Arrays von [Key, Value]) in nutzbare Objekte
-            if (data.mandanten) {
-                sharedStammdaten.mandanten = data.mandanten.map(entry => entry[1]); 
-            }
-            if (data.kontakte) {
-                sharedStammdaten.kontakte = data.kontakte.map(entry => entry[1]);
-            }
-            // NEU: Verknüpfungen laden
-            if (data.verknuepfungen) {
-                sharedStammdaten.verknuepfungen = data.verknuepfungen.map(entry => entry[1]);
-            }
+            if (data.mandanten) sharedStammdaten.mandanten = data.mandanten.map(entry => entry[1]); 
+            if (data.kontakte) sharedStammdaten.kontakte = data.kontakte.map(entry => entry[1]);
+            if (data.verknuepfungen) sharedStammdaten.verknuepfungen = data.verknuepfungen.map(entry => entry[1]);
             
             console.log("Stammdaten geladen:", sharedStammdaten);
-            
-            // UI aktualisieren: Benutzerliste mit echten Kontakten erweitern
             initialisiereBenutzer();
-            
-            // Prüfen, ob für den aktuell angemeldeten User eine Mandanten-Verknüpfung existiert (optionales Feature)
-            // checkEigeneVerknuepfung(); 
             
         } else {
             console.warn("Stammdaten konnten nicht geladen werden (404?).");
@@ -516,7 +503,6 @@ async function loadSharedStammdaten() {
 }
 
 // Event Listener für Mandantennummer-Eingabe (Auto-Fill Rückwärts)
-// Wenn man die Nummer tippt, füllt sich der Firmenname UND die Telefonnummer der Firma
 document.getElementById('mandantennummer').addEventListener('input', function(e) {
     const val = e.target.value.trim();
     if (!val || !sharedStammdaten.mandanten.length) return;
@@ -525,16 +511,15 @@ document.getElementById('mandantennummer').addEventListener('input', function(e)
     if (mandant) {
         document.getElementById('firmenname').value = mandant.firmenname || "";
         
-        // NEU: Prüfen, ob der Mandant selbst eine Telefonnummer hat
-        if (mandant.telefon) {
-             const container = document.getElementById('telefonNummerContainer');
-             
-             // Hilfsfunktion zum sicheren Hinzufügen (vermeidet Duplikate)
-             const addSafe = (typ, nummer) => {
-                 const exists = Array.from(container.querySelectorAll('.telefon-nummer')).some(inp => inp.value === nummer);
-                 if (!exists) addTelefonNummerInput(typ, nummer);
-             };
+        const container = document.getElementById('telefonNummerContainer');
+        // Hilfsfunktion zum sicheren Hinzufügen (vermeidet Duplikate)
+        const addSafe = (typ, wert) => {
+             const exists = Array.from(container.querySelectorAll('.telefon-nummer')).some(inp => inp.value === wert);
+             if (!exists) addTelefonNummerInput(typ, wert);
+        };
 
+        // 1. Telefonnummern des Mandanten laden
+        if (mandant.telefon) {
              if (Array.isArray(mandant.telefon)) {
                  mandant.telefon.forEach(t => addSafe(t.type || 'Zentrale', t.number));
              } else if (typeof mandant.telefon === 'string') {
@@ -542,23 +527,25 @@ document.getElementById('mandantennummer').addEventListener('input', function(e)
              }
         }
         
+        // 2. NEU: E-Mails des Mandanten laden
+        if (mandant.email) {
+             if (Array.isArray(mandant.email)) {
+                 mandant.email.forEach(e => addSafe(e.type || 'Firma-Mail', e.address));
+             } else if (typeof mandant.email === 'string') {
+                 addSafe('Firma-Mail', mandant.email);
+             }
+        }
+        
         triggerAutoSave();
     }
 });
-
-// Erweiterte Benutzer-Initialisierung (mischt lokale Benutzer und Cloud-Kontakte)
+// Erweiterte Benutzer-Initialisierung
 function initialisiereBenutzer() {
-    // 1. Lokale Benutzerliste laden
     let localUsers = JSON.parse(localStorage.getItem("benutzerliste") || "[]");
     if (!Array.isArray(localUsers)) localUsers = [];
-    
-    // 2. Kontakte aus Stammdaten holen
     const kontaktNamen = sharedStammdaten.kontakte.map(k => k.fn).filter(n => n);
-    
-    // 3. Listen zusammenführen und Duplikate entfernen
     const alleBenutzer = [...new Set([...localUsers, ...kontaktNamen])].sort();
     
-    // 4. Dropdowns füllen
     const sel = document.getElementById("benutzer");
     const currentVal = sel.value;
     sel.innerHTML = '<option value="">-- Benutzer / Zuständig --</option>';
@@ -575,61 +562,62 @@ function initialisiereBenutzer() {
 // INTELLIGENTE FUNKTION: Wenn Benutzer ausgewählt wird
 function handleBenutzerChange() {
     const userName = document.getElementById('benutzer').value;
-    selectedUserEmail = null; // Reset
+    selectedUserEmail = null; 
     
-    // Felder leeren, falls "Kein Benutzer" gewählt wurde
     if (!userName) return;
 
-    // Wir suchen in den geladenen Kontakten
     const kontakt = sharedStammdaten.kontakte.find(k => k.fn === userName);
     
     if (kontakt) {
         zeigeWarnung(`Kontakt gefunden: ${kontakt.fn}`, "info");
+        const container = document.getElementById('telefonNummerContainer');
+        
+        // Hilfsfunktion zum sicheren Hinzufügen
+        const addSafe = (typ, wert) => {
+             const exists = Array.from(container.querySelectorAll('.telefon-nummer')).some(inp => inp.value === wert);
+             if (!exists) addTelefonNummerInput(typ, wert);
+        };
 
-        // 1. E-Mail merken (für den E-Mail-Button)
+        // 1. E-Mails verarbeiten (Sowohl merken als auch ANZEIGEN)
         if (kontakt.email && Array.isArray(kontakt.email) && kontakt.email.length > 0) {
+            // Merken für den E-Mail Button oben
             selectedUserEmail = kontakt.email[0].address;
-            console.log("E-Mail gemerkt:", selectedUserEmail);
-        }
-
-        // 2. Telefonnummern automatisch hinzufügen
-        if (kontakt.telefon && Array.isArray(kontakt.telefon)) {
-            const container = document.getElementById('telefonNummerContainer');
-            kontakt.telefon.forEach(t => {
-                // Prüfen, ob Nummer schon da ist, um Duplikate zu vermeiden
-                const exists = Array.from(container.querySelectorAll('.telefon-nummer')).some(inp => inp.value === t.number);
-                if (!exists) {
-                    addTelefonNummerInput(t.type || 'Mobil', t.number);
-                }
+            
+            // NEU: E-Mails auch in die Liste eintragen
+            kontakt.email.forEach(e => {
+                addSafe(e.type || 'E-Mail', e.address);
             });
         }
 
-        // 3. Mandanten-Verknüpfung prüfen (Das ist der neue, wichtige Teil!)
-        // Wir suchen in der Verknüpfungstabelle, ob dieser Kontakt zu einem Mandanten gehört.
+        // 2. Telefonnummern hinzufügen
+        if (kontakt.telefon && Array.isArray(kontakt.telefon)) {
+            kontakt.telefon.forEach(t => {
+                addSafe(t.type || 'Mobil', t.number);
+            });
+        }
+
+        // 3. Mandanten-Verknüpfung prüfen
         if (sharedStammdaten.verknuepfungen && sharedStammdaten.verknuepfungen.length > 0) {
             const link = sharedStammdaten.verknuepfungen.find(v => v.kontaktId === kontakt.id);
-            
             if (link) {
-                // Link gefunden! Jetzt den passenden Mandanten suchen
                 const mandant = sharedStammdaten.mandanten.find(m => m.id === link.mandantId);
                 if (mandant) {
                     document.getElementById('mandantennummer').value = mandant.mandantennummer || "";
                     document.getElementById('firmenname').value = mandant.firmenname || "";
+                    // Trigger Event um auch Mandanten-Daten (Tel/Mail) zu laden
+                    document.getElementById('mandantennummer').dispatchEvent(new Event('input')); 
                     zeigeWarnung(`Verknüpfter Mandant geladen: ${mandant.firmenname}`, "success");
                 }
             } else {
-                // Fallback: Wenn keine feste Verknüpfung, prüfen wir "Organisation" im Kontakt
                 if (kontakt.org && !document.getElementById('firmenname').value) {
                     document.getElementById('firmenname').value = kontakt.org;
                 }
             }
         }
-        
         triggerAutoSave();
     }
 }
 // --- ENDE SHARED DATA LOGIC ---
-
 
 // --- NEU: Funktion zur Anzeige des OneDrive-Status ---
 function updateOneDriveStatus(status, message) {
@@ -1267,32 +1255,41 @@ async function starteAnrufDialog(ideeId, beschreibungTimestamp) {
     }
 }
 
-// Wird aufgerufen, wenn eine Nummer ausgewählt wurde (oder wenn es nur eine gab)
-async function finalisiereAnruf(nummer, bezeichnung) {
+// Wird aufgerufen, wenn eine Nummer/Mail ausgewählt wurde
+async function finalisiereAnruf(kontaktInfo, bezeichnung) {
     const { ideeId, beschreibungTimestamp } = anrufModalCallbackData;
     if (!ideeId) {
-        return zeigeWarnung("Fehler: Anruf-Kontext verloren.", "warnung");
+        return zeigeWarnung("Fehler: Kontext verloren.", "warnung");
     }
 
     closeAnrufModal(); // Dialog schließen
 
-    const anrufZeit = new Date().toLocaleString("de-DE");
-    const protokollText = `Anruf an "${bezeichnung || 'Unbekannt'}" (${nummer}) gestartet am ${anrufZeit}.`;
+    // Prüfen, ob es eine E-Mail ist (enthält @)
+    const istEmail = kontaktInfo.includes('@');
+    const typLabel = istEmail ? 'E-Mail' : 'Anruf';
+    const symbol = istEmail ? '✉️' : '📞';
 
-    // Fügt einen Protokolleintrag (als "Beschreibung") hinzu
+    const zeit = new Date().toLocaleString("de-DE");
+    // Protokolltext erstellen
+    const protokollText = `${symbol} ${typLabel} an "${bezeichnung || 'Unbekannt'}" (${kontaktInfo}) gestartet am ${zeit}.`;
+
+    // Fügt einen Protokolleintrag hinzu
     addProtokollEintrag(ideeId, beschreibungTimestamp, protokollText);
     
-    // UI aktualisieren, damit der neue Eintrag sofort sichtbar ist
+    // UI aktualisieren
     zeigeIdeen(); 
 
-    // Speichern in der Cloud (OneDrive) auslösen
-    // Wichtig: Wir warten NICHT auf das Speichern, der Anruf soll sofort erfolgen.
-    // triggerAutoSave() löst das Speichern mit Verzögerung aus.
-    // Für sofortiges Speichern VOR dem Verlassen der Seite (was tel: tut):
+    // Speichern in OneDrive
     await saveToOneDrive();
     
-    // Erst jetzt den Anruf-Link (tel:) ausführen, der die App verlassen könnte
-    window.location.href = 'tel:' + nummer.replace(/[^0-9+]/g, ''); // Bereinigt die Nummer
+    // Aktion ausführen
+    if (istEmail) {
+        // E-Mail Programm öffnen
+        window.location.href = 'mailto:' + kontaktInfo;
+    } else {
+        // Anruf starten (Nummer bereinigen)
+        window.location.href = 'tel:' + kontaktInfo.replace(/[^0-9+]/g, ''); 
+    }
 }
 
 async function speichereIdee() {
