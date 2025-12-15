@@ -466,14 +466,15 @@ let filterBenutzerValue="";
 let naechsteVorgangsnummer=1;
 let benachrichtigungsIntervallId = null;
 
-// --- SHARED DATA LOGIC (STAMMDATEN) ---
-let sharedStammdaten = { mandanten: [], kontakte: [] };
+/* --- SHARED DATA LOGIC (STAMMDATEN) --- */
+// Erweiterte Struktur auch für Verknüpfungen
+let sharedStammdaten = { mandanten: [], kontakte: [], verknuepfungen: [] };
 let selectedUserEmail = null; // Zum Merken der E-Mail des ausgewählten Benutzers
 
 async function loadSharedStammdaten() {
     if (currentLoginType !== 'microsoft' || !accessToken) return;
     
-    // Pfad zur Datei, die von kontakte.html erstellt wird
+    // Pfad zur Datei, die von der Kontakt-App erstellt wird
     const path = "/ideenapp/stammdaten.json"; 
     
     try {
@@ -486,19 +487,25 @@ async function loadSharedStammdaten() {
         if (res.ok) {
             const data = await res.json();
             
-            // Konvertieren der Map-Struktur (Arrays von Arrays) in nutzbare Objekte
+            // Konvertieren der Map-Strukturen (Arrays von [Key, Value]) in nutzbare Objekte
             if (data.mandanten) {
-                // Map to Array of Objects
-                sharedStammdaten.mandanten = data.mandanten.map(entry => entry[1]); // entry[0] ist Key, entry[1] ist Value
+                sharedStammdaten.mandanten = data.mandanten.map(entry => entry[1]); 
             }
             if (data.kontakte) {
                 sharedStammdaten.kontakte = data.kontakte.map(entry => entry[1]);
+            }
+            // NEU: Verknüpfungen laden
+            if (data.verknuepfungen) {
+                sharedStammdaten.verknuepfungen = data.verknuepfungen.map(entry => entry[1]);
             }
             
             console.log("Stammdaten geladen:", sharedStammdaten);
             
             // UI aktualisieren: Benutzerliste mit echten Kontakten erweitern
             initialisiereBenutzer();
+            
+            // Prüfen, ob für den aktuell angemeldeten User eine Mandanten-Verknüpfung existiert (optionales Feature)
+            // checkEigeneVerknuepfung(); 
             
         } else {
             console.warn("Stammdaten konnten nicht geladen werden (404?).");
@@ -508,7 +515,8 @@ async function loadSharedStammdaten() {
     }
 }
 
-// Event Listener für Mandantennummer-Eingabe (Auto-Fill)
+// Event Listener für Mandantennummer-Eingabe (Auto-Fill Rückwärts)
+// Wenn man die Nummer tippt, füllt sich der Firmenname
 document.getElementById('mandantennummer').addEventListener('input', function(e) {
     const val = e.target.value.trim();
     if (!val || !sharedStammdaten.mandanten.length) return;
@@ -520,7 +528,7 @@ document.getElementById('mandantennummer').addEventListener('input', function(e)
     }
 });
 
-// Erweiterte Benutzer-Initialisierung (mischt lokale und Stammdaten-Kontakte)
+// Erweiterte Benutzer-Initialisierung (mischt lokale Benutzer und Cloud-Kontakte)
 function initialisiereBenutzer() {
     // 1. Lokale Benutzerliste laden
     let localUsers = JSON.parse(localStorage.getItem("benutzerliste") || "[]");
@@ -546,46 +554,54 @@ function initialisiereBenutzer() {
     if (currentFilter && alleBenutzer.includes(currentFilter)) fSel.value = currentFilter;
 }
 
-// Handler wenn Benutzer ausgewählt wird
+// INTELLIGENTE FUNKTION: Wenn Benutzer ausgewählt wird
 function handleBenutzerChange() {
     const userName = document.getElementById('benutzer').value;
     selectedUserEmail = null; // Reset
     
-    if (!userName || !sharedStammdaten.kontakte.length) return;
-    
+    // Felder leeren, falls "Kein Benutzer" gewählt wurde
+    if (!userName) return;
+
+    // Wir suchen in den geladenen Kontakten
     const kontakt = sharedStammdaten.kontakte.find(k => k.fn === userName);
+    
     if (kontakt) {
-        // 1. Telefonnummern übernehmen (wenn noch leer oder Bestätigung?) -> Wir adden sie einfach, wenn nicht vorhanden
+        zeigeWarnung(`Kontakt gefunden: ${kontakt.fn}`, "info");
+
+        // 1. E-Mail merken (für den E-Mail-Button)
+        if (kontakt.email && Array.isArray(kontakt.email) && kontakt.email.length > 0) {
+            selectedUserEmail = kontakt.email[0].address;
+            console.log("E-Mail gemerkt:", selectedUserEmail);
+        }
+
+        // 2. Telefonnummern automatisch hinzufügen
         if (kontakt.telefon && Array.isArray(kontakt.telefon)) {
             const container = document.getElementById('telefonNummerContainer');
-            // Prüfen ob Container leer ist, sonst fragen? Wir machen es einfach additiv.
             kontakt.telefon.forEach(t => {
-                // Check if number already exists in input fields to avoid dupes
+                // Prüfen, ob Nummer schon da ist, um Duplikate zu vermeiden
                 const exists = Array.from(container.querySelectorAll('.telefon-nummer')).some(inp => inp.value === t.number);
                 if (!exists) {
-                    addTelefonNummerInput(t.type || 'WORK', t.number);
+                    addTelefonNummerInput(t.type || 'Mobil', t.number);
                 }
             });
         }
-        
-        // 2. E-Mail merken (für Mail-Button Logik später)
-        if (kontakt.email && kontakt.email.length > 0) {
-            selectedUserEmail = kontakt.email[0].address;
-            zeigeWarnung(`E-Mail für ${userName} gemerkt: ${selectedUserEmail}`, "info");
-        }
-        
-        // 3. Mandant/Firma setzen (Logik: Wir suchen in den Stammdaten Verknüpfungen)
-        // Hinweis: Die Verknüpfungstabelle ist in der JSON root, wir haben oben nur mandanten/kontakte extrahiert.
-        // Das ist etwas komplexer, da wir die Verknüpfungen bräuchten.
-        // VEREINFACHUNG: Wir schauen, ob der Kontakt eine 'org' hat, die einem Firmennamen entspricht.
-        if (kontakt.org) {
-            const mandant = sharedStammdaten.mandanten.find(m => m.firmenname === kontakt.org);
-            if (mandant) {
-                document.getElementById('mandantennummer').value = mandant.mandantennummer || "";
-                document.getElementById('firmenname').value = mandant.firmenname || "";
+
+        // 3. Mandanten-Verknüpfung prüfen (Das ist der neue, wichtige Teil!)
+        // Wir suchen in der Verknüpfungstabelle, ob dieser Kontakt zu einem Mandanten gehört.
+        if (sharedStammdaten.verknuepfungen && sharedStammdaten.verknuepfungen.length > 0) {
+            const link = sharedStammdaten.verknuepfungen.find(v => v.kontaktId === kontakt.id);
+            
+            if (link) {
+                // Link gefunden! Jetzt den passenden Mandanten suchen
+                const mandant = sharedStammdaten.mandanten.find(m => m.id === link.mandantId);
+                if (mandant) {
+                    document.getElementById('mandantennummer').value = mandant.mandantennummer || "";
+                    document.getElementById('firmenname').value = mandant.firmenname || "";
+                    zeigeWarnung(`Verknüpfter Mandant geladen: ${mandant.firmenname}`, "success");
+                }
             } else {
-                // Nur Firmenname setzen, wenn kein Mandant gefunden
-                if(!document.getElementById('firmenname').value) {
+                // Fallback: Wenn keine feste Verknüpfung, prüfen wir "Organisation" im Kontakt
+                if (kontakt.org && !document.getElementById('firmenname').value) {
                     document.getElementById('firmenname').value = kontakt.org;
                 }
             }
@@ -594,11 +610,6 @@ function handleBenutzerChange() {
         triggerAutoSave();
     }
 }
-
-// Modifizierte teilePerEmail Funktion, die selectedUserEmail nutzt
-const originalTeilePerEmail = teilePerEmail; // Backup (falls wir es brauchen)
-// Wir überschreiben die Funktion im Hauptblock unten nicht, sondern passen sie dort an.
-
 // --- ENDE SHARED DATA LOGIC ---
 
 
