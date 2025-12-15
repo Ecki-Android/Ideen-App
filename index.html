@@ -516,7 +516,7 @@ async function loadSharedStammdaten() {
 }
 
 // Event Listener für Mandantennummer-Eingabe (Auto-Fill Rückwärts)
-// Wenn man die Nummer tippt, füllt sich der Firmenname
+// Wenn man die Nummer tippt, füllt sich der Firmenname UND die Telefonnummer der Firma
 document.getElementById('mandantennummer').addEventListener('input', function(e) {
     const val = e.target.value.trim();
     if (!val || !sharedStammdaten.mandanten.length) return;
@@ -524,6 +524,24 @@ document.getElementById('mandantennummer').addEventListener('input', function(e)
     const mandant = sharedStammdaten.mandanten.find(m => m.mandantennummer === val);
     if (mandant) {
         document.getElementById('firmenname').value = mandant.firmenname || "";
+        
+        // NEU: Prüfen, ob der Mandant selbst eine Telefonnummer hat
+        if (mandant.telefon) {
+             const container = document.getElementById('telefonNummerContainer');
+             
+             // Hilfsfunktion zum sicheren Hinzufügen (vermeidet Duplikate)
+             const addSafe = (typ, nummer) => {
+                 const exists = Array.from(container.querySelectorAll('.telefon-nummer')).some(inp => inp.value === nummer);
+                 if (!exists) addTelefonNummerInput(typ, nummer);
+             };
+
+             if (Array.isArray(mandant.telefon)) {
+                 mandant.telefon.forEach(t => addSafe(t.type || 'Zentrale', t.number));
+             } else if (typeof mandant.telefon === 'string') {
+                 addSafe('Zentrale', mandant.telefon);
+             }
+        }
+        
         triggerAutoSave();
     }
 });
