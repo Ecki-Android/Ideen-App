@@ -28,10 +28,29 @@
         .onedrive-btn { background: #0078d4; color: white; border-color: #005a9e; }
         .convert-btn { background: #6c757d; color: white; border-color: #545b62; }
         
-        .onedrive-status { font-size: 0.85em; margin-left: 10px; padding: 5px 10px; border-radius: 4px; display: none; }
-        .onedrive-status.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .onedrive-status.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-        .onedrive-status.info { background: #cce5ff; color: #004085; border: 1px solid #b8daff; }
+        /* --- NEU: Status-Anzeige wie in der Ideen-App --- */
+        .onedrive-status { 
+            display: none; /* Initial ausgeblendet */
+            align-items: center;
+            padding: 6px 12px;
+            font-size: 0.9em;
+            font-weight: 500;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+            margin-left: 10px;
+        }
+        .onedrive-status.saving { /* Blau: Wird gespeichert */
+            background-color: #e0f2fe; color: #0c4a6e; border: 1px solid #bae6fd; 
+        }
+        .onedrive-status.success { /* Grün: Erfolgreich */
+            background-color: #dcfce7; color: #14532d; border: 1px solid #bbf7d0; 
+        }
+        .onedrive-status.error { /* Rot: Fehler */
+            background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; 
+        }
+        .onedrive-status.info { /* Grau/Gelb: Warte auf Auto-Save */
+            background-color: #fffbeb; color: #92400e; border: 1px solid #fde68a; 
+        }
 
         /* --- Main Layout --- */
         h1, h2, h3 { color: #333; border-bottom: 2px solid #0078d4; padding-bottom: 5px; margin-top: 20px; }
@@ -79,8 +98,9 @@
             <span style="border-left: 1px solid #ccc; height: 20px; margin: 0 5px;"></span>
             
             <button id="cloudLoadBtn" onclick="loadFromOneDrive()" disabled>☁️ Laden</button>
-            <button id="cloudSaveBtn" onclick="saveToOneDrive()" disabled>💾 Speichern (Cloud)</button>
+            <button id="cloudSaveBtn" onclick="saveToOneDrive(true)" disabled>💾 Manuell Speichern</button>
             
+            <!-- Der Status-Button -->
             <span id="onedriveStatus" class="onedrive-status"></span>
         </div>
     </div>
@@ -300,14 +320,16 @@
                     account: account 
                 });
                 accessToken = response.accessToken;
-                zeigeStatus("Angemeldet. Bereit für Cloud.", "info");
+                zeigeStatus("Angemeldet.", "info");
+                // Initial load
+                await loadFromOneDrive();
             } catch (e) {
                 const response = await msalInstance.acquireTokenPopup({ 
                     scopes: ["Files.ReadWrite"], 
                     account: account 
                 });
                 accessToken = response.accessToken;
-                zeigeStatus("Angemeldet (Interaktiv). Bereit.", "info");
+                zeigeStatus("Angemeldet.", "info");
             }
         }
 
@@ -316,15 +338,36 @@
             location.reload();
         }
 
+        // --- NEU: Statusanzeige-Logik ---
         function zeigeStatus(msg, type) {
             const el = document.getElementById('onedriveStatus');
             el.textContent = msg;
-            el.className = `onedrive-status ${type}`;
-            el.style.display = 'inline-block';
-            setTimeout(() => { el.style.display = 'none'; }, 5000);
+            
+            // Klassen resetten und neuen Typ setzen
+            el.className = 'onedrive-status'; 
+            el.classList.add(type);
+            
+            el.style.display = 'inline-flex';
+            
+            if (type === 'success' || type === 'error' || type === 'info') {
+                setTimeout(() => { 
+                    if(el.textContent === msg) el.style.display = 'none'; 
+                }, 4000);
+            }
         }
 
         // --- 4. LOAD & SAVE (CLOUD & LOKAL) ---
+
+        let autoSaveTimer = null;
+        function triggerAutoSave() {
+            if (!accessToken) return; // Nicht eingeloggt -> kein AutoSave
+            
+            zeigeStatus("⏳ Änderungen erkannt...", "info");
+            clearTimeout(autoSaveTimer);
+            autoSaveTimer = setTimeout(() => {
+                saveToOneDrive(false); // false = automatisch
+            }, 2000);
+        }
 
         function prepareDataForSave() {
             return {
@@ -355,9 +398,13 @@
             }
         }
 
-        async function saveToOneDrive() {
-            if (!accessToken) return alert("Bitte erst einloggen.");
-            zeigeStatus("Speichere in Cloud...", "info");
+        async function saveToOneDrive(isManual = true) {
+            if (!accessToken) {
+                if(isManual) alert("Bitte erst einloggen.");
+                return;
+            }
+            
+            zeigeStatus("☁️ Wird gespeichert...", "saving");
             
             const dataObj = prepareDataForSave();
             const jsonStr = JSON.stringify(dataObj, null, 2);
@@ -372,19 +419,19 @@
                 });
                 
                 if (res.ok) {
-                    zeigeStatus("Erfolgreich gespeichert!", "success");
+                    zeigeStatus("✓ Gespeichert", "success");
                     saveLocalDatabases();
                 } else {
                     throw new Error(res.statusText);
                 }
             } catch (e) {
-                zeigeStatus("Fehler beim Speichern: " + e.message, "error");
+                zeigeStatus("Fehler: " + e.message, "error");
             }
         }
 
         async function loadFromOneDrive() {
             if (!accessToken) return alert("Bitte erst einloggen.");
-            zeigeStatus("Lade aus Cloud...", "info");
+            zeigeStatus("Lade Daten...", "saving");
             
             const path = document.getElementById('onedrivePath').value;
             
@@ -400,12 +447,12 @@
                     if (parseDataFromLoad(data)) {
                         refreshAuswertungslisten();
                         saveLocalDatabases();
-                        zeigeStatus("Daten geladen!", "success");
+                        zeigeStatus("✓ Daten geladen", "success");
                     } else {
                         zeigeStatus("Datenformat ungültig.", "error");
                     }
                 } else if (res.status === 404) {
-                    zeigeStatus("Datei nicht gefunden (noch nie gespeichert?)", "error");
+                    zeigeStatus("Neue Datei wird angelegt.", "info");
                 } else {
                     throw new Error(res.statusText);
                 }
@@ -456,7 +503,6 @@
             if(select) {
                 select.innerHTML = "<option value=''>-- Firma wählen --</option>";
                 dbMandanten.forEach((m, id) => {
-                    // FIX: Anzeige der benutzerdefinierten Mandantennummer (m.mandantennummer)
                     select.add(new Option(`${m.firmenname} [${m.mandantennummer}]`, id));
                 });
             }
@@ -528,16 +574,12 @@
         // --- MASKEN STEUERUNG (FIXED) ---
 
         function closeModals(e) {
-            // FIX: Nur schließen wenn explizit gewünscht (manuell ohne event) oder Klick auf Overlay
-            // Vorher: || e.target.tagName === 'BUTTON' -> das hat jeden Button-Klick zum Schließen geführt!
             if (!e) {
-                // Aufruf über "Abbrechen" Button
                 document.getElementById('mandantModal').classList.remove('active');
                 document.getElementById('kontaktModal').classList.remove('active');
                 return;
             }
             if (e.target.classList.contains('modal-overlay')) {
-                // Klick auf den grauen Hintergrund
                 document.getElementById('mandantModal').classList.remove('active');
                 document.getElementById('kontaktModal').classList.remove('active');
             }
@@ -605,7 +647,6 @@
             // Zuweisungen laden
             tempZuweisungen = [];
             if (isEdit) {
-                // FIX: Strikter String Vergleich
                 tempZuweisungen = dbVerknuepfungen.filter(v => String(v.kontakt_id_fk) === String(id)).map(v => ({...v}));
             }
             renderTempZuweisungen();
@@ -647,6 +688,7 @@
             
             switchTab('mandanten');
             openMandantMask(mId);
+            triggerAutoSave(); // NEU: Auto-Save
             alert(`Mandant angelegt (ID: ${mId}).`);
         }
 
@@ -675,7 +717,6 @@
                 const displayId = m ? m.mandantennummer : z.mandantennummer_fk;
                 const firmenName = m ? m.firmenname : `Unbekannt`;
                 
-                // Firmenname fix, Position editierbar
                 const label = document.createElement('div');
                 label.style.flex = "1";
                 label.innerHTML = `<b>${firmenName} [${displayId}]</b>`;
@@ -712,15 +753,14 @@
                 const pos = document.getElementById('neueZuweisungPositionInput').value;
                 
                 if(!mid) {
-                    // Falls wir manuell auf "+" klicken, soll gewarnt werden
                     alert("Bitte wählen Sie zuerst eine Firma (Mandant) aus der Liste aus.");
                     return;
                 }
 
                 tempZuweisungen.push({
                     verknuepfung_id: 'v_' + Date.now(),
-                    kontakt_id_fk: null, // Wird beim Speichern gesetzt
-                    mandantennummer_fk: String(mid), // Sicherstellen, dass es ein String ist
+                    kontakt_id_fk: null,
+                    mandantennummer_fk: String(mid),
                     position_abteilung: pos,
                     kostenstelle: ""
                 });
@@ -762,9 +802,9 @@
             saveLocalDatabases();
             refreshAuswertungslisten();
             document.getElementById('mandantModal').classList.remove('active');
+            triggerAutoSave(); // NEU: Auto-Save
         }
 
-        // --- AKTUALISIERT: Löschen-Funktion unterstützt jetzt ID Parameter ---
         function deleteMandant(id = null) {
             if(!id) id = document.getElementById('mandantIdInput').value;
             if(!id) return;
@@ -774,9 +814,9 @@
             saveLocalDatabases();
             refreshAuswertungslisten();
             document.getElementById('mandantModal').classList.remove('active');
+            triggerAutoSave(); // NEU: Auto-Save
         }
 
-        /* --- KORRIGIERT: Duplikat-Prüfung beim Speichern --- */
         async function saveKontakt() {
             // 1. Validierung
             const fn = document.getElementById('kontaktNameInput').value.trim();
@@ -786,21 +826,17 @@
 
             // NEU: Duplikat-Prüfung (Nur beim Neuanlegen relevant)
             if (!id) {
-                // Wir suchen, ob es den Namen schon gibt (case-insensitive)
                 const existiert = Array.from(dbKontakte.values()).some(k => k.fn.toLowerCase() === fn.toLowerCase());
                 if (existiert) {
                     return alert(`Ein Kontakt mit dem Namen "${fn}" existiert bereits! Bitte wählen Sie ihn aus der Liste, um ihn zu bearbeiten.`);
                 }
-                // Generate ID if new
                 id = 'k_' + Date.now() + Math.random().toString(36).substr(2,5);
             }
 
-            // --- AUTO-SAVE LOGIK FÜR FIRMEN-DROPDOWN ---
             const pendingSelect = document.getElementById('neueZuweisungMandantSelect');
             if (pendingSelect && pendingSelect.value) {
                 addZuweisung();
             }
-            // -------------------------------------------
 
             const data = {
                 kontakt_id: String(id),
@@ -828,9 +864,9 @@
             saveLocalDatabases();
             refreshAuswertungslisten();
             document.getElementById('kontaktModal').classList.remove('active');
+            triggerAutoSave(); // NEU: Auto-Save
         }
 
-        // --- AKTUALISIERT: Löschen-Funktion unterstützt jetzt ID Parameter ---
         function deleteKontakt(id = null) {
             if(!id) id = document.getElementById('kontaktIdInput').value;
             if(!id) return;
@@ -840,6 +876,7 @@
             saveLocalDatabases();
             refreshAuswertungslisten();
             document.getElementById('kontaktModal').classList.remove('active');
+            triggerAutoSave(); // NEU: Auto-Save
         }
 
         // --- NEUE HELPER FÜR FORMULARE (DOM-BASIERT für Stabilität) ---
@@ -847,7 +884,6 @@
             const container = document.getElementById(containerId);
             if (!container) return;
 
-            // Sichere Datenextraktion
             let safeData = {};
             if (dataObj && typeof dataObj === 'object' && !dataObj.preventDefault) {
                 safeData = dataObj;
@@ -856,11 +892,10 @@
             const row = document.createElement('div');
             row.className = 'dynamic-input-row';
 
-            // Select erstellen
             const select = document.createElement('select');
             select.style.width = 'auto';
             select.style.margin = '0';
-            // Added FAX to the options
+            
             const types = ['WORK', 'HOME', 'MOBILE', 'CELL', 'FAX'];
             types.forEach(t => {
                 const opt = document.createElement('option');
@@ -870,17 +905,14 @@
                 select.appendChild(opt);
             });
 
-            // Input erstellen
             const input = document.createElement('input');
             input.type = type === 'telefon' ? 'tel' : 'email';
             input.style.margin = '0';
             input.style.flex = '1';
             
-            // Wert zuweisen
             const val = type === 'telefon' ? safeData.number : safeData.address;
             input.value = val || ""; 
 
-            // Lösch-Button erstellen
             const delBtn = document.createElement('button');
             delBtn.type = 'button';
             delBtn.className = 'warn-btn';
@@ -907,7 +939,6 @@
             const row = document.createElement('div');
             row.className = 'dynamic-address-row';
 
-            // -- Zeile 1: Straße & Typ --
             const row1 = document.createElement('div');
             row1.className = 'address-row-1';
 
@@ -936,7 +967,6 @@
             row1.appendChild(grpStreet);
             row1.appendChild(grpType);
 
-            // -- Zeile 2: PLZ & Stadt --
             const row2 = document.createElement('div');
             row2.className = 'address-row-2';
 
@@ -959,7 +989,6 @@
             row2.appendChild(grpZip);
             row2.appendChild(grpCity);
 
-            // Lösch-Button
             const delBtn = document.createElement('button');
             delBtn.type = 'button';
             delBtn.className = 'warn-btn';
@@ -975,12 +1004,10 @@
             container.appendChild(row);
         }
 
-        // --- HELPER ZUM EINSAMMELN DER DATEN (Unverändert gut) ---
         function collectDynamicInputs(cid, key) {
             const arr = [];
             const container = document.getElementById(cid);
             if(container) {
-                // Wir iterieren über die DOM-Elemente, die wir oben erstellt haben
                 Array.from(container.children).forEach(row => {
                     if(!row.classList.contains('dynamic-input-row')) return;
                     const select = row.querySelector('select');
@@ -1011,7 +1038,6 @@
             return arr;
         }
 
-        // --- INTELLIGENTER VCF IMPORT ---
         async function handleVCFImport(e) {
             const files = e.target.files;
             if(!files.length) return;
@@ -1042,7 +1068,6 @@
                         let keyPart = parts.shift();
                         let value = parts.join(':');
                         let keyParams = keyPart.split(';');
-                        let key = keyParams[0].toUpperCase();
                         let params = keyParams.slice(1).map(p => p.toUpperCase());
 
                         if (keyParams.some(p => p.includes('QUOTED-PRINTABLE'))) {
@@ -1050,20 +1075,20 @@
                             value = value.replace(/=\r\n/g, '').replace(/=\n/g, '');
                         }
 
-                        if (key === 'FN') fn = value;
-                        if (key === 'N' && !fn) n = value.replace(/;/g, ' ').trim();
-                        if (key === 'ORG') org = value;
-                        if (key === 'TEL') {
+                        if (keyParams[0].toUpperCase() === 'FN') fn = value;
+                        if (keyParams[0].toUpperCase() === 'N' && !fn) n = value.replace(/;/g, ' ').trim();
+                        if (keyParams[0].toUpperCase() === 'ORG') org = value;
+                        if (keyParams[0].toUpperCase() === 'TEL') {
                             let type = "WORK";
                             if (params.includes("CELL")) type = "CELL";
                             else if (params.includes("HOME")) type = "HOME";
                             else if (params.includes("FAX")) type = "FAX";
                             telefon.push({ type, number: value });
                         }
-                        if (key === 'EMAIL') {
+                        if (keyParams[0].toUpperCase() === 'EMAIL') {
                             email.push({ type: "WORK", address: value });
                         }
-                        if (key === 'ADR') {
+                        if (keyParams[0].toUpperCase() === 'ADR') {
                             let adrParts = value.split(';');
                             let street = adrParts[2] || "";
                             let city = adrParts[3] || "";
@@ -1085,7 +1110,6 @@
 
                     if (existingId) {
                         const existing = dbKontakte.get(existingId);
-                        // Ensure arrays
                         if(!existing.telefon) existing.telefon = [];
                         if(!existing.email) existing.email = [];
                         if(!existing.adresse) existing.adresse = [];
@@ -1098,7 +1122,6 @@
                             }
                         });
                         email.forEach(newMail => {
-                            // Check case-insensitive for email
                             if (!existing.email.some(e => e.address.toLowerCase() === newMail.address.toLowerCase())) {
                                 existing.email.push(newMail);
                                 updated = true;
@@ -1131,6 +1154,7 @@
             saveLocalDatabases();
             refreshAuswertungslisten();
             document.getElementById('vcfImportInput').value = ''; 
+            triggerAutoSave(); // NEU: Auto-Save nach Import
         }
 
         // --- VCF EXPORT LOGIK ---
@@ -1193,12 +1217,9 @@
 
         // --- PDF EXPORT (COMPREHENSIVE & LANDSCAPE) ---
         function exportMandantenReportPDF() { 
-            // Landscape mode für mehr Platz
             const doc = new jspdf.jsPDF({ orientation: 'landscape' });
-            
             const rows = [];
             dbMandanten.forEach(m => {
-                // Daten sammeln
                 const adr = m.adresse && m.adresse.length > 0 
                     ? `${m.adresse[0].street || ''}, ${m.adresse[0].zip || ''} ${m.adresse[0].city || ''}` 
                     : '';
@@ -1225,11 +1246,7 @@
                 body: rows,
                 styles: { fontSize: 8, cellPadding: 2 },
                 columnStyles: {
-                    0: { cellWidth: 15 }, // ID
-                    1: { cellWidth: 40 }, // Firma
-                    2: { cellWidth: 40 }, // Adresse
-                    5: { cellWidth: 35 }, // IBAN
-                    7: { cellWidth: 40 }  // Notizen
+                    0: { cellWidth: 15 }, 1: { cellWidth: 40 }, 2: { cellWidth: 40 }, 5: { cellWidth: 35 }, 7: { cellWidth: 40 }
                 },
                 theme: 'grid'
             });
@@ -1238,7 +1255,6 @@
 
         function exportPersonenReportPDF() { 
             const doc = new jspdf.jsPDF({ orientation: 'landscape' });
-            
             const rows = [];
             dbKontakte.forEach((k, kId) => {
                 const adr = k.adresse && k.adresse.length > 0 
@@ -1248,7 +1264,6 @@
                 const mail = k.email ? k.email.map(e => e.address).join(', ') : '';
                 const notizen = k.person_notizen || '';
                 
-                // Firmenverknüpfungen mit Position holen
                 const links = dbVerknuepfungen
                     .filter(v => String(v.kontakt_id_fk) === String(kId))
                     .map(v => {
@@ -1273,10 +1288,7 @@
                 body: rows,
                 styles: { fontSize: 8, cellPadding: 2 },
                 columnStyles: {
-                    0: { cellWidth: 30 }, // Name
-                    2: { cellWidth: 40 }, // Adresse
-                    5: { cellWidth: 50 }, // Firmen
-                    6: { cellWidth: 40 }  // Notizen
+                    0: { cellWidth: 30 }, 2: { cellWidth: 40 }, 5: { cellWidth: 50 }, 6: { cellWidth: 40 }
                 },
                 theme: 'grid'
             });
