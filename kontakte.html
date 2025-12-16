@@ -28,28 +28,21 @@
         .onedrive-btn { background: #0078d4; color: white; border-color: #005a9e; }
         .convert-btn { background: #6c757d; color: white; border-color: #545b62; }
         
-        /* --- NEU: Status-Anzeige wie in der Ideen-App --- */
+        /* --- Status-Anzeige --- */
         .onedrive-status { 
-            display: none; /* Initial ausgeblendet */
-            align-items: center;
-            padding: 6px 12px;
-            font-size: 0.9em;
-            font-weight: 500;
-            border-radius: 4px;
-            transition: all 0.3s ease;
-            margin-left: 10px;
+            display: none; align-items: center; padding: 6px 12px; font-size: 0.9em; font-weight: 500; 
+            border-radius: 4px; transition: all 0.3s ease; margin-left: 10px; 
         }
-        .onedrive-status.saving { /* Blau: Wird gespeichert */
-            background-color: #e0f2fe; color: #0c4a6e; border: 1px solid #bae6fd; 
-        }
-        .onedrive-status.success { /* Grün: Erfolgreich */
-            background-color: #dcfce7; color: #14532d; border: 1px solid #bbf7d0; 
-        }
-        .onedrive-status.error { /* Rot: Fehler */
-            background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; 
-        }
-        .onedrive-status.info { /* Grau/Gelb: Warte auf Auto-Save */
-            background-color: #fffbeb; color: #92400e; border: 1px solid #fde68a; 
+        .onedrive-status.saving { background-color: #e0f2fe; color: #0c4a6e; border: 1px solid #bae6fd; }
+        .onedrive-status.success { background-color: #dcfce7; color: #14532d; border: 1px solid #bbf7d0; }
+        .onedrive-status.error { background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+        .onedrive-status.info { background-color: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
+
+        /* --- Wachhund Warnung --- */
+        #sessionExpiredWarning { 
+            margin: 0 0 15px 0; font-weight: bold; padding: 10px; border-radius: 4px; 
+            display: none; background-color: #fffbe6; border: 1px solid #ffc107; color: #ff8f00; 
+            text-align: center; width: 100%; box-sizing: border-box;
         }
 
         /* --- Main Layout --- */
@@ -85,6 +78,8 @@
     </style>
 </head>
 <body>
+
+    <div id="sessionExpiredWarning">Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an, um Datenverlust zu vermeiden.</div>
 
     <!-- Header mit Cloud-Funktionen -->
     <div class="app-header">
@@ -259,6 +254,7 @@
         let msalInstance = null;
         let accessToken = null;
         let userEmail = null;
+        let tokenRefreshIntervalId = null; // Für den Wachhund
 
         const MANDANTEN_KEY = "kontakte_mandanten";
         const KONTAKTE_KEY = "kontakte_personen";
@@ -282,18 +278,37 @@
                 msalInstance = new msal.PublicClientApplication(msalConfig);
                 await msalInstance.initialize();
                 
-                const account = msalInstance.getAllAccounts()[0];
-                if (account) {
-                    msalInstance.setActiveAccount(account);
-                    await handleLoginSuccess(account);
-                }
+                // --- WACHHUND LOGIK ---
+                // Prüft, ob aus der Ideen-App oder vorheriger Sitzung eine Anmeldung vorliegt
+                await versucheSitzungWiederherzustellen();
+
             } catch (e) {
                 console.error("MSAL Init Fehler:", e);
             }
         });
 
-        // --- 3. CLOUD / MICROSOFT LOGIK ---
+        // --- 3. CLOUD / MICROSOFT LOGIK (INKL. WACHHUND) ---
         
+        // Versucht, eine bestehende Sitzung zu reaktivieren (z.B. nach Reload oder Wechsel von Ideen-App)
+        async function versucheSitzungWiederherzustellen() {
+            // Wir schauen, ob in sessionStorage Daten liegen (die teilen sich index.html und kontakte.html bei gleicher Domain)
+            const savedLoginType = sessionStorage.getItem('loginType');
+            const savedAccountId = sessionStorage.getItem('msalAccountIdentifier');
+
+            if (savedLoginType === 'microsoft' && savedAccountId) {
+                console.log("Versuche, Sitzung wiederherzustellen...");
+                const account = await msalInstance.getAccountByHomeId(savedAccountId);
+                if (account) {
+                    msalInstance.setActiveAccount(account);
+                    // Versuche, still ein Token zu bekommen
+                    const token = await getValidToken(false); // Nicht interaktiv
+                    if (token) {
+                        await handleLoginSuccess(account);
+                    }
+                }
+            }
+        }
+
         async function handleMicrosoftLogin() {
             try {
                 const loginResponse = await msalInstance.loginPopup({ 
@@ -313,28 +328,71 @@
             document.getElementById('msLogoutBtn').style.display = 'inline-block';
             document.getElementById('cloudLoadBtn').disabled = false;
             document.getElementById('cloudSaveBtn').disabled = false;
+            document.getElementById('sessionExpiredWarning').style.display = 'none';
+
+            // Session Storage setzen (für Kommunikation mit index.html und Reloads)
+            sessionStorage.setItem('loginType', 'microsoft');
+            sessionStorage.setItem('userEmail', userEmail);
+            sessionStorage.setItem('msalAccountIdentifier', account.homeAccountId);
             
+            // Erstes Token holen
+            const token = await getValidToken(false);
+            if (token) {
+                // Wachhund starten: Alle 10 Minuten Token prüfen
+                clearInterval(tokenRefreshIntervalId);
+                tokenRefreshIntervalId = setInterval(() => getValidToken(false), 10 * 60 * 1000);
+                
+                zeigeStatus("Angemeldet & Wachhund aktiv.", "info");
+                // Automatisches Laden beim Start, wenn Token da ist
+                await loadFromOneDrive(); 
+            }
+        }
+
+        // --- KERN DES WACHHUNDS: Token holen/erneuern ---
+        async function getValidToken(interactive = false) {
+            if (!msalInstance) return null;
+            const account = msalInstance.getActiveAccount();
+            if (!account) return null;
+
             try {
                 const response = await msalInstance.acquireTokenSilent({ 
                     scopes: ["Files.ReadWrite"], 
                     account: account 
                 });
                 accessToken = response.accessToken;
-                zeigeStatus("Angemeldet.", "info");
-                // Initial load
-                await loadFromOneDrive();
-            } catch (e) {
-                const response = await msalInstance.acquireTokenPopup({ 
-                    scopes: ["Files.ReadWrite"], 
-                    account: account 
-                });
-                accessToken = response.accessToken;
-                zeigeStatus("Angemeldet.", "info");
+                document.getElementById('sessionExpiredWarning').style.display = 'none';
+                return accessToken;
+            } catch (error) {
+                console.warn("Stiller Token-Refresh fehlgeschlagen", error);
+                if (interactive) {
+                    try {
+                        const response = await msalInstance.acquireTokenPopup({ 
+                            scopes: ["Files.ReadWrite"], 
+                            account: account 
+                        });
+                        accessToken = response.accessToken;
+                        document.getElementById('sessionExpiredWarning').style.display = 'none';
+                        return accessToken;
+                    } catch (err2) {
+                        console.error("Interaktiver Refresh fehlgeschlagen", err2);
+                        handleExpiredSession();
+                        return null;
+                    }
+                } else {
+                    handleExpiredSession();
+                    return null;
+                }
             }
+        }
+
+        function handleExpiredSession() {
+            document.getElementById('sessionExpiredWarning').style.display = 'block';
+            accessToken = null;
         }
 
         async function handleLogout() {
             await msalInstance.logoutPopup();
+            sessionStorage.clear(); // Session bereinigen
             location.reload();
         }
 
@@ -399,8 +457,9 @@
         }
 
         async function saveToOneDrive(isManual = true) {
-            if (!accessToken) {
-                if(isManual) alert("Bitte erst einloggen.");
+            // WICHTIG: Token prüfen bevor wir speichern!
+            if (!(await getValidToken(isManual))) {
+                if(isManual) alert("Sitzung abgelaufen. Bitte neu anmelden.");
                 return;
             }
             
@@ -422,6 +481,7 @@
                     zeigeStatus("✓ Gespeichert", "success");
                     saveLocalDatabases();
                 } else {
+                    if (res.status === 401) handleExpiredSession();
                     throw new Error(res.statusText);
                 }
             } catch (e) {
@@ -430,7 +490,11 @@
         }
 
         async function loadFromOneDrive() {
-            if (!accessToken) return alert("Bitte erst einloggen.");
+            // WICHTIG: Token prüfen
+            if (!(await getValidToken(true))) {
+                alert("Bitte erst einloggen.");
+                return;
+            }
             zeigeStatus("Lade Daten...", "saving");
             
             const path = document.getElementById('onedrivePath').value;
@@ -454,6 +518,7 @@
                 } else if (res.status === 404) {
                     zeigeStatus("Neue Datei wird angelegt.", "info");
                 } else {
+                    if (res.status === 401) handleExpiredSession();
                     throw new Error(res.statusText);
                 }
             } catch (e) {
