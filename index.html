@@ -281,18 +281,18 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
 
   <div class="filter-bar">
     <label>Filter:</label> 
-    <select id="filterKategorie" onchange="zeigeIdeen(); updateVorgangsnummerDropdown()">
+   <select id="filterKategorie" onchange="zeigeIdeen(); updateVorgangsnummerDropdown(); aktualisiereMandantenFilterDropdown()">
         <option value="" class="filter-option-alle">🎯 Alle Ideen</option>
     </select>
     <label>Archiv:</label> 
-    <select id="filterArchiv" onchange="zeigeIdeen(); updateVorgangsnummerDropdown()">
+    <select id="filterArchiv" onchange="zeigeIdeen(); updateVorgangsnummerDropdown(); aktualisiereMandantenFilterDropdown()">
         <option value="nicht_erledigt">Nur nicht erledigt</option>
         <option value="erledigt">Nur erledigt</option>
         <option value="alle">Alle anzeigen</option>
     </select>
 
     <label>Benutzer:</label> 
-    <select id="filterBenutzer" onchange="filterNachBenutzer(); updateVorgangsnummerDropdown()"></select>
+    <select id="filterBenutzer" onchange="filterNachBenutzer(); updateVorgangsnummerDropdown(); aktualisiereMandantenFilterDropdown()"></select>
     <label>Mandant:</label> 
     <select id="filterMandant" onchange="filterNachMandant(); updateVorgangsnummerDropdown()">
         <option value="">🏢 Alle Mandanten</option>
@@ -1183,7 +1183,49 @@ function kategorieLoeschen(){const sel=document.getElementById("kategorie");cons
 // initialisiereBenutzer und neuenBenutzerHinzufuegen sind oben bei SHARED DATA angepasst oder ersetzt.
 function neuenBenutzerHinzufuegen(){const input=document.getElementById("neuerBenutzer");const name=input.value.trim();if(!name){zeigeWarnung("Bitte Benutzernamen eingeben.");return}benutzerliste=JSON.parse(localStorage.getItem("benutzerliste")||"[]");if(!Array.isArray(benutzerliste))benutzerliste=[];if(benutzerliste.includes(name)){zeigeWarnung(`Benutzer "${name}" existiert bereits!`);return}benutzerliste.push(name);benutzerliste.sort();localStorage.setItem("benutzerliste",JSON.stringify(benutzerliste));triggerAutoSave();initialisiereBenutzer();input.value="";input.focus();zeigeWarnung(`Benutzer "${name}" hinzugefügt.`,'success');}
 function benutzerLoeschen(){const sel=document.getElementById("benutzer");const name=sel.value;if(!name||name===""){zeigeWarnung("Bitte Benutzer zum Löschen wählen.");return}benutzerliste=JSON.parse(localStorage.getItem("benutzerliste")||"[]");if(!Array.isArray(benutzerliste))benutzerliste=[];if(!benutzerliste.includes(name)){zeigeWarnung(`Benutzer "${name}" nicht gefunden.`);return}if(!confirm(`Benutzer "${name}" WIRKLICH löschen? ALLE Notizen dieses Benutzers werden gelöscht!`))return;const idx=benutzerliste.indexOf(name);if(idx>-1){benutzerliste.splice(idx,1);localStorage.setItem("benutzerliste",JSON.stringify(benutzerliste));let ideen=JSON.parse(localStorage.getItem("ideen")||"[]");const len=ideen.length;const origIdeen=JSON.parse(localStorage.getItem("ideen")||"[]");ideen=ideen.filter(i=>i&&i.benutzer!==name);const deletedCount=len-ideen.length;if(deletedCount>0){localStorage.setItem("ideen",JSON.stringify(ideen));const remM=new Set(ideen.filter(i=>i).map(i=>(i.mandantennummer||"").toLowerCase()).filter(m=>m!==""));const allM=new Set(origIdeen.filter(i=>i).map(i=>(i.mandantennummer||"").toLowerCase()).filter(m=>m!==""));let updM=!1;allM.forEach(m=>{if(!remM.has(m))updM=!0});if(updM)aktualisiereMandantenFilterDropdown()}initialisiereBenutzer();triggerAutoSave();if(filterBenutzerValue===name){filterBenutzerValue="";document.getElementById("filterBenutzer").value=""}if(bearbeiteId!==null&&!ideen.some(i=>i&&i.id===bearbeiteId)){abbrechenBearbeiten()}if(beschreibungFuerId!==null&&!ideen.some(i=>i&&i.id===beschreibungFuerId)){beschreibungAbbrechen()}zeigeWarnung(`Benutzer "${name}" und ${deletedCount} Notiz(en) gelöscht.`,'success');zeigeIdeen();}else{zeigeWarnung(`Interner Fehler: Benutzer "${name}" nicht gefunden.`);}}
-function aktualisiereMandantenFilterDropdown(){const ideen=JSON.parse(localStorage.getItem("ideen")||"[]");if(!Array.isArray(ideen))return; const set=new Set(ideen.filter(i=>i).map(i=>(i.mandantennummer||"").trim()).filter(m=>m!==""));const list=Array.from(set).sort();const sel=document.getElementById("filterMandant");const current=sel.value;sel.innerHTML='<option value="">🏢 Alle Mandanten</option>';list.forEach(m=>sel.add(new Option(m,m)));if(current&&list.includes(current)){sel.value=current;filterMandantValue=current}else{sel.value="";filterMandantValue=""}}
+/* --- NEU: Intelligentes Mandanten-Dropdown (Reagiert auf Kategorie & Benutzer) --- */
+function aktualisiereMandantenFilterDropdown() {
+    const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+    if (!Array.isArray(ideen)) return;
+
+    // Aktuelle Filterwerte abrufen
+    const selKategorie = document.getElementById("filterKategorie")?.value || "";
+    const selBenutzer = document.getElementById("filterBenutzer")?.value.toLowerCase() || "";
+    const selArchiv = document.getElementById("filterArchiv")?.value || "alle";
+
+    // 1. Erst Ideen filtern (nach Kategorie, Benutzer & Archiv)
+    const relevanteIdeen = ideen.filter(i => {
+        if (!i) return false;
+        if (selKategorie && i.kategorie !== selKategorie) return false;
+        if (selBenutzer && (i.benutzer || "").toLowerCase() !== selBenutzer) return false;
+        if (selArchiv === "nicht_erledigt" && i.erledigt) return false;
+        if (selArchiv === "erledigt" && !i.erledigt) return false;
+        return true;
+    });
+
+    // 2. Dann Mandanten aus diesen GEFILTERTEN Ideen sammeln
+    const set = new Set(relevanteIdeen.map(i => (i.mandantennummer || "").trim()).filter(m => m !== ""));
+    const list = Array.from(set).sort();
+
+    // 3. Dropdown neu aufbauen
+    const sel = document.getElementById("filterMandant");
+    const current = sel.value; // Aktuelle Auswahl merken
+
+    // Titel anpassen, damit man sieht, dass gefiltert wird
+    const titel = (selKategorie || selBenutzer) ? "🏢 Mandanten (gefiltert)" : "🏢 Alle Mandanten";
+    sel.innerHTML = `<option value="">${titel}</option>`;
+    
+    list.forEach(m => sel.add(new Option(m, m)));
+
+    // 4. Alte Auswahl wiederherstellen, falls sie noch gültig ist
+    if (current && list.includes(current)) {
+        sel.value = current;
+        filterMandantValue = current;
+    } else {
+        sel.value = "";
+        filterMandantValue = "";
+    }
+}
 function initialisiereVorgangsnummer(){const saved=localStorage.getItem("naechsteVorgangsnummer");naechsteVorgangsnummer=saved?parseInt(saved,10):1;if(isNaN(naechsteVorgangsnummer)||naechsteVorgangsnummer<1){naechsteVorgangsnummer=1;localStorage.setItem("naechsteVorgangsnummer",naechsteVorgangsnummer.toString())}zeigeNaechsteNummer()}
 function zeigeNaechsteNummer(){const el=document.getElementById("naechsteNummerAnzeige");if(el)el.textContent=naechsteVorgangsnummer}
 function filterNachMandant(){filterMandantValue=document.getElementById("filterMandant").value;zeigeIdeen()}
