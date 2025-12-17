@@ -945,6 +945,7 @@
         }
 
         // --- NEUE HELPER FÜR FORMULARE (DOM-BASIERT für Stabilität) ---
+        // --- UPDATED: Mit "Bezeichnung" Feld ---
         function addDynamicInput(containerId, type, dataObj) {
             const container = document.getElementById(containerId);
             if (!container) return;
@@ -970,6 +971,15 @@
                 select.appendChild(opt);
             });
 
+            // NEU: Bezeichnung (Label)
+            const labelInput = document.createElement('input');
+            labelInput.type = 'text';
+            labelInput.className = 'detail-label-input';
+            labelInput.placeholder = 'Bez. (opt)';
+            labelInput.value = safeData.label || "";
+            labelInput.style.margin = '0';
+            labelInput.style.width = '90px'; // Klein genug, aber lesbar
+
             const input = document.createElement('input');
             input.type = type === 'telefon' ? 'tel' : 'email';
             input.style.margin = '0';
@@ -986,6 +996,7 @@
             delBtn.onclick = function() { row.remove(); };
 
             row.appendChild(select);
+            row.appendChild(labelInput); // Hinzugefügt
             row.appendChild(input);
             row.appendChild(delBtn);
 
@@ -1069,6 +1080,7 @@
             container.appendChild(row);
         }
 
+        // --- UPDATED: Collects label as well ---
         function collectDynamicInputs(cid, key) {
             const arr = [];
             const container = document.getElementById(cid);
@@ -1076,9 +1088,16 @@
                 Array.from(container.children).forEach(row => {
                     if(!row.classList.contains('dynamic-input-row')) return;
                     const select = row.querySelector('select');
-                    const input = row.querySelector('input');
+                    const input = row.querySelectorAll('input')[1]; // Das zweite Input ist der Wert
+                    const labelInput = row.querySelectorAll('input')[0]; // Das erste ist das Label
+                    
+                    // Fallback falls querySelectorAll unsicher ist (Klassen nutzen)
+                    // Da wir es oben fix erzeugen:
+                    // Child 0: Select, Child 1: Label, Child 2: Value, Child 3: Button
+                    const labelVal = labelInput ? labelInput.value.trim() : "";
+                    
                     if(select && input && input.value) {
-                         arr.push({ type: select.value, [key]: input.value });
+                         arr.push({ type: select.value, [key]: input.value, label: labelVal });
                     }
                 });
             }
@@ -1222,7 +1241,7 @@
             triggerAutoSave(); // NEU: Auto-Save nach Import
         }
 
-        // --- VCF EXPORT LOGIK ---
+        // --- VCF EXPORT LOGIK (Behutsam: Label ignorieren für Standard-Kompatibilität) ---
         
         function downloadVCF(filename, content) {
             const blob = new Blob([content], { type: 'text/vcard;charset=utf-8' });
@@ -1246,6 +1265,7 @@
             vcf += `FN:${m.firmenname}\n`;
             vcf += `ORG:${m.firmenname}\n`;
             
+            // Standard VCF Export: Ignoriert das 'label' Feld, um Outlook nicht zu verwirren
             (m.telefon || []).forEach(t => vcf += `TEL;TYPE=${t.type},VOICE:${t.number}\n`);
             (m.email || []).forEach(e => vcf += `EMAIL;TYPE=${e.type},INTERNET:${e.address}\n`);
             (m.adresse || []).forEach(a => {
@@ -1268,6 +1288,7 @@
             vcf += `N:;${k.fn};;;\n`; 
             if(k.org) vcf += `ORG:${k.org}\n`;
             
+            // Standard VCF Export: Ignoriert 'label'
             (k.telefon || []).forEach(t => vcf += `TEL;TYPE=${t.type},VOICE:${t.number}\n`);
             (k.email || []).forEach(e => vcf += `EMAIL;TYPE=${e.type},INTERNET:${e.address}\n`);
             (k.adresse || []).forEach(a => {
@@ -1288,8 +1309,11 @@
                 const adr = m.adresse && m.adresse.length > 0 
                     ? `${m.adresse[0].street || ''}, ${m.adresse[0].zip || ''} ${m.adresse[0].city || ''}` 
                     : '';
-                const tel = m.telefon ? m.telefon.map(t => `${t.type}: ${t.number}`).join(', ') : '';
-                const mail = m.email ? m.email.map(e => e.address).join(', ') : '';
+                
+                // PDF zeigt Bezeichnung an, falls vorhanden
+                const tel = m.telefon ? m.telefon.map(t => `${t.type}${t.label ? ' ('+t.label+')' : ''}: ${t.number}`).join(', ') : '';
+                const mail = m.email ? m.email.map(e => `${e.address}${e.label ? ' ('+e.label+')' : ''}`).join(', ') : '';
+                
                 const bank = m.bankverbindung?.iban || '';
                 const steuer = (m.ust_id ? `USt: ${m.ust_id}` : '') + (m.steuernummer ? ` StNr: ${m.steuernummer}` : '');
                 const notizen = m.firmen_notizen || '';
@@ -1325,8 +1349,11 @@
                 const adr = k.adresse && k.adresse.length > 0 
                     ? `${k.adresse[0].street || ''}, ${k.adresse[0].zip || ''} ${k.adresse[0].city || ''}` 
                     : '';
-                const tel = k.telefon ? k.telefon.map(t => `${t.type}: ${t.number}`).join(', ') : '';
-                const mail = k.email ? k.email.map(e => e.address).join(', ') : '';
+                
+                // PDF zeigt Bezeichnung an
+                const tel = k.telefon ? k.telefon.map(t => `${t.type}${t.label ? ' ('+t.label+')' : ''}: ${t.number}`).join(', ') : '';
+                const mail = k.email ? k.email.map(e => `${e.address}${e.label ? ' ('+e.label+')' : ''}`).join(', ') : '';
+                
                 const notizen = k.person_notizen || '';
                 
                 const links = dbVerknuepfungen
