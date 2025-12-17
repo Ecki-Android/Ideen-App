@@ -292,9 +292,9 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
     </select>
 
     <label>Benutzer:</label> 
-    <select id="filterBenutzer" onchange="filterNachBenutzer(); updateVorgangsnummerDropdown(); aktualisiereMandantenFilterDropdown()"></select>
+    <select id="filterBenutzer" onchange="filterNachBenutzer(); updateVorgangsnummerDropdown(); aktualisiereMandantenFilterDropdown(); aktualisiereKategorienFilterDropdown()"></select>
     <label>Mandant:</label> 
-    <select id="filterMandant" onchange="filterNachMandant(); updateVorgangsnummerDropdown()">
+    <select id="filterMandant" onchange="filterNachMandant(); updateVorgangsnummerDropdown(); aktualisiereKategorienFilterDropdown()">
         <option value="">🏢 Alle Mandanten</option>
     </select>
     <label>Vorgang:</label>
@@ -1233,6 +1233,51 @@ function aktualisiereMandantenFilterDropdown() {
     } else {
         sel.value = "";
         filterMandantValue = "";
+    }
+}
+/* --- NEU: Intelligentes Kategorien-Dropdown (Reagiert auf Mandant & Benutzer) --- */
+function aktualisiereKategorienFilterDropdown() {
+    const ideen = JSON.parse(localStorage.getItem("ideen") || "[]");
+    if (!Array.isArray(ideen)) return;
+
+    // Aktuelle Filterwerte abrufen
+    const selMandant = document.getElementById("filterMandant")?.value.toLowerCase() || "";
+    const selBenutzer = document.getElementById("filterBenutzer")?.value.toLowerCase() || "";
+    const selArchiv = document.getElementById("filterArchiv")?.value || "alle";
+
+    // 1. Erst Ideen filtern (nach Mandant, Benutzer & Archiv)
+    const relevanteIdeen = ideen.filter(i => {
+        if (!i) return false;
+        if (selMandant && (i.mandantennummer || "").toLowerCase() !== selMandant) return false;
+        if (selBenutzer && (i.benutzer || "").toLowerCase() !== selBenutzer) return false;
+        if (selArchiv === "nicht_erledigt" && i.erledigt) return false;
+        if (selArchiv === "erledigt" && !i.erledigt) return false;
+        return true;
+    });
+
+    // 2. Dann Kategorien aus diesen GEFILTERTEN Ideen sammeln
+    const set = new Set(relevanteIdeen.map(i => i.kategorie).filter(k => k));
+    const list = Array.from(set).sort();
+
+    // 3. Dropdown neu aufbauen
+    const sel = document.getElementById("filterKategorie");
+    const current = sel.value; // Aktuelle Auswahl merken
+
+    // Titel anpassen
+    const titel = (selMandant || selBenutzer) ? "🎯 Kategorien (gefiltert)" : "🎯 Alle Kategorien";
+    sel.innerHTML = `<option value="" class="filter-option-alle">${titel}</option>`;
+    
+    // Immer auch die Standard-Kategorien hinzufügen, falls man eine NEUE Idee filtern will, 
+    // aber wir beschränken uns hier auf die vorhandenen, um Übersicht zu wahren.
+    // Wenn du ALLE Standardkategorien immer sehen willst, nimm 'kategorien' statt 'list'.
+    // Hier nehmen wir 'list' für die Filter-Logik.
+    list.forEach(k => sel.add(new Option(k, k)));
+
+    // 4. Alte Auswahl wiederherstellen
+    if (current && list.includes(current)) {
+        sel.value = current;
+    } else {
+        sel.value = "";
     }
 }
 function initialisiereVorgangsnummer(){const saved=localStorage.getItem("naechsteVorgangsnummer");naechsteVorgangsnummer=saved?parseInt(saved,10):1;if(isNaN(naechsteVorgangsnummer)||naechsteVorgangsnummer<1){naechsteVorgangsnummer=1;localStorage.setItem("naechsteVorgangsnummer",naechsteVorgangsnummer.toString())}zeigeNaechsteNummer()}
