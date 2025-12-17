@@ -518,19 +518,26 @@ document.getElementById('mandantennummer').addEventListener('input', function(e)
              if (!exists) addTelefonNummerInput(typ, wert);
         };
 
-        // 1. Telefonnummern des Mandanten laden
+        // 1. Telefonnummern des Mandanten laden (MIT BEZEICHNUNG)
         if (mandant.telefon) {
              if (Array.isArray(mandant.telefon)) {
-                 mandant.telefon.forEach(t => addSafe(t.type || 'Zentrale', t.number));
+                 mandant.telefon.forEach(t => {
+                     // Nutze Label (Bezeichnung) wenn vorhanden, sonst Typ, sonst 'Zentrale'
+                     let bez = t.label || t.type || 'Zentrale';
+                     addSafe(bez, t.number);
+                 });
              } else if (typeof mandant.telefon === 'string') {
                  addSafe('Zentrale', mandant.telefon);
              }
         }
         
-        // 2. NEU: E-Mails des Mandanten laden
+        // 2. E-Mails des Mandanten laden (MIT BEZEICHNUNG)
         if (mandant.email) {
              if (Array.isArray(mandant.email)) {
-                 mandant.email.forEach(e => addSafe(e.type || 'Firma-Mail', e.address));
+                 mandant.email.forEach(e => {
+                     let bez = e.label || e.type || 'Firma-Mail';
+                     addSafe(bez, e.address);
+                 });
              } else if (typeof mandant.email === 'string') {
                  addSafe('Firma-Mail', mandant.email);
              }
@@ -539,6 +546,7 @@ document.getElementById('mandantennummer').addEventListener('input', function(e)
         triggerAutoSave();
     }
 });
+
 // Erweiterte Benutzer-Initialisierung
 function initialisiereBenutzer() {
     let localUsers = JSON.parse(localStorage.getItem("benutzerliste") || "[]");
@@ -578,21 +586,23 @@ function handleBenutzerChange() {
              if (!exists) addTelefonNummerInput(typ, wert);
         };
 
-        // 1. E-Mails verarbeiten (Sowohl merken als auch ANZEIGEN)
+        // 1. E-Mails verarbeiten (MIT BEZEICHNUNG)
         if (kontakt.email && Array.isArray(kontakt.email) && kontakt.email.length > 0) {
-            // Merken für den E-Mail Button oben
+            // Merken für den E-Mail Button oben (immer die erste)
             selectedUserEmail = kontakt.email[0].address;
             
-            // NEU: E-Mails auch in die Liste eintragen
+            // In die Liste eintragen
             kontakt.email.forEach(e => {
-                addSafe(e.type || 'E-Mail', e.address);
+                let bez = e.label || e.type || 'E-Mail';
+                addSafe(bez, e.address);
             });
         }
 
-        // 2. Telefonnummern hinzufügen
+        // 2. Telefonnummern hinzufügen (MIT BEZEICHNUNG)
         if (kontakt.telefon && Array.isArray(kontakt.telefon)) {
             kontakt.telefon.forEach(t => {
-                addSafe(t.type || 'Mobil', t.number);
+                let bez = t.label || t.type || 'Mobil';
+                addSafe(bez, t.number);
             });
         }
 
@@ -618,7 +628,6 @@ function handleBenutzerChange() {
     }
 }
 // --- ENDE SHARED DATA LOGIC ---
-
 // --- NEU: Funktion zur Anzeige des OneDrive-Status ---
 function updateOneDriveStatus(status, message) {
     const statusEl = document.getElementById("onedriveStatus");
