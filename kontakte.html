@@ -49,23 +49,36 @@
         /* --- Main Layout & Search --- */
         h1, h2, h3 { color: #333; border-bottom: 2px solid #0078d4; padding-bottom: 5px; margin-top: 20px; }
         
-        /* Suchleiste */
+        /* UPDATED: Suchleiste Container mit Flexbox für Sortierung */
         .search-container {
             margin-bottom: 15px;
             position: sticky;
             top: 0;
-            background-color: #f4f7f6; /* Hintergrund wie Body für sauberen Look */
+            background-color: #f4f7f6; /* Hintergrund wie Body */
             padding: 10px 0;
             z-index: 90;
+            display: flex;
+            gap: 10px;
         }
         #globalSearchInput {
-            width: 100%;
+            flex: 1;
             padding: 12px;
             font-size: 1.1em;
             border: 2px solid #0078d4;
             border-radius: 6px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
             box-sizing: border-box;
+        }
+        /* NEU: Sortier-Dropdown Styles */
+        #sortSelect {
+            width: auto;
+            padding: 12px;
+            font-size: 1em;
+            border: 1px solid #aaa;
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
 
         .tab-bar { margin-bottom: 15px; display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
@@ -158,9 +171,17 @@
 
             <h2>Datenverwaltung</h2>
 
-            <!-- Globale Suchleiste -->
+            <!-- Globale Suchleiste & Sortierung -->
             <div class="search-container">
                 <input type="text" id="globalSearchInput" placeholder="🔍 Suchen (Name, Mandantennummer, Firma)..." oninput="handleSearch(this.value)">
+                
+                <!-- NEU: Sortier-Dropdown -->
+                <select id="sortSelect" onchange="handleSort(this.value)" title="Sortierung wählen">
+                    <option value="name_asc">🔤 Name (A-Z)</option>
+                    <option value="name_desc">🔤 Name (Z-A)</option>
+                    <option value="nr_asc">🔢 Nummer (0-9)</option>
+                    <option value="nr_desc">🔢 Nummer (9-0)</option>
+                </select>
             </div>
 
             <div class="tab-bar">
@@ -172,7 +193,6 @@
                 <div class="pdf-actions">
                     <!-- Lokale Datei Buttons -->
                     <button onclick="speichereDateiLokal()" class="local-file-btn" title="Backup erstellen">💾 Datei speichern</button>
-                    <!-- Datei öffnen ist auch im Login-Screen, aber hier nochmal für den Workflow -->
                     <button onclick="ladeDateiLokal()" class="local-file-btn" title="Backup laden">📂 Datei öffnen</button>
                     
                     <span style="border-left: 1px solid #ccc; height: 20px; margin: 0 5px;"></span>
@@ -315,7 +335,8 @@
         let accessToken = null;
         let userEmail = null;
         let tokenRefreshIntervalId = null; // Für den Wachhund
-        let currentSearchTerm = ""; // NEU: Suchbegriff
+        let currentSearchTerm = ""; // Suchbegriff
+        let currentSortOrder = "name_asc"; // NEU: Sortierung
         let fileHandle; // Für native File System API
 
         const MANDANTEN_KEY = "kontakte_mandanten";
@@ -341,7 +362,6 @@
                 await msalInstance.initialize();
                 
                 // --- WACHHUND LOGIK ---
-                // Prüft, ob aus der Ideen-App oder vorheriger Sitzung eine Anmeldung vorliegt
                 await versucheSitzungWiederherzustellen();
 
             } catch (e) {
@@ -364,9 +384,7 @@
 
         // --- 3. CLOUD / MICROSOFT LOGIK (INKL. WACHHUND) ---
         
-        // Versucht, eine bestehende Sitzung zu reaktivieren (z.B. nach Reload oder Wechsel von Ideen-App)
         async function versucheSitzungWiederherzustellen() {
-            // Wir schauen, ob in sessionStorage Daten liegen (die teilen sich index.html und kontakte.html bei gleicher Domain)
             const savedLoginType = sessionStorage.getItem('loginType');
             const savedAccountId = sessionStorage.getItem('msalAccountIdentifier');
 
@@ -375,8 +393,7 @@
                 const account = await msalInstance.getAccountByHomeId(savedAccountId);
                 if (account) {
                     msalInstance.setActiveAccount(account);
-                    // Versuche, still ein Token zu bekommen
-                    const token = await getValidToken(false); // Nicht interaktiv
+                    const token = await getValidToken(false); 
                     if (token) {
                         await handleLoginSuccess(account);
                     }
@@ -408,25 +425,20 @@
             // Ansicht entsperren
             setAppLocked(false);
 
-            // Session Storage setzen (für Kommunikation mit index.html und Reloads)
             sessionStorage.setItem('loginType', 'microsoft');
             sessionStorage.setItem('userEmail', userEmail);
             sessionStorage.setItem('msalAccountIdentifier', account.homeAccountId);
             
-            // Erstes Token holen
             const token = await getValidToken(false);
             if (token) {
-                // Wachhund starten: Alle 10 Minuten Token prüfen
                 clearInterval(tokenRefreshIntervalId);
                 tokenRefreshIntervalId = setInterval(() => getValidToken(false), 10 * 60 * 1000);
                 
                 zeigeStatus("Angemeldet & Wachhund aktiv.", "info");
-                // Automatisches Laden beim Start, wenn Token da ist
                 await loadFromOneDrive(); 
             }
         }
 
-        // --- KERN DES WACHHUNDS: Token holen/erneuern ---
         async function getValidToken(interactive = false) {
             if (!msalInstance) return null;
             const account = msalInstance.getActiveAccount();
@@ -452,7 +464,6 @@
                         document.getElementById('sessionExpiredWarning').style.display = 'none';
                         return accessToken;
                     } catch (err2) {
-                        console.error("Interaktiver Refresh fehlgeschlagen", err2);
                         handleExpiredSession();
                         return null;
                     }
@@ -470,21 +481,16 @@
 
         async function handleLogout() {
             await msalInstance.logoutPopup();
-            sessionStorage.clear(); // Session bereinigen
-            location.reload(); // Reload sperrt die App automatisch wieder
+            sessionStorage.clear(); 
+            location.reload(); 
         }
 
-        // --- Statusanzeige-Logik ---
         function zeigeStatus(msg, type) {
             const el = document.getElementById('onedriveStatus');
             el.textContent = msg;
-            
-            // Klassen resetten und neuen Typ setzen
             el.className = 'onedrive-status'; 
             el.classList.add(type);
-            
             el.style.display = 'inline-flex';
-            
             if (type === 'success' || type === 'error' || type === 'info') {
                 setTimeout(() => { 
                     if(el.textContent === msg) el.style.display = 'none'; 
@@ -496,12 +502,11 @@
 
         let autoSaveTimer = null;
         function triggerAutoSave() {
-            if (!accessToken) return; // Nicht eingeloggt -> kein AutoSave
-            
+            if (!accessToken) return; 
             zeigeStatus("⏳ Änderungen erkannt...", "info");
             clearTimeout(autoSaveTimer);
             autoSaveTimer = setTimeout(() => {
-                saveToOneDrive(false); // false = automatisch
+                saveToOneDrive(false); 
             }, 2000);
         }
 
@@ -535,7 +540,6 @@
         }
 
         async function saveToOneDrive(isManual = true) {
-            // WICHTIG: Token prüfen bevor wir speichern!
             if (!(await getValidToken(isManual))) {
                 if(isManual) alert("Sitzung abgelaufen. Bitte neu anmelden.");
                 return;
@@ -568,7 +572,6 @@
         }
 
         async function loadFromOneDrive() {
-            // WICHTIG: Token prüfen
             if (!(await getValidToken(true))) {
                 alert("Bitte erst einloggen.");
                 return;
@@ -604,15 +607,13 @@
             }
         }
 
-        // --- NEU: Lokale Datei-Operationen ---
+        // --- Lokale Datei-Operationen ---
         
         async function speichereDateiLokal() {
             const dataObj = prepareDataForSave();
             const jsonStr = JSON.stringify(dataObj, null, 2);
-            
             try {
                 if (window.showSaveFilePicker) {
-                    // Modern Way (File System Access API)
                     fileHandle = await window.showSaveFilePicker({
                         suggestedName: "kontakte_backup.json",
                         types: [{ description: "JSON-Dateien", accept: { "application/json": [".json"] } }]
@@ -622,7 +623,6 @@
                     await writable.close();
                     zeigeStatus("Lokal gespeichert", "success");
                 } else {
-                    // Fallback (Download Link)
                     const blob = new Blob([jsonStr], { type: "application/json" });
                     const url = URL.createObjectURL(blob);
                     const link = document.createElement("a");
@@ -635,66 +635,50 @@
                     zeigeStatus("Download gestartet", "success");
                 }
             } catch (e) {
-                if (e.name !== "AbortError") {
-                    alert("Fehler beim lokalen Speichern: " + e.message);
-                }
+                if (e.name !== "AbortError") alert("Fehler beim lokalen Speichern: " + e.message);
             }
         }
 
         async function ladeDateiLokal() {
             try {
                 let fileContent;
-                
                 if (window.showOpenFilePicker) {
-                    // Modern Way
                     [fileHandle] = await window.showOpenFilePicker({
                         types: [{ description: "JSON-Dateien", accept: { "application/json": [".json"] } }]
                     });
                     const file = await fileHandle.getFile();
                     fileContent = await file.text();
                 } else {
-                    // Fallback (Input File)
                     const input = document.createElement('input');
                     input.type = 'file';
                     input.accept = '.json';
-                    
                     await new Promise((resolve, reject) => {
                         input.onchange = async (e) => {
                             if (e.target.files && e.target.files.length > 0) {
                                 const file = e.target.files[0];
                                 const reader = new FileReader();
-                                reader.onload = (evt) => {
-                                    fileContent = evt.target.result;
-                                    resolve();
-                                };
+                                reader.onload = (evt) => { fileContent = evt.target.result; resolve(); };
                                 reader.onerror = (err) => reject(err);
                                 reader.readAsText(file);
-                            } else {
-                                reject(new Error("Keine Datei gewählt"));
-                            }
+                            } else { reject(new Error("Keine Datei gewählt")); }
                         };
                         input.click();
                     });
                 }
 
                 if (!fileContent) throw new Error("Leere Datei");
-                
                 const data = JSON.parse(fileContent);
                 if (parseDataFromLoad(data)) {
                     saveLocalDatabases();
                     refreshAuswertungslisten();
-                    // Wenn eine Datei lokal geladen wurde, ist der Zugriff legitim -> Entsperren
                     setAppLocked(false);
                     zeigeStatus("Backup geladen!", "success");
-                    triggerAutoSave(); // Auch in Cloud spiegeln wenn möglich
+                    triggerAutoSave(); 
                 } else {
                     alert("Ungültiges Dateiformat.");
                 }
-
             } catch (e) {
-                if (e.name !== "AbortError" && e.message !== "Keine Datei gewählt") {
-                    alert("Fehler beim Laden: " + e.message);
-                }
+                if (e.name !== "AbortError" && e.message !== "Keine Datei gewählt") alert("Fehler beim Laden: " + e.message);
             }
         }
 
@@ -702,10 +686,8 @@
             try {
                 const m = localStorage.getItem(MANDANTEN_KEY);
                 if (m) dbMandanten = new Map(JSON.parse(m));
-                
                 const k = localStorage.getItem(KONTAKTE_KEY);
                 if (k) dbKontakte = new Map(JSON.parse(k));
-                
                 const v = localStorage.getItem(VERKNUEPFUNGEN_KEY);
                 if (v) dbVerknuepfungen = JSON.parse(v) || [];
                 else dbVerknuepfungen = [];
@@ -727,7 +709,6 @@
         function switchTab(id) {
             document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            
             const capId = id.charAt(0).toUpperCase() + id.slice(1);
             document.getElementById(`panel${capId}`).classList.add('active');
             const btns = document.querySelectorAll('.tab-btn');
@@ -739,7 +720,9 @@
             const select = document.getElementById('neueZuweisungMandantSelect');
             if(select) {
                 select.innerHTML = "<option value=''>-- Firma wählen --</option>";
-                dbMandanten.forEach((m, id) => {
+                // Mandanten für Dropdown auch sortieren
+                const sortedMandanten = Array.from(dbMandanten.entries()).sort((a,b) => a[1].firmenname.localeCompare(b[1].firmenname));
+                sortedMandanten.forEach(([id, m]) => {
                     select.add(new Option(`${m.firmenname} [${m.mandantennummer}]`, id));
                 });
             }
@@ -747,30 +730,51 @@
             renderKontakteListe();
         }
 
-        // --- NEU: Suchfunktion ---
+        // --- NEU: Suchfunktion & Sortierung ---
         function handleSearch(val) {
             currentSearchTerm = val.toLowerCase().trim();
             renderMandantenListe();
             renderKontakteListe();
         }
 
-        // --- UPDATE: Filtern in der Anzeige ---
+        function handleSort(val) {
+            currentSortOrder = val;
+            renderMandantenListe();
+            renderKontakteListe();
+        }
+
+        // --- UPDATE: Filtern & Sortieren in der Anzeige ---
         function renderMandantenListe() {
             const container = document.getElementById('mandantenListe');
             if(!container) return;
             container.innerHTML = "";
             if (dbMandanten.size === 0) { container.innerHTML = "<i>Keine Daten.</i>"; return; }
             
-            dbMandanten.forEach((m, id) => {
-                // FILTER LOGIK MANDANT
-                if (currentSearchTerm) {
+            // 1. In Array umwandeln
+            let list = Array.from(dbMandanten.entries()).map(([id, m]) => ({id, ...m}));
+
+            // 2. Filtern
+            if (currentSearchTerm) {
+                list = list.filter(m => {
                     const matchName = (m.firmenname || "").toLowerCase().includes(currentSearchTerm);
                     const matchNummer = (m.mandantennummer || "").toLowerCase().includes(currentSearchTerm);
                     const matchOrt = (m.adresse?.[0]?.city || "").toLowerCase().includes(currentSearchTerm);
-                    
-                    if (!matchName && !matchNummer && !matchOrt) return; // Ausblenden
-                }
+                    return matchName || matchNummer || matchOrt;
+                });
+            }
 
+            // 3. Sortieren (NEU)
+            list.sort((a, b) => {
+                if (currentSortOrder === 'name_asc') return a.firmenname.localeCompare(b.firmenname);
+                if (currentSortOrder === 'name_desc') return b.firmenname.localeCompare(a.firmenname);
+                if (currentSortOrder === 'nr_asc') return a.mandantennummer.localeCompare(b.mandantennummer, undefined, {numeric: true});
+                if (currentSortOrder === 'nr_desc') return b.mandantennummer.localeCompare(a.mandantennummer, undefined, {numeric: true});
+                return 0;
+            });
+
+            // 4. Rendern
+            list.forEach(m => {
+                const id = m.id;
                 const div = document.createElement('div');
                 div.className = 'liste-item';
                 const count = dbVerknuepfungen.filter(v => String(v.mandantennummer_fk) === String(id)).length;
@@ -797,27 +801,63 @@
             container.innerHTML = "";
             if (dbKontakte.size === 0) { container.innerHTML = "<i>Keine Daten.</i>"; return; }
             
-            dbKontakte.forEach((k, id) => {
-                // FILTER LOGIK KONTAKT
-                // Wir suchen auch in den verknüpften Mandantennummern!
-                let matchMandantennummer = false;
-                if (currentSearchTerm) {
-                    const linkedIds = dbVerknuepfungen
-                        .filter(v => String(v.kontakt_id_fk) === String(id))
-                        .map(v => {
-                            const m = dbMandanten.get(String(v.mandantennummer_fk));
-                            return m ? m.mandantennummer : "";
-                        });
-                    matchMandantennummer = linkedIds.some(lid => lid.toLowerCase().includes(currentSearchTerm));
-                }
+            // 1. In Array umwandeln
+            let list = Array.from(dbKontakte.entries()).map(([id, k]) => ({id, ...k}));
 
-                if (currentSearchTerm) {
+            // Helper: Verknüpfte Mandantennummern holen (für Suche & Sortierung)
+            const getLinkedMandantInfos = (kid) => {
+                return dbVerknuepfungen
+                    .filter(v => String(v.kontakt_id_fk) === String(kid))
+                    .map(v => {
+                        const m = dbMandanten.get(String(v.mandantennummer_fk));
+                        return m ? { name: m.firmenname, nr: m.mandantennummer } : { name: "", nr: "" };
+                    });
+            };
+
+            // 2. Filtern
+            if (currentSearchTerm) {
+                list = list.filter(k => {
                     const matchName = (k.fn || "").toLowerCase().includes(currentSearchTerm);
                     const matchOrg = (k.org || "").toLowerCase().includes(currentSearchTerm);
                     
-                    if (!matchName && !matchOrg && !matchMandantennummer) return; // Ausblenden
-                }
+                    // Suche auch in verknüpften Mandantennummern
+                    const linkedInfos = getLinkedMandantInfos(k.id);
+                    const matchMandantennummer = linkedInfos.some(info => info.nr.toLowerCase().includes(currentSearchTerm) || info.name.toLowerCase().includes(currentSearchTerm));
 
+                    return matchName || matchOrg || matchMandantennummer;
+                });
+            }
+
+            // 3. Sortieren (NEU)
+            list.sort((a, b) => {
+                if (currentSortOrder.startsWith('name')) {
+                    const valA = a.fn || "";
+                    const valB = b.fn || "";
+                    return currentSortOrder === 'name_asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                }
+                if (currentSortOrder.startsWith('nr')) {
+                    // Sortiere nach der kleinsten Mandantennummer, die dem Kontakt zugeordnet ist
+                    const getMinNr = (kid) => {
+                        const infos = getLinkedMandantInfos(kid);
+                        if (infos.length === 0) return "ZZZZ"; // Kontakte ohne Firma nach hinten
+                        // Sortieren und erste nehmen
+                        infos.sort((x,y) => x.nr.localeCompare(y.nr, undefined, {numeric:true}));
+                        return infos[0].nr;
+                    };
+                    const nrA = getMinNr(a.id);
+                    const nrB = getMinNr(b.id);
+                    
+                    // Bei gleicher Nummer nach Namen sortieren
+                    if (nrA === nrB) return a.fn.localeCompare(b.fn);
+
+                    return currentSortOrder === 'nr_asc' ? nrA.localeCompare(nrB, undefined, {numeric:true}) : nrB.localeCompare(nrA, undefined, {numeric:true});
+                }
+                return 0;
+            });
+
+            // 4. Rendern
+            list.forEach(k => {
+                const id = k.id;
                 const div = document.createElement('div');
                 div.className = 'liste-item';
                 const firmen = dbVerknuepfungen
@@ -962,7 +1002,7 @@
             
             switchTab('mandanten');
             openMandantMask(mId);
-            triggerAutoSave(); // NEU: Auto-Save
+            triggerAutoSave(); 
             alert(`Mandant angelegt (ID: ${mId}).`);
         }
 
@@ -1076,7 +1116,7 @@
             saveLocalDatabases();
             refreshAuswertungslisten();
             document.getElementById('mandantModal').classList.remove('active');
-            triggerAutoSave(); // NEU: Auto-Save
+            triggerAutoSave(); 
         }
 
         function deleteMandant(id = null) {
@@ -1088,17 +1128,15 @@
             saveLocalDatabases();
             refreshAuswertungslisten();
             document.getElementById('mandantModal').classList.remove('active');
-            triggerAutoSave(); // NEU: Auto-Save
+            triggerAutoSave(); 
         }
 
         async function saveKontakt() {
-            // 1. Validierung
             const fn = document.getElementById('kontaktNameInput').value.trim();
             if (!fn) return alert("Name ist erforderlich!");
 
             let id = document.getElementById('kontaktIdInput').value;
 
-            // NEU: Duplikat-Prüfung (Nur beim Neuanlegen relevant)
             if (!id) {
                 const existiert = Array.from(dbKontakte.values()).some(k => k.fn.toLowerCase() === fn.toLowerCase());
                 if (existiert) {
@@ -1122,15 +1160,13 @@
                 adresse: collectDynamicAddressInputs('kontaktAdressListe')
             };
             
-            // 1. Kontakt speichern
             dbKontakte.set(String(id), data);
             
-            // 2. Verknüpfungen speichern
             const cleanDB = dbVerknuepfungen.filter(v => String(v.kontakt_id_fk) !== String(id));
             const newAssignments = tempZuweisungen.map(z => {
                 return {
                     ...z,
-                    kontakt_id_fk: String(id) // ID explizit setzen
+                    kontakt_id_fk: String(id) 
                 };
             });
             dbVerknuepfungen = [...cleanDB, ...newAssignments];
@@ -1138,7 +1174,7 @@
             saveLocalDatabases();
             refreshAuswertungslisten();
             document.getElementById('kontaktModal').classList.remove('active');
-            triggerAutoSave(); // NEU: Auto-Save
+            triggerAutoSave(); 
         }
 
         function deleteKontakt(id = null) {
@@ -1150,11 +1186,9 @@
             saveLocalDatabases();
             refreshAuswertungslisten();
             document.getElementById('kontaktModal').classList.remove('active');
-            triggerAutoSave(); // NEU: Auto-Save
+            triggerAutoSave(); 
         }
 
-        // --- NEUE HELPER FÜR FORMULARE (DOM-BASIERT für Stabilität) ---
-        // --- UPDATED: Mit "Bezeichnung" Feld ---
         function addDynamicInput(containerId, type, dataObj) {
             const container = document.getElementById(containerId);
             if (!container) return;
@@ -1180,14 +1214,13 @@
                 select.appendChild(opt);
             });
 
-            // NEU: Bezeichnung (Label)
             const labelInput = document.createElement('input');
             labelInput.type = 'text';
             labelInput.className = 'detail-label-input';
             labelInput.placeholder = 'Bez. (opt)';
             labelInput.value = safeData.label || "";
             labelInput.style.margin = '0';
-            labelInput.style.width = '90px'; // Klein genug, aber lesbar
+            labelInput.style.width = '90px'; 
 
             const input = document.createElement('input');
             input.type = type === 'telefon' ? 'tel' : 'email';
@@ -1205,7 +1238,7 @@
             delBtn.onclick = function() { row.remove(); };
 
             row.appendChild(select);
-            row.appendChild(labelInput); // Hinzugefügt
+            row.appendChild(labelInput); 
             row.appendChild(input);
             row.appendChild(delBtn);
 
@@ -1289,7 +1322,6 @@
             container.appendChild(row);
         }
 
-        // --- UPDATED: Collects label as well ---
         function collectDynamicInputs(cid, key) {
             const arr = [];
             const container = document.getElementById(cid);
@@ -1297,8 +1329,8 @@
                 Array.from(container.children).forEach(row => {
                     if(!row.classList.contains('dynamic-input-row')) return;
                     const select = row.querySelector('select');
-                    const input = row.querySelectorAll('input')[1]; // Das zweite Input ist der Wert
-                    const labelInput = row.querySelectorAll('input')[0]; // Das erste ist das Label
+                    const input = row.querySelectorAll('input')[1]; 
+                    const labelInput = row.querySelectorAll('input')[0]; 
                     
                     const labelVal = labelInput ? labelInput.value.trim() : "";
                     
@@ -1444,11 +1476,9 @@
             saveLocalDatabases();
             refreshAuswertungslisten();
             document.getElementById('vcfImportInput').value = ''; 
-            triggerAutoSave(); // NEU: Auto-Save nach Import
+            triggerAutoSave(); 
         }
 
-        // --- VCF EXPORT LOGIK (Behutsam: Label ignorieren für Standard-Kompatibilität) ---
-        
         function downloadVCF(filename, content) {
             const blob = new Blob([content], { type: 'text/vcard;charset=utf-8' });
             const link = document.createElement('a');
@@ -1471,7 +1501,6 @@
             vcf += `FN:${m.firmenname}\n`;
             vcf += `ORG:${m.firmenname}\n`;
             
-            // Standard VCF Export: Ignoriert das 'label' Feld, um Outlook nicht zu verwirren
             (m.telefon || []).forEach(t => vcf += `TEL;TYPE=${t.type},VOICE:${t.number}\n`);
             (m.email || []).forEach(e => vcf += `EMAIL;TYPE=${e.type},INTERNET:${e.address}\n`);
             (m.adresse || []).forEach(a => {
@@ -1494,7 +1523,6 @@
             vcf += `N:;${k.fn};;;\n`; 
             if(k.org) vcf += `ORG:${k.org}\n`;
             
-            // Standard VCF Export: Ignoriert 'label'
             (k.telefon || []).forEach(t => vcf += `TEL;TYPE=${t.type},VOICE:${t.number}\n`);
             (k.email || []).forEach(e => vcf += `EMAIL;TYPE=${e.type},INTERNET:${e.address}\n`);
             (k.adresse || []).forEach(a => {
@@ -1507,7 +1535,6 @@
             downloadVCF(`${k.fn.replace(/[^a-z0-9]/gi, '_')}.vcf`, vcf);
         }
 
-        // --- PDF EXPORT (COMPREHENSIVE & LANDSCAPE) ---
         function exportMandantenReportPDF() { 
             const doc = new jspdf.jsPDF({ orientation: 'landscape' });
             const rows = [];
@@ -1515,11 +1542,8 @@
                 const adr = m.adresse && m.adresse.length > 0 
                     ? `${m.adresse[0].street || ''}, ${m.adresse[0].zip || ''} ${m.adresse[0].city || ''}` 
                     : '';
-                
-                // PDF zeigt Bezeichnung an, falls vorhanden
                 const tel = m.telefon ? m.telefon.map(t => `${t.type}${t.label ? ' ('+t.label+')' : ''}: ${t.number}`).join(', ') : '';
                 const mail = m.email ? m.email.map(e => `${e.address}${e.label ? ' ('+e.label+')' : ''}`).join(', ') : '';
-                
                 const bank = m.bankverbindung?.iban || '';
                 const steuer = (m.ust_id ? `USt: ${m.ust_id}` : '') + (m.steuernummer ? ` StNr: ${m.steuernummer}` : '');
                 const notizen = m.firmen_notizen || '';
@@ -1555,13 +1579,9 @@
                 const adr = k.adresse && k.adresse.length > 0 
                     ? `${k.adresse[0].street || ''}, ${k.adresse[0].zip || ''} ${k.adresse[0].city || ''}` 
                     : '';
-                
-                // PDF zeigt Bezeichnung an
                 const tel = k.telefon ? k.telefon.map(t => `${t.type}${t.label ? ' ('+t.label+')' : ''}: ${t.number}`).join(', ') : '';
                 const mail = k.email ? k.email.map(e => `${e.address}${e.label ? ' ('+e.label+')' : ''}`).join(', ') : '';
-                
                 const notizen = k.person_notizen || '';
-                
                 const links = dbVerknuepfungen
                     .filter(v => String(v.kontakt_id_fk) === String(kId))
                     .map(v => {
