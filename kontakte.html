@@ -27,6 +27,7 @@
         .success-btn { background: #28a745; color: white; border-color: #218838; }
         .onedrive-btn { background: #0078d4; color: white; border-color: #005a9e; }
         .convert-btn { background: #6c757d; color: white; border-color: #545b62; }
+        .local-file-btn { background: #fff3cd; color: #856404; border-color: #ffeeba; }
         
         /* --- Status-Anzeige --- */
         .onedrive-status { 
@@ -71,7 +72,7 @@
         .tab-btn { background: #f9f9f9; border-bottom: 3px solid transparent; border-radius: 4px 4px 0 0; padding: 10px 15px; }
         .tab-btn.active { border-bottom: 3px solid #0078d4; font-weight: bold; background: white; }
         
-        .pdf-actions { margin-left: auto; display: flex; gap: 10px; }
+        .pdf-actions { margin-left: auto; display: flex; gap: 10px; flex-wrap: wrap; }
 
         .panel { display: none; background: white; padding: 15px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         .panel.active { display: block; }
@@ -147,6 +148,12 @@
             </div>
             
             <div class="pdf-actions">
+                <!-- NEU: Lokale Datei Buttons -->
+                <button onclick="speichereDateiLokal()" class="local-file-btn" title="Backup erstellen">💾 Datei speichern</button>
+                <button onclick="ladeDateiLokal()" class="local-file-btn" title="Backup laden">📂 Datei öffnen</button>
+                
+                <span style="border-left: 1px solid #ccc; height: 20px; margin: 0 5px;"></span>
+                
                 <button onclick="exportMandantenReportPDF()">🖨️ Mandanten-PDF</button>
                 <button onclick="exportPersonenReportPDF()">🖨️ Kontakte-PDF</button>
             </div>
@@ -283,6 +290,7 @@
         let userEmail = null;
         let tokenRefreshIntervalId = null; // Für den Wachhund
         let currentSearchTerm = ""; // NEU: Suchbegriff
+        let fileHandle; // Für native File System API
 
         const MANDANTEN_KEY = "kontakte_mandanten";
         const KONTAKTE_KEY = "kontakte_personen";
@@ -551,6 +559,98 @@
                 }
             } catch (e) {
                 zeigeStatus("Ladefehler: " + e.message, "error");
+            }
+        }
+
+        // --- NEU: Lokale Datei-Operationen ---
+        
+        async function speichereDateiLokal() {
+            const dataObj = prepareDataForSave();
+            const jsonStr = JSON.stringify(dataObj, null, 2);
+            
+            try {
+                if (window.showSaveFilePicker) {
+                    // Modern Way (File System Access API)
+                    fileHandle = await window.showSaveFilePicker({
+                        suggestedName: "kontakte_backup.json",
+                        types: [{ description: "JSON-Dateien", accept: { "application/json": [".json"] } }]
+                    });
+                    const writable = await fileHandle.createWritable();
+                    await writable.write(jsonStr);
+                    await writable.close();
+                    zeigeStatus("Lokal gespeichert", "success");
+                } else {
+                    // Fallback (Download Link)
+                    const blob = new Blob([jsonStr], { type: "application/json" });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement("a");
+                    link.href = url;
+                    link.download = "kontakte_backup.json";
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                    zeigeStatus("Download gestartet", "success");
+                }
+            } catch (e) {
+                if (e.name !== "AbortError") {
+                    alert("Fehler beim lokalen Speichern: " + e.message);
+                }
+            }
+        }
+
+        async function ladeDateiLokal() {
+            try {
+                let fileContent;
+                
+                if (window.showOpenFilePicker) {
+                    // Modern Way
+                    [fileHandle] = await window.showOpenFilePicker({
+                        types: [{ description: "JSON-Dateien", accept: { "application/json": [".json"] } }]
+                    });
+                    const file = await fileHandle.getFile();
+                    fileContent = await file.text();
+                } else {
+                    // Fallback (Input File)
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = '.json';
+                    
+                    await new Promise((resolve, reject) => {
+                        input.onchange = async (e) => {
+                            if (e.target.files && e.target.files.length > 0) {
+                                const file = e.target.files[0];
+                                const reader = new FileReader();
+                                reader.onload = (evt) => {
+                                    fileContent = evt.target.result;
+                                    resolve();
+                                };
+                                reader.onerror = (err) => reject(err);
+                                reader.readAsText(file);
+                            } else {
+                                reject(new Error("Keine Datei gewählt"));
+                            }
+                        };
+                        input.click();
+                    });
+                }
+
+                if (!fileContent) throw new Error("Leere Datei");
+                
+                const data = JSON.parse(fileContent);
+                if (parseDataFromLoad(data)) {
+                    saveLocalDatabases();
+                    refreshAuswertungslisten();
+                    zeigeStatus("Backup geladen!", "success");
+                    triggerAutoSave(); // Auch in Cloud spiegeln wenn möglich
+                } else {
+                    alert("Ungültiges Dateiformat.");
+                }
+
+            } catch (e) {
+                if (e.name !== "AbortError" && e.message !== "Keine Datei gewählt") {
+                    alert("Fehler beim Laden: " + e.message);
+                }
             }
         }
 
