@@ -865,8 +865,12 @@
                     .map(v => {
                         const m = dbMandanten.get(String(v.mandantennummer_fk));
                         const pos = v.position_abteilung ? ` (${v.position_abteilung})` : '';
-                        return m ? `${m.firmenname}${pos}` : '?';
-                    }).join(", ");
+                        
+                        if (!m) return '?';
+                        
+                        // Hier fügen wir die Nummer hinzu: Grau und etwas kleiner
+                        return `${m.firmenname} <span style="color:#888; font-size:0.85em;">[${m.mandantennummer}]</span>${pos}`;
+                    }).join(", "); // Komma-getrennt
                 
                 div.innerHTML = `
                     <div style="display:flex; justify-content:space-between;">
@@ -1132,11 +1136,13 @@
         }
 
         async function saveKontakt() {
+            // 1. Validierung
             const fn = document.getElementById('kontaktNameInput').value.trim();
             if (!fn) return alert("Name ist erforderlich!");
 
             let id = document.getElementById('kontaktIdInput').value;
 
+            // NEU: Duplikat-Prüfung (Nur beim Neuanlegen relevant)
             if (!id) {
                 const existiert = Array.from(dbKontakte.values()).some(k => k.fn.toLowerCase() === fn.toLowerCase());
                 if (existiert) {
@@ -1160,13 +1166,15 @@
                 adresse: collectDynamicAddressInputs('kontaktAdressListe')
             };
             
+            // 1. Kontakt speichern
             dbKontakte.set(String(id), data);
             
+            // 2. Verknüpfungen speichern
             const cleanDB = dbVerknuepfungen.filter(v => String(v.kontakt_id_fk) !== String(id));
             const newAssignments = tempZuweisungen.map(z => {
                 return {
                     ...z,
-                    kontakt_id_fk: String(id) 
+                    kontakt_id_fk: String(id) // ID explizit setzen
                 };
             });
             dbVerknuepfungen = [...cleanDB, ...newAssignments];
@@ -1174,7 +1182,7 @@
             saveLocalDatabases();
             refreshAuswertungslisten();
             document.getElementById('kontaktModal').classList.remove('active');
-            triggerAutoSave(); 
+            triggerAutoSave(); // NEU: Auto-Save
         }
 
         function deleteKontakt(id = null) {
@@ -1186,9 +1194,11 @@
             saveLocalDatabases();
             refreshAuswertungslisten();
             document.getElementById('kontaktModal').classList.remove('active');
-            triggerAutoSave(); 
+            triggerAutoSave(); // NEU: Auto-Save
         }
 
+        // --- NEUE HELPER FÜR FORMULARE (DOM-BASIERT für Stabilität) ---
+        // --- UPDATED: Mit "Bezeichnung" Feld ---
         function addDynamicInput(containerId, type, dataObj) {
             const container = document.getElementById(containerId);
             if (!container) return;
@@ -1214,13 +1224,14 @@
                 select.appendChild(opt);
             });
 
+            // NEU: Bezeichnung (Label)
             const labelInput = document.createElement('input');
             labelInput.type = 'text';
             labelInput.className = 'detail-label-input';
             labelInput.placeholder = 'Bez. (opt)';
             labelInput.value = safeData.label || "";
             labelInput.style.margin = '0';
-            labelInput.style.width = '90px'; 
+            labelInput.style.width = '90px'; // Klein genug, aber lesbar
 
             const input = document.createElement('input');
             input.type = type === 'telefon' ? 'tel' : 'email';
@@ -1238,7 +1249,7 @@
             delBtn.onclick = function() { row.remove(); };
 
             row.appendChild(select);
-            row.appendChild(labelInput); 
+            row.appendChild(labelInput); // Hinzugefügt
             row.appendChild(input);
             row.appendChild(delBtn);
 
@@ -1322,6 +1333,7 @@
             container.appendChild(row);
         }
 
+        // --- UPDATED: Collects label as well ---
         function collectDynamicInputs(cid, key) {
             const arr = [];
             const container = document.getElementById(cid);
@@ -1329,8 +1341,8 @@
                 Array.from(container.children).forEach(row => {
                     if(!row.classList.contains('dynamic-input-row')) return;
                     const select = row.querySelector('select');
-                    const input = row.querySelectorAll('input')[1]; 
-                    const labelInput = row.querySelectorAll('input')[0]; 
+                    const input = row.querySelectorAll('input')[1]; // Das zweite Input ist der Wert
+                    const labelInput = row.querySelectorAll('input')[0]; // Das erste ist das Label
                     
                     const labelVal = labelInput ? labelInput.value.trim() : "";
                     
@@ -1476,9 +1488,11 @@
             saveLocalDatabases();
             refreshAuswertungslisten();
             document.getElementById('vcfImportInput').value = ''; 
-            triggerAutoSave(); 
+            triggerAutoSave(); // NEU: Auto-Save nach Import
         }
 
+        // --- VCF EXPORT LOGIK (Behutsam: Label ignorieren für Standard-Kompatibilität) ---
+        
         function downloadVCF(filename, content) {
             const blob = new Blob([content], { type: 'text/vcard;charset=utf-8' });
             const link = document.createElement('a');
@@ -1501,6 +1515,7 @@
             vcf += `FN:${m.firmenname}\n`;
             vcf += `ORG:${m.firmenname}\n`;
             
+            // Standard VCF Export: Ignoriert das 'label' Feld, um Outlook nicht zu verwirren
             (m.telefon || []).forEach(t => vcf += `TEL;TYPE=${t.type},VOICE:${t.number}\n`);
             (m.email || []).forEach(e => vcf += `EMAIL;TYPE=${e.type},INTERNET:${e.address}\n`);
             (m.adresse || []).forEach(a => {
@@ -1523,6 +1538,7 @@
             vcf += `N:;${k.fn};;;\n`; 
             if(k.org) vcf += `ORG:${k.org}\n`;
             
+            // Standard VCF Export: Ignoriert 'label'
             (k.telefon || []).forEach(t => vcf += `TEL;TYPE=${t.type},VOICE:${t.number}\n`);
             (k.email || []).forEach(e => vcf += `EMAIL;TYPE=${e.type},INTERNET:${e.address}\n`);
             (k.adresse || []).forEach(a => {
@@ -1535,6 +1551,7 @@
             downloadVCF(`${k.fn.replace(/[^a-z0-9]/gi, '_')}.vcf`, vcf);
         }
 
+        // --- PDF EXPORT (COMPREHENSIVE & LANDSCAPE) ---
         function exportMandantenReportPDF() { 
             const doc = new jspdf.jsPDF({ orientation: 'landscape' });
             const rows = [];
@@ -1542,8 +1559,11 @@
                 const adr = m.adresse && m.adresse.length > 0 
                     ? `${m.adresse[0].street || ''}, ${m.adresse[0].zip || ''} ${m.adresse[0].city || ''}` 
                     : '';
+                
+                // PDF zeigt Bezeichnung an, falls vorhanden
                 const tel = m.telefon ? m.telefon.map(t => `${t.type}${t.label ? ' ('+t.label+')' : ''}: ${t.number}`).join(', ') : '';
                 const mail = m.email ? m.email.map(e => `${e.address}${e.label ? ' ('+e.label+')' : ''}`).join(', ') : '';
+                
                 const bank = m.bankverbindung?.iban || '';
                 const steuer = (m.ust_id ? `USt: ${m.ust_id}` : '') + (m.steuernummer ? ` StNr: ${m.steuernummer}` : '');
                 const notizen = m.firmen_notizen || '';
@@ -1579,15 +1599,19 @@
                 const adr = k.adresse && k.adresse.length > 0 
                     ? `${k.adresse[0].street || ''}, ${k.adresse[0].zip || ''} ${k.adresse[0].city || ''}` 
                     : '';
+                
+                // PDF zeigt Bezeichnung an
                 const tel = k.telefon ? k.telefon.map(t => `${t.type}${t.label ? ' ('+t.label+')' : ''}: ${t.number}`).join(', ') : '';
                 const mail = k.email ? k.email.map(e => `${e.address}${e.label ? ' ('+e.label+')' : ''}`).join(', ') : '';
+                
                 const notizen = k.person_notizen || '';
+                
                 const links = dbVerknuepfungen
                     .filter(v => String(v.kontakt_id_fk) === String(kId))
                     .map(v => {
                         const m = dbMandanten.get(String(v.mandantennummer_fk));
                         const pos = v.position_abteilung ? ` (${v.position_abteilung})` : '';
-                        return m ? `${m.firmenname}${pos}` : '?';
+                        return m ? `${m.firmenname} [${m.mandantennummer}]${pos}` : '?';
                     }).join("\n");
 
                 rows.push([
