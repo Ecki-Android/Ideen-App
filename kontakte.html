@@ -49,7 +49,7 @@
         /* --- Main Layout & Search --- */
         h1, h2, h3 { color: #333; border-bottom: 2px solid #0078d4; padding-bottom: 5px; margin-top: 20px; }
         
-        /* NEU: Suchleiste */
+        /* Suchleiste */
         .search-container {
             margin-bottom: 15px;
             position: sticky;
@@ -97,6 +97,18 @@
         .detail-label-input { font-size: 0.85em; color: #333; }
 
         #importProtokoll { width: 100%; height: 100px; font-family: monospace; font-size: 0.85em; background: #333; color: #0f0; border: 1px solid #666; margin-top: 10px; }
+
+        /* --- Login Blocker Styles --- */
+        #loginMessage {
+            text-align: center;
+            padding: 50px 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+        #loginMessage h2 { border-bottom: none; color: #555; }
+        #protectedContent { display: none; } /* Standardmäßig unsichtbar */
     </style>
 </head>
 <body>
@@ -122,54 +134,68 @@
         </div>
     </div>
 
-    <!-- Hauptinhalt -->
+    <!-- Hauptinhalt Container (Max Width) -->
     <div style="max-width: 1200px; margin: 0 auto;">
-        
-        <!-- VCF Import & Protokoll -->
-        <details>
-            <summary><strong>Werkzeuge: VCF Import (Outlook) & Protokoll</strong></summary>
-            <div style="padding: 10px; background: #fff; border: 1px solid #ddd; margin-top: 5px;">
-                <input type="file" id="vcfImportInput" accept=".vcf" multiple>
-                <textarea id="importProtokoll" readonly placeholder="Import-Protokoll..."></textarea>
-            </div>
-        </details>
 
-        <h2>Datenverwaltung</h2>
-
-        <!-- NEU: Globale Suchleiste -->
-        <div class="search-container">
-            <input type="text" id="globalSearchInput" placeholder="🔍 Suchen (Name, Mandantennummer, Firma)..." oninput="handleSearch(this.value)">
+        <!-- 1. Der Login-Hinweis (Sichtbar wenn nicht eingeloggt) -->
+        <div id="loginMessage">
+            <h2>🔒 Zugriff geschützt</h2>
+            <p>Bitte melden Sie sich an oder laden Sie eine lokale Datei, um die Kontaktdaten einzusehen.</p>
+            <button onclick="ladeDateiLokal()" class="local-file-btn">📂 Lokales Backup öffnen</button>
         </div>
 
-        <div class="tab-bar">
-            <div>
-                <button class="tab-btn active" onclick="switchTab('mandanten')">🏢 Mandanten (Firmen)</button>
-                <button class="tab-btn" onclick="switchTab('kontakte')">👤 Kontakte (Personen)</button>
-            </div>
+        <!-- 2. Der geschützte Inhalt (Unsichtbar bis Login) -->
+        <div id="protectedContent">
             
-            <div class="pdf-actions">
-                <!-- NEU: Lokale Datei Buttons -->
-                <button onclick="speichereDateiLokal()" class="local-file-btn" title="Backup erstellen">💾 Datei speichern</button>
-                <button onclick="ladeDateiLokal()" class="local-file-btn" title="Backup laden">📂 Datei öffnen</button>
+            <!-- VCF Import & Protokoll -->
+            <details>
+                <summary><strong>Werkzeuge: VCF Import (Outlook) & Protokoll</strong></summary>
+                <div style="padding: 10px; background: #fff; border: 1px solid #ddd; margin-top: 5px;">
+                    <input type="file" id="vcfImportInput" accept=".vcf" multiple>
+                    <textarea id="importProtokoll" readonly placeholder="Import-Protokoll..."></textarea>
+                </div>
+            </details>
+
+            <h2>Datenverwaltung</h2>
+
+            <!-- Globale Suchleiste -->
+            <div class="search-container">
+                <input type="text" id="globalSearchInput" placeholder="🔍 Suchen (Name, Mandantennummer, Firma)..." oninput="handleSearch(this.value)">
+            </div>
+
+            <div class="tab-bar">
+                <div>
+                    <button class="tab-btn active" onclick="switchTab('mandanten')">🏢 Mandanten (Firmen)</button>
+                    <button class="tab-btn" onclick="switchTab('kontakte')">👤 Kontakte (Personen)</button>
+                </div>
                 
-                <span style="border-left: 1px solid #ccc; height: 20px; margin: 0 5px;"></span>
-                
-                <button onclick="exportMandantenReportPDF()">🖨️ Mandanten-PDF</button>
-                <button onclick="exportPersonenReportPDF()">🖨️ Kontakte-PDF</button>
+                <div class="pdf-actions">
+                    <!-- Lokale Datei Buttons -->
+                    <button onclick="speichereDateiLokal()" class="local-file-btn" title="Backup erstellen">💾 Datei speichern</button>
+                    <!-- Datei öffnen ist auch im Login-Screen, aber hier nochmal für den Workflow -->
+                    <button onclick="ladeDateiLokal()" class="local-file-btn" title="Backup laden">📂 Datei öffnen</button>
+                    
+                    <span style="border-left: 1px solid #ccc; height: 20px; margin: 0 5px;"></span>
+                    
+                    <button onclick="exportMandantenReportPDF()">🖨️ Mandanten-PDF</button>
+                    <button onclick="exportPersonenReportPDF()">🖨️ Kontakte-PDF</button>
+                </div>
+            </div>
+
+            <!-- Ansicht A: Mandanten -->
+            <div id="panelMandanten" class="panel active">
+                <button class="success-btn" onclick="openMandantMask()">+ Neuen Mandant anlegen</button>
+                <div id="mandantenListe" style="margin-top: 15px;"></div>
+            </div>
+
+            <!-- Ansicht B: Kontakte -->
+            <div id="panelKontakte" class="panel">
+                <button class="success-btn" onclick="openKontaktMask()">+ Neuen Kontakt anlegen</button>
+                <div id="kontakteListe" style="margin-top: 15px;"></div>
             </div>
         </div>
+        <!-- Ende protectedContent -->
 
-        <!-- Ansicht A: Mandanten -->
-        <div id="panelMandanten" class="panel active">
-            <button class="success-btn" onclick="openMandantMask()">+ Neuen Mandant anlegen</button>
-            <div id="mandantenListe" style="margin-top: 15px;"></div>
-        </div>
-
-        <!-- Ansicht B: Kontakte -->
-        <div id="panelKontakte" class="panel">
-            <button class="success-btn" onclick="openKontaktMask()">+ Neuen Kontakt anlegen</button>
-            <div id="kontakteListe" style="margin-top: 15px;"></div>
-        </div>
     </div>
 
     <!-- ======================================================= -->
@@ -323,6 +349,19 @@
             }
         });
 
+        // --- UI Steuerung: Sperren/Entsperren ---
+        function setAppLocked(locked) {
+            const content = document.getElementById('protectedContent');
+            const msg = document.getElementById('loginMessage');
+            if (locked) {
+                content.style.display = 'none';
+                msg.style.display = 'block';
+            } else {
+                content.style.display = 'block';
+                msg.style.display = 'none';
+            }
+        }
+
         // --- 3. CLOUD / MICROSOFT LOGIK (INKL. WACHHUND) ---
         
         // Versucht, eine bestehende Sitzung zu reaktivieren (z.B. nach Reload oder Wechsel von Ideen-App)
@@ -365,6 +404,9 @@
             document.getElementById('cloudLoadBtn').disabled = false;
             document.getElementById('cloudSaveBtn').disabled = false;
             document.getElementById('sessionExpiredWarning').style.display = 'none';
+
+            // Ansicht entsperren
+            setAppLocked(false);
 
             // Session Storage setzen (für Kommunikation mit index.html und Reloads)
             sessionStorage.setItem('loginType', 'microsoft');
@@ -429,7 +471,7 @@
         async function handleLogout() {
             await msalInstance.logoutPopup();
             sessionStorage.clear(); // Session bereinigen
-            location.reload();
+            location.reload(); // Reload sperrt die App automatisch wieder
         }
 
         // --- Statusanzeige-Logik ---
@@ -641,6 +683,8 @@
                 if (parseDataFromLoad(data)) {
                     saveLocalDatabases();
                     refreshAuswertungslisten();
+                    // Wenn eine Datei lokal geladen wurde, ist der Zugriff legitim -> Entsperren
+                    setAppLocked(false);
                     zeigeStatus("Backup geladen!", "success");
                     triggerAutoSave(); // Auch in Cloud spiegeln wenn möglich
                 } else {
