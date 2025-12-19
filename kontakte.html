@@ -191,6 +191,12 @@
                 </div>
                 
                 <div class="pdf-actions">
+                    <!-- Massen VCF Export Buttons (NEU) -->
+                    <button onclick="exportAlleMandantenVCF()" title="Alle Mandanten in eine einzelne VCF-Datei exportieren">📇 Alle Mandanten (VCF)</button>
+                    <button onclick="exportAlleKontakteVCF()" title="Alle Personen in eine einzelne VCF-Datei exportieren">📇 Alle Kontakte (VCF)</button>
+
+                    <span style="border-left: 1px solid #ccc; height: 20px; margin: 0 5px;"></span>
+
                     <!-- Lokale Datei Buttons -->
                     <button onclick="speichereDateiLokal()" class="local-file-btn" title="Backup erstellen">💾 Datei speichern</button>
                     <button onclick="ladeDateiLokal()" class="local-file-btn" title="Backup laden">📂 Datei öffnen</button>
@@ -1506,16 +1512,13 @@
             }, 100);
         }
 
-        function exportMandantAsVCF() {
-            const id = document.getElementById('mandantIdInput').value;
-            const m = dbMandanten.get(String(id));
-            if (!m) return alert("Kein Mandant geladen.");
-            
+        // NEU: Zentrale Helper-Funktionen zur String-Erstellung
+
+        function getVCFStringForMandant(m) {
             let vcf = "BEGIN:VCARD\nVERSION:3.0\n";
             vcf += `FN:${m.firmenname}\n`;
             vcf += `ORG:${m.firmenname}\n`;
             
-            // Standard VCF Export: Ignoriert das 'label' Feld, um Outlook nicht zu verwirren
             (m.telefon || []).forEach(t => vcf += `TEL;TYPE=${t.type},VOICE:${t.number}\n`);
             (m.email || []).forEach(e => vcf += `EMAIL;TYPE=${e.type},INTERNET:${e.address}\n`);
             (m.adresse || []).forEach(a => {
@@ -1524,21 +1527,16 @@
             
             if(m.firmen_notizen) vcf += `NOTE:${m.firmen_notizen.replace(/\n/g, '\\n')}\n`;
             
-            vcf += "END:VCARD";
-            downloadVCF(`${m.firmenname.replace(/[^a-z0-9]/gi, '_')}.vcf`, vcf);
+            vcf += "END:VCARD\n"; // Wichtig: Newline für Massenexport
+            return vcf;
         }
 
-        function exportKontaktAsVCF() {
-            const id = document.getElementById('kontaktIdInput').value;
-            const k = dbKontakte.get(String(id));
-            if (!k) return alert("Kein Kontakt geladen.");
-
+        function getVCFStringForKontakt(k) {
             let vcf = "BEGIN:VCARD\nVERSION:3.0\n";
             vcf += `FN:${k.fn}\n`;
             vcf += `N:;${k.fn};;;\n`; 
             if(k.org) vcf += `ORG:${k.org}\n`;
             
-            // Standard VCF Export: Ignoriert 'label'
             (k.telefon || []).forEach(t => vcf += `TEL;TYPE=${t.type},VOICE:${t.number}\n`);
             (k.email || []).forEach(e => vcf += `EMAIL;TYPE=${e.type},INTERNET:${e.address}\n`);
             (k.adresse || []).forEach(a => {
@@ -1547,8 +1545,52 @@
 
             if(k.person_notizen) vcf += `NOTE:${k.person_notizen.replace(/\n/g, '\\n')}\n`;
 
-            vcf += "END:VCARD";
+            vcf += "END:VCARD\n"; // Wichtig: Newline für Massenexport
+            return vcf;
+        }
+
+        // --- Einzel-Exporte (nutzen jetzt Helper) ---
+
+        function exportMandantAsVCF() {
+            const id = document.getElementById('mandantIdInput').value;
+            const m = dbMandanten.get(String(id));
+            if (!m) return alert("Kein Mandant geladen.");
+            
+            const vcf = getVCFStringForMandant(m);
+            downloadVCF(`${m.firmenname.replace(/[^a-z0-9]/gi, '_')}.vcf`, vcf);
+        }
+
+        function exportKontaktAsVCF() {
+            const id = document.getElementById('kontaktIdInput').value;
+            const k = dbKontakte.get(String(id));
+            if (!k) return alert("Kein Kontakt geladen.");
+
+            const vcf = getVCFStringForKontakt(k);
             downloadVCF(`${k.fn.replace(/[^a-z0-9]/gi, '_')}.vcf`, vcf);
+        }
+
+        // --- NEU: Massen-Exporte (nutzen Helper) ---
+
+        function exportAlleMandantenVCF() {
+            if (dbMandanten.size === 0) return alert("Keine Mandanten zum Exportieren vorhanden.");
+            
+            let fullVCF = "";
+            dbMandanten.forEach(m => {
+                fullVCF += getVCFStringForMandant(m);
+            });
+            
+            downloadVCF("Alle_Mandanten_Export.vcf", fullVCF);
+        }
+
+        function exportAlleKontakteVCF() {
+            if (dbKontakte.size === 0) return alert("Keine Kontakte zum Exportieren vorhanden.");
+            
+            let fullVCF = "";
+            dbKontakte.forEach(k => {
+                fullVCF += getVCFStringForKontakt(k);
+            });
+            
+            downloadVCF("Alle_Kontakte_Export.vcf", fullVCF);
         }
 
         // --- PDF EXPORT (COMPREHENSIVE & LANDSCAPE) ---
