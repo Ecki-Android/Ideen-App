@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Objektverwaltung (Immobilien)</title>
+    <script src="https://alcdn.msauth.net/browser/2.24.0/js/msal-browser.min.js"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; padding: 15px; background-color: #f4f7f6; margin: 0; }
+        .app-header { background: white; padding: 15px; border-bottom: 1px solid #ddd; margin: -15px -15px 20px -15px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+        .app-title { font-size: 1.2em; font-weight: bold; color: #2e7d32; margin: 0; }
+        .cloud-actions { display: flex; gap: 10px; align-items: center; }
+        button { padding: 8px 12px; font-size: 0.9em; border-radius: 4px; border: 1px solid #bbb; background: #eee; cursor: pointer; }
+        button:hover { background: #ddd; }
+        .primary-btn { background: #2e7d32; color: white; border-color: #1b5e20; }
+        .warn-btn { background: #d9534f; color: white; border-color: #d43f3a; }
+        .onedrive-btn { background: #0078d4; color: white; border-color: #005a9e; }
+        
+        .onedrive-status { display: none; padding: 6px 12px; border-radius: 4px; font-size: 0.9em; font-weight: 500;}
+        .onedrive-status.saving { background-color: #e0f2fe; color: #0c4a6e; display: inline-block; border: 1px solid #bae6fd;}
+        .onedrive-status.success { background-color: #dcfce7; color: #14532d; display: inline-block; border: 1px solid #bbf7d0;}
+        .onedrive-status.error { background-color: #fee2e2; color: #991b1b; display: inline-block; border: 1px solid #fecaca;}
+        
+        .tab-bar { margin-bottom: 15px; display: flex; gap: 5px; flex-wrap: wrap;}
+        .tab-btn { background: #f9f9f9; padding: 10px 15px; border-bottom: 3px solid transparent; cursor: pointer; border-radius: 4px 4px 0 0; }
+        .tab-btn.active { border-bottom: 3px solid #2e7d32; font-weight: bold; background: white; }
+        
+        .panel { display: none; background: white; padding: 15px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .panel.active { display: block; }
+        .liste-item { border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; background: #fff; border-radius: 4px; }
+        
+        /* Stats */
+        .objekt-stats { font-size: 0.85em; background: #f1f8e9; padding: 8px; border-radius: 4px; margin-top: 8px; display: flex; gap: 15px; border: 1px solid #c8e6c9; flex-wrap: wrap; }
+        .stat-ok { color: #2e7d32; font-weight: bold; }
+        .stat-warn { color: #c62828; font-weight: bold; }
+
+        /* Modal */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-overlay.active { display: flex; }
+        .modal-content { background: white; padding: 25px; border-radius: 8px; width: 90%; max-width: 700px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); max-height: 90vh; overflow-y: auto; }
+        .modal-content input, .modal-content select, .modal-content textarea { width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 15px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        .modal-actions { text-align: right; margin-top: 20px; }
+        
+        /* Belegungs-Liste im Modal */
+        .belegung-container { border: 1px solid #eee; padding: 10px; background: #fafafa; border-radius: 4px; margin-bottom: 15px; max-height: 250px; overflow-y: auto; }
+        .belegung-row { display: flex; gap: 5px; align-items: center; margin-bottom: 5px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .belegung-row select { flex: 2; margin: 0; }
+        .belegung-row input[type="date"] { flex: 1; margin: 0; }
+        .belegung-row button { padding: 5px 10px; margin: 0; font-size: 0.8em; }
+
+        /* Badges */
+        .badge { padding: 2px 6px; border-radius: 4px; font-size: 0.8em; font-weight: bold; margin-left: 5px; }
+        .badge-gewerbe { background-color: #ffecb3; color: #ff6f00; border: 1px solid #ffca28; }
+        .badge-wohnen { background-color: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+        
+        .mieter-status { margin-top: 8px; padding-top: 8px; border-top: 1px solid #eee; font-size: 0.95em; }
+        .status-leerstand { color: #c62828; font-weight: bold; background: #ffebee; padding: 2px 6px; border-radius: 3px; display:inline-block; }
+        .status-vermietet { color: #2e7d32; font-weight: bold; }
+        .status-zukunft { color: #0277bd; font-style: italic; }
+
+        h4 { margin: 0; padding: 0; }
+        .sub-info { color: #666; font-size: 0.9em; margin-top: 4px; }
+    </style>
+</head>
+<body>
+    <div class="app-header">
+        <div class="app-title">Objektverwaltung</div>
+        <div class="cloud-actions">
+            <button id="msLoginBtn" onclick="handleMicrosoftLogin()" class="onedrive-btn">🔑 Login</button>
+            <button onclick="saveToOneDrive(true)">💾 Speichern</button>
+            <span id="onedriveStatus" class="onedrive-status"></span>
+        </div>
+    </div>
+
+    <div style="max-width: 1200px; margin: 0 auto;">
+        <div class="tab-bar">
+            <button class="tab-btn active" onclick="switchTab('objekte')">🏠 Objekte (Liegenschaft)</button>
+            <button class="tab-btn" onclick="switchTab('haeuser')">🏘️ Häuser (Gebäude)</button>
+            <button class="tab-btn" onclick="switchTab('einheiten')">🚪 Einheiten (Wohnungen)</button>
+            <a href="kontakte.html" style="margin-left:auto; text-decoration:none;"><button>👥 Zu den Kontakten</button></a>
+        </div>
+
+        <!-- PANEL OBJEKTE -->
+        <div id="panelObjekte" class="panel active">
+            <button class="primary-btn" onclick="openObjektMask()">+ Neues Objekt anlegen</button>
+            <div id="objekteListe" style="margin-top: 15px;"></div>
+        </div>
+
+        <!-- PANEL HÄUSER -->
+        <div id="panelHaeuser" class="panel">
+            <button class="primary-btn" onclick="openHausMask()">+ Neues Haus anlegen</button>
+            <div id="haeuserListe" style="margin-top: 15px;"></div>
+        </div>
+
+        <!-- PANEL EINHEITEN -->
+        <div id="panelEinheiten" class="panel">
+            <button class="primary-btn" onclick="openEinheitMask()">+ Neue Einheit anlegen</button>
+            <div id="einheitenListe" style="margin-top: 15px;"></div>
+        </div>
+    </div>
+
+    <!-- ================= MODALS ================= -->
+
+    <!-- Modal 1: Objekt -->
+    <div id="objektModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')">
+        <div class="modal-content">
+            <h3>Objekt bearbeiten</h3>
+            <input type="hidden" id="objektIdInput">
+            <label>Objekt-Nr. (z.B. 001)*:</label><input type="text" id="objektNummerInput" placeholder="OBJ-001">
+            <label>Bezeichnung / Adresse*:</label><input type="text" id="objektNameInput" placeholder="Musterpark">
+            <div style="display:flex; gap:10px;">
+                <div style="flex:1;"><label>PLZ:</label><input type="text" id="objektPlzInput"></div>
+                <div style="flex:2;"><label>Ort:</label><input type="text" id="objektOrtInput"></div>
+            </div>
+            <h4 style="margin-top:10px;border-bottom:1px solid #eee;">Soll-Werte (für Validierung)</h4>
+            <div style="display:flex; gap:10px;">
+                <div style="flex:1;"><label>Gesamtfläche (m²):</label><input type="number" step="0.01" id="objektFlaecheInput"></div>
+                <div style="flex:1;"><label>Gesamt MEA:</label><input type="number" step="0.001" id="objektMeaInput" value="1000"></div>
+            </div>
+            <div class="modal-actions">
+                <button onclick="document.getElementById('objektModal').classList.remove('active')">Abbrechen</button>
+                <button class="primary-btn" onclick="saveObjekt()">Speichern</button>
+                <button class="warn-btn" onclick="deleteObjekt()" style="float:left;">Löschen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 2: Haus -->
+    <div id="hausModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')">
+        <div class="modal-content">
+            <h3>Haus bearbeiten</h3>
+            <input type="hidden" id="hausIdInput">
+            
+            <label>Gehört zu Objekt*:</label>
+            <select id="hausObjektSelect"></select>
+
+            <label>Hausbezeichnung (z.B. Vorderhaus, Haus 1)*:</label>
+            <input type="text" id="hausBezeichnungInput">
+
+            <h4 style="margin-top:10px;border-bottom:1px solid #eee;">Flächen & Anteile (Soll)</h4>
+            <div style="display:flex; gap:10px;">
+                <div style="flex:1;"><label>Wohnfläche (m²):</label><input type="number" step="0.01" id="hausWohnflaecheInput"></div>
+                <div style="flex:1;"><label>Gewerbefläche (m²):</label><input type="number" step="0.01" id="hausGewerbeInput"></div>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <div style="flex:1;"><label>Heizfläche (m²):</label><input type="number" step="0.01" id="hausHeizInput"></div>
+                <div style="flex:1;"><label>Anteile (MEA):</label><input type="number" step="0.001" id="hausAnteileInput"></div>
+            </div>
+
+            <h4 style="margin-top:10px;border-bottom:1px solid #eee;">Zähler</h4>
+            <div style="display:flex; gap:10px;">
+                <div style="flex:1;"><label>Anzahl Wohnungen:</label><input type="number" id="hausAnzWohnungenInput"></div>
+                <div style="flex:1;"><label>Anzahl Garagen:</label><input type="number" id="hausAnzGaragenInput"></div>
+            </div>
+
+            <div class="modal-actions">
+                <button onclick="document.getElementById('hausModal').classList.remove('active')">Abbrechen</button>
+                <button class="primary-btn" onclick="saveHaus()">Speichern</button>
+                <button class="warn-btn" onclick="deleteHaus()" style="float:left;">Löschen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 3: Einheit -->
+    <div id="einheitModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')">
+        <div class="modal-content">
+            <h3>Einheit bearbeiten</h3>
+            <input type="hidden" id="einheitIdInput">
+            
+            <div style="display:flex; gap:10px;">
+                <div style="flex:1;">
+                    <label>Objekt wählen*:</label>
+                    <select id="einheitObjektSelect" onchange="filterHaeuserDropdown()"></select>
+                </div>
+                <div style="flex:1;">
+                    <label>Haus wählen*:</label>
+                    <select id="einheitHausSelect"></select>
+                </div>
+            </div>
+            
+            <div style="display:flex; gap:10px;">
+                <div style="flex:2;">
+                    <label>Lage / Bezeichnung (z.B. 1. OG Links)*:</label>
+                    <input type="text" id="einheitNameInput" placeholder="EG Links">
+                </div>
+                <div style="flex:1;">
+                    <label>Typ:</label>
+                    <select id="einheitTypSelect">
+                        <option value="wohnen">Wohnen</option>
+                        <option value="gewerbe">Gewerbe</option>
+                        <option value="garage">Garage</option>
+                        <option value="sonstige">Sonstiges</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div style="display:flex; gap:10px;">
+                <div style="flex:1;"><label>Wohnfläche (m²):</label><input type="number" step="0.01" id="einheitFlaecheInput"></div>
+                <div style="flex:1;"><label>Heizfläche (m²):</label><input type="number" step="0.01" id="einheitHeizflaecheInput"></div>
+            </div>
+
+            <div style="display:flex; gap:10px;">
+                <div style="flex:1;"><label>Zimmer:</label><input type="number" step="0.5" id="einheitZimmerInput"></div>
+                <div style="flex:1;"><label>MEA Anteil:</label><input type="number" step="0.001" id="einheitMeaInput"></div>
+            </div>
+            
+            <h4 style="margin-top:15px; border-bottom:1px solid #eee;">Belegung / Mieterhistorie</h4>
+            <div style="font-size:0.8em; color:#666; margin-bottom:5px;">Lücken zwischen Daten werden automatisch als "Leerstand" erkannt.</div>
+            
+            <div id="belegungListe" class="belegung-container">
+                <!-- Dynamische Liste -->
+            </div>
+            <button type="button" onclick="addBelegungRow()" style="margin-top:0;">+ Mieterwechsel hinzufügen</button>
+
+            <div class="modal-actions">
+                <button onclick="document.getElementById('einheitModal').classList.remove('active')">Abbrechen</button>
+                <button class="primary-btn" onclick="saveEinheit()">Speichern</button>
+                <button class="warn-btn" onclick="deleteEinheit()" style="float:left;">Löschen</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- KONFIGURATION ---
+        const msalConfig = { auth: { clientId: "c3cd3be4-3540-46dd-a24c-82eb6ed5542d", authority: "https://login.microsoftonline.com/common", redirectUri: window.location.origin + window.location.pathname } };
+        let msalInstance;
+        let accessToken;
+        
+        // DATENBANKEN
+        // 3 Ebenen: Objekt -> Haus -> Einheit
+        let dbObjekte = new Map();
+        let dbHaeuser = new Map();
+        let dbEinheiten = new Map();
+        let dbKontakte = new Map(); // ReadOnly
+
+        // --- INIT ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            loadLocal(); 
+            renderLists();
+            try {
+                msalInstance = new msal.PublicClientApplication(msalConfig);
+                await msalInstance.initialize();
+                const acc = msalInstance.getAllAccounts()[0];
+                if (acc) { 
+                    msalInstance.setActiveAccount(acc); 
+                    if(await getToken()) {
+                        document.getElementById('msLoginBtn').style.display = 'none';
+                        await loadFromOneDrive(); 
+                    }
+                }
+            } catch(e) { console.error(e); }
+        });
+
+        // --- AUTH & CLOUD ---
+        async function handleMicrosoftLogin() {
+            try {
+                await msalInstance.loginPopup({ scopes: ["Files.ReadWrite"], prompt: "select_account" });
+                if(await getToken()) {
+                    document.getElementById('msLoginBtn').style.display = 'none';
+                    await loadFromOneDrive();
+                }
+            } catch(e) { alert("Login fehlgeschlagen: " + e.message); }
+        }
+        async function getToken() {
+            try { 
+                const r = await msalInstance.acquireTokenSilent({ scopes: ["Files.ReadWrite"], account: msalInstance.getActiveAccount() }); 
+                accessToken = r.accessToken; return true; 
+            } catch(e) { 
+                try { const r = await msalInstance.acquireTokenPopup({ scopes: ["Files.ReadWrite"] }); accessToken = r.accessToken; return true; } catch(err) { return false; }
+            }
+        }
+
+        async function loadFromOneDrive() {
+            if (!accessToken && !(await getToken())) return;
+            showStatus("Lade Daten...", "saving");
+            
+            // Kontakte holen
+            try {
+                const resC = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/ideenapp/stammdaten.json:/content", { headers: { "Authorization": `Bearer ${accessToken}` } });
+                if (resC.ok) { const dataC = await resC.json(); if(dataC.kontakte) dbKontakte = new Map(dataC.kontakte); }
+            } catch(e) {}
+
+            // Immobilien holen
+            try {
+                const resI = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/ideenapp/immobilien.json:/content", { headers: { "Authorization": `Bearer ${accessToken}` } });
+                if (resI.ok) {
+                    const dataI = await resI.json();
+                    if(dataI.objekte) dbObjekte = new Map(dataI.objekte);
+                    if(dataI.haeuser) dbHaeuser = new Map(dataI.haeuser);
+                    if(dataI.einheiten) dbEinheiten = new Map(dataI.einheiten);
+                    saveLocal(); renderLists(); showStatus("Daten geladen", "success");
+                }
+            } catch(e) { showStatus("Fehler/Neu: " + e.message, "error"); }
+        }
+
+        async function saveToOneDrive(manual) {
+            if (!accessToken && !(await getToken())) { if(manual) alert("Bitte einloggen."); return; }
+            showStatus("Speichere...", "saving");
+            const data = { 
+                objekte: Array.from(dbObjekte.entries()), 
+                haeuser: Array.from(dbHaeuser.entries()),
+                einheiten: Array.from(dbEinheiten.entries()),
+                meta: { updated: new Date().toISOString() }
+            };
+            try {
+                const res = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/ideenapp/immobilien.json:/content", { 
+                    method: "PUT", headers: { "Authorization": `Bearer ${accessToken}`, "Content-Type": "application/json" }, body: JSON.stringify(data, null, 2)
+                });
+                if (res.ok) showStatus("Gespeichert", "success");
+                else showStatus("Speicherfehler", "error");
+            } catch(e) { showStatus("Fehler: " + e.message, "error"); }
+        }
+
+        function loadLocal() {
+            try { 
+                const o = localStorage.getItem("immo_objekte"); if(o) dbObjekte = new Map(JSON.parse(o));
+                const h = localStorage.getItem("immo_haeuser"); if(h) dbHaeuser = new Map(JSON.parse(h));
+                const e = localStorage.getItem("immo_einheiten"); if(e) dbEinheiten = new Map(JSON.parse(e));
+            } catch(err) {}
+        }
+        function saveLocal() {
+            localStorage.setItem("immo_objekte", JSON.stringify(Array.from(dbObjekte.entries())));
+            localStorage.setItem("immo_haeuser", JSON.stringify(Array.from(dbHaeuser.entries())));
+            localStorage.setItem("immo_einheiten", JSON.stringify(Array.from(dbEinheiten.entries())));
+        }
+        function showStatus(msg, type) { const s = document.getElementById('onedriveStatus'); s.textContent = msg; s.className = 'onedrive-status ' + type; s.style.display = 'inline-block'; setTimeout(() => { if(s.textContent===msg) s.style.display='none'; }, 4000); }
+
+        // --- UI & RENDER ---
+        function switchTab(id) {
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('panel' + id.charAt(0).toUpperCase() + id.slice(1)).classList.add('active');
+            const btns = document.querySelectorAll('.tab-btn');
+            if(id==='objekte') btns[0].classList.add('active');
+            if(id==='haeuser') btns[1].classList.add('active');
+            if(id==='einheiten') btns[2].classList.add('active');
+        }
+
+        function renderLists() {
+            // Dropdowns füllen
+            const oSel = document.getElementById('hausObjektSelect'); 
+            const eObjSel = document.getElementById('einheitObjektSelect');
+            oSel.innerHTML = ""; eObjSel.innerHTML = "<option value=''>-- Objekt wählen --</option>";
+            
+            dbObjekte.forEach((o, id) => {
+                oSel.add(new Option(`${o.name} [${o.nummer}]`, id));
+                eObjSel.add(new Option(`${o.name} [${o.nummer}]`, id));
+            });
+
+            // 1. OBJEKTE LISTE
+            const oDiv = document.getElementById('objekteListe'); oDiv.innerHTML = "";
+            dbObjekte.forEach((o, id) => {
+                const haeuser = Array.from(dbHaeuser.values()).filter(h => h.objektId === id);
+                const sumF = haeuser.reduce((s,h) => s + (parseFloat(h.wohnflaeche)||0) + (parseFloat(h.gewerbeflaeche)||0), 0);
+                const sumM = haeuser.reduce((s,h) => s + (parseFloat(h.anteile)||0), 0);
+                const okF = Math.abs(sumF - (parseFloat(o.flaeche)||0)) < 0.1;
+                const okM = Math.abs(sumM - (parseFloat(o.mea)||0)) < 0.1;
+
+                oDiv.innerHTML += `
+                <div class="liste-item">
+                    <div style="display:flex; justify-content:space-between;">
+                        <h4>${o.name} <small style="color:#888;">[${o.nummer}]</small></h4>
+                        <button onclick="openObjektMask('${id}')">Bearbeiten</button>
+                    </div>
+                    <div class="sub-info">${o.plz} ${o.ort} | ${haeuser.length} Häuser</div>
+                    <div class="objekt-stats">
+                        <span class="${okF?'stat-ok':'stat-warn'}">Fläche: ${sumF.toLocaleString()} / ${o.flaeche} m²</span>
+                        <span class="${okM?'stat-ok':'stat-warn'}">MEA: ${sumM.toLocaleString()} / ${o.mea}</span>
+                    </div>
+                </div>`;
+            });
+
+            // 2. HÄUSER LISTE
+            const hDiv = document.getElementById('haeuserListe'); hDiv.innerHTML = "";
+            dbHaeuser.forEach((h, id) => {
+                const obj = dbObjekte.get(h.objektId);
+                const objName = obj ? obj.name : "??";
+                const einheiten = Array.from(dbEinheiten.values()).filter(e => e.hausId === id);
+                const sumF = einheiten.reduce((s,e) => s + (parseFloat(e.flaeche)||0), 0);
+                const sumM = einheiten.reduce((s,e) => s + (parseFloat(e.mea)||0), 0);
+                const sollF = (parseFloat(h.wohnflaeche)||0) + (parseFloat(h.gewerbeflaeche)||0);
+                const sollM = parseFloat(h.anteile)||0;
+                const okF = Math.abs(sumF - sollF) < 0.1;
+                const okM = Math.abs(sumM - sollM) < 0.1;
+
+                hDiv.innerHTML += `
+                <div class="liste-item">
+                    <div style="display:flex; justify-content:space-between;">
+                        <h4>${h.bezeichnung} <small>in ${objName}</small></h4>
+                        <button onclick="openHausMask('${id}')">Bearbeiten</button>
+                    </div>
+                    <div class="sub-info">Wohn: ${h.wohnflaeche} | Gew: ${h.gewerbeflaeche} | MEA: ${h.anteile} | Einheiten: ${einheiten.length}</div>
+                    <div class="objekt-stats">
+                        <span class="${okF?'stat-ok':'stat-warn'}">Fläche: ${sumF.toLocaleString()} / ${sollF.toLocaleString()}</span>
+                        <span class="${okM?'stat-ok':'stat-warn'}">MEA: ${sumM.toLocaleString()} / ${sollM.toLocaleString()}</span>
+                    </div>
+                </div>`;
+            });
+
+            // 3. EINHEITEN LISTE (Mit Mieter-Status Berechnung)
+            const eDiv = document.getElementById('einheitenListe'); eDiv.innerHTML = "";
+            const listE = Array.from(dbEinheiten.entries()).map(([id, e]) => {
+                const h = dbHaeuser.get(e.hausId);
+                const o = h ? dbObjekte.get(h.objektId) : null;
+                return { id, ...e, hausName: h ? h.bezeichnung : "??", objName: o ? o.name : "??" };
+            }).sort((a,b) => a.objName.localeCompare(b.objName) || a.hausName.localeCompare(b.hausName));
+
+            const today = new Date().toISOString().split('T')[0];
+
+            listE.forEach(e => {
+                let badge = e.typ==='gewerbe' ? '<span class="badge badge-gewerbe">Gewerbe</span>' : '<span class="badge badge-wohnen">Wohnen</span>';
+                
+                // --- STATUS LOGIK ---
+                let statusHtml = '<span class="status-leerstand">⚠️ LEERSTAND</span>';
+                let currentTenant = null;
+                
+                if (e.belegung && e.belegung.length > 0) {
+                    // Sortiere nach Einzug
+                    e.belegung.sort((a,b) => (a.einzug||'').localeCompare(b.einzug||''));
+                    
+                    // Finde aktuellen Mieter
+                    const active = e.belegung.find(b => {
+                        const start = b.einzug || '0000-00-00';
+                        const end = b.auszug || '9999-12-31';
+                        return start <= today && end >= today;
+                    });
+
+                    // Finde zukünftigen Mieter
+                    const future = e.belegung.find(b => (b.einzug || '0000-00-00') > today);
+
+                    if (active) {
+                        const m = dbKontakte.get(active.mieterId);
+                        const mName = m ? m.fn : "Unbekannt";
+                        statusHtml = `<span class="status-vermietet">✅ ${mName}</span> <span style="color:#666;font-size:0.8em;">(seit ${formatDate(active.einzug)})</span>`;
+                        if(active.auszug) statusHtml += ` <span style="color:#999;font-size:0.8em;">bis ${formatDate(active.auszug)}</span>`;
+                    } else if (future) {
+                        const m = dbKontakte.get(future.mieterId);
+                        statusHtml = `<span class="status-leerstand">⚠️ LEERSTAND</span> <span class="status-zukunft">➡️ Ab ${formatDate(future.einzug)}: ${m?m.fn:'?'}</span>`;
+                    }
+                } else if (e.mieter) {
+                    // Fallback für alte Daten (einzelnes Feld)
+                    const m = dbKontakte.get(e.mieter);
+                    statusHtml = `<span class="status-vermietet">✅ ${m ? m.fn : "?"}</span> <span style="color:#999;font-size:0.8em;">(Altdaten)</span>`;
+                }
+
+                eDiv.innerHTML += `
+                <div class="liste-item">
+                    <div style="display:flex; justify-content:space-between;">
+                        <h4>${e.name} ${badge} <small>(${e.hausName} in ${e.objName})</small></h4>
+                        <button onclick="openEinheitMask('${e.id}')">Bearbeiten</button>
+                    </div>
+                    <div class="sub-info">Fläche: ${e.flaeche}m² | Heiz: ${e.heizflaeche}m² | Zimmer: ${e.zimmer} | MEA: ${e.mea}</div>
+                    <div class="mieter-status">${statusHtml}</div>
+                </div>`;
+            });
+        }
+
+        // --- HELPER ---
+        function formatDate(isoStr) {
+            if(!isoStr) return "";
+            const parts = isoStr.split('-');
+            return `${parts[2]}.${parts[1]}.${parts[0]}`;
+        }
+
+        // --- CRUD OBJEKTE ---
+        function openObjektMask(id){
+            const o = id ? dbObjekte.get(id) : {};
+            document.getElementById('objektIdInput').value = id||"";
+            document.getElementById('objektNummerInput').value = o.nummer||"";
+            document.getElementById('objektNameInput').value = o.name||"";
+            document.getElementById('objektPlzInput').value = o.plz||"";
+            document.getElementById('objektOrtInput').value = o.ort||"";
+            document.getElementById('objektFlaecheInput').value = o.flaeche||"";
+            document.getElementById('objektMeaInput').value = o.mea||"1000";
+            document.getElementById('objektModal').classList.add('active');
+        }
+        function saveObjekt(){
+            let id = document.getElementById('objektIdInput').value || 'o_'+Date.now();
+            dbObjekte.set(String(id), {
+                nummer: document.getElementById('objektNummerInput').value,
+                name: document.getElementById('objektNameInput').value,
+                plz: document.getElementById('objektPlzInput').value,
+                ort: document.getElementById('objektOrtInput').value,
+                flaeche: document.getElementById('objektFlaecheInput').value,
+                mea: document.getElementById('objektMeaInput').value
+            });
+            document.getElementById('objektModal').classList.remove('active');
+            saveLocal(); renderLists(); saveToOneDrive(false);
+        }
+        function deleteObjekt(){
+            const id = document.getElementById('objektIdInput').value;
+            const hasH = Array.from(dbHaeuser.values()).some(h => h.objektId === id);
+            if(hasH) return alert("Objekt hat noch Häuser. Bitte erst diese löschen.");
+            if(confirm("Löschen?")) { dbObjekte.delete(id); document.getElementById('objektModal').classList.remove('active'); saveLocal(); renderLists(); saveToOneDrive(false); }
+        }
+
+        // --- CRUD HÄUSER ---
+        function openHausMask(id){
+            if(dbObjekte.size===0) return alert("Erst Objekt anlegen.");
+            const h = id ? dbHaeuser.get(id) : {};
+            document.getElementById('hausIdInput').value = id||"";
+            
+            const sel = document.getElementById('hausObjektSelect'); sel.innerHTML="";
+            dbObjekte.forEach((o, oid) => sel.add(new Option(o.name, oid)));
+            if(h.objektId) sel.value = h.objektId;
+
+            document.getElementById('hausBezeichnungInput').value = h.bezeichnung||"";
+            document.getElementById('hausWohnflaecheInput').value = h.wohnflaeche||"";
+            document.getElementById('hausGewerbeInput').value = h.gewerbeflaeche||"";
+            document.getElementById('hausHeizInput').value = h.heizflaeche||"";
+            document.getElementById('hausAnteileInput').value = h.anteile||"";
+            document.getElementById('hausAnzWohnungenInput').value = h.anzWohnungen||"";
+            document.getElementById('hausAnzGaragenInput').value = h.anzGaragen||"";
+            
+            document.getElementById('hausModal').classList.add('active');
+        }
+        function saveHaus(){
+            let id = document.getElementById('hausIdInput').value || 'h_'+Date.now();
+            dbHaeuser.set(String(id), {
+                objektId: document.getElementById('hausObjektSelect').value,
+                bezeichnung: document.getElementById('hausBezeichnungInput').value,
+                wohnflaeche: document.getElementById('hausWohnflaecheInput').value,
+                gewerbeflaeche: document.getElementById('hausGewerbeInput').value,
+                heizflaeche: document.getElementById('hausHeizInput').value,
+                anteile: document.getElementById('hausAnteileInput').value,
+                anzWohnungen: document.getElementById('hausAnzWohnungenInput').value,
+                anzGaragen: document.getElementById('hausAnzGaragenInput').value
+            });
+            document.getElementById('hausModal').classList.remove('active');
+            saveLocal(); renderLists(); saveToOneDrive(false);
+        }
+        function deleteHaus(){
+            const id = document.getElementById('hausIdInput').value;
+            const hasE = Array.from(dbEinheiten.values()).some(e => e.hausId === id);
+            if(hasE) return alert("Haus hat noch Einheiten.");
+            if(confirm("Löschen?")) { dbHaeuser.delete(id); document.getElementById('hausModal').classList.remove('active'); saveLocal(); renderLists(); saveToOneDrive(false); }
+        }
+
+        // --- CRUD EINHEITEN (MIT HISTORIE) ---
+        function filterHaeuserDropdown() {
+            const oid = document.getElementById('einheitObjektSelect').value;
+            const hSel = document.getElementById('einheitHausSelect');
+            hSel.innerHTML = "";
+            if(!oid) { hSel.innerHTML="<option>Erst Objekt wählen</option>"; return; }
+            const haeuser = Array.from(dbHaeuser.entries()).filter(([hid, h]) => h.objektId === oid);
+            if(haeuser.length===0) { hSel.innerHTML="<option>Keine Häuser</option>"; return; }
+            haeuser.forEach(([hid, h]) => hSel.add(new Option(h.bezeichnung, hid)));
+        }
+
+        // Hilfsfunktion: Zeile in Belegungsliste einfügen
+        function addBelegungRow(data = {}) {
+            const container = document.getElementById('belegungListe');
+            const div = document.createElement('div');
+            div.className = 'belegung-row';
+            
+            // Select Mieter
+            const sel = document.createElement('select');
+            sel.className = 'belegung-mieter';
+            sel.innerHTML = "<option value=''>-- Mieter wählen --</option>";
+            const sortedKontakte = Array.from(dbKontakte.entries()).sort((a,b) => (a[1].fn||"").localeCompare(b[1].fn||""));
+            sortedKontakte.forEach(([id, k]) => sel.add(new Option(k.fn + (k.org ? ` (${k.org})` : ""), id)));
+            if(data.mieterId) sel.value = data.mieterId;
+
+            // Date Inputs
+            const inEin = document.createElement('input'); inEin.type="date"; inEin.className="belegung-einzug"; inEin.title="Einzug"; if(data.einzug) inEin.value=data.einzug;
+            const inAus = document.createElement('input'); inAus.type="date"; inAus.className="belegung-auszug"; inAus.title="Auszug (leer = aktuell)"; if(data.auszug) inAus.value=data.auszug;
+
+            // Del Button
+            const btn = document.createElement('button'); btn.className="warn-btn"; btn.innerText="X";
+            btn.onclick = () => div.remove();
+
+            div.append(sel, inEin, inAus, btn);
+            container.appendChild(div);
+        }
+
+        function openEinheitMask(id){
+            if(dbHaeuser.size===0) return alert("Bitte erst ein Haus anlegen.");
+            const e = id ? dbEinheiten.get(id) : {};
+            document.getElementById('einheitIdInput').value = id||"";
+            
+            // Objekt/Haus Logic
+            const eObjSelect = document.getElementById('einheitObjektSelect');
+            let hid = e.hausId; 
+            let oid = hid ? dbHaeuser.get(hid)?.objektId : "";
+            if(oid) eObjSelect.value = oid; else eObjSelect.selectedIndex = 0;
+            filterHaeuserDropdown();
+            if(hid) document.getElementById('einheitHausSelect').value = hid;
+
+            document.getElementById('einheitNameInput').value = e.name||"";
+            document.getElementById('einheitTypSelect').value = e.typ||"wohnen";
+            document.getElementById('einheitFlaecheInput').value = e.flaeche||"";
+            document.getElementById('einheitHeizflaecheInput').value = e.heizflaeche||"";
+            document.getElementById('einheitZimmerInput').value = e.zimmer||"";
+            document.getElementById('einheitMeaInput').value = e.mea||"";
+            
+            // Belegung laden
+            const belContainer = document.getElementById('belegungListe');
+            belContainer.innerHTML = "";
+            if(e.belegung && Array.isArray(e.belegung)) {
+                e.belegung.forEach(b => addBelegungRow(b));
+            } else if (e.mieter) {
+                // Migration: Alter Einzel-Mieter -> Neuer Eintrag
+                addBelegungRow({ mieterId: e.mieter, einzug: "", auszug: "" });
+            } else {
+                // Leer: Eine leere Zeile anbieten
+                addBelegungRow();
+            }
+
+            document.getElementById('einheitModal').classList.add('active');
+        }
+
+        function saveEinheit(){
+            const hid = document.getElementById('einheitHausSelect').value;
+            const name = document.getElementById('einheitNameInput').value;
+            if(!hid || !name) return alert("Haus und Name sind Pflicht.");
+            
+            let id = document.getElementById('einheitIdInput').value || 'e_'+Date.now();
+            
+            // Belegung einsammeln
+            const belegung = [];
+            document.querySelectorAll('#belegungListe .belegung-row').forEach(row => {
+                const mId = row.querySelector('.belegung-mieter').value;
+                if(mId) {
+                    belegung.push({
+                        mieterId: mId,
+                        einzug: row.querySelector('.belegung-einzug').value,
+                        auszug: row.querySelector('.belegung-auszug').value
+                    });
+                }
+            });
+
+            dbEinheiten.set(String(id), {
+                hausId: hid,
+                name: name,
+                typ: document.getElementById('einheitTypSelect').value,
+                flaeche: document.getElementById('einheitFlaecheInput').value,
+                heizflaeche: document.getElementById('einheitHeizflaecheInput').value,
+                zimmer: document.getElementById('einheitZimmerInput').value,
+                mea: document.getElementById('einheitMeaInput').value,
+                belegung: belegung // Speichert die Historie
+            });
+            document.getElementById('einheitModal').classList.remove('active');
+            saveLocal(); renderLists(); saveToOneDrive(false);
+        }
+
+        function deleteEinheit(){
+            const id = document.getElementById('einheitIdInput').value;
+            if(confirm("Löschen?")) { dbEinheiten.delete(id); document.getElementById('einheitModal').classList.remove('active'); saveLocal(); renderLists(); saveToOneDrive(false); }
+        }
+    </script>
+</body>
+</html>
