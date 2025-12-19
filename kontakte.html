@@ -45,8 +45,28 @@
             text-align: center; width: 100%; box-sizing: border-box;
         }
 
-        /* --- Main Layout --- */
+        /* --- Main Layout & Search --- */
         h1, h2, h3 { color: #333; border-bottom: 2px solid #0078d4; padding-bottom: 5px; margin-top: 20px; }
+        
+        /* NEU: Suchleiste */
+        .search-container {
+            margin-bottom: 15px;
+            position: sticky;
+            top: 0;
+            background-color: #f4f7f6; /* Hintergrund wie Body für sauberen Look */
+            padding: 10px 0;
+            z-index: 90;
+        }
+        #globalSearchInput {
+            width: 100%;
+            padding: 12px;
+            font-size: 1.1em;
+            border: 2px solid #0078d4;
+            border-radius: 6px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            box-sizing: border-box;
+        }
+
         .tab-bar { margin-bottom: 15px; display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
         .tab-btn { background: #f9f9f9; border-bottom: 3px solid transparent; border-radius: 4px 4px 0 0; padding: 10px 15px; }
         .tab-btn.active { border-bottom: 3px solid #0078d4; font-weight: bold; background: white; }
@@ -73,6 +93,7 @@
         .address-row-1, .address-row-2 { display: flex; gap: 10px; margin-bottom: 5px; }
         .input-group { flex: 1; }
         .input-group label { font-size: 0.75em; color: #666; display: block; }
+        .detail-label-input { font-size: 0.85em; color: #333; }
 
         #importProtokoll { width: 100%; height: 100px; font-family: monospace; font-size: 0.85em; background: #333; color: #0f0; border: 1px solid #666; margin-top: 10px; }
     </style>
@@ -113,6 +134,12 @@
         </details>
 
         <h2>Datenverwaltung</h2>
+
+        <!-- NEU: Globale Suchleiste -->
+        <div class="search-container">
+            <input type="text" id="globalSearchInput" placeholder="🔍 Suchen (Name, Mandantennummer, Firma)..." oninput="handleSearch(this.value)">
+        </div>
+
         <div class="tab-bar">
             <div>
                 <button class="tab-btn active" onclick="switchTab('mandanten')">🏢 Mandanten (Firmen)</button>
@@ -255,6 +282,7 @@
         let accessToken = null;
         let userEmail = null;
         let tokenRefreshIntervalId = null; // Für den Wachhund
+        let currentSearchTerm = ""; // NEU: Suchbegriff
 
         const MANDANTEN_KEY = "kontakte_mandanten";
         const KONTAKTE_KEY = "kontakte_personen";
@@ -396,7 +424,7 @@
             location.reload();
         }
 
-        // --- NEU: Statusanzeige-Logik ---
+        // --- Statusanzeige-Logik ---
         function zeigeStatus(msg, type) {
             const el = document.getElementById('onedriveStatus');
             el.textContent = msg;
@@ -575,6 +603,14 @@
             renderKontakteListe();
         }
 
+        // --- NEU: Suchfunktion ---
+        function handleSearch(val) {
+            currentSearchTerm = val.toLowerCase().trim();
+            renderMandantenListe();
+            renderKontakteListe();
+        }
+
+        // --- UPDATE: Filtern in der Anzeige ---
         function renderMandantenListe() {
             const container = document.getElementById('mandantenListe');
             if(!container) return;
@@ -582,6 +618,15 @@
             if (dbMandanten.size === 0) { container.innerHTML = "<i>Keine Daten.</i>"; return; }
             
             dbMandanten.forEach((m, id) => {
+                // FILTER LOGIK MANDANT
+                if (currentSearchTerm) {
+                    const matchName = (m.firmenname || "").toLowerCase().includes(currentSearchTerm);
+                    const matchNummer = (m.mandantennummer || "").toLowerCase().includes(currentSearchTerm);
+                    const matchOrt = (m.adresse?.[0]?.city || "").toLowerCase().includes(currentSearchTerm);
+                    
+                    if (!matchName && !matchNummer && !matchOrt) return; // Ausblenden
+                }
+
                 const div = document.createElement('div');
                 div.className = 'liste-item';
                 const count = dbVerknuepfungen.filter(v => String(v.mandantennummer_fk) === String(id)).length;
@@ -609,6 +654,26 @@
             if (dbKontakte.size === 0) { container.innerHTML = "<i>Keine Daten.</i>"; return; }
             
             dbKontakte.forEach((k, id) => {
+                // FILTER LOGIK KONTAKT
+                // Wir suchen auch in den verknüpften Mandantennummern!
+                let matchMandantennummer = false;
+                if (currentSearchTerm) {
+                    const linkedIds = dbVerknuepfungen
+                        .filter(v => String(v.kontakt_id_fk) === String(id))
+                        .map(v => {
+                            const m = dbMandanten.get(String(v.mandantennummer_fk));
+                            return m ? m.mandantennummer : "";
+                        });
+                    matchMandantennummer = linkedIds.some(lid => lid.toLowerCase().includes(currentSearchTerm));
+                }
+
+                if (currentSearchTerm) {
+                    const matchName = (k.fn || "").toLowerCase().includes(currentSearchTerm);
+                    const matchOrg = (k.org || "").toLowerCase().includes(currentSearchTerm);
+                    
+                    if (!matchName && !matchOrg && !matchMandantennummer) return; // Ausblenden
+                }
+
                 const div = document.createElement('div');
                 div.className = 'liste-item';
                 const firmen = dbVerknuepfungen
@@ -1091,9 +1156,6 @@
                     const input = row.querySelectorAll('input')[1]; // Das zweite Input ist der Wert
                     const labelInput = row.querySelectorAll('input')[0]; // Das erste ist das Label
                     
-                    // Fallback falls querySelectorAll unsicher ist (Klassen nutzen)
-                    // Da wir es oben fix erzeugen:
-                    // Child 0: Select, Child 1: Label, Child 2: Value, Child 3: Button
                     const labelVal = labelInput ? labelInput.value.trim() : "";
                     
                     if(select && input && input.value) {
