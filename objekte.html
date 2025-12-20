@@ -78,6 +78,14 @@
         .live-status-ok { background: #e8f5e9; border-color: #a5d6a7; color: #1b5e20; }
         .live-status-err { background: #ffebee; border-color: #ef9a9a; color: #c62828; }
 
+        /* Type Overview Badges */
+        .type-overview-container { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 15px; padding: 10px; background: #f9f9f9; border-radius: 4px; border: 1px solid #eee; }
+        .type-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.85em; border: 1px solid #ccc; background: #fff; color: #555; cursor: pointer; }
+        .type-badge:hover { background-color: #eee; }
+        .type-badge.open { border-color: #2196f3; background: #e3f2fd; color: #0d47a1; font-weight: bold; }
+        .type-badge.full { border-color: #4caf50; background: #e8f5e9; color: #1b5e20; }
+        .type-badge.over { border-color: #f44336; background: #ffebee; color: #b71c1c; }
+
         h4 { margin: 0; padding: 0; }
         .sub-info { color: #666; font-size: 0.9em; margin-top: 4px; }
     </style>
@@ -230,9 +238,12 @@
             </div>
 
             <!-- NEU: STATUS ÜBERSICHT DER TYPEN -->
-            <div id="hausTypeOverview" style="margin-bottom: 15px; margin-top: 5px; font-size: 0.9em;"></div>
+            <label style="margin-top:10px; display:block; font-size:0.9em; font-weight:bold;">Verfügbarkeit im Haus:</label>
+            <div id="hausTypeOverview" class="type-overview-container">
+                <span style="color:#666; font-style:italic;">Bitte erst ein Haus auswählen...</span>
+            </div>
 
-            <!-- LIVE STATUS ANZEIGE (Einzelne Berechnung) -->
+            <!-- LIVE STATUS ANZEIGE -->
             <div id="einheitLiveStatus" class="live-status-box" style="display:none;"></div>
 
             <div style="display:flex; gap:10px;">
@@ -361,24 +372,29 @@
         }
 
         // --- NEW: HOUSE TYPE OVERVIEW ---
-        function onHausSelectionChange() {
-            updateHausTypeOverview();
+        function onHausSelectionChange(isFirstLoad = false) {
+            updateHausTypeOverview(isFirstLoad);
             updateUnitLiveStatus();
         }
 
-        function updateHausTypeOverview() {
+        function updateHausTypeOverview(isFirstLoad) {
             const hid = document.getElementById('einheitHausSelect').value;
             const container = document.getElementById('hausTypeOverview');
+            const typeSelect = document.getElementById('einheitTypSelect');
             container.innerHTML = "";
             
-            if(!hid) return;
+            if(!hid) {
+                container.innerHTML = '<span style="color:#666;">Kein Haus gewählt.</span>';
+                return;
+            }
             const h = dbHaeuser.get(hid);
             if(!h) return;
 
             const units = Array.from(dbEinheiten.values()).filter(u => u.hausId === hid);
             
-            let html = '<div style="margin-bottom:5px; font-weight:bold;">Geplante Typen im Haus:</div><div style="display:flex; gap:8px; flex-wrap:wrap;">';
+            let html = '';
             let foundAny = false;
+            let firstOpenType = null;
 
             UNIT_TYPES.forEach(t => {
                 const sollCnt = safeFloat(h.sollMatrix?.[t.id]?.count);
@@ -386,35 +402,44 @@
                 
                 if (sollCnt > 0 || istCnt > 0) {
                     foundAny = true;
-                    let colorStyle = "border:1px solid #ccc; background:#f5f5f5; color:#333;"; // Default
+                    let cssClass = "";
                     let text = `${t.label}: ${istCnt} / ${sollCnt}`;
                     
                     if (sollCnt > 0) {
                         if (istCnt < sollCnt) {
                             // Offen -> Blau
-                            colorStyle = "border:1px solid #2196f3; background:#e3f2fd; color:#0d47a1; font-weight:bold;";
+                            cssClass = "type-badge open";
                             text += ` (Offen: ${sollCnt - istCnt})`;
+                            if(!firstOpenType) firstOpenType = t.id;
                         } else if (istCnt === sollCnt) {
                             // Voll -> Grün
-                            colorStyle = "border:1px solid #4caf50; background:#e8f5e9; color:#1b5e20;";
+                            cssClass = "type-badge full";
                             text += " (Voll)";
                         } else {
                             // Zu viele -> Rot
-                            colorStyle = "border:1px solid #f44336; background:#ffebee; color:#b71c1c;";
+                            cssClass = "type-badge over";
                             text += ` (Zuviel: +${istCnt - sollCnt})`;
                         }
                     } else if (istCnt > 0) {
                          // Ungeplant -> Rot
-                         colorStyle = "border:1px solid #f44336; background:#ffebee; color:#b71c1c;";
+                         cssClass = "type-badge over";
                          text += " (Nicht geplant!)";
+                    } else {
+                        cssClass = "type-badge";
                     }
-                    html += `<span style="padding:4px 8px; border-radius:4px; font-size:0.85em; ${colorStyle}">${text}</span>`;
+                    // Add click handler to select type
+                    html += `<div class="${cssClass}" onclick="document.getElementById('einheitTypSelect').value='${t.id}'; updateUnitLiveStatus();">${text}</div>`;
                 }
             });
             
-            if(!foundAny) html += '<span style="color:#666; font-style:italic;">Keine Typen im Hausstammblatt definiert.</span>';
-            html += '</div>';
+            if(!foundAny) html += '<span style="color:#666; font-style:italic;">Keine Typen im Haus definiert.</span>';
             container.innerHTML = html;
+
+            // Auto-Select first open type if it's a NEW unit (empty ID) and not manually set yet
+            const currentUnitId = document.getElementById('einheitIdInput').value;
+            if(!currentUnitId && firstOpenType && isFirstLoad) {
+                typeSelect.value = firstOpenType;
+            }
         }
 
         // LIVE UNIT STATUS (Fixed Logic)
@@ -705,8 +730,10 @@
             document.getElementById('einheitFlaecheInput').value=e.flaeche||""; document.getElementById('einheitHeizflaecheInput').value=e.heizflaeche||"";
             document.getElementById('einheitZimmerInput').value=e.zimmer||""; document.getElementById('einheitMeaInput').value=e.mea||"";
             const c=document.getElementById('belegungListe'); c.innerHTML=""; if(e.belegung&&e.belegung.length) e.belegung.forEach(b=>addBelegungRow(b)); else addBelegungRow();
-            updateUnitLiveStatus();
-            updateHausTypeOverview();
+            
+            // WICHTIG: Erst Status-Update, dann Modal öffnen
+            onHausSelectionChange(true); // true = Initial load (Auto-Select Typ möglich)
+            
             document.getElementById('einheitModal').classList.add('active');
         }
         function saveEinheit(){
