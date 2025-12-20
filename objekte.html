@@ -72,9 +72,17 @@
         .status-vermietet { color: #2e7d32; font-weight: bold; }
         .status-zukunft { color: #0277bd; font-style: italic; }
 
-        /* Live Status Boxen in Modals */
-        .live-status-box { background: #e3f2fd; border: 1px solid #90caf9; color: #0d47a1; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 0.9em; }
-        .live-status-err { background: #ffebee; border: 1px solid #ef9a9a; color: #c62828; }
+        /* Live Status Boxen in Modals - Farben angepasst */
+        .live-status-box { padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 0.9em; border: 1px solid transparent; }
+        
+        /* BLAU: Info (noch offen) */
+        .live-status-info { background: #e3f2fd; border-color: #90caf9; color: #0d47a1; }
+        
+        /* GRÜN: OK (Soll erreicht) */
+        .live-status-ok { background: #e8f5e9; border-color: #a5d6a7; color: #1b5e20; }
+        
+        /* ROT: Warnung (Überschritten) */
+        .live-status-err { background: #ffebee; border-color: #ef9a9a; color: #c62828; }
 
         h4 { margin: 0; padding: 0; }
         .sub-info { color: #666; font-size: 0.9em; margin-top: 4px; }
@@ -158,7 +166,7 @@
         </div>
     </div>
 
-    <!-- Modal 2: Haus (ERWEITERTE MATRIX) -->
+    <!-- Modal 2: Haus -->
     <div id="hausModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')">
         <div class="modal-content">
             <h3>Haus bearbeiten</h3>
@@ -371,38 +379,50 @@
             const typ = document.getElementById('einheitTypSelect').value;
             const currentArea = safeFloat(document.getElementById('einheitFlaecheInput').value);
             const box = document.getElementById('einheitLiveStatus');
-            const uid = document.getElementById('einheitIdInput').value; // Eigene ID um Selbst-Summierung zu vermeiden (optional)
+            const uid = document.getElementById('einheitIdInput').value; 
 
             if (!hid) { box.style.display="none"; return; }
             
             const h = dbHaeuser.get(hid);
-            if (!h) return;
+            if (!h) { box.style.display="none"; return; }
 
             // Soll für diesen Typ
             const sollArea = safeFloat(h.sollMatrix?.[typ]?.area);
             
-            // Ist für diesen Typ (alle anderen Einheiten)
-            const otherUnits = Array.from(dbEinheiten.values()).filter(e => e.hausId === hid && e.typ === typ && e.id !== uid);
+            // Ist für diesen Typ (alle anderen Einheiten, OHNE die aktuell bearbeitete)
+            const otherUnits = Array.from(dbEinheiten.entries()).filter(([id, e]) => {
+                return e.hausId === hid && e.typ === typ && id !== uid;
+            }).map(([id, e]) => e);
+            
             const istOther = otherUnits.reduce((s,e) => s + safeFloat(e.flaeche), 0);
             
             const newTotal = istOther + currentArea;
             const diff = newTotal - sollArea;
-            const open = sollArea - istOther; // Wieviel ist noch frei bevor ich diese Zahl eingebe?
+            const open = sollArea - istOther; // Was war vor meiner Eingabe noch frei?
 
             box.style.display = "block";
             let msg = `<b>Haus-Check (${UNIT_TYPES.find(t=>t.id===typ).label}):</b><br>`;
-            msg += `Bisher belegt: ${formatNum(istOther)} m² (von ${formatNum(sollArea)} m² Soll).<br>`;
-            msg += `Noch verfügbar: <b>${formatNum(open)} m²</b>.<br>`;
             
-            if (Math.abs(diff) < 0.1) {
-                box.className = "live-status-box";
-                msg += `✅ Mit dieser Eingabe (${formatNum(currentArea)} m²) ist das Soll exakt erfüllt.`;
-            } else if (diff > 0) {
+            if (open < 0) {
+                // Schon vorher überfüllt (Warnung bei Neuanlage)
                 box.className = "live-status-box live-status-err";
-                msg += `⚠️ Achtung: Mit dieser Eingabe überschreiten Sie das Soll um ${formatNum(diff)} m²!`;
+                msg += `⚠️ Das Soll (${formatNum(sollArea)} m²) ist bereits durch andere Einheiten um ${formatNum(Math.abs(open))} m² überschritten!`;
             } else {
-                box.className = "live-status-box";
-                msg += `ℹ️ Nach dieser Eingabe fehlen noch ${formatNum(Math.abs(diff))} m².`;
+                msg += `Bisher belegt: ${formatNum(istOther)} m² (von ${formatNum(sollArea)} m² Soll).<br>`;
+                
+                if (Math.abs(diff) < 0.1) {
+                    // Punktlandung (Grün)
+                    box.className = "live-status-box live-status-ok";
+                    msg += `✅ Perfekt! Mit dieser Eingabe (${formatNum(currentArea)} m²) ist das Soll exakt erfüllt.`;
+                } else if (diff > 0) {
+                    // Zuviel (Rot)
+                    box.className = "live-status-box live-status-err";
+                    msg += `⚠️ Achtung: Mit dieser Eingabe überschreiten Sie das Soll um ${formatNum(diff)} m²!`;
+                } else {
+                    // Zuwenig (Blau)
+                    box.className = "live-status-box live-status-info";
+                    msg += `ℹ️ Info: Auch mit dieser Eingabe fehlen noch ${formatNum(Math.abs(diff))} m² bis zum Soll.`;
+                }
             }
             box.innerHTML = msg;
         }
@@ -418,23 +438,18 @@
             const sollM = safeFloat(document.getElementById('objektMeaInput').value);
 
             // Ist Werte (Häuser)
-            const haeuser = Array.from(dbHaeuser.values()).filter(h => h.objektId === oid); // Funktioniert nur für existierende Objekte, beim Neuanlegen ist ID noch nicht in Häusern
-            // Eigentlich müsste man beim Bearbeiten prüfen.
+            const haeuser = Array.from(dbHaeuser.values()).filter(h => h.objektId === oid); 
             
-            if (!oid) { box.style.display="none"; return; } // Beim Neuanlegen gibt es noch keine Häuser
+            if (!oid) { box.style.display="none"; return; } 
 
             const istH = haeuser.length;
-            // Summe Häuser Sollwerte (Planung)
-            const istF = haeuser.reduce((s,h) => s + (safeFloat(h.wohnflaeche)+safeFloat(h.gewerbeflaeche)), 0); 
-            // Hier nutzen wir besser die Summe der IST-Werte der Häuser? Nein, Vergleich Objekt-Plan mit Haus-Plan.
-            // Aber Achtung: In saveHaus speichern wir keine explizite "Summe Soll", sondern die Matrix. 
-            // Wir müssen die Matrix summieren.
+            
             let sumHausPlanF = 0;
             haeuser.forEach(h => {
                 if(h.sollMatrix) {
                     Object.values(h.sollMatrix).forEach(v => sumHausPlanF += safeFloat(v.area));
                 } else {
-                    sumHausPlanF += (safeFloat(h.wohnflaeche)+safeFloat(h.gewerbeflaeche)); // Fallback legacy
+                    sumHausPlanF += (safeFloat(h.wohnflaeche)+safeFloat(h.gewerbeflaeche)); 
                 }
             });
 
@@ -442,8 +457,13 @@
             let msg = `<b>Objekt-Check (Summe der ${istH} angelegten Häuser):</b><br>`;
             
             const diffF = sumHausPlanF - sollF;
-            if (Math.abs(diffF) > 0.1) msg += `<span style="color:#c62828">⚠️ Fläche: ${formatNum(sumHausPlanF)} / ${formatNum(sollF)} m² (Diff: ${formatNum(diffF)})</span><br>`;
-            else msg += `<span style="color:#2e7d32">✅ Fläche korrekt (${formatNum(sollF)} m²)</span><br>`;
+            if (Math.abs(diffF) > 0.1) {
+                box.className = "live-status-box live-status-err";
+                msg += `<span style="color:#c62828">⚠️ Fläche: ${formatNum(sumHausPlanF)} / ${formatNum(sollF)} m² (Diff: ${formatNum(diffF)})</span><br>`;
+            } else {
+                box.className = "live-status-box live-status-ok";
+                msg += `<span style="color:#2e7d32">✅ Fläche korrekt (${formatNum(sollF)} m²)</span><br>`;
+            }
 
             if (istH !== sollH) msg += `<span style="color:#c62828">⚠️ Anzahl Häuser: ${istH} / ${sollH}</span>`;
             else msg += `<span style="color:#2e7d32">✅ Anzahl Häuser korrekt</span>`;
