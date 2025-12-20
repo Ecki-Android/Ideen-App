@@ -3,8 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Objektverwaltung (Pro)</title>
+    <title>Objektverwaltung (Pro + Reporting)</title>
+    <!-- PDF Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <!-- MS Auth -->
     <script src="https://alcdn.msauth.net/browser/2.24.0/js/msal-browser.min.js"></script>
+    
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; padding: 15px; background-color: #f4f7f6; margin: 0; }
         .app-header { background: white; padding: 15px; border-bottom: 1px solid #ddd; margin: -15px -15px 20px -15px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
@@ -15,23 +20,27 @@
         .primary-btn { background: #2e7d32; color: white; border-color: #1b5e20; }
         .warn-btn { background: #d9534f; color: white; border-color: #d43f3a; }
         .onedrive-btn { background: #0078d4; color: white; border-color: #005a9e; }
+        .report-btn { background: #607d8b; color: white; border-color: #455a64; }
         
         .onedrive-status { display: none; padding: 6px 12px; border-radius: 4px; font-size: 0.9em; font-weight: 500;}
         .onedrive-status.saving { background-color: #e0f2fe; color: #0c4a6e; display: inline-block; border: 1px solid #bae6fd;}
         .onedrive-status.success { background-color: #dcfce7; color: #14532d; display: inline-block; border: 1px solid #bbf7d0;}
         .onedrive-status.error { background-color: #fee2e2; color: #991b1b; display: inline-block; border: 1px solid #fecaca;}
         
-        .tab-bar { margin-bottom: 15px; display: flex; gap: 5px; flex-wrap: wrap;}
+        .tab-bar { margin-bottom: 15px; display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
         .tab-btn { background: #f9f9f9; padding: 10px 15px; border-bottom: 3px solid transparent; cursor: pointer; border-radius: 4px 4px 0 0; }
         .tab-btn.active { border-bottom: 3px solid #2e7d32; font-weight: bold; background: white; }
         
+        .report-actions { margin-left: auto; display: flex; gap: 5px; }
+
         .panel { display: none; background: white; padding: 15px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         .panel.active { display: block; }
-        .liste-item { border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; background: #fff; border-radius: 4px; }
-        
+        .liste-item { border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; background: #fff; border-radius: 4px; display: flex; gap: 10px; align-items: flex-start; }
+        .liste-content { flex: 1; }
+        .item-checkbox { margin-top: 5px; transform: scale(1.2); cursor: pointer; }
+
         .objekt-stats { font-size: 0.85em; background: #fafafa; padding: 8px; border-radius: 4px; margin-top: 8px; border: 1px solid #eee; }
         .validation-row { display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding: 2px 0; }
-        .validation-row:last-child { border-bottom: none; }
         
         .stat-ok { color: #2e7d32; font-weight: bold; }
         .stat-err { color: #d32f2f; font-weight: bold; }
@@ -41,6 +50,8 @@
         .soll-matrix td { border: 1px solid #ccc; padding: 5px; }
         .soll-matrix input { width: 100%; margin: 0; border: none; background: transparent; font-family: inherit; }
         .soll-matrix input:focus { background: #e8f0fe; outline: none; }
+        
+        .matrix-sum-row { background: #e0f2f1; font-weight: bold; }
 
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; }
         .modal-overlay.active { display: flex; }
@@ -52,7 +63,6 @@
         .belegung-row { display: flex; gap: 5px; align-items: center; margin-bottom: 5px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
         
         .badge { padding: 2px 6px; border-radius: 4px; font-size: 0.8em; font-weight: bold; margin-left: 5px; border: 1px solid #ccc; background: #f0f0f0; color: #333; }
-        
         .mieter-status { margin-top: 8px; padding-top: 8px; border-top: 1px solid #eee; font-size: 0.95em; }
         .status-leerstand { color: #c62828; font-weight: bold; background: #ffebee; padding: 2px 6px; border-radius: 3px; display:inline-block; }
         .status-vermietet { color: #2e7d32; font-weight: bold; }
@@ -74,27 +84,37 @@
 
     <div style="max-width: 1200px; margin: 0 auto;">
         <div class="tab-bar">
-            <button class="tab-btn active" onclick="switchTab('objekte')">🏠 Objekte (Liegenschaft)</button>
-            <button class="tab-btn" onclick="switchTab('haeuser')">🏘️ Häuser (Gebäude)</button>
-            <button class="tab-btn" onclick="switchTab('einheiten')">🚪 Einheiten (Wohnungen)</button>
-            <a href="kontakte.html" style="margin-left:auto; text-decoration:none;"><button>👥 Zu den Kontakten</button></a>
+            <button class="tab-btn active" onclick="switchTab('objekte')">🏠 Objekte</button>
+            <button class="tab-btn" onclick="switchTab('haeuser')">🏘️ Häuser</button>
+            <button class="tab-btn" onclick="switchTab('einheiten')">🚪 Einheiten</button>
+            
+            <div class="report-actions">
+                <button onclick="generateObjectReportPDF()" class="report-btn" title="Druckt gewählte Objekte">📄 Objekt-Status PDF</button>
+                <button onclick="generateHouseReportPDF()" class="report-btn" title="Druckt gewählte Häuser">🏘️ Haus-Status PDF</button>
+                <button onclick="generateUnitReportPDF()" class="report-btn" title="Druckt gewählte Einheiten inkl. Leerstand">📋 Vermietungsliste PDF</button>
+            </div>
+            
+            <a href="kontakte.html" style="margin-left:10px; text-decoration:none;"><button>👥 Kontakte</button></a>
         </div>
 
         <!-- PANEL OBJEKTE -->
         <div id="panelObjekte" class="panel active">
             <button class="primary-btn" onclick="openObjektMask()">+ Neues Objekt anlegen</button>
+            <div style="margin-top:10px;"><input type="checkbox" onchange="toggleAll('objekteListe', this.checked)"> Alle auswählen</div>
             <div id="objekteListe" style="margin-top: 15px;"></div>
         </div>
 
         <!-- PANEL HÄUSER -->
         <div id="panelHaeuser" class="panel">
             <button class="primary-btn" onclick="openHausMask()">+ Neues Haus anlegen</button>
+            <div style="margin-top:10px;"><input type="checkbox" onchange="toggleAll('haeuserListe', this.checked)"> Alle auswählen</div>
             <div id="haeuserListe" style="margin-top: 15px;"></div>
         </div>
 
         <!-- PANEL EINHEITEN -->
         <div id="panelEinheiten" class="panel">
             <button class="primary-btn" onclick="openEinheitMask()">+ Neue Einheit anlegen</button>
+            <div style="margin-top:10px;"><input type="checkbox" onchange="toggleAll('einheitenListe', this.checked)"> Alle auswählen</div>
             <div id="einheitenListe" style="margin-top: 15px;"></div>
         </div>
     </div>
@@ -114,14 +134,12 @@
                 <div style="flex:1"><label>PLZ:</label><input type="text" id="objektPlzInput"></div>
                 <div style="flex:2;"><label>Ort:</label><input type="text" id="objektOrtInput"></div>
             </div>
-            
             <h4 style="margin-top:10px;border-bottom:1px solid #eee;">Gesamt-Vorgaben (Soll)</h4>
             <div style="display:flex; gap:10px;">
                 <div style="flex:1;"><label>Anzahl Häuser:</label><input type="number" id="objektSollHaeuser" placeholder="1"></div>
                 <div style="flex:1;"><label>Gesamtfläche (m²):</label><input type="number" step="0.01" id="objektFlaecheInput"></div>
                 <div style="flex:1;"><label>Gesamt MEA:</label><input type="number" step="0.001" id="objektMeaInput" value="1000"></div>
             </div>
-            
             <div class="modal-actions">
                 <button onclick="document.getElementById('objektModal').classList.remove('active')">Abbrechen</button>
                 <button class="primary-btn" onclick="saveObjekt()">Speichern</button>
@@ -130,37 +148,34 @@
         </div>
     </div>
 
-    <!-- Modal 2: Haus (MIT MATRIX) -->
+    <!-- Modal 2: Haus (MIT LIVE MATRIX) -->
     <div id="hausModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')">
         <div class="modal-content">
             <h3>Haus bearbeiten</h3>
             <input type="hidden" id="hausIdInput">
-            
             <div style="display:flex; gap:10px;">
                 <div style="flex:1"><label>Gehört zu Objekt*:</label><select id="hausObjektSelect"></select></div>
                 <div style="flex:2"><label>Hausbezeichnung*:</label><input type="text" id="hausBezeichnungInput"></div>
             </div>
 
             <h4 style="margin-top:15px; margin-bottom:5px;">Soll-Vorgaben & Validierung</h4>
-            <p style="font-size:0.8em; color:#666; margin-top:0;">Bitte geben Sie hier die geplanten Einheiten und Flächen ein.</p>
-            
             <table class="soll-matrix">
                 <thead>
-                    <tr>
-                        <th style="width:40%;">Typ</th>
-                        <th style="width:30%;">Soll-Anzahl (Stk)</th>
-                        <th style="width:30%;">Soll-Fläche (m²)</th>
-                    </tr>
+                    <tr><th style="width:40%;">Typ</th><th style="width:30%;">Soll-Anzahl</th><th style="width:30%;">Soll-Fläche (m²)</th></tr>
                 </thead>
-                <tbody id="hausSollMatrixBody">
-                    <!-- Wird per JS gefüllt -->
-                </tbody>
+                <tbody id="hausSollMatrixBody"></tbody>
+                <tfoot>
+                    <tr class="matrix-sum-row">
+                        <td>Summe (Matrix):</td>
+                        <td id="matrixSumCount">0</td>
+                        <td id="matrixSumArea">0.00 m²</td>
+                    </tr>
+                </tfoot>
             </table>
             
             <div style="display:flex; gap:10px; margin-top:10px;">
                 <div style="flex:1;"><label>Gesamt MEA (Soll):</label><input type="number" step="0.001" id="hausAnteileInput"></div>
             </div>
-
             <div class="modal-actions">
                 <button onclick="document.getElementById('hausModal').classList.remove('active')">Abbrechen</button>
                 <button class="primary-btn" onclick="saveHaus()">Speichern</button>
@@ -174,45 +189,25 @@
         <div class="modal-content">
             <h3>Einheit bearbeiten</h3>
             <input type="hidden" id="einheitIdInput">
-            
             <div style="display:flex; gap:10px;">
-                <div style="flex:1;">
-                    <label>Objekt wählen*:</label>
-                    <select id="einheitObjektSelect" onchange="filterHaeuserDropdown()"></select>
-                </div>
-                <div style="flex:1;">
-                    <label>Haus wählen*:</label>
-                    <select id="einheitHausSelect"></select>
-                </div>
+                <div style="flex:1;"><label>Objekt wählen*:</label><select id="einheitObjektSelect" onchange="filterHaeuserDropdown()"></select></div>
+                <div style="flex:1;"><label>Haus wählen*:</label><select id="einheitHausSelect"></select></div>
             </div>
-            
             <div style="display:flex; gap:10px;">
-                <div style="flex:2;">
-                    <label>Lage / Bezeichnung (z.B. EG Links)*:</label>
-                    <input type="text" id="einheitNameInput">
-                </div>
-                <div style="flex:1;">
-                    <label>Typ:</label>
-                    <select id="einheitTypSelect">
-                        <!-- Wird per JS gefüllt -->
-                    </select>
-                </div>
+                <div style="flex:2;"><label>Lage / Bezeichnung*:</label><input type="text" id="einheitNameInput"></div>
+                <div style="flex:1;"><label>Typ:</label><select id="einheitTypSelect"></select></div>
             </div>
-            
             <div style="display:flex; gap:10px;">
                 <div style="flex:1;"><label>Wohn-/Nutzfläche (m²):</label><input type="number" step="0.01" id="einheitFlaecheInput"></div>
                 <div style="flex:1;"><label>Heizfläche (m²):</label><input type="number" step="0.01" id="einheitHeizflaecheInput"></div>
             </div>
-
             <div style="display:flex; gap:10px;">
                 <div style="flex:1;"><label>Zimmer:</label><input type="number" step="0.5" id="einheitZimmerInput"></div>
                 <div style="flex:1;"><label>MEA Anteil:</label><input type="number" step="0.001" id="einheitMeaInput"></div>
             </div>
-            
             <h4 style="margin-top:15px; border-bottom:1px solid #eee;">Belegung / Mieterhistorie</h4>
             <div id="belegungListe" class="belegung-container"></div>
             <button type="button" onclick="addBelegungRow()" style="margin-top:0;">+ Mieterwechsel hinzufügen</button>
-
             <div class="modal-actions">
                 <button onclick="document.getElementById('einheitModal').classList.remove('active')">Abbrechen</button>
                 <button class="primary-btn" onclick="saveEinheit()">Speichern</button>
@@ -224,530 +219,423 @@
     <script>
         // --- DEFINITIONEN ---
         const UNIT_TYPES = [
-            { id: 'wohnung', label: 'Wohnung' },
-            { id: 'gewerbe', label: 'Gewerbe' },
-            { id: 'halle', label: 'Gewerbe-Halle' },
-            { id: 'geschaeft', label: 'Geschäft' },
-            { id: 'garage', label: 'Garage' },
-            { id: 'parkplatz', label: 'Parkplatz' },
-            { id: 'keller', label: 'Keller' },
-            { id: 'garten', label: 'Garten' },
-            { id: 'sonstige', label: 'Sonstige' }
+            { id: 'wohnung', label: 'Wohnung' }, { id: 'gewerbe', label: 'Gewerbe' }, { id: 'halle', label: 'Gewerbe-Halle' },
+            { id: 'geschaeft', label: 'Geschäft' }, { id: 'garage', label: 'Garage' }, { id: 'parkplatz', label: 'Parkplatz' },
+            { id: 'keller', label: 'Keller' }, { id: 'garten', label: 'Garten' }, { id: 'sonstige', label: 'Sonstige' }
         ];
 
         const msalConfig = { auth: { clientId: "c3cd3be4-3540-46dd-a24c-82eb6ed5542d", authority: "https://login.microsoftonline.com/common", redirectUri: window.location.origin + window.location.pathname } };
         let msalInstance, accessToken;
         
-        let dbObjekte = new Map();
-        let dbHaeuser = new Map();
-        let dbEinheiten = new Map();
-        let dbKontakte = new Map(); 
+        let dbObjekte = new Map(), dbHaeuser = new Map(), dbEinheiten = new Map(), dbKontakte = new Map(); 
 
-        // --- INIT ---
         document.addEventListener('DOMContentLoaded', async () => {
-            initUnitTypes();
-            initHausMatrix();
-            loadLocal(); 
+            initUnitTypes(); initHausMatrix(); loadLocal(); 
             try { renderLists(); } catch (err) { console.error("Fehler beim Initial-Rendering:", err); }
             try {
                 msalInstance = new msal.PublicClientApplication(msalConfig);
                 await msalInstance.initialize();
                 const acc = msalInstance.getAllAccounts()[0];
-                if (acc) { 
-                    msalInstance.setActiveAccount(acc); 
-                    if(await getToken()) {
-                        document.getElementById('msLoginBtn').style.display = 'none';
-                        await loadFromOneDrive(); 
-                    }
-                }
+                if (acc) { msalInstance.setActiveAccount(acc); if(await getToken()) { document.getElementById('msLoginBtn').style.display = 'none'; await loadFromOneDrive(); } }
             } catch(e) { console.error(e); }
         });
 
-        // Helper: Sicherstellen, dass Zahlen auch Zahlen sind (Komma/Punkt Korrektur)
-        function safeFloat(val) {
-            if (typeof val === 'number') return val;
-            if (!val) return 0;
-            // Ersetze Komma durch Punkt, falls String
-            let str = val.toString();
-            if (str.includes(',')) str = str.replace(',', '.');
-            return parseFloat(str) || 0;
-        }
+        // Helper
+        function safeFloat(val) { if(typeof val==='number') return val; if(!val) return 0; let str=val.toString().replace(',','.'); return parseFloat(str)||0; }
+        function formatDate(isoStr) { if(!isoStr) return ""; const p=isoStr.split('-'); return `${p[2]}.${p[1]}.${p[0]}`; }
+        function formatNum(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}); }
 
+        // --- INIT UI ---
         function initUnitTypes() {
-            const sel = document.getElementById('einheitTypSelect');
-            if (sel) {
-                sel.innerHTML = "";
-                UNIT_TYPES.forEach(t => {
-                    sel.add(new Option(t.label, t.id));
-                });
-            }
+            const sel = document.getElementById('einheitTypSelect'); if(sel) { sel.innerHTML = ""; UNIT_TYPES.forEach(t => sel.add(new Option(t.label, t.id))); }
         }
-
         function initHausMatrix() {
-            const tbody = document.getElementById('hausSollMatrixBody');
-            if (tbody) {
+            const tbody = document.getElementById('hausSollMatrixBody'); if(tbody) {
                 tbody.innerHTML = "";
                 UNIT_TYPES.forEach(t => {
                     const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td>${t.label}</td>
-                        <td><input type="number" step="1" id="soll_count_${t.id}" placeholder="0"></td>
-                        <td><input type="number" step="0.01" id="soll_area_${t.id}" placeholder="0.00"></td>
-                    `;
+                    tr.innerHTML = `<td>${t.label}</td>
+                        <td><input type="number" step="1" id="soll_count_${t.id}" class="matrix-inp" placeholder="0" oninput="calcMatrixSum()"></td>
+                        <td><input type="number" step="0.01" id="soll_area_${t.id}" class="matrix-inp" placeholder="0.00" oninput="calcMatrixSum()"></td>`;
                     tbody.appendChild(tr);
                 });
             }
         }
-
-        // --- AUTH & CLOUD ---
-        async function handleMicrosoftLogin() {
-            try {
-                await msalInstance.loginPopup({ scopes: ["Files.ReadWrite"], prompt: "select_account" });
-                if(await getToken()) {
-                    document.getElementById('msLoginBtn').style.display = 'none';
-                    await loadFromOneDrive();
-                }
-            } catch(e) { alert("Login fehlgeschlagen: " + e.message); }
-        }
-        async function getToken() {
-            try { 
-                const r = await msalInstance.acquireTokenSilent({ scopes: ["Files.ReadWrite"], account: msalInstance.getActiveAccount() }); 
-                accessToken = r.accessToken; return true; 
-            } catch(e) { 
-                try { const r = await msalInstance.acquireTokenPopup({ scopes: ["Files.ReadWrite"] }); accessToken = r.accessToken; return true; } catch(err) { return false; }
-            }
+        function calcMatrixSum() {
+            let sumCnt=0, sumArea=0;
+            UNIT_TYPES.forEach(t => {
+                sumCnt += safeFloat(document.getElementById(`soll_count_${t.id}`).value);
+                sumArea += safeFloat(document.getElementById(`soll_area_${t.id}`).value);
+            });
+            document.getElementById('matrixSumCount').innerText = sumCnt;
+            document.getElementById('matrixSumArea').innerText = formatNum(sumArea) + " m²";
         }
 
+        // --- AUTH & CLOUD (Standard) ---
+        async function handleMicrosoftLogin() { try { await msalInstance.loginPopup({ scopes: ["Files.ReadWrite"], prompt: "select_account" }); if(await getToken()) { document.getElementById('msLoginBtn').style.display = 'none'; await loadFromOneDrive(); } } catch(e) { alert("Login Error: " + e.message); } }
+        async function getToken() { try { const r = await msalInstance.acquireTokenSilent({ scopes: ["Files.ReadWrite"], account: msalInstance.getActiveAccount() }); accessToken = r.accessToken; return true; } catch(e) { try { const r = await msalInstance.acquireTokenPopup({ scopes: ["Files.ReadWrite"] }); accessToken = r.accessToken; return true; } catch(err) { return false; } } }
         async function loadFromOneDrive() {
             if (!accessToken && !(await getToken())) return;
             showStatus("Lade Daten...", "saving");
-            
-            try {
-                const resC = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/ideenapp/stammdaten.json:/content", { headers: { "Authorization": `Bearer ${accessToken}` } });
-                if (resC.ok) { const dataC = await resC.json(); if(dataC.kontakte) dbKontakte = new Map(dataC.kontakte); }
-            } catch(e) {}
-
-            try {
-                const resI = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/ideenapp/immobilien.json:/content", { headers: { "Authorization": `Bearer ${accessToken}` } });
-                if (resI.ok) {
-                    const dataI = await resI.json();
-                    if(dataI.objekte) dbObjekte = new Map(dataI.objekte);
-                    if(dataI.haeuser) dbHaeuser = new Map(dataI.haeuser);
-                    if(dataI.einheiten) dbEinheiten = new Map(dataI.einheiten);
-                    saveLocal(); renderLists(); showStatus("Daten geladen", "success");
-                }
-            } catch(e) { showStatus("Fehler/Neu: " + e.message, "error"); }
+            try { const resC = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/ideenapp/stammdaten.json:/content", { headers: { "Authorization": `Bearer ${accessToken}` } }); if (resC.ok) { const d = await resC.json(); if(d.kontakte) dbKontakte = new Map(d.kontakte); } } catch(e) {}
+            try { const resI = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/ideenapp/immobilien.json:/content", { headers: { "Authorization": `Bearer ${accessToken}` } }); if (resI.ok) { const d = await resI.json(); if(d.objekte) dbObjekte = new Map(d.objekte); if(d.haeuser) dbHaeuser = new Map(d.haeuser); if(d.einheiten) dbEinheiten = new Map(d.einheiten); saveLocal(); renderLists(); showStatus("Daten geladen", "success"); } } catch(e) { showStatus("Neu/Fehler: " + e.message, "error"); }
         }
-
-        async function saveToOneDrive(manual) {
-            if (!accessToken && !(await getToken())) { if(manual) alert("Bitte einloggen."); return; }
+        async function saveToOneDrive(m) {
+            if (!accessToken && !(await getToken())) { if(m) alert("Bitte einloggen."); return; }
             showStatus("Speichere...", "saving");
-            const data = { 
-                objekte: Array.from(dbObjekte.entries()), 
-                haeuser: Array.from(dbHaeuser.entries()),
-                einheiten: Array.from(dbEinheiten.entries()),
-                meta: { updated: new Date().toISOString() }
-            };
-            try {
-                const res = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/ideenapp/immobilien.json:/content", { 
-                    method: "PUT", headers: { "Authorization": `Bearer ${accessToken}`, "Content-Type": "application/json" }, body: JSON.stringify(data, null, 2)
-                });
-                if (res.ok) showStatus("Gespeichert", "success");
-                else showStatus("Speicherfehler", "error");
-            } catch(e) { showStatus("Fehler: " + e.message, "error"); }
+            const data = { objekte: Array.from(dbObjekte.entries()), haeuser: Array.from(dbHaeuser.entries()), einheiten: Array.from(dbEinheiten.entries()), meta: { updated: new Date().toISOString() } };
+            try { const res = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/ideenapp/immobilien.json:/content", { method: "PUT", headers: { "Authorization": `Bearer ${accessToken}`, "Content-Type": "application/json" }, body: JSON.stringify(data, null, 2) }); if (res.ok) showStatus("Gespeichert", "success"); else showStatus("Fehler", "error"); } catch(e) { showStatus("Fehler: " + e.message, "error"); }
         }
+        function loadLocal() { try { const o=localStorage.getItem("immo_objekte"); if(o) dbObjekte=new Map(JSON.parse(o)); const h=localStorage.getItem("immo_haeuser"); if(h) dbHaeuser=new Map(JSON.parse(h)); const e=localStorage.getItem("immo_einheiten"); if(e) dbEinheiten=new Map(JSON.parse(e)); } catch(err){} }
+        function saveLocal() { localStorage.setItem("immo_objekte", JSON.stringify(Array.from(dbObjekte.entries()))); localStorage.setItem("immo_haeuser", JSON.stringify(Array.from(dbHaeuser.entries()))); localStorage.setItem("immo_einheiten", JSON.stringify(Array.from(dbEinheiten.entries()))); }
+        function showStatus(msg, type) { const s=document.getElementById('onedriveStatus'); s.textContent=msg; s.className='onedrive-status '+type; s.style.display='inline-block'; setTimeout(()=>s.style.display='none', 4000); }
 
-        function loadLocal() {
-            try { 
-                const o = localStorage.getItem("immo_objekte"); if(o) dbObjekte = new Map(JSON.parse(o));
-                const h = localStorage.getItem("immo_haeuser"); if(h) dbHaeuser = new Map(JSON.parse(h));
-                const e = localStorage.getItem("immo_einheiten"); if(e) dbEinheiten = new Map(JSON.parse(e));
-            } catch(err) {}
-        }
-        function saveLocal() {
-            localStorage.setItem("immo_objekte", JSON.stringify(Array.from(dbObjekte.entries())));
-            localStorage.setItem("immo_haeuser", JSON.stringify(Array.from(dbHaeuser.entries())));
-            localStorage.setItem("immo_einheiten", JSON.stringify(Array.from(dbEinheiten.entries())));
-        }
-        function showStatus(msg, type) { const s = document.getElementById('onedriveStatus'); s.textContent = msg; s.className = 'onedrive-status ' + type; s.style.display = 'inline-block'; setTimeout(() => { if(s.textContent===msg) s.style.display='none'; }, 4000); }
-
-        // --- VALIDIERUNGS LOGIK ---
-        
+        // --- VALIDATION UI ---
         function validateVal(soll, ist, unit = '', tolerance = 0.01) {
-            soll = safeFloat(soll);
-            ist = safeFloat(ist);
-            
-            // Runden auf 3 Stellen für präzisen Vergleich
+            soll = safeFloat(soll); ist = safeFloat(ist);
             const diff = Math.round((ist - soll) * 1000) / 1000;
             const isOk = Math.abs(diff) <= tolerance;
-            
-            if(isOk) {
-                return `<div class="validation-row"><span class="stat-ok">✅ ${ist.toLocaleString('de-DE')} ${unit} (Soll: ${soll.toLocaleString('de-DE')})</span></div>`;
-            } else {
-                const diffStr = diff > 0 ? `+${diff.toLocaleString('de-DE')}` : diff.toLocaleString('de-DE');
-                return `<div class="validation-row"><span class="stat-err">⚠️ ${ist.toLocaleString('de-DE')} ${unit} (Soll: ${soll.toLocaleString('de-DE')}) <br><small style="margin-left:22px;">Differenz: ${diffStr} ${unit}</small></span></div>`;
-            }
+            if(isOk) return `<div class="validation-row"><span class="stat-ok">✅ ${formatNum(ist)} ${unit} (Soll: ${formatNum(soll)})</span></div>`;
+            const diffStr = diff > 0 ? `+${formatNum(diff)}` : formatNum(diff);
+            return `<div class="validation-row"><span class="stat-err">⚠️ ${formatNum(ist)} ${unit} (Soll: ${formatNum(soll)}) <small style="margin-left:5px;">Diff: ${diffStr}</small></span></div>`;
         }
 
-        // --- RENDER FUNCTIONS ---
+        // --- PDF GENERATION ---
+        
+        // Helper: Get selected IDs
+        function getSelectedIds(containerId) {
+            const checkboxes = document.querySelectorAll(`#${containerId} .item-checkbox:checked`);
+            if(checkboxes.length === 0) return []; // If none selected, return empty (which usually implies all logic elsewhere, but here we enforce selection)
+            return Array.from(checkboxes).map(cb => cb.value);
+        }
+        function toggleAll(containerId, checked) {
+            document.querySelectorAll(`#${containerId} .item-checkbox`).forEach(cb => cb.checked = checked);
+        }
 
+        // 1. Objekt Report
+        function generateObjectReportPDF() {
+            const ids = getSelectedIds('objekteListe');
+            const objectsToPrint = ids.length > 0 ? Array.from(dbObjekte.entries()).filter(([id]) => ids.includes(id)) : Array.from(dbObjekte.entries());
+            
+            const doc = new jspdf.jsPDF('l'); // Landscape
+            doc.text("Objekt-Statusbericht", 14, 15);
+            
+            const rows = objectsToPrint.map(([id, o]) => {
+                const haeuser = Array.from(dbHaeuser.values()).filter(h => h.objektId === id);
+                // Berechnungen "Ist" anhand der Häuser-Summen (Soll-Werte der Häuser werden summiert)
+                // Warum? Weil das Objekt prüft, ob die Häuser korrekt geplant sind.
+                const sumHausFlaeche = haeuser.reduce((s,h) => s + (safeFloat(h.wohnflaeche) + safeFloat(h.gewerbeflaeche)), 0);
+                const sumHausMea = haeuser.reduce((s,h) => s + safeFloat(h.anteile), 0);
+                
+                const diffFlaeche = sumHausFlaeche - safeFloat(o.flaeche);
+                const diffMea = sumHausMea - safeFloat(o.mea);
+
+                return [
+                    o.nummer, 
+                    o.name, 
+                    `${haeuser.length} / ${o.sollHaeuser || 0}`,
+                    `${formatNum(safeFloat(o.flaeche))} m²`,
+                    `${formatNum(sumHausFlaeche)} m²`,
+                    (Math.abs(diffFlaeche)>0.1 ? formatNum(diffFlaeche) : 'OK'),
+                    formatNum(safeFloat(o.mea)),
+                    formatNum(sumHausMea),
+                    (Math.abs(diffMea)>0.01 ? formatNum(diffMea) : 'OK')
+                ];
+            });
+
+            doc.autoTable({
+                head: [['Nr', 'Objekt', 'Häuser (Ist/Soll)', 'Soll-Fl.', 'Summe Häuser', 'Diff Fl.', 'Soll MEA', 'Summe MEA', 'Diff MEA']],
+                body: rows,
+                startY: 20,
+                didParseCell: function(data) {
+                    // Färbe Differenz-Spalten rot bei Fehler
+                    if ((data.section === 'body') && (data.column.index === 5 || data.column.index === 8)) {
+                        if (data.cell.raw !== 'OK') data.cell.styles.textColor = [200, 0, 0];
+                        else data.cell.styles.textColor = [0, 150, 0];
+                    }
+                }
+            });
+            doc.save('objekt_bericht.pdf');
+        }
+
+        // 2. Haus Report
+        function generateHouseReportPDF() {
+            const ids = getSelectedIds('haeuserListe');
+            const housesToPrint = ids.length > 0 ? Array.from(dbHaeuser.entries()).filter(([id]) => ids.includes(id)) : Array.from(dbHaeuser.entries());
+            
+            const doc = new jspdf.jsPDF('l');
+            doc.text("Haus-Statusbericht (Abgleich mit Einheiten)", 14, 15);
+
+            const rows = [];
+            housesToPrint.forEach(([hid, h]) => {
+                const o = dbObjekte.get(h.objektId);
+                const einheiten = Array.from(dbEinheiten.values()).filter(e => e.hausId === hid);
+                
+                const sollFlaeche = safeFloat(h.wohnflaeche) + safeFloat(h.gewerbeflaeche);
+                const istFlaeche = einheiten.reduce((s,e) => s + safeFloat(e.flaeche), 0);
+                const sollMea = safeFloat(h.anteile);
+                const istMea = einheiten.reduce((s,e) => s + safeFloat(e.mea), 0);
+
+                const diffF = istFlaeche - sollFlaeche;
+                const diffM = istMea - sollMea;
+
+                rows.push([
+                    h.bezeichnung,
+                    o ? o.name : '?',
+                    einheiten.length,
+                    `${formatNum(sollFlaeche)} m²`,
+                    `${formatNum(istFlaeche)} m²`,
+                    (Math.abs(diffF)>0.1 ? formatNum(diffF) : 'OK'),
+                    formatNum(sollMea),
+                    formatNum(istMea),
+                    (Math.abs(diffM)>0.01 ? formatNum(diffM) : 'OK')
+                ]);
+            });
+
+            doc.autoTable({
+                head: [['Haus', 'Objekt', 'Einh.', 'Soll Fläche', 'Ist (Sum Einh.)', 'Diff Fl.', 'Soll MEA', 'Ist MEA', 'Diff MEA']],
+                body: rows,
+                startY: 20,
+                didParseCell: function(data) {
+                    if ((data.section === 'body') && (data.column.index === 5 || data.column.index === 8)) {
+                        if (data.cell.raw !== 'OK') data.cell.styles.textColor = [200, 0, 0];
+                        else data.cell.styles.textColor = [0, 150, 0];
+                    }
+                }
+            });
+            doc.save('haus_bericht.pdf');
+        }
+
+        // 3. Vermietungsübersicht (Units)
+        function generateUnitReportPDF() {
+            const ids = getSelectedIds('einheitenListe');
+            const unitsToPrint = ids.length > 0 ? Array.from(dbEinheiten.entries()).filter(([id]) => ids.includes(id)) : Array.from(dbEinheiten.entries());
+            
+            const doc = new jspdf.jsPDF('l');
+            doc.text("Vermietungsübersicht & Leerstand", 14, 15);
+            
+            const today = new Date().toISOString().split('T')[0];
+            const rows = [];
+
+            unitsToPrint.forEach(([uid, e]) => {
+                const h = dbHaeuser.get(e.hausId);
+                const o = h ? dbObjekte.get(h.objektId) : null;
+                
+                let statusText = "LEERSTAND";
+                let mieterName = "";
+                let zeitraum = "";
+                let isVacant = true;
+
+                if (e.belegung && e.belegung.length > 0) {
+                    const active = e.belegung.find(b => {
+                        const start = b.einzug || '0000-00-00';
+                        const end = b.auszug || '9999-12-31';
+                        return start <= today && end >= today;
+                    });
+                    if (active) {
+                        isVacant = false;
+                        const m = dbKontakte.get(active.mieterId);
+                        statusText = "Vermietet";
+                        mieterName = m ? m.fn : "Unbekannt";
+                        zeitraum = `${formatDate(active.einzug)} - ${active.auszug ? formatDate(active.auszug) : '...'}`;
+                    }
+                }
+
+                rows.push([
+                    o ? o.name : '?',
+                    h ? h.bezeichnung : '?',
+                    e.name,
+                    e.typ,
+                    `${formatNum(safeFloat(e.flaeche))} m²`,
+                    e.zimmer,
+                    statusText,
+                    mieterName,
+                    zeitraum
+                ]);
+            });
+
+            doc.autoTable({
+                head: [['Objekt', 'Haus', 'Einheit', 'Typ', 'Fläche', 'Zi.', 'Status', 'Mieter', 'Zeitraum']],
+                body: rows,
+                startY: 20,
+                didParseCell: function(data) {
+                    if (data.section === 'body' && data.column.index === 6) {
+                        if (data.cell.raw === 'LEERSTAND') {
+                            data.cell.styles.textColor = [255, 0, 0];
+                            data.cell.styles.fontStyle = 'bold';
+                        } else {
+                            data.cell.styles.textColor = [0, 100, 0];
+                        }
+                    }
+                }
+            });
+            doc.save('vermietung_liste.pdf');
+        }
+
+        // --- RENDER LISTS ---
         function switchTab(id) {
             document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            const panel = document.getElementById('panel' + id.charAt(0).toUpperCase() + id.slice(1));
-            if (panel) panel.classList.add('active');
+            const p = document.getElementById('panel' + id.charAt(0).toUpperCase() + id.slice(1)); if(p) p.classList.add('active');
             const btns = document.querySelectorAll('.tab-btn');
-            if(id==='objekte' && btns[0]) btns[0].classList.add('active');
-            if(id==='haeuser' && btns[1]) btns[1].classList.add('active');
-            if(id==='einheiten' && btns[2]) btns[2].classList.add('active');
+            if(id==='objekte'&&btns[0])btns[0].classList.add('active');
+            if(id==='haeuser'&&btns[1])btns[1].classList.add('active');
+            if(id==='einheiten'&&btns[2])btns[2].classList.add('active');
         }
 
         function renderLists() {
+            // Dropdowns
             const oSel = document.getElementById('hausObjektSelect'); 
             const eObjSel = document.getElementById('einheitObjektSelect');
-            
             if (oSel && eObjSel) {
-                oSel.innerHTML = ""; 
-                eObjSel.innerHTML = "<option value=''>-- Objekt wählen --</option>";
-                dbObjekte.forEach((o, id) => {
-                    oSel.add(new Option(`${o.name} [${o.nummer}]`, id));
-                    eObjSel.add(new Option(`${o.name} [${o.nummer}]`, id));
-                });
+                oSel.innerHTML = ""; eObjSel.innerHTML = "<option value=''>-- Objekt wählen --</option>";
+                dbObjekte.forEach((o, id) => { oSel.add(new Option(`${o.name}`, id)); eObjSel.add(new Option(`${o.name}`, id)); });
             }
-
             const mSel = document.getElementById('einheitMieterSelect'); 
-            if (mSel) {
+            if(mSel) {
                 mSel.innerHTML = "<option value=''>-- Leerstand / Keiner --</option>";
-                const sortedKontakte = Array.from(dbKontakte.entries()).sort((a,b) => (a[1].fn||"").localeCompare(b[1].fn||""));
-                sortedKontakte.forEach(([id, k]) => mSel.add(new Option(k.fn + (k.org ? ` (${k.org})` : ""), id)));
+                Array.from(dbKontakte.entries()).sort((a,b)=>(a[1].fn||"").localeCompare(b[1].fn||""))
+                    .forEach(([id, k]) => mSel.add(new Option(k.fn + (k.org ? ` (${k.org})` : ""), id)));
             }
 
-            // 1. OBJEKTE
-            const oDiv = document.getElementById('objekteListe'); 
-            if (oDiv) {
+            // LISTE OBJEKTE
+            const oDiv = document.getElementById('objekteListe');
+            if(oDiv) {
                 oDiv.innerHTML = "";
                 dbObjekte.forEach((o, id) => {
                     const haeuser = Array.from(dbHaeuser.values()).filter(h => h.objektId === id);
-                    
-                    // Für Objekte ist die Summe der Häuser-SOLL Werte relevant für den Vergleich mit Objekt-SOLL
-                    // ODER: Summe der Einheiten-IST Werte?
-                    // Üblicherweise: Objekt-Stammblatt sagt "Das Objekt hat 1000m²". Das ist der SOLL.
-                    // Die Summe der Häuser sollte diesen 1000m² entsprechen.
-                    
-                    let istHaeuser = haeuser.length;
+                    const allEinheiten = Array.from(dbEinheiten.values()).filter(e => haeuser.some(h => h.objektId === id && dbHaeuser.get(e.hausId)?.objektId === id));
+                    // Berechne IST Werte (Summe Häuser für Planung, oder Summe Einheiten für Realität?)
+                    // Hier nehmen wir Summe Häuser Sollwerte, da diese gegen das Objekt geprüft werden.
                     let sumHaeuserFlaeche = haeuser.reduce((s,h) => s + (safeFloat(h.wohnflaeche) + safeFloat(h.gewerbeflaeche)), 0);
                     let sumHaeuserMea = haeuser.reduce((s,h) => s + safeFloat(h.anteile), 0);
 
-                    // Für die "Ist"-Anzeige in der Liste summieren wir hier die Häuser-Daten (nicht Einheiten), da diese Ebene "Häuser" ist.
-                    
-                    let valHtml = "";
-                    valHtml += validateVal(o.sollHaeuser || 0, istHaeuser, "Häuser", 0);
+                    let valHtml = validateVal(o.sollHaeuser || 0, haeuser.length, "Häuser", 0);
                     valHtml += validateVal(o.flaeche || 0, sumHaeuserFlaeche, "m²");
                     valHtml += validateVal(o.mea || 1000, sumHaeuserMea, "MEA");
 
-                    oDiv.innerHTML += `
-                    <div class="liste-item">
-                        <div style="display:flex; justify-content:space-between;">
-                            <h4>${o.name} <small style="color:#888;">[${o.nummer}]</small></h4>
-                            <button onclick="openObjektMask('${id}')">Bearbeiten</button>
+                    oDiv.innerHTML += `<div class="liste-item">
+                        <input type="checkbox" class="item-checkbox" value="${id}">
+                        <div class="liste-content">
+                            <div style="display:flex; justify-content:space-between;"><h4>${o.name} <small>[${o.nummer}]</small></h4><button onclick="openObjektMask('${id}')">Bearbeiten</button></div>
+                            <div class="sub-info">${o.plz} ${o.ort}</div><div class="objekt-stats">${valHtml}</div>
                         </div>
-                        <div class="sub-info">${o.plz} ${o.ort}</div>
-                        <div class="objekt-stats">${valHtml}</div>
                     </div>`;
                 });
             }
 
-            // 2. HÄUSER
-            const hDiv = document.getElementById('haeuserListe'); 
-            if (hDiv) {
+            // LISTE HÄUSER
+            const hDiv = document.getElementById('haeuserListe');
+            if(hDiv) {
                 hDiv.innerHTML = "";
                 dbHaeuser.forEach((h, id) => {
-                    const obj = dbObjekte.get(h.objektId);
-                    const objName = obj ? obj.name : "??";
+                    const o = dbObjekte.get(h.objektId);
                     const einheiten = Array.from(dbEinheiten.values()).filter(e => e.hausId === id);
-
                     let valHtml = "";
                     let hasError = false;
-
-                    UNIT_TYPES.forEach(type => {
-                        const sollCnt = safeFloat(h.sollMatrix?.[type.id]?.count);
-                        const sollArea = safeFloat(h.sollMatrix?.[type.id]?.area);
-
-                        if (sollCnt > 0 || sollArea > 0) {
-                            const actualUnits = einheiten.filter(e => e.typ === type.id);
-                            const istCnt = actualUnits.length;
-                            const istArea = actualUnits.reduce((s,e) => s + safeFloat(e.flaeche), 0);
-
-                            if (istCnt != sollCnt) {
-                                hasError = true;
-                                valHtml += `<div class="validation-row"><span class="stat-err">⚠️ ${type.label} Anzahl: ${istCnt}/${sollCnt} (Diff: ${istCnt-sollCnt})</span></div>`;
-                            }
-                            
-                            if (Math.abs(istArea - sollArea) > 0.1) {
-                                hasError = true;
-                                const diff = istArea - sollArea;
-                                valHtml += `<div class="validation-row"><span class="stat-err">⚠️ ${type.label} Fläche: ${istArea.toLocaleString()} / ${sollArea.toLocaleString()} m² (Diff: ${diff.toLocaleString()})</span></div>`;
-                            }
+                    UNIT_TYPES.forEach(t => {
+                        const sollCnt = safeFloat(h.sollMatrix?.[t.id]?.count);
+                        const sollArea = safeFloat(h.sollMatrix?.[t.id]?.area);
+                        if(sollCnt>0 || sollArea>0) {
+                            const act = einheiten.filter(e => e.typ === t.id);
+                            const istCnt = act.length;
+                            const istArea = act.reduce((s,e)=>s+safeFloat(e.flaeche),0);
+                            if(istCnt!=sollCnt) { hasError=true; valHtml += `<div class="validation-row"><span class="stat-err">⚠️ ${t.label} Anzahl: ${istCnt}/${sollCnt}</span></div>`; }
+                            if(Math.abs(istArea-sollArea)>0.1) { hasError=true; valHtml += `<div class="validation-row"><span class="stat-err">⚠️ ${t.label} Fläche: ${formatNum(istArea)}/${formatNum(sollArea)} m²</span></div>`; }
                         }
                     });
-                    
-                    const sumMea = einheiten.reduce((s,e) => s + safeFloat(e.mea), 0);
-                    valHtml += validateVal(h.anteile || 0, sumMea, "MEA");
+                    const sumMea = einheiten.reduce((s,e)=>s+safeFloat(e.mea),0);
+                    valHtml += validateVal(h.anteile||0, sumMea, "MEA");
+                    if(!hasError && valHtml.indexOf('⚠️')===-1) valHtml = '<div class="stat-ok">✅ Alle Vorgaben erfüllt.</div>' + valHtml;
 
-                    if (!hasError && valHtml.indexOf('⚠️') === -1) {
-                        valHtml = '<div class="stat-ok">✅ Alle Typen, Anzahl & Flächen korrekt.</div>' + valHtml;
-                    }
-
-                    hDiv.innerHTML += `
-                    <div class="liste-item">
-                        <div style="display:flex; justify-content:space-between;">
-                            <h4>${h.bezeichnung} <small>in ${objName}</small></h4>
-                            <button onclick="openHausMask('${id}')">Bearbeiten</button>
+                    hDiv.innerHTML += `<div class="liste-item">
+                        <input type="checkbox" class="item-checkbox" value="${id}">
+                        <div class="liste-content">
+                            <div style="display:flex; justify-content:space-between;"><h4>${h.bezeichnung} <small>in ${o?o.name:'?'}</small></h4><button onclick="openHausMask('${id}')">Bearbeiten</button></div>
+                            <div class="objekt-stats">${valHtml}</div>
                         </div>
-                        <div class="objekt-stats">${valHtml}</div>
                     </div>`;
                 });
             }
 
-            // 3. EINHEITEN
-            const eDiv = document.getElementById('einheitenListe'); 
-            if (eDiv) {
+            // LISTE EINHEITEN
+            const eDiv = document.getElementById('einheitenListe');
+            if(eDiv) {
                 eDiv.innerHTML = "";
                 const listE = Array.from(dbEinheiten.entries()).map(([id, e]) => {
-                    const h = dbHaeuser.get(e.hausId);
-                    const o = h ? dbObjekte.get(h.objektId) : null;
-                    return { id, ...e, hausName: h ? h.bezeichnung : "??", objName: o ? o.name : "??" };
-                }).sort((a,b) => a.objName.localeCompare(b.objName) || a.hausName.localeCompare(b.hausName));
-
+                    const h = dbHaeuser.get(e.hausId); const o = h ? dbObjekte.get(h.objektId) : null;
+                    return { id, ...e, hName: h?h.bezeichnung:'?', oName: o?o.name:'?' };
+                }).sort((a,b) => a.oName.localeCompare(b.oName) || a.hName.localeCompare(b.hName));
+                
                 const today = new Date().toISOString().split('T')[0];
-
                 listE.forEach(e => {
-                    const typeObj = UNIT_TYPES.find(t => t.id === e.typ);
-                    const typeLabel = typeObj ? typeObj.label : e.typ;
-                    
-                    let statusHtml = '<span class="status-leerstand">⚠️ LEERSTAND</span>';
-                    if (e.belegung && e.belegung.length > 0) {
-                        const active = e.belegung.find(b => {
-                            const start = b.einzug || '0000-00-00';
-                            const end = b.auszug || '9999-12-31';
-                            return start <= today && end >= today;
-                        });
-                        const future = e.belegung.find(b => (b.einzug || '0000-00-00') > today);
-
-                        if (active) {
-                            const m = dbKontakte.get(active.mieterId);
-                            statusHtml = `<span class="status-vermietet">✅ ${m?m.fn:'?'}</span> <span style="color:#666;font-size:0.8em;">(seit ${formatDate(active.einzug)})</span>`;
-                        } else if (future) {
-                            const m = dbKontakte.get(future.mieterId);
-                            statusHtml = `<span class="status-leerstand">⚠️ LEERSTAND</span> <span class="status-zukunft">➡️ Ab ${formatDate(future.einzug)}: ${m?m.fn:'?'}</span>`;
-                        }
+                    let stHtml = '<span class="status-leerstand">⚠️ LEERSTAND</span>';
+                    if(e.belegung && e.belegung.length>0) {
+                        const act = e.belegung.find(b => (b.einzug||'0000')<=today && (b.auszug||'9999')>=today);
+                        const fut = e.belegung.find(b => (b.einzug||'0000')>today);
+                        if(act) { const m=dbKontakte.get(act.mieterId); stHtml = `<span class="status-vermietet">✅ ${m?m.fn:'?'}</span> <span style="color:#666;font-size:0.8em;">(${formatDate(act.einzug)}...)</span>`; }
+                        else if(fut) { const m=dbKontakte.get(fut.mieterId); stHtml = `<span class="status-leerstand">⚠️ LEER</span> <span class="status-zukunft">➡️ Ab ${formatDate(fut.einzug)}: ${m?m.fn:'?'}</span>`; }
                     }
-
-                    eDiv.innerHTML += `
-                    <div class="liste-item">
-                        <div style="display:flex; justify-content:space-between;">
-                            <h4>${e.name} <span class="badge">${typeLabel}</span> <small>(${e.hausName})</small></h4>
-                            <button onclick="openEinheitMask('${e.id}')">Bearbeiten</button>
+                    eDiv.innerHTML += `<div class="liste-item">
+                        <input type="checkbox" class="item-checkbox" value="${e.id}">
+                        <div class="liste-content">
+                            <div style="display:flex; justify-content:space-between;"><h4>${e.name} <span class="badge">${e.typ}</span> <small>(${e.hName})</small></h4><button onclick="openEinheitMask('${e.id}')">Bearbeiten</button></div>
+                            <div class="sub-info">${formatNum(safeFloat(e.flaeche))}m² | MEA: ${formatNum(safeFloat(e.mea))}</div>
+                            <div class="mieter-status">${stHtml}</div>
                         </div>
-                        <div class="sub-info">Fläche: ${safeFloat(e.flaeche).toLocaleString()}m² | Zimmer: ${e.zimmer} | MEA: ${safeFloat(e.mea).toLocaleString()}</div>
-                        <div class="mieter-status">${statusHtml}</div>
                     </div>`;
                 });
             }
         }
 
-        // --- CRUD OBJEKTE ---
-        function openObjektMask(id){
-            const o = id ? dbObjekte.get(id) : {};
-            document.getElementById('objektIdInput').value = id||"";
-            document.getElementById('objektNummerInput').value = o.nummer||"";
-            document.getElementById('objektNameInput').value = o.name||"";
-            document.getElementById('objektPlzInput').value = o.plz||"";
-            document.getElementById('objektOrtInput').value = o.ort||"";
-            document.getElementById('objektFlaecheInput').value = o.flaeche||"";
-            document.getElementById('objektMeaInput').value = o.mea||"1000";
-            document.getElementById('objektSollHaeuser').value = o.sollHaeuser||"1";
-            document.getElementById('objektModal').classList.add('active');
-        }
-        function saveObjekt(){
-            let id = document.getElementById('objektIdInput').value;
-            if(!id) id = 'o_'+Date.now(); // Neue ID wenn leer
-            
-            dbObjekte.set(String(id), {
-                nummer: document.getElementById('objektNummerInput').value,
-                name: document.getElementById('objektNameInput').value,
-                plz: document.getElementById('objektPlzInput').value,
-                ort: document.getElementById('objektOrtInput').value,
-                flaeche: safeFloat(document.getElementById('objektFlaecheInput').value),
-                mea: safeFloat(document.getElementById('objektMeaInput').value),
-                sollHaeuser: safeFloat(document.getElementById('objektSollHaeuser').value)
-            });
-            document.getElementById('objektModal').classList.remove('active');
-            saveLocal(); renderLists(); saveToOneDrive(false);
-        }
-        function deleteObjekt(){
-            const id = document.getElementById('objektIdInput').value;
-            const hasH = Array.from(dbHaeuser.values()).some(h => h.objektId === id);
-            if(hasH) return alert("Objekt hat noch Häuser. Bitte erst diese löschen.");
-            if(confirm("Löschen?")) { dbObjekte.delete(id); document.getElementById('objektModal').classList.remove('active'); saveLocal(); renderLists(); saveToOneDrive(false); }
-        }
+        // --- CRUD MASKEN ---
+        function openObjektMask(id){ const o=id?dbObjekte.get(id):{}; document.getElementById('objektIdInput').value=id||""; document.getElementById('objektNummerInput').value=o.nummer||""; document.getElementById('objektNameInput').value=o.name||""; document.getElementById('objektPlzInput').value=o.plz||""; document.getElementById('objektOrtInput').value=o.ort||""; document.getElementById('objektFlaecheInput').value=o.flaeche||""; document.getElementById('objektMeaInput').value=o.mea||"1000"; document.getElementById('objektSollHaeuser').value=o.sollHaeuser||"1"; document.getElementById('objektModal').classList.add('active'); }
+        function saveObjekt(){ let id=document.getElementById('objektIdInput').value||'o_'+Date.now(); dbObjekte.set(String(id), { nummer: document.getElementById('objektNummerInput').value, name: document.getElementById('objektNameInput').value, plz: document.getElementById('objektPlzInput').value, ort: document.getElementById('objektOrtInput').value, flaeche: safeFloat(document.getElementById('objektFlaecheInput').value), mea: safeFloat(document.getElementById('objektMeaInput').value), sollHaeuser: safeFloat(document.getElementById('objektSollHaeuser').value) }); document.getElementById('objektModal').classList.remove('active'); saveLocal(); renderLists(); saveToOneDrive(false); }
+        function deleteObjekt(){ if(confirm("Löschen?")) { dbObjekte.delete(document.getElementById('objektIdInput').value); document.getElementById('objektModal').classList.remove('active'); saveLocal(); renderLists(); saveToOneDrive(false); } }
 
-        // --- CRUD HÄUSER ---
         function openHausMask(id){
-            if(dbObjekte.size===0) return alert("Erst Objekt anlegen.");
-            const h = id ? dbHaeuser.get(id) : {};
-            document.getElementById('hausIdInput').value = id||"";
-            
-            const sel = document.getElementById('hausObjektSelect'); sel.innerHTML="";
-            dbObjekte.forEach((o, oid) => sel.add(new Option(o.name, oid)));
-            if(h.objektId) sel.value = h.objektId;
-
-            document.getElementById('hausBezeichnungInput').value = h.bezeichnung||"";
-            document.getElementById('hausAnteileInput').value = h.anteile||"";
-
-            UNIT_TYPES.forEach(t => {
-                const cnt = h.sollMatrix?.[t.id]?.count || "";
-                const area = h.sollMatrix?.[t.id]?.area || "";
-                const elCnt = document.getElementById(`soll_count_${t.id}`);
-                const elArea = document.getElementById(`soll_area_${t.id}`);
-                if (elCnt) elCnt.value = cnt;
-                if (elArea) elArea.value = area;
-            });
-            
+            const h=id?dbHaeuser.get(id):{}; document.getElementById('hausIdInput').value=id||""; 
+            const sel=document.getElementById('hausObjektSelect'); sel.innerHTML=""; dbObjekte.forEach((o,oid)=>sel.add(new Option(o.name,oid))); if(h.objektId) sel.value=h.objektId;
+            document.getElementById('hausBezeichnungInput').value=h.bezeichnung||""; document.getElementById('hausAnteileInput').value=h.anteile||"";
+            UNIT_TYPES.forEach(t=>{ document.getElementById(`soll_count_${t.id}`).value = h.sollMatrix?.[t.id]?.count||""; document.getElementById(`soll_area_${t.id}`).value = h.sollMatrix?.[t.id]?.area||""; });
+            calcMatrixSum();
             document.getElementById('hausModal').classList.add('active');
         }
         function saveHaus(){
-            let id = document.getElementById('hausIdInput').value;
-            if(!id) id = 'h_'+Date.now();
-            
-            let matrix = {};
-            UNIT_TYPES.forEach(t => {
-                const elCnt = document.getElementById(`soll_count_${t.id}`);
-                const elArea = document.getElementById(`soll_area_${t.id}`);
-                if (elCnt && elArea) {
-                    matrix[t.id] = {
-                        count: safeFloat(elCnt.value),
-                        area: safeFloat(elArea.value)
-                    };
-                }
-            });
-
-            dbHaeuser.set(String(id), {
-                objektId: document.getElementById('hausObjektSelect').value,
-                bezeichnung: document.getElementById('hausBezeichnungInput').value,
-                anteile: safeFloat(document.getElementById('hausAnteileInput').value),
-                sollMatrix: matrix
-            });
-            document.getElementById('hausModal').classList.remove('active');
-            saveLocal(); renderLists(); saveToOneDrive(false);
+            let id=document.getElementById('hausIdInput').value||'h_'+Date.now();
+            let mx={}; UNIT_TYPES.forEach(t=>{ mx[t.id]={ count: document.getElementById(`soll_count_${t.id}`).value, area: document.getElementById(`soll_area_${t.id}`).value }; });
+            dbHaeuser.set(String(id), { objektId: document.getElementById('hausObjektSelect').value, bezeichnung: document.getElementById('hausBezeichnungInput').value, anteile: safeFloat(document.getElementById('hausAnteileInput').value), sollMatrix: mx });
+            document.getElementById('hausModal').classList.remove('active'); saveLocal(); renderLists(); saveToOneDrive(false);
         }
-        function deleteHaus(){
-            const id = document.getElementById('hausIdInput').value;
-            const hasE = Array.from(dbEinheiten.values()).some(e => e.hausId === id);
-            if(hasE) return alert("Haus hat noch Einheiten.");
-            if(confirm("Löschen?")) { dbHaeuser.delete(id); document.getElementById('hausModal').classList.remove('active'); saveLocal(); renderLists(); saveToOneDrive(false); }
+        function deleteHaus(){ if(confirm("Löschen?")) { dbHaeuser.delete(document.getElementById('hausIdInput').value); document.getElementById('hausModal').classList.remove('active'); saveLocal(); renderLists(); saveToOneDrive(false); } }
+
+        function filterHaeuserDropdown(){ const oid=document.getElementById('einheitObjektSelect').value; const h=document.getElementById('einheitHausSelect'); h.innerHTML=""; if(!oid)return; Array.from(dbHaeuser.entries()).filter(([hid,x])=>x.objektId===oid).forEach(([hid,x])=>h.add(new Option(x.bezeichnung,hid))); }
+        function addBelegungRow(d={}){ const c=document.getElementById('belegungListe'); if(!c)return; const r=document.createElement('div'); r.className='belegung-row'; 
+            const s=document.createElement('select'); s.className='belegung-mieter'; s.style.flex="2"; s.innerHTML="<option value=''>-- Mieter --</option>";
+            Array.from(dbKontakte.entries()).sort((a,b)=>(a[1].fn||"").localeCompare(b[1].fn||"")).forEach(([id,k])=>s.add(new Option(k.fn+(k.org?` (${k.org})`:""),id)));
+            if(d.mieterId) s.value=d.mieterId;
+            const inEin=document.createElement('input'); inEin.type="date"; inEin.className="belegung-einzug"; if(d.einzug) inEin.value=d.einzug;
+            const inAus=document.createElement('input'); inAus.type="date"; inAus.className="belegung-auszug"; if(d.auszug) inAus.value=d.auszug;
+            const b=document.createElement('button'); b.className="warn-btn"; b.innerText="X"; b.onclick=()=>r.remove();
+            r.append(s,inEin,inAus,b); c.appendChild(r);
         }
-
-        // --- CRUD EINHEITEN ---
-        function filterHaeuserDropdown() {
-            const oid = document.getElementById('einheitObjektSelect').value;
-            const hSel = document.getElementById('einheitHausSelect');
-            if (hSel) {
-                hSel.innerHTML = "";
-                if(!oid) { hSel.innerHTML="<option>Erst Objekt wählen</option>"; return; }
-                const haeuser = Array.from(dbHaeuser.entries()).filter(([hid, h]) => h.objektId === oid);
-                haeuser.forEach(([hid, h]) => hSel.add(new Option(h.bezeichnung, hid)));
-            }
-        }
-
-        function addBelegungRow(data = {}) {
-            const container = document.getElementById('belegungListe');
-            if (!container) return;
-            const div = document.createElement('div');
-            div.className = 'belegung-row';
-            const sel = document.createElement('select');
-            sel.className = 'belegung-mieter';
-            sel.style.flex="2";
-            sel.innerHTML = "<option value=''>-- Mieter wählen --</option>";
-            const sortedKontakte = Array.from(dbKontakte.entries()).sort((a,b) => (a[1].fn||"").localeCompare(b[1].fn||""));
-            sortedKontakte.forEach(([id, k]) => sel.add(new Option(k.fn + (k.org ? ` (${k.org})` : ""), id)));
-            if(data.mieterId) sel.value = data.mieterId;
-
-            const inEin = document.createElement('input'); inEin.type="date"; inEin.className="belegung-einzug"; if(data.einzug) inEin.value=data.einzug;
-            const inAus = document.createElement('input'); inAus.type="date"; inAus.className="belegung-auszug"; if(data.auszug) inAus.value=data.auszug;
-            const btn = document.createElement('button'); btn.className="warn-btn"; btn.innerText="X"; btn.onclick = () => div.remove();
-            div.append(sel, inEin, inAus, btn);
-            container.appendChild(div);
-        }
-
         function openEinheitMask(id){
-            if(dbHaeuser.size===0) return alert("Bitte erst ein Haus anlegen.");
-            const e = id ? dbEinheiten.get(id) : {};
-            document.getElementById('einheitIdInput').value = id||"";
-            
-            const eObjSelect = document.getElementById('einheitObjektSelect');
-            let hid = e.hausId; 
-            let oid = hid ? dbHaeuser.get(hid)?.objektId : "";
-            if(oid && eObjSelect) eObjSelect.value = oid; else if(eObjSelect) eObjSelect.selectedIndex = 0;
-            filterHaeuserDropdown();
-            const hSel = document.getElementById('einheitHausSelect');
-            if(hid && hSel) hSel.value = hid;
-
-            document.getElementById('einheitNameInput').value = e.name||"";
-            document.getElementById('einheitTypSelect').value = e.typ||"wohnung";
-            document.getElementById('einheitFlaecheInput').value = e.flaeche||"";
-            document.getElementById('einheitHeizflaecheInput').value = e.heizflaeche||"";
-            document.getElementById('einheitZimmerInput').value = e.zimmer||"";
-            document.getElementById('einheitMeaInput').value = e.mea||"";
-            
-            const belContainer = document.getElementById('belegungListe');
-            if (belContainer) {
-                belContainer.innerHTML = "";
-                if(e.belegung && Array.isArray(e.belegung)) e.belegung.forEach(b => addBelegungRow(b));
-                else addBelegungRow();
-            }
-
+            const e=id?dbEinheiten.get(id):{}; document.getElementById('einheitIdInput').value=id||"";
+            const oSel=document.getElementById('einheitObjektSelect'); let hid=e.hausId; let oid=hid?dbHaeuser.get(hid)?.objektId:"";
+            if(oid) oSel.value=oid; else oSel.selectedIndex=0; filterHaeuserDropdown(); if(hid) document.getElementById('einheitHausSelect').value=hid;
+            document.getElementById('einheitNameInput').value=e.name||""; document.getElementById('einheitTypSelect').value=e.typ||"wohnung";
+            document.getElementById('einheitFlaecheInput').value=e.flaeche||""; document.getElementById('einheitHeizflaecheInput').value=e.heizflaeche||"";
+            document.getElementById('einheitZimmerInput').value=e.zimmer||""; document.getElementById('einheitMeaInput').value=e.mea||"";
+            const c=document.getElementById('belegungListe'); c.innerHTML=""; if(e.belegung&&e.belegung.length) e.belegung.forEach(b=>addBelegungRow(b)); else addBelegungRow();
             document.getElementById('einheitModal').classList.add('active');
         }
-
         function saveEinheit(){
-            const hid = document.getElementById('einheitHausSelect').value;
-            const name = document.getElementById('einheitNameInput').value;
-            if(!hid || !name) return alert("Haus und Name sind Pflicht.");
-            
-            let id = document.getElementById('einheitIdInput').value;
-            if(!id) id = 'e_'+Date.now();
-
-            const belegung = [];
-            document.querySelectorAll('#belegungListe .belegung-row').forEach(row => {
-                const mId = row.querySelector('.belegung-mieter').value;
-                if(mId) belegung.push({ mieterId: mId, einzug: row.querySelector('.belegung-einzug').value, auszug: row.querySelector('.belegung-auszug').value });
-            });
-
-            dbEinheiten.set(String(id), {
-                hausId: hid,
-                name: name,
-                typ: document.getElementById('einheitTypSelect').value,
-                flaeche: safeFloat(document.getElementById('einheitFlaecheInput').value),
-                heizflaeche: safeFloat(document.getElementById('einheitHeizflaecheInput').value),
-                zimmer: document.getElementById('einheitZimmerInput').value,
-                mea: safeFloat(document.getElementById('einheitMeaInput').value),
-                belegung: belegung
-            });
-            document.getElementById('einheitModal').classList.remove('active');
-            saveLocal(); renderLists(); saveToOneDrive(false);
+            let id=document.getElementById('einheitIdInput').value||'e_'+Date.now();
+            const bel=[]; document.querySelectorAll('#belegungListe .belegung-row').forEach(r=>{ const m=r.querySelector('.belegung-mieter').value; if(m) bel.push({mieterId:m, einzug:r.querySelector('.belegung-einzug').value, auszug:r.querySelector('.belegung-auszug').value}); });
+            dbEinheiten.set(String(id), { hausId: document.getElementById('einheitHausSelect').value, name: document.getElementById('einheitNameInput').value, typ: document.getElementById('einheitTypSelect').value, flaeche: safeFloat(document.getElementById('einheitFlaecheInput').value), heizflaeche: safeFloat(document.getElementById('einheitHeizflaecheInput').value), zimmer: document.getElementById('einheitZimmerInput').value, mea: safeFloat(document.getElementById('einheitMeaInput').value), belegung: bel });
+            document.getElementById('einheitModal').classList.remove('active'); saveLocal(); renderLists(); saveToOneDrive(false);
         }
-
-        function deleteEinheit(){
-            const id = document.getElementById('einheitIdInput').value;
-            if(confirm("Löschen?")) { dbEinheiten.delete(id); document.getElementById('einheitModal').classList.remove('active'); saveLocal(); renderLists(); saveToOneDrive(false); }
-        }
-
-        function formatDate(isoStr) {
-            if(!isoStr) return "";
-            const parts = isoStr.split('-');
-            return `${parts[2]}.${parts[1]}.${parts[0]}`;
-        }
+        function deleteEinheit(){ if(confirm("Löschen?")) { dbEinheiten.delete(document.getElementById('einheitIdInput').value); document.getElementById('einheitModal').classList.remove('active'); saveLocal(); renderLists(); saveToOneDrive(false); } }
     </script>
 </body>
 </html>
