@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Objektverwaltung (Pro + Reporting)</title>
+    <title>Objektverwaltung (Pro + Live Validierung)</title>
     <!-- PDF Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
@@ -45,17 +45,21 @@
         .stat-ok { color: #2e7d32; font-weight: bold; }
         .stat-err { color: #d32f2f; font-weight: bold; }
         
-        .soll-matrix { width: 100%; border-collapse: collapse; font-size: 0.9em; margin-bottom: 15px; }
-        .soll-matrix th { text-align: left; background: #eee; padding: 5px; border: 1px solid #ccc; }
-        .soll-matrix td { border: 1px solid #ccc; padding: 5px; }
-        .soll-matrix input { width: 100%; margin: 0; border: none; background: transparent; font-family: inherit; }
-        .soll-matrix input:focus { background: #e8f0fe; outline: none; }
+        /* Matrix Tabelle Update */
+        .soll-matrix { width: 100%; border-collapse: collapse; font-size: 0.85em; margin-bottom: 15px; }
+        .soll-matrix th { text-align: center; background: #eee; padding: 5px; border: 1px solid #ccc; font-weight: 600; }
+        .soll-matrix td { border: 1px solid #ccc; padding: 4px; text-align: center; }
+        .soll-matrix input { width: 100%; text-align: center; border: 1px solid transparent; background: #f9fbe7; font-weight: bold; }
+        .soll-matrix input:focus { background: #fff; border: 1px solid #2e7d32; outline: none; }
+        .readonly-val { color: #555; }
+        .diff-val { font-weight: bold; }
         
         .matrix-sum-row { background: #e0f2f1; font-weight: bold; }
 
+        /* Modal */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; }
         .modal-overlay.active { display: flex; }
-        .modal-content { background: white; padding: 25px; border-radius: 8px; width: 95%; max-width: 800px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); max-height: 90vh; overflow-y: auto; }
+        .modal-content { background: white; padding: 25px; border-radius: 8px; width: 95%; max-width: 900px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); max-height: 90vh; overflow-y: auto; }
         .modal-content input, .modal-content select, .modal-content textarea { width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 15px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
         .modal-actions { text-align: right; margin-top: 20px; }
         
@@ -67,6 +71,10 @@
         .status-leerstand { color: #c62828; font-weight: bold; background: #ffebee; padding: 2px 6px; border-radius: 3px; display:inline-block; }
         .status-vermietet { color: #2e7d32; font-weight: bold; }
         .status-zukunft { color: #0277bd; font-style: italic; }
+
+        /* Live Status Boxen in Modals */
+        .live-status-box { background: #e3f2fd; border: 1px solid #90caf9; color: #0d47a1; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 0.9em; }
+        .live-status-err { background: #ffebee; border: 1px solid #ef9a9a; color: #c62828; }
 
         h4 { margin: 0; padding: 0; }
         .sub-info { color: #666; font-size: 0.9em; margin-top: 4px; }
@@ -89,9 +97,9 @@
             <button class="tab-btn" onclick="switchTab('einheiten')">🚪 Einheiten</button>
             
             <div class="report-actions">
-                <button onclick="generateObjectReportPDF()" class="report-btn" title="Druckt gewählte Objekte">📄 Objekt-Status PDF</button>
-                <button onclick="generateHouseReportPDF()" class="report-btn" title="Druckt gewählte Häuser">🏘️ Haus-Status PDF</button>
-                <button onclick="generateUnitReportPDF()" class="report-btn" title="Druckt gewählte Einheiten inkl. Leerstand">📋 Vermietungsliste PDF</button>
+                <button onclick="generateObjectReportPDF()" class="report-btn">📄 Objekt-Status PDF</button>
+                <button onclick="generateHouseReportPDF()" class="report-btn">🏘️ Haus-Status PDF</button>
+                <button onclick="generateUnitReportPDF()" class="report-btn">📋 Vermietungsliste PDF</button>
             </div>
             
             <a href="kontakte.html" style="margin-left:10px; text-decoration:none;"><button>👥 Kontakte</button></a>
@@ -126,6 +134,8 @@
         <div class="modal-content">
             <h3>Objekt bearbeiten</h3>
             <input type="hidden" id="objektIdInput">
+            <div id="objektLiveStatus" class="live-status-box" style="display:none;"></div>
+
             <div style="display:flex; gap:10px;">
                 <div style="flex:1"><label>Objekt-Nr.*:</label><input type="text" id="objektNummerInput" placeholder="OBJ-001"></div>
                 <div style="flex:2"><label>Bezeichnung / Adresse*:</label><input type="text" id="objektNameInput"></div>
@@ -136,9 +146,9 @@
             </div>
             <h4 style="margin-top:10px;border-bottom:1px solid #eee;">Gesamt-Vorgaben (Soll)</h4>
             <div style="display:flex; gap:10px;">
-                <div style="flex:1;"><label>Anzahl Häuser:</label><input type="number" id="objektSollHaeuser" placeholder="1"></div>
-                <div style="flex:1;"><label>Gesamtfläche (m²):</label><input type="number" step="0.01" id="objektFlaecheInput"></div>
-                <div style="flex:1;"><label>Gesamt MEA:</label><input type="number" step="0.001" id="objektMeaInput" value="1000"></div>
+                <div style="flex:1;"><label>Anzahl Häuser:</label><input type="number" id="objektSollHaeuser" placeholder="1" oninput="updateObjektLiveStatus()"></div>
+                <div style="flex:1;"><label>Gesamtfläche (m²):</label><input type="number" step="0.01" id="objektFlaecheInput" oninput="updateObjektLiveStatus()"></div>
+                <div style="flex:1;"><label>Gesamt MEA:</label><input type="number" step="0.001" id="objektMeaInput" value="1000" oninput="updateObjektLiveStatus()"></div>
             </div>
             <div class="modal-actions">
                 <button onclick="document.getElementById('objektModal').classList.remove('active')">Abbrechen</button>
@@ -148,33 +158,49 @@
         </div>
     </div>
 
-    <!-- Modal 2: Haus (MIT LIVE MATRIX) -->
+    <!-- Modal 2: Haus (ERWEITERTE MATRIX) -->
     <div id="hausModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')">
         <div class="modal-content">
             <h3>Haus bearbeiten</h3>
             <input type="hidden" id="hausIdInput">
+            
             <div style="display:flex; gap:10px;">
                 <div style="flex:1"><label>Gehört zu Objekt*:</label><select id="hausObjektSelect"></select></div>
                 <div style="flex:2"><label>Hausbezeichnung*:</label><input type="text" id="hausBezeichnungInput"></div>
             </div>
 
-            <h4 style="margin-top:15px; margin-bottom:5px;">Soll-Vorgaben & Validierung</h4>
+            <h4 style="margin-top:15px; margin-bottom:5px;">Validierungs-Matrix</h4>
+            <p style="font-size:0.8em; color:#666; margin-top:0;">Vergleich: Soll (Eingabe) vs. Ist (Summe der Einheiten)</p>
+            
             <table class="soll-matrix">
                 <thead>
-                    <tr><th style="width:40%;">Typ</th><th style="width:30%;">Soll-Anzahl</th><th style="width:30%;">Soll-Fläche (m²)</th></tr>
+                    <tr>
+                        <th style="width:20%;">Typ</th>
+                        <th style="width:10%;">Soll Anz.</th>
+                        <th style="width:10%; background:#f5f5f5;">Ist</th>
+                        <th style="width:10%; background:#f5f5f5;">Diff</th>
+                        <th style="width:15%;">Soll Fläche</th>
+                        <th style="width:15%; background:#f5f5f5;">Ist</th>
+                        <th style="width:15%; background:#f5f5f5;">Diff</th>
+                    </tr>
                 </thead>
                 <tbody id="hausSollMatrixBody"></tbody>
                 <tfoot>
                     <tr class="matrix-sum-row">
-                        <td>Summe (Matrix):</td>
+                        <td>Summe:</td>
                         <td id="matrixSumCount">0</td>
-                        <td id="matrixSumArea">0.00 m²</td>
+                        <td id="matrixIstCount" class="readonly-val">-</td>
+                        <td></td>
+                        <td id="matrixSumArea">0.00</td>
+                        <td id="matrixIstArea" class="readonly-val">-</td>
+                        <td></td>
                     </tr>
                 </tfoot>
             </table>
             
             <div style="display:flex; gap:10px; margin-top:10px;">
-                <div style="flex:1;"><label>Gesamt MEA (Soll):</label><input type="number" step="0.001" id="hausAnteileInput"></div>
+                <div style="flex:1;"><label>Gesamt MEA (Soll):</label><input type="number" step="0.001" id="hausAnteileInput" oninput="calcMatrixSum()"></div>
+                <div style="flex:1; padding-top:25px;"><span id="hausMeaStatus" style="font-weight:bold;"></span></div>
             </div>
             <div class="modal-actions">
                 <button onclick="document.getElementById('hausModal').classList.remove('active')">Abbrechen</button>
@@ -189,16 +215,26 @@
         <div class="modal-content">
             <h3>Einheit bearbeiten</h3>
             <input type="hidden" id="einheitIdInput">
+            
+            <!-- LIVE STATUS ANZEIGE -->
+            <div id="einheitLiveStatus" class="live-status-box" style="display:none;"></div>
+
             <div style="display:flex; gap:10px;">
-                <div style="flex:1;"><label>Objekt wählen*:</label><select id="einheitObjektSelect" onchange="filterHaeuserDropdown()"></select></div>
-                <div style="flex:1;"><label>Haus wählen*:</label><select id="einheitHausSelect"></select></div>
+                <div style="flex:1;">
+                    <label>Objekt wählen*:</label>
+                    <select id="einheitObjektSelect" onchange="filterHaeuserDropdown()"></select>
+                </div>
+                <div style="flex:1;">
+                    <label>Haus wählen*:</label>
+                    <select id="einheitHausSelect" onchange="updateUnitLiveStatus()"></select>
+                </div>
             </div>
             <div style="display:flex; gap:10px;">
                 <div style="flex:2;"><label>Lage / Bezeichnung*:</label><input type="text" id="einheitNameInput"></div>
-                <div style="flex:1;"><label>Typ:</label><select id="einheitTypSelect"></select></div>
+                <div style="flex:1;"><label>Typ:</label><select id="einheitTypSelect" onchange="updateUnitLiveStatus()"></select></div>
             </div>
             <div style="display:flex; gap:10px;">
-                <div style="flex:1;"><label>Wohn-/Nutzfläche (m²):</label><input type="number" step="0.01" id="einheitFlaecheInput"></div>
+                <div style="flex:1;"><label>Wohn-/Nutzfläche (m²):</label><input type="number" step="0.01" id="einheitFlaecheInput" oninput="updateUnitLiveStatus()"></div>
                 <div style="flex:1;"><label>Heizfläche (m²):</label><input type="number" step="0.01" id="einheitHeizflaecheInput"></div>
             </div>
             <div style="display:flex; gap:10px;">
@@ -249,27 +285,172 @@
         function initUnitTypes() {
             const sel = document.getElementById('einheitTypSelect'); if(sel) { sel.innerHTML = ""; UNIT_TYPES.forEach(t => sel.add(new Option(t.label, t.id))); }
         }
+        
+        // Matrix initial aufbauen (Leer)
         function initHausMatrix() {
             const tbody = document.getElementById('hausSollMatrixBody'); if(tbody) {
                 tbody.innerHTML = "";
                 UNIT_TYPES.forEach(t => {
                     const tr = document.createElement('tr');
+                    tr.id = `row_${t.id}`;
                     tr.innerHTML = `<td>${t.label}</td>
                         <td><input type="number" step="1" id="soll_count_${t.id}" class="matrix-inp" placeholder="0" oninput="calcMatrixSum()"></td>
-                        <td><input type="number" step="0.01" id="soll_area_${t.id}" class="matrix-inp" placeholder="0.00" oninput="calcMatrixSum()"></td>`;
+                        <td class="readonly-val" id="ist_count_${t.id}">0</td>
+                        <td class="diff-val" id="diff_count_${t.id}">0</td>
+                        <td><input type="number" step="0.01" id="soll_area_${t.id}" class="matrix-inp" placeholder="0.00" oninput="calcMatrixSum()"></td>
+                        <td class="readonly-val" id="ist_area_${t.id}">0</td>
+                        <td class="diff-val" id="diff_area_${t.id}">0.00</td>`;
                     tbody.appendChild(tr);
                 });
             }
         }
+
+        // LIVE MATRIX BERECHNUNG (Haus Modal)
         function calcMatrixSum() {
             let sumCnt=0, sumArea=0;
+            // Aktuelles Haus ID holen
+            const hid = document.getElementById('hausIdInput').value;
+            // Einheiten holen (falls Haus existiert)
+            const einheiten = hid ? Array.from(dbEinheiten.values()).filter(e => e.hausId === hid) : [];
+
+            // Summen MEA
+            const sollMea = safeFloat(document.getElementById('hausAnteileInput').value);
+            const istMea = einheiten.reduce((s,e) => s + safeFloat(e.mea), 0);
+            const diffMea = Math.round((istMea - sollMea)*1000)/1000;
+            
+            const meaStat = document.getElementById('hausMeaStatus');
+            meaStat.innerText = `Ist: ${formatNum(istMea)} | Diff: ${formatNum(diffMea)}`;
+            meaStat.style.color = (Math.abs(diffMea) <= 0.01) ? '#2e7d32' : '#c62828';
+
+            let istTotalCnt = 0;
+            let istTotalArea = 0;
+
             UNIT_TYPES.forEach(t => {
-                sumCnt += safeFloat(document.getElementById(`soll_count_${t.id}`).value);
-                sumArea += safeFloat(document.getElementById(`soll_area_${t.id}`).value);
+                // Soll Inputs
+                const sollC = safeFloat(document.getElementById(`soll_count_${t.id}`).value);
+                const sollA = safeFloat(document.getElementById(`soll_area_${t.id}`).value);
+                
+                sumCnt += sollC;
+                sumArea += sollA;
+
+                // Ist Werte (Live aus DB)
+                const unitsOfType = einheiten.filter(e => e.typ === t.id);
+                const istC = unitsOfType.length;
+                const istA = unitsOfType.reduce((s,e)=>s+safeFloat(e.flaeche), 0);
+                
+                istTotalCnt += istC;
+                istTotalArea += istA;
+
+                // Update Ist/Diff Zellen
+                document.getElementById(`ist_count_${t.id}`).innerText = istC;
+                document.getElementById(`ist_area_${t.id}`).innerText = formatNum(istA);
+                
+                const diffC = istC - sollC;
+                const diffA = istA - sollA;
+                
+                const elDiffC = document.getElementById(`diff_count_${t.id}`);
+                elDiffC.innerText = (diffC > 0 ? '+' : '') + diffC;
+                elDiffC.style.color = (diffC === 0) ? '#2e7d32' : '#c62828';
+
+                const elDiffA = document.getElementById(`diff_area_${t.id}`);
+                elDiffA.innerText = (diffA > 0 ? '+' : '') + formatNum(diffA);
+                elDiffA.style.color = (Math.abs(diffA) < 0.1) ? '#2e7d32' : '#c62828';
             });
+
+            // Fusszeile
             document.getElementById('matrixSumCount').innerText = sumCnt;
-            document.getElementById('matrixSumArea').innerText = formatNum(sumArea) + " m²";
+            document.getElementById('matrixSumArea').innerText = formatNum(sumArea);
+            
+            document.getElementById('matrixIstCount').innerText = istTotalCnt;
+            document.getElementById('matrixIstArea').innerText = formatNum(istTotalArea);
         }
+
+        // LIVE UNIT STATUS (Einheit Modal)
+        function updateUnitLiveStatus() {
+            const hid = document.getElementById('einheitHausSelect').value;
+            const typ = document.getElementById('einheitTypSelect').value;
+            const currentArea = safeFloat(document.getElementById('einheitFlaecheInput').value);
+            const box = document.getElementById('einheitLiveStatus');
+            const uid = document.getElementById('einheitIdInput').value; // Eigene ID um Selbst-Summierung zu vermeiden (optional)
+
+            if (!hid) { box.style.display="none"; return; }
+            
+            const h = dbHaeuser.get(hid);
+            if (!h) return;
+
+            // Soll für diesen Typ
+            const sollArea = safeFloat(h.sollMatrix?.[typ]?.area);
+            
+            // Ist für diesen Typ (alle anderen Einheiten)
+            const otherUnits = Array.from(dbEinheiten.values()).filter(e => e.hausId === hid && e.typ === typ && e.id !== uid);
+            const istOther = otherUnits.reduce((s,e) => s + safeFloat(e.flaeche), 0);
+            
+            const newTotal = istOther + currentArea;
+            const diff = newTotal - sollArea;
+            const open = sollArea - istOther; // Wieviel ist noch frei bevor ich diese Zahl eingebe?
+
+            box.style.display = "block";
+            let msg = `<b>Haus-Check (${UNIT_TYPES.find(t=>t.id===typ).label}):</b><br>`;
+            msg += `Bisher belegt: ${formatNum(istOther)} m² (von ${formatNum(sollArea)} m² Soll).<br>`;
+            msg += `Noch verfügbar: <b>${formatNum(open)} m²</b>.<br>`;
+            
+            if (Math.abs(diff) < 0.1) {
+                box.className = "live-status-box";
+                msg += `✅ Mit dieser Eingabe (${formatNum(currentArea)} m²) ist das Soll exakt erfüllt.`;
+            } else if (diff > 0) {
+                box.className = "live-status-box live-status-err";
+                msg += `⚠️ Achtung: Mit dieser Eingabe überschreiten Sie das Soll um ${formatNum(diff)} m²!`;
+            } else {
+                box.className = "live-status-box";
+                msg += `ℹ️ Nach dieser Eingabe fehlen noch ${formatNum(Math.abs(diff))} m².`;
+            }
+            box.innerHTML = msg;
+        }
+
+        // LIVE OBJEKT STATUS
+        function updateObjektLiveStatus() {
+            const box = document.getElementById('objektLiveStatus');
+            const oid = document.getElementById('objektIdInput').value;
+            
+            // Soll Werte
+            const sollH = safeFloat(document.getElementById('objektSollHaeuser').value);
+            const sollF = safeFloat(document.getElementById('objektFlaecheInput').value);
+            const sollM = safeFloat(document.getElementById('objektMeaInput').value);
+
+            // Ist Werte (Häuser)
+            const haeuser = Array.from(dbHaeuser.values()).filter(h => h.objektId === oid); // Funktioniert nur für existierende Objekte, beim Neuanlegen ist ID noch nicht in Häusern
+            // Eigentlich müsste man beim Bearbeiten prüfen.
+            
+            if (!oid) { box.style.display="none"; return; } // Beim Neuanlegen gibt es noch keine Häuser
+
+            const istH = haeuser.length;
+            // Summe Häuser Sollwerte (Planung)
+            const istF = haeuser.reduce((s,h) => s + (safeFloat(h.wohnflaeche)+safeFloat(h.gewerbeflaeche)), 0); 
+            // Hier nutzen wir besser die Summe der IST-Werte der Häuser? Nein, Vergleich Objekt-Plan mit Haus-Plan.
+            // Aber Achtung: In saveHaus speichern wir keine explizite "Summe Soll", sondern die Matrix. 
+            // Wir müssen die Matrix summieren.
+            let sumHausPlanF = 0;
+            haeuser.forEach(h => {
+                if(h.sollMatrix) {
+                    Object.values(h.sollMatrix).forEach(v => sumHausPlanF += safeFloat(v.area));
+                } else {
+                    sumHausPlanF += (safeFloat(h.wohnflaeche)+safeFloat(h.gewerbeflaeche)); // Fallback legacy
+                }
+            });
+
+            box.style.display = "block";
+            let msg = `<b>Objekt-Check (Summe der ${istH} angelegten Häuser):</b><br>`;
+            
+            const diffF = sumHausPlanF - sollF;
+            if (Math.abs(diffF) > 0.1) msg += `<span style="color:#c62828">⚠️ Fläche: ${formatNum(sumHausPlanF)} / ${formatNum(sollF)} m² (Diff: ${formatNum(diffF)})</span><br>`;
+            else msg += `<span style="color:#2e7d32">✅ Fläche korrekt (${formatNum(sollF)} m²)</span><br>`;
+
+            if (istH !== sollH) msg += `<span style="color:#c62828">⚠️ Anzahl Häuser: ${istH} / ${sollH}</span>`;
+            else msg += `<span style="color:#2e7d32">✅ Anzahl Häuser korrekt</span>`;
+
+            box.innerHTML = msg;
+        }
+
 
         // --- AUTH & CLOUD (Standard) ---
         async function handleMicrosoftLogin() { try { await msalInstance.loginPopup({ scopes: ["Files.ReadWrite"], prompt: "select_account" }); if(await getToken()) { document.getElementById('msLoginBtn').style.display = 'none'; await loadFromOneDrive(); } } catch(e) { alert("Login Error: " + e.message); } }
@@ -301,174 +482,59 @@
         }
 
         // --- PDF GENERATION ---
-        
-        // Helper: Get selected IDs
-        function getSelectedIds(containerId) {
-            const checkboxes = document.querySelectorAll(`#${containerId} .item-checkbox:checked`);
-            if(checkboxes.length === 0) return []; // If none selected, return empty (which usually implies all logic elsewhere, but here we enforce selection)
-            return Array.from(checkboxes).map(cb => cb.value);
-        }
-        function toggleAll(containerId, checked) {
-            document.querySelectorAll(`#${containerId} .item-checkbox`).forEach(cb => cb.checked = checked);
-        }
+        function getSelectedIds(containerId) { const checkboxes = document.querySelectorAll(`#${containerId} .item-checkbox:checked`); if(checkboxes.length === 0) return []; return Array.from(checkboxes).map(cb => cb.value); }
+        function toggleAll(containerId, checked) { document.querySelectorAll(`#${containerId} .item-checkbox`).forEach(cb => cb.checked = checked); }
 
-        // 1. Objekt Report
         function generateObjectReportPDF() {
             const ids = getSelectedIds('objekteListe');
             const objectsToPrint = ids.length > 0 ? Array.from(dbObjekte.entries()).filter(([id]) => ids.includes(id)) : Array.from(dbObjekte.entries());
-            
-            const doc = new jspdf.jsPDF('l'); // Landscape
-            doc.text("Objekt-Statusbericht", 14, 15);
-            
+            const doc = new jspdf.jsPDF('l'); doc.text("Objekt-Statusbericht", 14, 15);
             const rows = objectsToPrint.map(([id, o]) => {
                 const haeuser = Array.from(dbHaeuser.values()).filter(h => h.objektId === id);
-                // Berechnungen "Ist" anhand der Häuser-Summen (Soll-Werte der Häuser werden summiert)
-                // Warum? Weil das Objekt prüft, ob die Häuser korrekt geplant sind.
-                const sumHausFlaeche = haeuser.reduce((s,h) => s + (safeFloat(h.wohnflaeche) + safeFloat(h.gewerbeflaeche)), 0);
-                const sumHausMea = haeuser.reduce((s,h) => s + safeFloat(h.anteile), 0);
-                
+                let sumHausFlaeche = 0; let sumHausMea = haeuser.reduce((s,h) => s + safeFloat(h.anteile), 0);
+                haeuser.forEach(h => { if(h.sollMatrix) Object.values(h.sollMatrix).forEach(v => sumHausFlaeche += safeFloat(v.area)); else sumHausFlaeche += (safeFloat(h.wohnflaeche)+safeFloat(h.gewerbeflaeche)); });
                 const diffFlaeche = sumHausFlaeche - safeFloat(o.flaeche);
                 const diffMea = sumHausMea - safeFloat(o.mea);
-
-                return [
-                    o.nummer, 
-                    o.name, 
-                    `${haeuser.length} / ${o.sollHaeuser || 0}`,
-                    `${formatNum(safeFloat(o.flaeche))} m²`,
-                    `${formatNum(sumHausFlaeche)} m²`,
-                    (Math.abs(diffFlaeche)>0.1 ? formatNum(diffFlaeche) : 'OK'),
-                    formatNum(safeFloat(o.mea)),
-                    formatNum(sumHausMea),
-                    (Math.abs(diffMea)>0.01 ? formatNum(diffMea) : 'OK')
-                ];
+                return [o.nummer, o.name, `${haeuser.length} / ${o.sollHaeuser || 0}`, `${formatNum(safeFloat(o.flaeche))} m²`, `${formatNum(sumHausFlaeche)} m²`, (Math.abs(diffFlaeche)>0.1 ? formatNum(diffFlaeche) : 'OK'), formatNum(safeFloat(o.mea)), formatNum(sumHausMea), (Math.abs(diffMea)>0.01 ? formatNum(diffMea) : 'OK')];
             });
-
-            doc.autoTable({
-                head: [['Nr', 'Objekt', 'Häuser (Ist/Soll)', 'Soll-Fl.', 'Summe Häuser', 'Diff Fl.', 'Soll MEA', 'Summe MEA', 'Diff MEA']],
-                body: rows,
-                startY: 20,
-                didParseCell: function(data) {
-                    // Färbe Differenz-Spalten rot bei Fehler
-                    if ((data.section === 'body') && (data.column.index === 5 || data.column.index === 8)) {
-                        if (data.cell.raw !== 'OK') data.cell.styles.textColor = [200, 0, 0];
-                        else data.cell.styles.textColor = [0, 150, 0];
-                    }
-                }
-            });
+            doc.autoTable({ head: [['Nr', 'Objekt', 'Häuser (Ist/Soll)', 'Soll-Fl.', 'Summe Häuser', 'Diff Fl.', 'Soll MEA', 'Summe MEA', 'Diff MEA']], body: rows, startY: 20 });
             doc.save('objekt_bericht.pdf');
         }
 
-        // 2. Haus Report
         function generateHouseReportPDF() {
             const ids = getSelectedIds('haeuserListe');
             const housesToPrint = ids.length > 0 ? Array.from(dbHaeuser.entries()).filter(([id]) => ids.includes(id)) : Array.from(dbHaeuser.entries());
-            
-            const doc = new jspdf.jsPDF('l');
-            doc.text("Haus-Statusbericht (Abgleich mit Einheiten)", 14, 15);
-
+            const doc = new jspdf.jsPDF('l'); doc.text("Haus-Statusbericht", 14, 15);
             const rows = [];
             housesToPrint.forEach(([hid, h]) => {
                 const o = dbObjekte.get(h.objektId);
                 const einheiten = Array.from(dbEinheiten.values()).filter(e => e.hausId === hid);
-                
-                const sollFlaeche = safeFloat(h.wohnflaeche) + safeFloat(h.gewerbeflaeche);
+                let sollFlaeche = 0; if(h.sollMatrix) Object.values(h.sollMatrix).forEach(v => sollFlaeche += safeFloat(v.area));
                 const istFlaeche = einheiten.reduce((s,e) => s + safeFloat(e.flaeche), 0);
                 const sollMea = safeFloat(h.anteile);
                 const istMea = einheiten.reduce((s,e) => s + safeFloat(e.mea), 0);
-
-                const diffF = istFlaeche - sollFlaeche;
-                const diffM = istMea - sollMea;
-
-                rows.push([
-                    h.bezeichnung,
-                    o ? o.name : '?',
-                    einheiten.length,
-                    `${formatNum(sollFlaeche)} m²`,
-                    `${formatNum(istFlaeche)} m²`,
-                    (Math.abs(diffF)>0.1 ? formatNum(diffF) : 'OK'),
-                    formatNum(sollMea),
-                    formatNum(istMea),
-                    (Math.abs(diffM)>0.01 ? formatNum(diffM) : 'OK')
-                ]);
+                rows.push([h.bezeichnung, o ? o.name : '?', einheiten.length, `${formatNum(sollFlaeche)} m²`, `${formatNum(istFlaeche)} m²`, (Math.abs(istFlaeche-sollFlaeche)>0.1 ? formatNum(istFlaeche-sollFlaeche) : 'OK'), formatNum(sollMea), formatNum(istMea), (Math.abs(istMea-sollMea)>0.01 ? formatNum(istMea-sollMea) : 'OK')]);
             });
-
-            doc.autoTable({
-                head: [['Haus', 'Objekt', 'Einh.', 'Soll Fläche', 'Ist (Sum Einh.)', 'Diff Fl.', 'Soll MEA', 'Ist MEA', 'Diff MEA']],
-                body: rows,
-                startY: 20,
-                didParseCell: function(data) {
-                    if ((data.section === 'body') && (data.column.index === 5 || data.column.index === 8)) {
-                        if (data.cell.raw !== 'OK') data.cell.styles.textColor = [200, 0, 0];
-                        else data.cell.styles.textColor = [0, 150, 0];
-                    }
-                }
-            });
+            doc.autoTable({ head: [['Haus', 'Objekt', 'Einh.', 'Soll Fläche', 'Ist (Sum Einh.)', 'Diff Fl.', 'Soll MEA', 'Ist MEA', 'Diff MEA']], body: rows, startY: 20 });
             doc.save('haus_bericht.pdf');
         }
 
-        // 3. Vermietungsübersicht (Units)
         function generateUnitReportPDF() {
             const ids = getSelectedIds('einheitenListe');
             const unitsToPrint = ids.length > 0 ? Array.from(dbEinheiten.entries()).filter(([id]) => ids.includes(id)) : Array.from(dbEinheiten.entries());
-            
-            const doc = new jspdf.jsPDF('l');
-            doc.text("Vermietungsübersicht & Leerstand", 14, 15);
-            
+            const doc = new jspdf.jsPDF('l'); doc.text("Vermietungsübersicht", 14, 15);
             const today = new Date().toISOString().split('T')[0];
             const rows = [];
-
             unitsToPrint.forEach(([uid, e]) => {
-                const h = dbHaeuser.get(e.hausId);
-                const o = h ? dbObjekte.get(h.objektId) : null;
-                
-                let statusText = "LEERSTAND";
-                let mieterName = "";
-                let zeitraum = "";
-                let isVacant = true;
-
+                const h = dbHaeuser.get(e.hausId); const o = h ? dbObjekte.get(h.objektId) : null;
+                let statusText="LEERSTAND", mieterName="", zeitraum="";
                 if (e.belegung && e.belegung.length > 0) {
-                    const active = e.belegung.find(b => {
-                        const start = b.einzug || '0000-00-00';
-                        const end = b.auszug || '9999-12-31';
-                        return start <= today && end >= today;
-                    });
-                    if (active) {
-                        isVacant = false;
-                        const m = dbKontakte.get(active.mieterId);
-                        statusText = "Vermietet";
-                        mieterName = m ? m.fn : "Unbekannt";
-                        zeitraum = `${formatDate(active.einzug)} - ${active.auszug ? formatDate(active.auszug) : '...'}`;
-                    }
+                    const active = e.belegung.find(b => (b.einzug||'0000')<=today && (b.auszug||'9999')>=today);
+                    if (active) { const m=dbKontakte.get(active.mieterId); statusText="Vermietet"; mieterName=m?m.fn:"Unbekannt"; zeitraum=`${formatDate(active.einzug)} - ...`; }
                 }
-
-                rows.push([
-                    o ? o.name : '?',
-                    h ? h.bezeichnung : '?',
-                    e.name,
-                    e.typ,
-                    `${formatNum(safeFloat(e.flaeche))} m²`,
-                    e.zimmer,
-                    statusText,
-                    mieterName,
-                    zeitraum
-                ]);
+                rows.push([o?o.name:'?', h?h.bezeichnung:'?', e.name, e.typ, `${formatNum(safeFloat(e.flaeche))} m²`, e.zimmer, statusText, mieterName, zeitraum]);
             });
-
-            doc.autoTable({
-                head: [['Objekt', 'Haus', 'Einheit', 'Typ', 'Fläche', 'Zi.', 'Status', 'Mieter', 'Zeitraum']],
-                body: rows,
-                startY: 20,
-                didParseCell: function(data) {
-                    if (data.section === 'body' && data.column.index === 6) {
-                        if (data.cell.raw === 'LEERSTAND') {
-                            data.cell.styles.textColor = [255, 0, 0];
-                            data.cell.styles.fontStyle = 'bold';
-                        } else {
-                            data.cell.styles.textColor = [0, 100, 0];
-                        }
-                    }
-                }
-            });
+            doc.autoTable({ head: [['Objekt', 'Haus', 'Einheit', 'Typ', 'Fläche', 'Zi.', 'Status', 'Mieter', 'Zeitraum']], body: rows, startY: 20, didParseCell: function(d) { if (d.section==='body'&&d.column.index===6 && d.cell.raw==='LEERSTAND') d.cell.styles.textColor=[200,0,0]; } });
             doc.save('vermietung_liste.pdf');
         }
 
@@ -484,55 +550,33 @@
         }
 
         function renderLists() {
-            // Dropdowns
-            const oSel = document.getElementById('hausObjektSelect'); 
-            const eObjSel = document.getElementById('einheitObjektSelect');
-            if (oSel && eObjSel) {
-                oSel.innerHTML = ""; eObjSel.innerHTML = "<option value=''>-- Objekt wählen --</option>";
-                dbObjekte.forEach((o, id) => { oSel.add(new Option(`${o.name}`, id)); eObjSel.add(new Option(`${o.name}`, id)); });
-            }
+            const oSel = document.getElementById('hausObjektSelect'); const eObjSel = document.getElementById('einheitObjektSelect');
+            if (oSel && eObjSel) { oSel.innerHTML = ""; eObjSel.innerHTML = "<option value=''>-- Objekt wählen --</option>"; dbObjekte.forEach((o, id) => { oSel.add(new Option(`${o.name}`, id)); eObjSel.add(new Option(`${o.name}`, id)); }); }
             const mSel = document.getElementById('einheitMieterSelect'); 
-            if(mSel) {
-                mSel.innerHTML = "<option value=''>-- Leerstand / Keiner --</option>";
-                Array.from(dbKontakte.entries()).sort((a,b)=>(a[1].fn||"").localeCompare(b[1].fn||""))
-                    .forEach(([id, k]) => mSel.add(new Option(k.fn + (k.org ? ` (${k.org})` : ""), id)));
-            }
+            if(mSel) { mSel.innerHTML = "<option value=''>-- Leerstand / Keiner --</option>"; Array.from(dbKontakte.entries()).sort((a,b)=>(a[1].fn||"").localeCompare(b[1].fn||"")).forEach(([id, k]) => mSel.add(new Option(k.fn + (k.org ? ` (${k.org})` : ""), id))); }
 
-            // LISTE OBJEKTE
             const oDiv = document.getElementById('objekteListe');
             if(oDiv) {
                 oDiv.innerHTML = "";
                 dbObjekte.forEach((o, id) => {
                     const haeuser = Array.from(dbHaeuser.values()).filter(h => h.objektId === id);
-                    const allEinheiten = Array.from(dbEinheiten.values()).filter(e => haeuser.some(h => h.objektId === id && dbHaeuser.get(e.hausId)?.objektId === id));
-                    // Berechne IST Werte (Summe Häuser für Planung, oder Summe Einheiten für Realität?)
-                    // Hier nehmen wir Summe Häuser Sollwerte, da diese gegen das Objekt geprüft werden.
-                    let sumHaeuserFlaeche = haeuser.reduce((s,h) => s + (safeFloat(h.wohnflaeche) + safeFloat(h.gewerbeflaeche)), 0);
-                    let sumHaeuserMea = haeuser.reduce((s,h) => s + safeFloat(h.anteile), 0);
-
+                    let sumHausFlaeche = 0; let sumHausMea = haeuser.reduce((s,h) => s + safeFloat(h.anteile), 0);
+                    haeuser.forEach(h => { if(h.sollMatrix) Object.values(h.sollMatrix).forEach(v => sumHausFlaeche += safeFloat(v.area)); else sumHausFlaeche += (safeFloat(h.wohnflaeche)+safeFloat(h.gewerbeflaeche)); });
+                    
                     let valHtml = validateVal(o.sollHaeuser || 0, haeuser.length, "Häuser", 0);
-                    valHtml += validateVal(o.flaeche || 0, sumHaeuserFlaeche, "m²");
-                    valHtml += validateVal(o.mea || 1000, sumHaeuserMea, "MEA");
-
-                    oDiv.innerHTML += `<div class="liste-item">
-                        <input type="checkbox" class="item-checkbox" value="${id}">
-                        <div class="liste-content">
-                            <div style="display:flex; justify-content:space-between;"><h4>${o.name} <small>[${o.nummer}]</small></h4><button onclick="openObjektMask('${id}')">Bearbeiten</button></div>
-                            <div class="sub-info">${o.plz} ${o.ort}</div><div class="objekt-stats">${valHtml}</div>
-                        </div>
-                    </div>`;
+                    valHtml += validateVal(o.flaeche || 0, sumHausFlaeche, "m²");
+                    valHtml += validateVal(o.mea || 1000, sumHausMea, "MEA");
+                    oDiv.innerHTML += `<div class="liste-item"><input type="checkbox" class="item-checkbox" value="${id}"><div class="liste-content"><div style="display:flex; justify-content:space-between;"><h4>${o.name} <small>[${o.nummer}]</small></h4><button onclick="openObjektMask('${id}')">Bearbeiten</button></div><div class="sub-info">${o.plz} ${o.ort}</div><div class="objekt-stats">${valHtml}</div></div></div>`;
                 });
             }
 
-            // LISTE HÄUSER
             const hDiv = document.getElementById('haeuserListe');
             if(hDiv) {
                 hDiv.innerHTML = "";
                 dbHaeuser.forEach((h, id) => {
                     const o = dbObjekte.get(h.objektId);
                     const einheiten = Array.from(dbEinheiten.values()).filter(e => e.hausId === id);
-                    let valHtml = "";
-                    let hasError = false;
+                    let valHtml = ""; let hasError = false;
                     UNIT_TYPES.forEach(t => {
                         const sollCnt = safeFloat(h.sollMatrix?.[t.id]?.count);
                         const sollArea = safeFloat(h.sollMatrix?.[t.id]?.area);
@@ -547,26 +591,14 @@
                     const sumMea = einheiten.reduce((s,e)=>s+safeFloat(e.mea),0);
                     valHtml += validateVal(h.anteile||0, sumMea, "MEA");
                     if(!hasError && valHtml.indexOf('⚠️')===-1) valHtml = '<div class="stat-ok">✅ Alle Vorgaben erfüllt.</div>' + valHtml;
-
-                    hDiv.innerHTML += `<div class="liste-item">
-                        <input type="checkbox" class="item-checkbox" value="${id}">
-                        <div class="liste-content">
-                            <div style="display:flex; justify-content:space-between;"><h4>${h.bezeichnung} <small>in ${o?o.name:'?'}</small></h4><button onclick="openHausMask('${id}')">Bearbeiten</button></div>
-                            <div class="objekt-stats">${valHtml}</div>
-                        </div>
-                    </div>`;
+                    hDiv.innerHTML += `<div class="liste-item"><input type="checkbox" class="item-checkbox" value="${id}"><div class="liste-content"><div style="display:flex; justify-content:space-between;"><h4>${h.bezeichnung} <small>in ${o?o.name:'?'}</small></h4><button onclick="openHausMask('${id}')">Bearbeiten</button></div><div class="objekt-stats">${valHtml}</div></div></div>`;
                 });
             }
 
-            // LISTE EINHEITEN
             const eDiv = document.getElementById('einheitenListe');
             if(eDiv) {
                 eDiv.innerHTML = "";
-                const listE = Array.from(dbEinheiten.entries()).map(([id, e]) => {
-                    const h = dbHaeuser.get(e.hausId); const o = h ? dbObjekte.get(h.objektId) : null;
-                    return { id, ...e, hName: h?h.bezeichnung:'?', oName: o?o.name:'?' };
-                }).sort((a,b) => a.oName.localeCompare(b.oName) || a.hName.localeCompare(b.hName));
-                
+                const listE = Array.from(dbEinheiten.entries()).map(([id, e]) => { const h = dbHaeuser.get(e.hausId); const o = h ? dbObjekte.get(h.objektId) : null; return { id, ...e, hName: h?h.bezeichnung:'?', oName: o?o.name:'?' }; }).sort((a,b) => a.oName.localeCompare(b.oName) || a.hName.localeCompare(b.hName));
                 const today = new Date().toISOString().split('T')[0];
                 listE.forEach(e => {
                     let stHtml = '<span class="status-leerstand">⚠️ LEERSTAND</span>';
@@ -576,20 +608,13 @@
                         if(act) { const m=dbKontakte.get(act.mieterId); stHtml = `<span class="status-vermietet">✅ ${m?m.fn:'?'}</span> <span style="color:#666;font-size:0.8em;">(${formatDate(act.einzug)}...)</span>`; }
                         else if(fut) { const m=dbKontakte.get(fut.mieterId); stHtml = `<span class="status-leerstand">⚠️ LEER</span> <span class="status-zukunft">➡️ Ab ${formatDate(fut.einzug)}: ${m?m.fn:'?'}</span>`; }
                     }
-                    eDiv.innerHTML += `<div class="liste-item">
-                        <input type="checkbox" class="item-checkbox" value="${e.id}">
-                        <div class="liste-content">
-                            <div style="display:flex; justify-content:space-between;"><h4>${e.name} <span class="badge">${e.typ}</span> <small>(${e.hName})</small></h4><button onclick="openEinheitMask('${e.id}')">Bearbeiten</button></div>
-                            <div class="sub-info">${formatNum(safeFloat(e.flaeche))}m² | MEA: ${formatNum(safeFloat(e.mea))}</div>
-                            <div class="mieter-status">${stHtml}</div>
-                        </div>
-                    </div>`;
+                    eDiv.innerHTML += `<div class="liste-item"><input type="checkbox" class="item-checkbox" value="${e.id}"><div class="liste-content"><div style="display:flex; justify-content:space-between;"><h4>${e.name} <span class="badge">${e.typ}</span> <small>(${e.hName})</small></h4><button onclick="openEinheitMask('${e.id}')">Bearbeiten</button></div><div class="sub-info">${formatNum(safeFloat(e.flaeche))}m² | MEA: ${formatNum(safeFloat(e.mea))}</div><div class="mieter-status">${stHtml}</div></div></div>`;
                 });
             }
         }
 
         // --- CRUD MASKEN ---
-        function openObjektMask(id){ const o=id?dbObjekte.get(id):{}; document.getElementById('objektIdInput').value=id||""; document.getElementById('objektNummerInput').value=o.nummer||""; document.getElementById('objektNameInput').value=o.name||""; document.getElementById('objektPlzInput').value=o.plz||""; document.getElementById('objektOrtInput').value=o.ort||""; document.getElementById('objektFlaecheInput').value=o.flaeche||""; document.getElementById('objektMeaInput').value=o.mea||"1000"; document.getElementById('objektSollHaeuser').value=o.sollHaeuser||"1"; document.getElementById('objektModal').classList.add('active'); }
+        function openObjektMask(id){ const o=id?dbObjekte.get(id):{}; document.getElementById('objektIdInput').value=id||""; document.getElementById('objektNummerInput').value=o.nummer||""; document.getElementById('objektNameInput').value=o.name||""; document.getElementById('objektPlzInput').value=o.plz||""; document.getElementById('objektOrtInput').value=o.ort||""; document.getElementById('objektFlaecheInput').value=o.flaeche||""; document.getElementById('objektMeaInput').value=o.mea||"1000"; document.getElementById('objektSollHaeuser').value=o.sollHaeuser||"1"; updateObjektLiveStatus(); document.getElementById('objektModal').classList.add('active'); }
         function saveObjekt(){ let id=document.getElementById('objektIdInput').value||'o_'+Date.now(); dbObjekte.set(String(id), { nummer: document.getElementById('objektNummerInput').value, name: document.getElementById('objektNameInput').value, plz: document.getElementById('objektPlzInput').value, ort: document.getElementById('objektOrtInput').value, flaeche: safeFloat(document.getElementById('objektFlaecheInput').value), mea: safeFloat(document.getElementById('objektMeaInput').value), sollHaeuser: safeFloat(document.getElementById('objektSollHaeuser').value) }); document.getElementById('objektModal').classList.remove('active'); saveLocal(); renderLists(); saveToOneDrive(false); }
         function deleteObjekt(){ if(confirm("Löschen?")) { dbObjekte.delete(document.getElementById('objektIdInput').value); document.getElementById('objektModal').classList.remove('active'); saveLocal(); renderLists(); saveToOneDrive(false); } }
 
@@ -627,6 +652,7 @@
             document.getElementById('einheitFlaecheInput').value=e.flaeche||""; document.getElementById('einheitHeizflaecheInput').value=e.heizflaeche||"";
             document.getElementById('einheitZimmerInput').value=e.zimmer||""; document.getElementById('einheitMeaInput').value=e.mea||"";
             const c=document.getElementById('belegungListe'); c.innerHTML=""; if(e.belegung&&e.belegung.length) e.belegung.forEach(b=>addBelegungRow(b)); else addBelegungRow();
+            updateUnitLiveStatus();
             document.getElementById('einheitModal').classList.add('active');
         }
         function saveEinheit(){
