@@ -29,34 +29,28 @@
         .panel.active { display: block; }
         .liste-item { border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; background: #fff; border-radius: 4px; }
         
-        /* Stats & Validierung Styles */
         .objekt-stats { font-size: 0.85em; background: #fafafa; padding: 8px; border-radius: 4px; margin-top: 8px; border: 1px solid #eee; }
         .validation-row { display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding: 2px 0; }
         .validation-row:last-child { border-bottom: none; }
         
         .stat-ok { color: #2e7d32; font-weight: bold; }
         .stat-err { color: #d32f2f; font-weight: bold; }
-        .warn-icon { margin-right: 5px; font-size: 1.1em; }
-
-        /* Matrix Tabelle im Modal */
+        
         .soll-matrix { width: 100%; border-collapse: collapse; font-size: 0.9em; margin-bottom: 15px; }
         .soll-matrix th { text-align: left; background: #eee; padding: 5px; border: 1px solid #ccc; }
         .soll-matrix td { border: 1px solid #ccc; padding: 5px; }
         .soll-matrix input { width: 100%; margin: 0; border: none; background: transparent; font-family: inherit; }
         .soll-matrix input:focus { background: #e8f0fe; outline: none; }
 
-        /* Modal */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; }
         .modal-overlay.active { display: flex; }
         .modal-content { background: white; padding: 25px; border-radius: 8px; width: 95%; max-width: 800px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); max-height: 90vh; overflow-y: auto; }
         .modal-content input, .modal-content select, .modal-content textarea { width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 15px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
         .modal-actions { text-align: right; margin-top: 20px; }
         
-        /* Belegungs-Liste */
         .belegung-container { border: 1px solid #eee; padding: 10px; background: #fafafa; border-radius: 4px; margin-bottom: 15px; max-height: 200px; overflow-y: auto; }
         .belegung-row { display: flex; gap: 5px; align-items: center; margin-bottom: 5px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
         
-        /* Badges */
         .badge { padding: 2px 6px; border-radius: 4px; font-size: 0.8em; font-weight: bold; margin-left: 5px; border: 1px solid #ccc; background: #f0f0f0; color: #333; }
         
         .mieter-status { margin-top: 8px; padding-top: 8px; border-top: 1px solid #eee; font-size: 0.95em; }
@@ -117,7 +111,7 @@
                 <div style="flex:2"><label>Bezeichnung / Adresse*:</label><input type="text" id="objektNameInput"></div>
             </div>
             <div style="display:flex; gap:10px;">
-                <div style="flex:1;"><label>PLZ:</label><input type="text" id="objektPlzInput"></div>
+                <div style="flex:1"><label>PLZ:</label><input type="text" id="objektPlzInput"></div>
                 <div style="flex:2;"><label>Ort:</label><input type="text" id="objektOrtInput"></div>
             </div>
             
@@ -148,7 +142,7 @@
             </div>
 
             <h4 style="margin-top:15px; margin-bottom:5px;">Soll-Vorgaben & Validierung</h4>
-            <p style="font-size:0.8em; color:#666; margin-top:0;">Bitte geben Sie hier die geplanten Einheiten und Flächen ein. Diese werden gegen die tatsächlich angelegten Einheiten geprüft.</p>
+            <p style="font-size:0.8em; color:#666; margin-top:0;">Bitte geben Sie hier die geplanten Einheiten und Flächen ein.</p>
             
             <table class="soll-matrix">
                 <thead>
@@ -254,12 +248,7 @@
             initUnitTypes();
             initHausMatrix();
             loadLocal(); 
-            // Wrap in try-catch to prevent unhandled rejection during init
-            try {
-                renderLists();
-            } catch (err) {
-                console.error("Fehler beim Initial-Rendering:", err);
-            }
+            try { renderLists(); } catch (err) { console.error("Fehler beim Initial-Rendering:", err); }
             try {
                 msalInstance = new msal.PublicClientApplication(msalConfig);
                 await msalInstance.initialize();
@@ -273,6 +262,16 @@
                 }
             } catch(e) { console.error(e); }
         });
+
+        // Helper: Sicherstellen, dass Zahlen auch Zahlen sind (Komma/Punkt Korrektur)
+        function safeFloat(val) {
+            if (typeof val === 'number') return val;
+            if (!val) return 0;
+            // Ersetze Komma durch Punkt, falls String
+            let str = val.toString();
+            if (str.includes(',')) str = str.replace(',', '.');
+            return parseFloat(str) || 0;
+        }
 
         function initUnitTypes() {
             const sel = document.getElementById('einheitTypSelect');
@@ -323,13 +322,11 @@
             if (!accessToken && !(await getToken())) return;
             showStatus("Lade Daten...", "saving");
             
-            // Kontakte holen
             try {
                 const resC = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/ideenapp/stammdaten.json:/content", { headers: { "Authorization": `Bearer ${accessToken}` } });
                 if (resC.ok) { const dataC = await resC.json(); if(dataC.kontakte) dbKontakte = new Map(dataC.kontakte); }
             } catch(e) {}
 
-            // Immobilien holen
             try {
                 const resI = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/ideenapp/immobilien.json:/content", { headers: { "Authorization": `Bearer ${accessToken}` } });
                 if (resI.ok) {
@@ -376,17 +373,19 @@
 
         // --- VALIDIERUNGS LOGIK ---
         
-        function validateVal(soll, ist, unit = '', tolerance = 0.1) {
-            soll = parseFloat(soll) || 0;
-            ist = parseFloat(ist) || 0;
-            const diff = ist - soll;
+        function validateVal(soll, ist, unit = '', tolerance = 0.01) {
+            soll = safeFloat(soll);
+            ist = safeFloat(ist);
+            
+            // Runden auf 3 Stellen für präzisen Vergleich
+            const diff = Math.round((ist - soll) * 1000) / 1000;
             const isOk = Math.abs(diff) <= tolerance;
             
             if(isOk) {
-                return `<div class="validation-row"><span class="stat-ok">✅ ${ist.toLocaleString()} ${unit} (Soll: ${soll.toLocaleString()})</span></div>`;
+                return `<div class="validation-row"><span class="stat-ok">✅ ${ist.toLocaleString('de-DE')} ${unit} (Soll: ${soll.toLocaleString('de-DE')})</span></div>`;
             } else {
-                const diffStr = diff > 0 ? `+${diff.toLocaleString()}` : diff.toLocaleString();
-                return `<div class="validation-row"><span class="stat-err">⚠️ ${ist.toLocaleString()} ${unit} (Soll: ${soll.toLocaleString()}) <br><small style="margin-left:22px;">Differenz: ${diffStr} ${unit}</small></span></div>`;
+                const diffStr = diff > 0 ? `+${diff.toLocaleString('de-DE')}` : diff.toLocaleString('de-DE');
+                return `<div class="validation-row"><span class="stat-err">⚠️ ${ist.toLocaleString('de-DE')} ${unit} (Soll: ${soll.toLocaleString('de-DE')}) <br><small style="margin-left:22px;">Differenz: ${diffStr} ${unit}</small></span></div>`;
             }
         }
 
@@ -407,7 +406,6 @@
             const oSel = document.getElementById('hausObjektSelect'); 
             const eObjSel = document.getElementById('einheitObjektSelect');
             
-            // Safety check for dropdowns
             if (oSel && eObjSel) {
                 oSel.innerHTML = ""; 
                 eObjSel.innerHTML = "<option value=''>-- Objekt wählen --</option>";
@@ -431,15 +429,21 @@
                 dbObjekte.forEach((o, id) => {
                     const haeuser = Array.from(dbHaeuser.values()).filter(h => h.objektId === id);
                     
-                    const allEinheiten = Array.from(dbEinheiten.values()).filter(e => haeuser.some(h => h.objektId === id && dbHaeuser.get(e.hausId)?.objektId === id));
+                    // Für Objekte ist die Summe der Häuser-SOLL Werte relevant für den Vergleich mit Objekt-SOLL
+                    // ODER: Summe der Einheiten-IST Werte?
+                    // Üblicherweise: Objekt-Stammblatt sagt "Das Objekt hat 1000m²". Das ist der SOLL.
+                    // Die Summe der Häuser sollte diesen 1000m² entsprechen.
+                    
                     let istHaeuser = haeuser.length;
-                    let istFlaeche = allEinheiten.reduce((s,e) => s + (parseFloat(e.flaeche)||0), 0);
-                    let istMea = allEinheiten.reduce((s,e) => s + (parseFloat(e.mea)||0), 0);
+                    let sumHaeuserFlaeche = haeuser.reduce((s,h) => s + (safeFloat(h.wohnflaeche) + safeFloat(h.gewerbeflaeche)), 0);
+                    let sumHaeuserMea = haeuser.reduce((s,h) => s + safeFloat(h.anteile), 0);
 
+                    // Für die "Ist"-Anzeige in der Liste summieren wir hier die Häuser-Daten (nicht Einheiten), da diese Ebene "Häuser" ist.
+                    
                     let valHtml = "";
                     valHtml += validateVal(o.sollHaeuser || 0, istHaeuser, "Häuser", 0);
-                    valHtml += validateVal(o.flaeche || 0, istFlaeche, "m²");
-                    valHtml += validateVal(o.mea || 1000, istMea, "MEA");
+                    valHtml += validateVal(o.flaeche || 0, sumHaeuserFlaeche, "m²");
+                    valHtml += validateVal(o.mea || 1000, sumHaeuserMea, "MEA");
 
                     oDiv.innerHTML += `
                     <div class="liste-item">
@@ -453,7 +457,7 @@
                 });
             }
 
-            // 2. HÄUSER (Detailed Check)
+            // 2. HÄUSER
             const hDiv = document.getElementById('haeuserListe'); 
             if (hDiv) {
                 hDiv.innerHTML = "";
@@ -465,15 +469,14 @@
                     let valHtml = "";
                     let hasError = false;
 
-                    // Loop through all defined Types
                     UNIT_TYPES.forEach(type => {
-                        const sollCnt = h.sollMatrix?.[type.id]?.count || 0;
-                        const sollArea = h.sollMatrix?.[type.id]?.area || 0;
+                        const sollCnt = safeFloat(h.sollMatrix?.[type.id]?.count);
+                        const sollArea = safeFloat(h.sollMatrix?.[type.id]?.area);
 
                         if (sollCnt > 0 || sollArea > 0) {
                             const actualUnits = einheiten.filter(e => e.typ === type.id);
                             const istCnt = actualUnits.length;
-                            const istArea = actualUnits.reduce((s,e) => s + (parseFloat(e.flaeche)||0), 0);
+                            const istArea = actualUnits.reduce((s,e) => s + safeFloat(e.flaeche), 0);
 
                             if (istCnt != sollCnt) {
                                 hasError = true;
@@ -483,12 +486,12 @@
                             if (Math.abs(istArea - sollArea) > 0.1) {
                                 hasError = true;
                                 const diff = istArea - sollArea;
-                                valHtml += `<div class="validation-row"><span class="stat-err">⚠️ ${type.label} Fläche: ${istArea.toFixed(2)}/${parseFloat(sollArea).toFixed(2)} m² (Diff: ${diff.toFixed(2)})</span></div>`;
+                                valHtml += `<div class="validation-row"><span class="stat-err">⚠️ ${type.label} Fläche: ${istArea.toLocaleString()} / ${sollArea.toLocaleString()} m² (Diff: ${diff.toLocaleString()})</span></div>`;
                             }
                         }
                     });
                     
-                    const sumMea = einheiten.reduce((s,e) => s + (parseFloat(e.mea)||0), 0);
+                    const sumMea = einheiten.reduce((s,e) => s + safeFloat(e.mea), 0);
                     valHtml += validateVal(h.anteile || 0, sumMea, "MEA");
 
                     if (!hasError && valHtml.indexOf('⚠️') === -1) {
@@ -546,7 +549,7 @@
                             <h4>${e.name} <span class="badge">${typeLabel}</span> <small>(${e.hausName})</small></h4>
                             <button onclick="openEinheitMask('${e.id}')">Bearbeiten</button>
                         </div>
-                        <div class="sub-info">Fläche: ${e.flaeche}m² | Zimmer: ${e.zimmer} | MEA: ${e.mea}</div>
+                        <div class="sub-info">Fläche: ${safeFloat(e.flaeche).toLocaleString()}m² | Zimmer: ${e.zimmer} | MEA: ${safeFloat(e.mea).toLocaleString()}</div>
                         <div class="mieter-status">${statusHtml}</div>
                     </div>`;
                 });
@@ -567,15 +570,17 @@
             document.getElementById('objektModal').classList.add('active');
         }
         function saveObjekt(){
-            let id = document.getElementById('objektIdInput').value || 'o_'+Date.now();
+            let id = document.getElementById('objektIdInput').value;
+            if(!id) id = 'o_'+Date.now(); // Neue ID wenn leer
+            
             dbObjekte.set(String(id), {
                 nummer: document.getElementById('objektNummerInput').value,
                 name: document.getElementById('objektNameInput').value,
                 plz: document.getElementById('objektPlzInput').value,
                 ort: document.getElementById('objektOrtInput').value,
-                flaeche: document.getElementById('objektFlaecheInput').value,
-                mea: document.getElementById('objektMeaInput').value,
-                sollHaeuser: document.getElementById('objektSollHaeuser').value
+                flaeche: safeFloat(document.getElementById('objektFlaecheInput').value),
+                mea: safeFloat(document.getElementById('objektMeaInput').value),
+                sollHaeuser: safeFloat(document.getElementById('objektSollHaeuser').value)
             });
             document.getElementById('objektModal').classList.remove('active');
             saveLocal(); renderLists(); saveToOneDrive(false);
@@ -600,7 +605,6 @@
             document.getElementById('hausBezeichnungInput').value = h.bezeichnung||"";
             document.getElementById('hausAnteileInput').value = h.anteile||"";
 
-            // Matrix füllen
             UNIT_TYPES.forEach(t => {
                 const cnt = h.sollMatrix?.[t.id]?.count || "";
                 const area = h.sollMatrix?.[t.id]?.area || "";
@@ -613,17 +617,17 @@
             document.getElementById('hausModal').classList.add('active');
         }
         function saveHaus(){
-            let id = document.getElementById('hausIdInput').value || 'h_'+Date.now();
+            let id = document.getElementById('hausIdInput').value;
+            if(!id) id = 'h_'+Date.now();
             
-            // Matrix auslesen
             let matrix = {};
             UNIT_TYPES.forEach(t => {
                 const elCnt = document.getElementById(`soll_count_${t.id}`);
                 const elArea = document.getElementById(`soll_area_${t.id}`);
                 if (elCnt && elArea) {
                     matrix[t.id] = {
-                        count: elCnt.value,
-                        area: elArea.value
+                        count: safeFloat(elCnt.value),
+                        area: safeFloat(elArea.value)
                     };
                 }
             });
@@ -631,7 +635,7 @@
             dbHaeuser.set(String(id), {
                 objektId: document.getElementById('hausObjektSelect').value,
                 bezeichnung: document.getElementById('hausBezeichnungInput').value,
-                anteile: document.getElementById('hausAnteileInput').value,
+                anteile: safeFloat(document.getElementById('hausAnteileInput').value),
                 sollMatrix: matrix
             });
             document.getElementById('hausModal').classList.remove('active');
@@ -711,7 +715,9 @@
             const name = document.getElementById('einheitNameInput').value;
             if(!hid || !name) return alert("Haus und Name sind Pflicht.");
             
-            let id = document.getElementById('einheitIdInput').value || 'e_'+Date.now();
+            let id = document.getElementById('einheitIdInput').value;
+            if(!id) id = 'e_'+Date.now();
+
             const belegung = [];
             document.querySelectorAll('#belegungListe .belegung-row').forEach(row => {
                 const mId = row.querySelector('.belegung-mieter').value;
@@ -722,10 +728,10 @@
                 hausId: hid,
                 name: name,
                 typ: document.getElementById('einheitTypSelect').value,
-                flaeche: document.getElementById('einheitFlaecheInput').value,
-                heizflaeche: document.getElementById('einheitHeizflaecheInput').value,
+                flaeche: safeFloat(document.getElementById('einheitFlaecheInput').value),
+                heizflaeche: safeFloat(document.getElementById('einheitHeizflaecheInput').value),
                 zimmer: document.getElementById('einheitZimmerInput').value,
-                mea: document.getElementById('einheitMeaInput').value,
+                mea: safeFloat(document.getElementById('einheitMeaInput').value),
                 belegung: belegung
             });
             document.getElementById('einheitModal').classList.remove('active');
