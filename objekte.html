@@ -65,14 +65,20 @@
         .modal-actions { text-align: right; margin-top: 20px; }
         
         /* UPDATED: Belegung Layout */
-        .belegung-container, .historie-container { border: 1px solid #eee; padding: 10px; background: #fafafa; border-radius: 4px; margin-bottom: 15px; max-height: 250px; overflow-y: auto; }
+        .belegung-container, .historie-container { border: 1px solid #eee; padding: 10px; background: #fafafa; border-radius: 4px; margin-bottom: 15px; max-height: 350px; overflow-y: auto; }
         
-        .belegung-wrapper { border-bottom: 1px solid #ddd; padding-bottom: 8px; margin-bottom: 8px; }
+        .belegung-wrapper { border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom: 10px; background: #fff; padding: 10px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .belegung-row { display: flex; gap: 8px; align-items: center; }
         .belegung-row select { flex: 3; min-width: 200px; margin: 0; font-weight: bold; } /* Breiter Mieter */
         .belegung-row input[type="date"] { flex: 0 0 130px; margin: 0; font-size: 0.9em; } /* Schmaler Datum */
-        .belegung-extra { display: none; margin-top: 5px; background: #fff3e0; padding: 5px; border-radius: 4px; border: 1px solid #ffe0b2; }
-        .belegung-extra input { margin: 0; font-size: 0.9em; width: 100%; border: 1px solid #ffcc80; }
+        
+        /* Grid für strukturierte Adresse */
+        .belegung-extra { display: none; margin-top: 8px; background: #fff3e0; padding: 8px; border-radius: 4px; border: 1px solid #ffe0b2; }
+        .belegung-adresse-grid { display: grid; grid-template-columns: 3fr 1fr 1fr 3fr; gap: 5px; }
+        .belegung-adresse-grid input { margin: 0; font-size: 0.9em; width: 100%; border: 1px solid #ffcc80; background: #fff; }
+        
+        .contact-info-display { font-size: 0.85em; color: #555; margin-left: 5px; margin-top: 4px; display: flex; gap: 15px; }
+        .contact-info-item { display: flex; align-items: center; gap: 4px; }
         
         .historie-row { display: flex; gap: 5px; align-items: center; margin-bottom: 5px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
         .historie-row input[type="date"] { width: 130px; margin:0; }
@@ -360,7 +366,7 @@
         function createDummyData() {
             if(!confirm("Musterdaten (Wohnpark Test) erzeugen?")) return;
             
-            if(dbKontakte.size === 0) { dbKontakte.set("k_d1", {fn: "Max Mustermann", org: ""}); dbKontakte.set("k_d2", {fn: "Erika Musterfrau", org: ""}); dbKontakte.set("k_d3", {fn: "Muster GmbH", org: "Logistik"}); }
+            if(dbKontakte.size === 0) { dbKontakte.set("k_d1", {fn: "Max Mustermann", org: "", telefon:[{number: "0123/456789", type: "MOBILE"}], email:[{address:"max@muster.de"}]}); dbKontakte.set("k_d2", {fn: "Erika Musterfrau", org: ""}); dbKontakte.set("k_d3", {fn: "Muster GmbH", org: "Logistik"}); }
 
             const oid = getNextObjektID();
             dbObjekte.set(oid, { nummer: oid, name: "Wohnpark Test", plz: "12345", ort: "Musterstadt", flaeche: 150, mea: 1000, sollHaeuser: 1 });
@@ -620,7 +626,7 @@
 
         function filterHaeuserDropdown(){ const oid=document.getElementById('einheitObjektSelect').value; const h=document.getElementById('einheitHausSelect'); h.innerHTML=""; if(!oid)return; Array.from(dbHaeuser.entries()).filter(([hid,x])=>x.objektId===oid).forEach(([hid,x])=>h.add(new Option(x.bezeichnung,hid))); }
         
-        // ADD BELEGUNG ROW (UPDATED with Address Button)
+        // ADD BELEGUNG ROW (UPDATED with Address Button & Contact Info)
         function addBelegungRow(d={}){ 
             const c=document.getElementById('belegungListe'); if(!c)return; 
             const wrapper = document.createElement('div'); wrapper.className = 'belegung-wrapper';
@@ -633,10 +639,12 @@
             Array.from(dbKontakte.entries()).sort((a,b)=>(a[1].fn||"").localeCompare(b[1].fn||"")).forEach(([id,k])=>s.add(new Option(k.fn+(k.org?` (${k.org})`:""),id)));
             if(d.mieterId) s.value=d.mieterId;
             
+            // Event listener for contact info display
+            s.onchange = function() { updateContactInfoDisplay(this.value, wrapper); };
+
             const inEin=document.createElement('input'); inEin.type="date"; inEin.className="belegung-einzug"; if(d.einzug) inEin.value=d.einzug;
             const inAus=document.createElement('input'); inAus.type="date"; inAus.className="belegung-auszug"; if(d.auszug) inAus.value=d.auszug;
             
-            // Toggle Address Button
             const btnAddr = document.createElement('button'); btnAddr.type="button"; btnAddr.innerText="📍"; btnAddr.title="Abweichende Adresse bei Auszug";
             btnAddr.style.padding="4px 8px";
             
@@ -644,19 +652,58 @@
             
             r.append(s,inEin,inAus,btnAddr,b); 
             
+            // Contact Info Display Container
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'contact-info-display';
+            wrapper.appendChild(r);
+            wrapper.appendChild(infoDiv); // Insert info div here
+
+            // Initialize contact info if mieter is selected
+            if(d.mieterId) updateContactInfoDisplay(d.mieterId, wrapper);
+
             // Row 2: Extra Address Field (Hidden by default)
             const extra = document.createElement('div'); extra.className='belegung-extra';
-            const inAddr = document.createElement('input'); inAddr.type="text"; inAddr.className="belegung-adresse"; 
-            inAddr.placeholder="Abweichende Anschrift für Abrechnung..."; 
-            if(d.adresse) { inAddr.value = d.adresse; extra.style.display="block"; }
-            extra.appendChild(inAddr);
+            
+            // Grid Structure for Address
+            const grid = document.createElement('div'); grid.className='belegung-adresse-grid';
+            
+            const inStr = document.createElement('input'); inStr.type="text"; inStr.className="addr-strasse"; inStr.placeholder="Straße"; if(d.strasse) inStr.value=d.strasse; else if(d.adresse) inStr.value=d.adresse; // Migration
+            const inHnr = document.createElement('input'); inHnr.type="text"; inHnr.className="addr-hausnr"; inHnr.placeholder="Nr."; if(d.hausnr) inHnr.value=d.hausnr;
+            const inPlz = document.createElement('input'); inPlz.type="text"; inPlz.className="addr-plz"; inPlz.placeholder="PLZ"; if(d.plz) inPlz.value=d.plz;
+            const inOrt = document.createElement('input'); inOrt.type="text"; inOrt.className="addr-ort"; inOrt.placeholder="Ort"; if(d.ort) inOrt.value=d.ort;
+            
+            grid.append(inStr, inHnr, inPlz, inOrt);
+            extra.appendChild(grid);
 
-            // Toggle Logic
+            if(d.strasse || d.adresse) extra.style.display="block";
+
             btnAddr.onclick = () => { extra.style.display = extra.style.display === 'none' ? 'block' : 'none'; };
 
-            wrapper.appendChild(r);
             wrapper.appendChild(extra);
             c.appendChild(wrapper);
+        }
+
+        function updateContactInfoDisplay(mieterId, wrapper) {
+            const infoDiv = wrapper.querySelector('.contact-info-display');
+            if(!infoDiv) return;
+            
+            infoDiv.innerHTML = "";
+            if(!mieterId) return;
+
+            const m = dbKontakte.get(mieterId);
+            if(m) {
+                let text = "";
+                // Get Phone
+                if(m.telefon && m.telefon.length > 0) {
+                    text += `<span class="contact-info-item">📞 ${m.telefon[0].number}</span>`;
+                }
+                // Get Email
+                if(m.email && m.email.length > 0) {
+                    text += `<span class="contact-info-item">📧 ${m.email[0].address}</span>`;
+                }
+                if(!text) text = "<span style='font-style:italic;'>Keine Kontaktdaten hinterlegt</span>";
+                infoDiv.innerHTML = text;
+            }
         }
 
         // ADD HISTORIE ROW
@@ -714,7 +761,10 @@
                     mieterId:m, 
                     einzug:w.querySelector('.belegung-einzug').value, 
                     auszug:w.querySelector('.belegung-auszug').value,
-                    adresse:w.querySelector('.belegung-adresse').value
+                    strasse:w.querySelector('.addr-strasse').value,
+                    hausnr:w.querySelector('.addr-hausnr').value,
+                    plz:w.querySelector('.addr-plz').value,
+                    ort:w.querySelector('.addr-ort').value
                 }); 
             });
 
