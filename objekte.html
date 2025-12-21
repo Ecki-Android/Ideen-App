@@ -12,14 +12,20 @@
     
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; padding: 15px; background-color: #f4f7f6; margin: 0; }
+        
+        /* Header & Actions */
         .app-header { background: white; padding: 15px; border-bottom: 1px solid #ddd; margin: -15px -15px 20px -15px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
         .app-title { font-size: 1.2em; font-weight: bold; color: #2e7d32; margin: 0; }
-        .cloud-actions { display: flex; gap: 10px; align-items: center; }
+        .cloud-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        
         button { padding: 8px 12px; font-size: 0.9em; border-radius: 4px; border: 1px solid #bbb; background: #eee; cursor: pointer; }
         button:hover { background: #ddd; }
+        button:disabled { opacity: 0.6; cursor: not-allowed; }
+
         .primary-btn { background: #2e7d32; color: white; border-color: #1b5e20; }
         .warn-btn { background: #d9534f; color: white; border-color: #d43f3a; }
         .onedrive-btn { background: #0078d4; color: white; border-color: #005a9e; }
+        .local-btn { background: #fff3cd; color: #856404; border-color: #ffeeba; }
         .report-btn { background: #607d8b; color: white; border-color: #455a64; }
         .test-btn { background: #ff9800; color: white; border-color: #f57c00; }
         
@@ -27,11 +33,15 @@
         .onedrive-status.saving { background-color: #e0f2fe; color: #0c4a6e; display: inline-block; border: 1px solid #bae6fd;}
         .onedrive-status.success { background-color: #dcfce7; color: #14532d; display: inline-block; border: 1px solid #bbf7d0;}
         .onedrive-status.error { background-color: #fee2e2; color: #991b1b; display: inline-block; border: 1px solid #fecaca;}
+        .onedrive-status.info { background-color: #fffbeb; color: #92400e; display: inline-block; border: 1px solid #fde68a;}
         
+        /* Session Warning */
+        #sessionExpiredWarning { display: none; width: 100%; background: #fff3cd; color: #856404; text-align: center; padding: 10px; margin-bottom: 10px; border: 1px solid #ffeeba; border-radius: 4px; font-weight: bold; }
+
+        /* Navigation */
         .tab-bar { margin-bottom: 15px; display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
         .tab-btn { background: #f9f9f9; padding: 10px 15px; border-bottom: 3px solid transparent; cursor: pointer; border-radius: 4px 4px 0 0; }
         .tab-btn.active { border-bottom: 3px solid #2e7d32; font-weight: bold; background: white; }
-        
         .report-actions { margin-left: auto; display: flex; gap: 5px; }
 
         /* Filter Banner */
@@ -51,7 +61,7 @@
         .stat-err { color: #d32f2f; font-weight: bold; }
         
         /* SCROLLABLE MATRIX */
-        .matrix-wrapper { max-height: 300px; overflow-y: auto; border: 1px solid #ccc; margin-bottom: 10px; }
+        .matrix-wrapper { max-height: 300px; overflow-y: auto; border: 1px solid #ccc; margin-bottom: 10px; background: #fff; }
         .soll-matrix { width: 100%; border-collapse: collapse; font-size: 0.85em; }
         .soll-matrix th { text-align: center; background: #eee; padding: 5px; border: 1px solid #ccc; font-weight: 600; position: sticky; top: 0; z-index: 2; }
         .soll-matrix td { border: 1px solid #ccc; padding: 4px; text-align: center; }
@@ -69,6 +79,7 @@
         .modal-content input, .modal-content select, .modal-content textarea { width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 15px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
         .modal-actions { text-align: right; margin-top: 20px; }
         
+        /* Belegungs Layout */
         .belegung-container, .historie-container { border: 1px solid #eee; padding: 10px; background: #fafafa; border-radius: 4px; margin-bottom: 15px; max-height: 350px; overflow-y: auto; }
         
         .belegung-wrapper { border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom: 10px; background: #fff; padding: 10px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
@@ -94,7 +105,7 @@
         .status-zukunft { color: #0277bd; font-style: italic; }
         .contract-id { font-family: monospace; background: #eee; padding: 1px 4px; border-radius: 3px; margin-left: 5px; color: #555; }
 
-        /* Live Status Boxen in Modals */
+        /* Live Status Boxen */
         .live-status-box { padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 0.9em; border: 1px solid transparent; }
         .live-status-info { background: #e3f2fd; border-color: #90caf9; color: #0d47a1; }
         .live-status-ok { background: #e8f5e9; border-color: #a5d6a7; color: #1b5e20; }
@@ -119,13 +130,23 @@
     </style>
 </head>
 <body>
+    <div id="sessionExpiredWarning">⚠️ Ihre Sitzung ist abgelaufen. Bitte erneut anmelden, um zu speichern!</div>
+
     <div class="app-header">
-        <div class="app-title">Objektverwaltung Pro</div>
+        <div class="app-title">Objektverwaltung Pro <span id="loggedInUser" style="font-size:0.6em; font-weight:normal; color:#555;"></span></div>
         <div class="cloud-actions">
-            <button onclick="createDummyData()" class="test-btn" title="Erstellt Musterobjekt und Mieter">🧪 Testdaten</button>
+            <button onclick="createDummyData()" class="test-btn" title="Erstellt Musterobjekt">🧪 Testdaten</button>
             <span style="border-left: 1px solid #ccc; height: 20px; margin: 0 5px;"></span>
+            
             <button id="msLoginBtn" onclick="handleMicrosoftLogin()" class="onedrive-btn">🔑 Login</button>
+            <button id="msLogoutBtn" onclick="handleLogout()" class="warn-btn" style="display:none;">🔒 Logout</button>
+            
+            <span style="border-left: 1px solid #ccc; height: 20px; margin: 0 5px;"></span>
+            
             <button onclick="saveToOneDrive(true)">💾 Speichern</button>
+            <button onclick="speichereDateiLokal()" class="local-btn">📂 Sichern</button>
+            <button onclick="ladeDateiLokal()" class="local-btn">📂 Laden</button>
+
             <span id="onedriveStatus" class="onedrive-status"></span>
         </div>
     </div>
@@ -246,7 +267,7 @@
                     </tfoot>
                 </table>
             </div>
-            <button type="button" onclick="addCustomTypeRow()" style="font-size:0.8em;">+ Weiteren Typ hinzufügen</button>
+            <button type="button" onclick="addCustomTypeRow()" style="font-size:0.8em; margin-bottom: 10px;">+ Weiteren Typ hinzufügen</button>
             
             <div style="display:flex; gap:10px; margin-top:10px;">
                 <div style="flex:1;"><label>Gesamt MEA (Soll):</label><input type="number" step="0.001" id="hausAnteileInput" oninput="calcMatrixSum()"></div>
@@ -330,7 +351,9 @@
         let msalInstance, accessToken;
         
         let dbObjekte = new Map(), dbHaeuser = new Map(), dbEinheiten = new Map(), dbKontakte = new Map(); 
-        let activeFilterId = null; // FÜR DEN FOKUS-FILTER
+        let activeFilterId = null; 
+        let autoSaveTimer = null;
+        let tokenRefreshInterval = null;
 
         document.addEventListener('DOMContentLoaded', async () => {
             loadLocal(); 
@@ -338,8 +361,17 @@
             try {
                 msalInstance = new msal.PublicClientApplication(msalConfig);
                 await msalInstance.initialize();
+                
+                // Wachhund Starten
+                setInterval(checkSession, 1000 * 60 * 5); // Alle 5 Min checken
+                
                 const acc = msalInstance.getAllAccounts()[0];
-                if (acc) { msalInstance.setActiveAccount(acc); if(await getToken()) { document.getElementById('msLoginBtn').style.display = 'none'; await loadFromOneDrive(); } }
+                if (acc) { 
+                    msalInstance.setActiveAccount(acc); 
+                    if(await getToken()) { 
+                        handleLoginSuccess(acc);
+                    } 
+                }
             } catch(e) { console.error(e); }
         });
 
@@ -349,7 +381,6 @@
         function formatNum(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}); }
         function pad(n, width, z) { z = z || '0'; n = n + ''; return n.length >= width ? n : new Array(width - n.length + 1).join(z) + n; }
         
-        // --- VALIDATE VAL ---
         function validateVal(soll, ist, unit = '', tolerance = 0.01) {
             soll = safeFloat(soll); ist = safeFloat(ist);
             const diff = Math.round((ist - soll) * 1000) / 1000;
@@ -359,12 +390,11 @@
             return `<div class="validation-row"><span class="stat-err">⚠️ ${formatNum(ist)} ${unit} (Soll: ${formatNum(soll)}) <small style="margin-left:5px;">Diff: ${diffStr}</small></span></div>`;
         }
 
-        // --- FILTER LOGIC ---
+        // --- FILTER ---
         function toggleFilter(id) {
             activeFilterId = id;
             const banner = document.getElementById('filterBanner');
             const txt = document.getElementById('filterText');
-            
             if(activeFilterId) {
                 const o = dbObjekte.get(activeFilterId);
                 banner.style.display = "flex";
@@ -396,17 +426,13 @@
             return hausId + "/" + pad(max + 1, 4);
         }
 
-        // --- DUMMY DATA ---
         function createDummyData() {
             if(!confirm("Musterdaten (Wohnpark Test) erzeugen?")) return;
-            
             if(dbKontakte.size === 0) { dbKontakte.set("k_d1", {fn: "Max Mustermann", org: "", telefon:[{number: "0123/456789", type: "MOBILE"}], email:[{address:"max@muster.de"}]}); dbKontakte.set("k_d2", {fn: "Erika Musterfrau", org: ""}); dbKontakte.set("k_d3", {fn: "Muster GmbH", org: "Logistik"}); }
-
             const oid = getNextObjektID();
             dbObjekte.set(oid, { nummer: oid, name: "Wohnpark Test", plz: "12345", ort: "Musterstadt", flaeche: 150, mea: 1000, sollHaeuser: 1 });
             const hid = getNextHausID(oid);
             const matrix = {}; 
-            // Labels storen
             matrix['wohnung'] = { count: 2, area: 100, label: "Wohnung" }; 
             matrix['gewerbe'] = { count: 1, area: 50, label: "Gewerbe" };
             
@@ -421,31 +447,102 @@
         }
 
         // --- INIT UI ---
-        function initUnitTypes() { const sel = document.getElementById('einheitTypSelect'); if(sel) { sel.innerHTML = ""; UNIT_TYPES.forEach(t => sel.add(new Option(t.label, t.id))); } }
+        function initUnitTypes() { const sel = document.getElementById('einheitTypSelect'); if(sel) { sel.innerHTML = ""; STANDARD_TYPES.forEach(t => sel.add(new Option(t.label, t.id))); } }
         function initHausMatrix() {
             const tbody = document.getElementById('hausSollMatrixBody'); if(tbody) {
-                tbody.innerHTML = ""; UNIT_TYPES.forEach(t => { const tr = document.createElement('tr'); tr.id = `row_${t.id}`; tr.innerHTML = `<td>${t.label}</td><td><input type="number" step="1" id="soll_count_${t.id}" class="matrix-inp" placeholder="0" oninput="calcMatrixSum()"></td><td class="readonly-val" id="ist_count_${t.id}">0</td><td class="diff-val" id="diff_count_${t.id}">0</td><td><input type="number" step="0.01" id="soll_area_${t.id}" class="matrix-inp" placeholder="0.00" oninput="calcMatrixSum()"></td><td class="readonly-val" id="ist_area_${t.id}">0</td><td class="diff-val" id="diff_area_${t.id}">0.00</td>`; tbody.appendChild(tr); });
+                tbody.innerHTML = ""; STANDARD_TYPES.forEach(t => { const tr = document.createElement('tr'); tr.id = `row_${t.id}`; tr.innerHTML = `<td>${t.label}</td><td><input type="number" step="1" id="soll_count_${t.id}" class="matrix-inp" placeholder="0" oninput="calcMatrixSum()"></td><td class="readonly-val" id="ist_count_${t.id}">0</td><td class="diff-val" id="diff_count_${t.id}">0</td><td><input type="number" step="0.01" id="soll_area_${t.id}" class="matrix-inp" placeholder="0.00" oninput="calcMatrixSum()"></td><td class="readonly-val" id="ist_area_${t.id}">0</td><td class="diff-val" id="diff_area_${t.id}">0.00</td>`; tbody.appendChild(tr); });
             }
         }
 
         // --- AUTH & CLOUD ---
-        async function handleMicrosoftLogin() { try { await msalInstance.loginPopup({ scopes: ["Files.ReadWrite"], prompt: "select_account" }); if(await getToken()) { document.getElementById('msLoginBtn').style.display = 'none'; await loadFromOneDrive(); } } catch(e) { alert("Login Error: " + e.message); } }
-        async function getToken() { try { const r = await msalInstance.acquireTokenSilent({ scopes: ["Files.ReadWrite"], account: msalInstance.getActiveAccount() }); accessToken = r.accessToken; return true; } catch(e) { try { const r = await msalInstance.acquireTokenPopup({ scopes: ["Files.ReadWrite"] }); accessToken = r.accessToken; return true; } catch(err) { return false; } } }
+        async function handleMicrosoftLogin() { try { const res = await msalInstance.loginPopup({ scopes: ["Files.ReadWrite"], prompt: "select_account" }); if(await getToken()) { handleLoginSuccess(res.account); } } catch(e) { alert("Login Error: " + e.message); } }
+        
+        async function handleLogout() {
+            await msalInstance.logoutPopup();
+            location.reload();
+        }
+
+        function handleLoginSuccess(account) {
+            document.getElementById('msLoginBtn').style.display = 'none';
+            document.getElementById('msLogoutBtn').style.display = 'inline-block';
+            document.getElementById('loggedInUser').innerText = `(${account.username})`;
+            document.getElementById('sessionExpiredWarning').style.display = 'none';
+            loadFromOneDrive();
+        }
+
+        async function getToken() { try { const r = await msalInstance.acquireTokenSilent({ scopes: ["Files.ReadWrite"], account: msalInstance.getActiveAccount() }); accessToken = r.accessToken; document.getElementById('sessionExpiredWarning').style.display = 'none'; return true; } catch(e) { try { const r = await msalInstance.acquireTokenPopup({ scopes: ["Files.ReadWrite"] }); accessToken = r.accessToken; return true; } catch(err) { return false; } } }
+        
+        async function checkSession() {
+             if(msalInstance.getActiveAccount()) {
+                 const valid = await getToken();
+                 if(!valid) document.getElementById('sessionExpiredWarning').style.display = 'block';
+             }
+        }
+
         async function loadFromOneDrive() {
             if (!accessToken && !(await getToken())) return;
             showStatus("Lade Daten...", "saving");
             try { const resC = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/ideenapp/stammdaten.json:/content", { headers: { "Authorization": `Bearer ${accessToken}` } }); if (resC.ok) { const d = await resC.json(); if(d.kontakte) dbKontakte = new Map(d.kontakte); } } catch(e) {}
             try { const resI = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/ideenapp/immobilien.json:/content", { headers: { "Authorization": `Bearer ${accessToken}` } }); if (resI.ok) { const d = await resI.json(); if(d.objekte) dbObjekte = new Map(d.objekte); if(d.haeuser) dbHaeuser = new Map(d.haeuser); if(d.einheiten) dbEinheiten = new Map(d.einheiten); saveLocal(); renderLists(); showStatus("Daten geladen", "success"); } } catch(e) { showStatus("Neu/Fehler: " + e.message, "error"); }
         }
+        
+        // AUTO SAVE TRIGGER
+        function triggerAutoSave() {
+            if(!accessToken) return;
+            showStatus("⏳ Speichern...", "info");
+            clearTimeout(autoSaveTimer);
+            autoSaveTimer = setTimeout(() => saveToOneDrive(false), 2000);
+        }
+
         async function saveToOneDrive(m) {
             if (!accessToken && !(await getToken())) { if(m) alert("Bitte einloggen."); return; }
-            showStatus("Speichere...", "saving");
+            if(m) showStatus("Speichere...", "saving");
             const data = { objekte: Array.from(dbObjekte.entries()), haeuser: Array.from(dbHaeuser.entries()), einheiten: Array.from(dbEinheiten.entries()), meta: { updated: new Date().toISOString() } };
             try { const res = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/ideenapp/immobilien.json:/content", { method: "PUT", headers: { "Authorization": `Bearer ${accessToken}`, "Content-Type": "application/json" }, body: JSON.stringify(data, null, 2) }); if (res.ok) showStatus("Gespeichert", "success"); else showStatus("Fehler", "error"); } catch(e) { showStatus("Fehler: " + e.message, "error"); }
         }
+        
+        // --- LOCAL STORAGE ---
         function loadLocal() { try { const o=localStorage.getItem("immo_objekte"); if(o) dbObjekte=new Map(JSON.parse(o)); const h=localStorage.getItem("immo_haeuser"); if(h) dbHaeuser=new Map(JSON.parse(h)); const e=localStorage.getItem("immo_einheiten"); if(e) dbEinheiten=new Map(JSON.parse(e)); } catch(err){} }
         function saveLocal() { localStorage.setItem("immo_objekte", JSON.stringify(Array.from(dbObjekte.entries()))); localStorage.setItem("immo_haeuser", JSON.stringify(Array.from(dbHaeuser.entries()))); localStorage.setItem("immo_einheiten", JSON.stringify(Array.from(dbEinheiten.entries()))); }
         function showStatus(msg, type) { const s=document.getElementById('onedriveStatus'); s.textContent=msg; s.className='onedrive-status '+type; s.style.display='inline-block'; setTimeout(()=>s.style.display='none', 4000); }
+
+        async function speichereDateiLokal() {
+            const data = { objekte: Array.from(dbObjekte.entries()), haeuser: Array.from(dbHaeuser.entries()), einheiten: Array.from(dbEinheiten.entries()) };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+            
+            if (window.showSaveFilePicker) {
+                try {
+                    const handle = await window.showSaveFilePicker({ suggestedName: "objekte_backup.json", types: [{ accept: { "application/json": [".json"] } }] });
+                    const writable = await handle.createWritable();
+                    await writable.write(blob); await writable.close();
+                    showStatus("Lokal gesichert", "success");
+                } catch(e) {}
+            } else {
+                const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "objekte_backup.json"; a.click();
+            }
+        }
+
+        async function ladeDateiLokal() {
+            try {
+                let text;
+                if (window.showOpenFilePicker) {
+                    const [handle] = await window.showOpenFilePicker({ types: [{ accept: { "application/json": [".json"] } }] });
+                    const file = await handle.getFile();
+                    text = await file.text();
+                } else {
+                    const inp = document.createElement("input"); inp.type="file"; inp.click();
+                    await new Promise(r => inp.onchange = e => { if(e.target.files[0]) { const reader = new FileReader(); reader.onload=ev=>r(text=ev.target.result); reader.readAsText(e.target.files[0]); } });
+                }
+                if(text) {
+                    const d = JSON.parse(text);
+                    if(d.objekte) dbObjekte = new Map(d.objekte);
+                    if(d.haeuser) dbHaeuser = new Map(d.haeuser);
+                    if(d.einheiten) dbEinheiten = new Map(d.einheiten);
+                    saveLocal(); renderLists(); triggerAutoSave();
+                    alert("Backup erfolgreich geladen!");
+                }
+            } catch(e) { alert("Fehler beim Laden: "+e.message); }
+        }
 
         // --- HAUS MODAL MATRIX & TYPES ---
         
@@ -480,7 +577,9 @@
             
             let labelHtml = label;
             if(isCustom) {
-                labelHtml = `<input type="text" class="custom-label-inp" value="${label}" style="text-align:left; background:#fff; border:1px solid #ccc; padding:2px;">`;
+                // Ensure value is safe
+                const safeLabel = label.replace(/"/g, '&quot;');
+                labelHtml = `<input type="text" class="custom-label-inp" value="${safeLabel}" style="text-align:left; background:#fff; border:1px solid #ccc; padding:2px;">`;
             }
 
             tr.innerHTML = `
@@ -499,6 +598,11 @@
         function addCustomTypeRow() {
             const id = 'custom_' + Date.now();
             addMatrixRowToUI(id, "Neuer Typ", null, true);
+            // Focus on new label input
+            const rows = document.getElementById('hausSollMatrixBody').rows;
+            const lastRow = rows[rows.length-1];
+            const inp = lastRow.querySelector('.custom-label-inp');
+            if(inp) inp.focus();
         }
 
         // --- LIVE MATRIX BERECHNUNG ---
@@ -670,7 +774,7 @@
             box.innerHTML = msg;
         }
 
-        // --- RENDER LISTS ---
+        // --- RENDER LISTS & FILTER ---
         function switchTab(id) {
             document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -687,20 +791,11 @@
             const mSel = document.getElementById('einheitMieterSelect'); 
             if(mSel) { mSel.innerHTML = "<option value=''>-- Leerstand / Keiner --</option>"; Array.from(dbKontakte.entries()).sort((a,b)=>(a[1].fn||"").localeCompare(b[1].fn||"")).forEach(([id, k]) => mSel.add(new Option(k.fn + (k.org ? ` (${k.org})` : ""), id))); }
 
-            // Filter Check
-            let showObj = dbObjekte;
-            let showHaus = dbHaeuser;
-            let showEin = dbEinheiten;
-            
+            // Filter logic
+            let showObj = dbObjekte; let showHaus = dbHaeuser; let showEin = dbEinheiten;
             if(activeFilterId) {
-                // Nur das aktive Objekt
-                showObj = new Map();
-                if(dbObjekte.has(activeFilterId)) showObj.set(activeFilterId, dbObjekte.get(activeFilterId));
-                
-                // Nur Häuser dieses Objekts
+                showObj = new Map(); if(dbObjekte.has(activeFilterId)) showObj.set(activeFilterId, dbObjekte.get(activeFilterId));
                 showHaus = new Map(Array.from(dbHaeuser.entries()).filter(([id, h]) => h.objektId === activeFilterId));
-                
-                // Nur Einheiten dieser Häuser
                 const hausIds = Array.from(showHaus.keys());
                 showEin = new Map(Array.from(dbEinheiten.entries()).filter(([id, e]) => hausIds.includes(e.hausId)));
             }
@@ -716,11 +811,7 @@
                     let valHtml = validateVal(o.sollHaeuser || 0, haeuser.length, "Häuser", 0);
                     valHtml += validateVal(o.flaeche || 0, sumHausFlaeche, "m²");
                     valHtml += validateVal(o.mea || 1000, sumHausMea, "MEA");
-                    
-                    const filterBtn = (activeFilterId === id) 
-                        ? `<button class="filter-btn active" onclick="toggleFilter(null)">Filter lösen</button>`
-                        : `<button class="filter-btn" onclick="toggleFilter('${id}')">🎯 Fokus</button>`;
-
+                    const filterBtn = (activeFilterId === id) ? `<button class="filter-btn active" onclick="toggleFilter(null)">Filter lösen</button>` : `<button class="filter-btn" onclick="toggleFilter('${id}')">🎯 Fokus</button>`;
                     oDiv.innerHTML += `<div class="liste-item"><input type="checkbox" class="item-checkbox" value="${id}"><div class="liste-content"><div style="display:flex; justify-content:space-between; align-items:center;"><h4>${o.name} <small>[${o.nummer}]</small></h4><div>${filterBtn} <button onclick="openObjektMask('${id}')">Bearbeiten</button></div></div><div class="sub-info">${o.plz} ${o.ort}</div><div class="objekt-stats">${valHtml}</div></div></div>`;
                 });
             }
@@ -732,7 +823,6 @@
                     const o = dbObjekte.get(h.objektId);
                     const einheiten = Array.from(dbEinheiten.values()).filter(e => e.hausId === id);
                     let valHtml = ""; let hasError = false;
-                    
                     if(h.sollMatrix) {
                         Object.keys(h.sollMatrix).forEach(tid => {
                             const tLabel = h.sollMatrix[tid].label;
@@ -747,7 +837,6 @@
                             }
                         });
                     }
-
                     const sumMea = einheiten.reduce((s,e)=>s+safeFloat(e.mea),0);
                     valHtml += validateVal(h.anteile||0, sumMea, "MEA");
                     if(!hasError && valHtml.indexOf('⚠️')===-1) valHtml = '<div class="stat-ok">✅ Alle Vorgaben erfüllt.</div>' + valHtml;
@@ -770,10 +859,8 @@
                         if(act) { const m=dbKontakte.get(act.mieterId); const seqIndex = sortedBel.indexOf(act) + 1; contractId = e.id + "/" + pad(seqIndex, 2); stHtml = `<span class="status-vermietet">✅ ${m?m.fn:'?'}</span> <span class="contract-id" title="Vertragsnummer">${contractId}</span> <span style="color:#666;font-size:0.8em;">(${formatDate(act.einzug)}...)</span>`; }
                         else if(fut) { const m=dbKontakte.get(fut.mieterId); stHtml = `<span class="status-leerstand">⚠️ LEER</span> <span class="status-zukunft">➡️ Ab ${formatDate(fut.einzug)}: ${m?m.fn:'?'}</span>`; }
                     }
-                    // Resolve Label
                     const h = dbHaeuser.get(e.hausId);
                     const tLabel = (h && h.sollMatrix && h.sollMatrix[e.typ]) ? h.sollMatrix[e.typ].label : (STANDARD_TYPES.find(t=>t.id===e.typ)?.label || e.typ);
-
                     eDiv.innerHTML += `<div class="liste-item"><input type="checkbox" class="item-checkbox" value="${e.id}"><div class="liste-content"><div style="display:flex; justify-content:space-between;"><h4>${e.name} <span class="badge">${tLabel}</span> <small>(${e.hName})</small></h4><button onclick="openEinheitMask('${e.id}')">Bearbeiten</button></div><div class="sub-info">${formatNum(safeFloat(e.flaeche))}m² | MEA: ${formatNum(safeFloat(e.mea))}</div><div class="mieter-status">${stHtml}</div></div></div>`;
                 });
             }
@@ -781,8 +868,8 @@
 
         // --- CRUD MASKEN ---
         function openObjektMask(id){ const o=id?dbObjekte.get(id):{}; document.getElementById('objektIdInput').value=id||""; document.getElementById('objektNummerInput').value=id || getNextObjektID(); document.getElementById('objektNameInput').value=o.name||""; document.getElementById('objektPlzInput').value=o.plz||""; document.getElementById('objektOrtInput').value=o.ort||""; document.getElementById('objektFlaecheInput').value=o.flaeche||""; document.getElementById('objektMeaInput').value=o.mea||"1000"; document.getElementById('objektSollHaeuser').value=o.sollHaeuser||"1"; updateObjektLiveStatus(); document.getElementById('objektModal').classList.add('active'); }
-        function saveObjekt(){ let id=document.getElementById('objektNummerInput').value; if(!id) id=getNextObjektID(); dbObjekte.set(String(id), { nummer: id, name: document.getElementById('objektNameInput').value, plz: document.getElementById('objektPlzInput').value, ort: document.getElementById('objektOrtInput').value, flaeche: safeFloat(document.getElementById('objektFlaecheInput').value), mea: safeFloat(document.getElementById('objektMeaInput').value), sollHaeuser: safeFloat(document.getElementById('objektSollHaeuser').value) }); document.getElementById('objektModal').classList.remove('active'); saveLocal(); renderLists(); saveToOneDrive(false); }
-        function deleteObjekt(){ if(confirm("Löschen?")) { dbObjekte.delete(document.getElementById('objektIdInput').value); document.getElementById('objektModal').classList.remove('active'); saveLocal(); renderLists(); saveToOneDrive(false); } }
+        function saveObjekt(){ let id=document.getElementById('objektNummerInput').value; if(!id) id=getNextObjektID(); dbObjekte.set(String(id), { nummer: id, name: document.getElementById('objektNameInput').value, plz: document.getElementById('objektPlzInput').value, ort: document.getElementById('objektOrtInput').value, flaeche: safeFloat(document.getElementById('objektFlaecheInput').value), mea: safeFloat(document.getElementById('objektMeaInput').value), sollHaeuser: safeFloat(document.getElementById('objektSollHaeuser').value) }); document.getElementById('objektModal').classList.remove('active'); saveLocal(); renderLists(); triggerAutoSave(); }
+        function deleteObjekt(){ if(confirm("Löschen?")) { dbObjekte.delete(document.getElementById('objektIdInput').value); document.getElementById('objektModal').classList.remove('active'); saveLocal(); renderLists(); triggerAutoSave(); } }
 
         function openHausMask(id){
             const h=id?dbHaeuser.get(id):{}; document.getElementById('hausIdInput').value=id||""; 
@@ -790,15 +877,11 @@
             if(h.objektId) sel.value=h.objektId;
             if(!id && sel.value) document.getElementById('hausNummerDisplay').value = getNextHausID(sel.value); else document.getElementById('hausNummerDisplay').value = id;
             document.getElementById('hausBezeichnungInput').value=h.bezeichnung||""; document.getElementById('hausAnteileInput').value=h.anteile||"";
-            
             renderHausMatrix(h);
-            
             calcMatrixSum(); document.getElementById('hausModal').classList.add('active');
         }
         function saveHaus(){
             let id=document.getElementById('hausNummerDisplay').value; if(!id) { const oid=document.getElementById('hausObjektSelect').value; id=getNextHausID(oid); }
-            
-            // Build Matrix from UI
             let mx={}; 
             document.querySelectorAll('#hausSollMatrixBody tr').forEach(tr => {
                 const tid = tr.dataset.typeId;
@@ -806,38 +889,31 @@
                 const lbl = lblInput ? lblInput.value : tr.cells[0].innerText;
                 const cnt = tr.querySelector('.soll-count').value;
                 const area = tr.querySelector('.soll-area').value;
-                if(cnt || area) {
-                    mx[tid] = { count: cnt, area: area, label: lbl };
-                }
+                if(cnt || area) { mx[tid] = { count: cnt, area: area, label: lbl }; }
             });
-
             dbHaeuser.set(String(id), { objektId: document.getElementById('hausObjektSelect').value, bezeichnung: document.getElementById('hausBezeichnungInput').value, anteile: safeFloat(document.getElementById('hausAnteileInput').value), sollMatrix: mx });
-            document.getElementById('hausModal').classList.remove('active'); saveLocal(); renderLists(); saveToOneDrive(false);
+            document.getElementById('hausModal').classList.remove('active'); saveLocal(); renderLists(); triggerAutoSave();
         }
-        function deleteHaus(){ if(confirm("Löschen?")) { dbHaeuser.delete(document.getElementById('hausIdInput').value); document.getElementById('hausModal').classList.remove('active'); saveLocal(); renderLists(); saveToOneDrive(false); } }
+        function deleteHaus(){ if(confirm("Löschen?")) { dbHaeuser.delete(document.getElementById('hausIdInput').value); document.getElementById('hausModal').classList.remove('active'); saveLocal(); renderLists(); triggerAutoSave(); } }
 
         function filterHaeuserDropdown(){ const oid=document.getElementById('einheitObjektSelect').value; const h=document.getElementById('einheitHausSelect'); h.innerHTML=""; if(!oid)return; Array.from(dbHaeuser.entries()).filter(([hid,x])=>x.objektId===oid).forEach(([hid,x])=>h.add(new Option(x.bezeichnung,hid))); }
         
         function addBelegungRow(d={}){ 
             const c=document.getElementById('belegungListe'); if(!c)return; 
             const wrapper = document.createElement('div'); wrapper.className = 'belegung-wrapper';
-            
             const r=document.createElement('div'); r.className='belegung-row'; 
             const s=document.createElement('select'); s.className='belegung-mieter'; 
             s.innerHTML="<option value=''>-- Mieter --</option>";
             Array.from(dbKontakte.entries()).sort((a,b)=>(a[1].fn||"").localeCompare(b[1].fn||"")).forEach(([id,k])=>s.add(new Option(k.fn+(k.org?` (${k.org})`:""),id)));
             if(d.mieterId) s.value=d.mieterId;
             s.onchange = function() { updateContactInfoDisplay(this.value, wrapper); };
-
             const inEin=document.createElement('input'); inEin.type="date"; inEin.className="belegung-einzug"; if(d.einzug) inEin.value=d.einzug;
             const inAus=document.createElement('input'); inAus.type="date"; inAus.className="belegung-auszug"; if(d.auszug) inAus.value=d.auszug;
             const btnAddr = document.createElement('button'); btnAddr.type="button"; btnAddr.innerText="📍"; btnAddr.title="Abweichende Adresse bei Auszug"; btnAddr.style.padding="4px 8px";
             const b=document.createElement('button'); b.className="warn-btn"; b.innerText="X"; b.onclick=()=>wrapper.remove();
-            
             r.append(s,inEin,inAus,btnAddr,b); 
             const infoDiv = document.createElement('div'); infoDiv.className = 'contact-info-display';
             if(d.mieterId) updateContactInfoDisplay(d.mieterId, wrapper);
-
             const extra = document.createElement('div'); extra.className='belegung-extra';
             const grid = document.createElement('div'); grid.className='belegung-adresse-grid';
             const inStr = document.createElement('input'); inStr.type="text"; inStr.className="addr-strasse"; inStr.placeholder="Straße"; if(d.strasse) inStr.value=d.strasse; else if(d.adresse) inStr.value=d.adresse; 
@@ -847,7 +923,6 @@
             grid.append(inStr, inHnr, inPlz, inOrt); extra.appendChild(grid);
             if(d.strasse || d.adresse) extra.style.display="block";
             btnAddr.onclick = () => { extra.style.display = extra.style.display === 'none' ? 'block' : 'none'; };
-
             wrapper.appendChild(r); wrapper.appendChild(infoDiv); wrapper.appendChild(extra);
             c.appendChild(wrapper);
         }
@@ -905,9 +980,9 @@
             const bel=[]; document.querySelectorAll('#belegungListe .belegung-wrapper').forEach(w=>{ const m=w.querySelector('.belegung-mieter').value; if(m) bel.push({mieterId:m, einzug:w.querySelector('.belegung-einzug').value, auszug:w.querySelector('.belegung-auszug').value, strasse:w.querySelector('.addr-strasse').value, hausnr:w.querySelector('.addr-hausnr').value, plz:w.querySelector('.addr-plz').value, ort:w.querySelector('.addr-ort').value}); });
             const hist=[]; document.querySelectorAll('#historieListe .historie-row').forEach(r=>{ const d = r.querySelector('.hist-date').value; const t = r.querySelector('.hist-desc').value; if(d || t) hist.push({date:d, text:t}); });
             dbEinheiten.set(String(id), { hausId: document.getElementById('einheitHausSelect').value, name: document.getElementById('einheitNameInput').value, typ: document.getElementById('einheitTypSelect').value, flaeche: safeFloat(document.getElementById('einheitFlaecheInput').value), heizflaeche: safeFloat(document.getElementById('einheitHeizflaecheInput').value), zimmer: document.getElementById('einheitZimmerInput').value, mea: safeFloat(document.getElementById('einheitMeaInput').value), belegung: bel, historie: hist });
-            document.getElementById('einheitModal').classList.remove('active'); saveLocal(); renderLists(); saveToOneDrive(false);
+            document.getElementById('einheitModal').classList.remove('active'); saveLocal(); renderLists(); triggerAutoSave();
         }
-        function deleteEinheit(){ if(confirm("Löschen?")) { dbEinheiten.delete(document.getElementById('einheitIdInput').value); document.getElementById('einheitModal').classList.remove('active'); saveLocal(); renderLists(); saveToOneDrive(false); } }
+        function deleteEinheit(){ if(confirm("Löschen?")) { dbEinheiten.delete(document.getElementById('einheitIdInput').value); document.getElementById('einheitModal').classList.remove('active'); saveLocal(); renderLists(); triggerAutoSave(); } }
         
         // --- PDF FUNKTIONEN (wie gehabt) ---
         function getSelectedIds(containerId) { const checkboxes = document.querySelectorAll(`#${containerId} .item-checkbox:checked`); if(checkboxes.length === 0) return []; return Array.from(checkboxes).map(cb => cb.value); }
