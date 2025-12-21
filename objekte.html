@@ -556,44 +556,44 @@
             const oid = getNextObjektID();
             dbObjekte.set(oid, { nummer: oid, name: "Wohnpark Test", plz: "12345", ort: "Musterstadt", flaeche: 150, mea: 1000, sollHaeuser: 1 });
             const hid = getNextHausID(oid);
-            const matrix = {}; matrix['wohnung'] = { count: 1, area: 50, label: "Wohnung" };
-            dbHaeuser.set(hid, { objektId: oid, bezeichnung: "Haus A", anteile: 1000, sollMatrix: matrix });
-            const eid1 = getNextEinheitID(hid);
+            const matrix = {}; 
+            matrix['wohnung'] = { count: 2, area: 100, label: "Wohnung" }; // 2x50 = 100
+            matrix['gewerbe'] = { count: 1, area: 50, label: "Gewerbe" };  // 1x50 = 50
             
-            // Einheit mit Konditionen (Erweiterbar)
-            dbEinheiten.set(eid1, { 
-                hausId: hid, name: "EG Links", typ: "wohnung", flaeche: 50, zimmer: 2, mea: 1000, 
+            dbHaeuser.set(hid, { objektId: oid, bezeichnung: "Haus A", anteile: 1000, sollMatrix: matrix });
+            
+            // Einheit 1: Wohnung Links (ID generieren)
+            let eid = getNextEinheitID(hid);
+            dbEinheiten.set(eid, { 
+                hausId: hid, name: "EG Links", typ: "wohnung", flaeche: 50, zimmer: 2, mea: 333.33, 
                 ww_m3: 123.4, kw_m3: 456.7,
                 konditionen: [
                     { id: 'k1', label: 'Kaltmiete', betrag: 500, konto: '8000', gueltigAb: '2023-01-01' },
                     { id: 'k2', label: 'BK-Vorausz.', betrag: 100, konto: '8010', gueltigAb: '2023-01-01' },
-                    { id: 'k3', label: 'Küchenzuschlag', betrag: 50, konto: '8050', gueltigAb: '2023-01-01' } // Beispiel für Erweiterung
+                    { id: 'k3', label: 'Küchenzuschlag', betrag: 50, konto: '8050', gueltigAb: '2023-01-01' } 
                 ],
                 belegung: [{ mieterId: "dummy_mieter", einzug: "2023-01-01", auszug: "" }] 
             });
 
-            // FINANZ HISTORIE ERZEUGEN (Letzte 3 Monate)
+            // FINANZ HISTORIE NUR FÜR EINHEIT 1 ERZEUGEN (Letzte 3 Monate)
             const now = new Date();
             for (let i = 3; i >= 1; i--) {
-                const d = new Date(now.getFullYear(), now.getMonth() - i, 1); // 1. des Monats
-                const monatStr = d.toISOString().slice(0, 7); // YYYY-MM
+                const d = new Date(now.getFullYear(), now.getMonth() - i, 1); 
+                const monatStr = d.toISOString().slice(0, 7);
                 const buchDatum = d.toISOString().slice(0, 10);
-                
-                // Soll (Miete + BK + Küche)
-                dbFinanzen.push({
-                    id: getNextFinanzId(), einheitId: eid1, mieterId: "dummy_mieter",
-                    monatRef: monatStr, buchungsdatum: buchDatum, typ: 'soll',
-                    kategorie: 'Miete Gesamt', text: `Sollstellung ${monatStr} (Test)`, betrag: 650, konto: '8000'
-                });
-                
-                // Haben (Zahlung 3 Tage später)
                 const zahlDatum = new Date(d); zahlDatum.setDate(4);
-                dbFinanzen.push({
-                    id: getNextFinanzId(), einheitId: eid1, mieterId: "dummy_mieter",
-                    monatRef: monatStr, buchungsdatum: zahlDatum.toISOString().slice(0, 10), typ: 'haben',
-                    kategorie: 'Zahlung', text: `Mieteigang ${monatStr}`, betrag: 650, konto: '1200'
-                });
+                
+                dbFinanzen.push({ id: getNextFinanzId(), einheitId: eid, mieterId: "dummy_mieter", monatRef: monatStr, buchungsdatum: buchDatum, typ: 'soll', kategorie: 'Miete Gesamt', text: `Sollstellung ${monatStr} (Test)`, betrag: 650, konto: '8000' });
+                dbFinanzen.push({ id: getNextFinanzId(), einheitId: eid, mieterId: "dummy_mieter", monatRef: monatStr, buchungsdatum: zahlDatum.toISOString().slice(0, 10), typ: 'haben', kategorie: 'Zahlung', text: `Mieteigang ${monatStr}`, betrag: 650, konto: '1200' });
             }
+
+            // Einheit 2: Wohnung Rechts (ID generieren - da E1 schon im Map ist, wird E2 korrekt berechnet)
+            eid = getNextEinheitID(hid);
+            dbEinheiten.set(eid, { hausId: hid, name: "EG Rechts", typ: "wohnung", flaeche: 50, zimmer: 2, mea: 333.33, belegung: [] });
+
+            // Einheit 3: Gewerbe (ID generieren)
+            eid = getNextEinheitID(hid);
+            dbEinheiten.set(eid, { hausId: hid, name: "Büro OG", typ: "gewerbe", flaeche: 50, zimmer: 3, mea: 333.34, belegung: [] });
 
             saveLocal(); renderLists(); alert("Wohnpark Test + Finanzhistorie angelegt!");
         }
