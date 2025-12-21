@@ -302,132 +302,69 @@
             } catch(e) { console.error(e); }
         });
 
-        // --- HELPER & ID GENERATION ---
+        // --- HELPER ---
         function safeFloat(val) { if(typeof val==='number') return val; if(!val) return 0; let str=val.toString().replace(',','.'); return parseFloat(str)||0; }
         function formatDate(isoStr) { if(!isoStr) return ""; const p=isoStr.split('-'); return `${p[2]}.${p[1]}.${p[0]}`; }
         function formatNum(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}); }
         function pad(n, width, z) { z = z || '0'; n = n + ''; return n.length >= width ? n : new Array(width - n.length + 1).join(z) + n; }
-
-        // ID Generatoren (Format 0001 / 01 / 0001)
-        function getNextObjektID() {
-            let max = 0;
-            dbObjekte.forEach((o, id) => {
-                const num = parseInt(id, 10);
-                if (!isNaN(num) && num > max) max = num;
-            });
-            return pad(max + 1, 4);
+        
+        // --- DIE VERMISSTE FUNKTION ---
+        function validateVal(soll, ist, unit = '', tolerance = 0.01) {
+            soll = safeFloat(soll); ist = safeFloat(ist);
+            const diff = Math.round((ist - soll) * 1000) / 1000;
+            const isOk = Math.abs(diff) <= tolerance;
+            if(isOk) return `<div class="validation-row"><span class="stat-ok">✅ ${formatNum(ist)} ${unit} (Soll: ${formatNum(soll)})</span></div>`;
+            const diffStr = diff > 0 ? `+${formatNum(diff)}` : formatNum(diff);
+            return `<div class="validation-row"><span class="stat-err">⚠️ ${formatNum(ist)} ${unit} (Soll: ${formatNum(soll)}) <small style="margin-left:5px;">Diff: ${diffStr}</small></span></div>`;
         }
 
+        // --- ID GENERATORS ---
+        function getNextObjektID() {
+            let max = 0;
+            dbObjekte.forEach((o, id) => { const num = parseInt(id, 10); if (!isNaN(num) && num > max) max = num; });
+            return pad(max + 1, 4);
+        }
         function getNextHausID(objektId) {
             let max = 0;
-            // Scan keys starting with objektId + "/"
             dbHaeuser.forEach((h, id) => {
-                if (id.startsWith(objektId + "/")) {
-                    const parts = id.split('/');
-                    const num = parseInt(parts[1], 10);
-                    if (!isNaN(num) && num > max) max = num;
-                }
+                if (id.startsWith(objektId + "/")) { const parts = id.split('/'); const num = parseInt(parts[1], 10); if (!isNaN(num) && num > max) max = num; }
             });
             return objektId + "/" + pad(max + 1, 2);
         }
-
         function getNextEinheitID(hausId) {
             let max = 0;
             dbEinheiten.forEach((e, id) => {
-                if (id.startsWith(hausId + "/")) {
-                    const parts = id.split('/');
-                    const num = parseInt(parts[2], 10); // 0001/01/XXXX
-                    if (!isNaN(num) && num > max) max = num;
-                }
+                if (id.startsWith(hausId + "/")) { const parts = id.split('/'); const num = parseInt(parts[2], 10); if (!isNaN(num) && num > max) max = num; }
             });
             return hausId + "/" + pad(max + 1, 4);
         }
 
-        function getNextTenantSeq(belegungArr) {
-            // Einfache Zählung der bisherigen Mieter + 1
-            const count = (belegungArr ? belegungArr.length : 0) + 1;
-            return pad(count, 2);
-        }
-
-        // --- DUMMY DATA GENERATOR ---
+        // --- DUMMY DATA ---
         function createDummyData() {
-            if(!confirm("Möchten Sie Musterdaten (Wohnpark Test mit 3 Einheiten) erzeugen?")) return;
-            
-            // 1. Dummy Kontakte (Nur in Memory, wenn DB leer)
-            if(dbKontakte.size === 0) {
-                dbKontakte.set("k_dummy1", {fn: "Max Mustermann", org: ""});
-                dbKontakte.set("k_dummy2", {fn: "Erika Musterfrau", org: ""});
-                dbKontakte.set("k_dummy3", {fn: "GmbH & Co KG", org: "Musterfirma"});
-            }
-
-            // 2. Objekt
+            if(!confirm("Musterdaten (Wohnpark Test) erzeugen?")) return;
+            if(dbKontakte.size === 0) { dbKontakte.set("k_d1", {fn: "Max Mustermann"}); dbKontakte.set("k_d2", {fn: "Erika Musterfrau"}); dbKontakte.set("k_d3", {fn: "GmbH", org: "Muster"}); }
             const oid = getNextObjektID();
-            dbObjekte.set(oid, {
-                nummer: oid, name: "Wohnpark Test", plz: "12345", ort: "Musterstadt", 
-                flaeche: 150, mea: 1000, sollHaeuser: 1
-            });
-
-            // 3. Haus
+            dbObjekte.set(oid, { nummer: oid, name: "Wohnpark Test", plz: "12345", ort: "Musterstadt", flaeche: 150, mea: 1000, sollHaeuser: 1 });
             const hid = getNextHausID(oid);
-            const matrix = {};
-            // Soll: 2 Wohnungen (100m²), 1 Gewerbe (50m²)
-            matrix['wohnung'] = { count: 2, area: 100 };
-            matrix['gewerbe'] = { count: 1, area: 50 };
-            
-            dbHaeuser.set(hid, {
-                objektId: oid, bezeichnung: "Haus A", anteile: 1000, 
-                sollMatrix: matrix
-            });
-
-            // 4. Einheiten
-            // E1: Wohnung
+            const matrix = {}; matrix['wohnung'] = { count: 2, area: 100 }; matrix['gewerbe'] = { count: 1, area: 50 };
+            dbHaeuser.set(hid, { objektId: oid, bezeichnung: "Haus A", anteile: 1000, sollMatrix: matrix });
             const eid1 = getNextEinheitID(hid);
-            dbEinheiten.set(eid1, {
-                hausId: hid, name: "EG Links", typ: "wohnung", flaeche: 50, zimmer: 2, mea: 333.33,
-                belegung: [{ mieterId: "k_dummy1", einzug: "2020-01-01", auszug: "" }]
-            });
-
-            // E2: Wohnung
-            const eid2 = getNextEinheitID(hid); // Auto increment
-            // Trick: Da eid1 noch nicht in save gespeichert wurde, manuell hochzählen für Loop-Simulation
-            // Aber hier setzen wir direkt in Map. getNext scannt Map. Also ok.
-            dbEinheiten.set(eid2, {
-                hausId: hid, name: "EG Rechts", typ: "wohnung", flaeche: 50, zimmer: 2, mea: 333.33,
-                belegung: [{ mieterId: "k_dummy2", einzug: "2021-06-01", auszug: "" }]
-            });
-
-            // E3: Gewerbe
-            const parts = eid2.split('/'); 
-            const eid3 = parts[0]+"/"+parts[1]+"/"+pad(parseInt(parts[2])+1,4); // Manueller Increment
-            dbEinheiten.set(eid3, {
-                hausId: hid, name: "Büro OG", typ: "gewerbe", flaeche: 50, zimmer: 3, mea: 333.34,
-                belegung: [{ mieterId: "k_dummy3", einzug: "2019-01-01", auszug: "2023-12-31" }] // Leerstand aktuell
-            });
-
-            saveLocal();
-            renderLists();
-            alert("Testdaten angelegt!");
+            dbEinheiten.set(eid1, { hausId: hid, name: "EG Links", typ: "wohnung", flaeche: 50, zimmer: 2, mea: 333.33, belegung: [{ mieterId: "k_d1", einzug: "2020-01-01", auszug: "" }] });
+            const eid2 = getNextEinheitID(hid); // ACHTUNG: Hier muss in Realität neu berechnet werden nach Set
+            // Da JS synchron läuft, ist eid2 == eid1, wenn wir nicht zwischenspeichern. 
+            // Workaround für Dummy: Manuell hochzählen
+            const parts = eid1.split('/'); const eid2_fix = parts[0]+"/"+parts[1]+"/"+pad(parseInt(parts[2])+1,4);
+            dbEinheiten.set(eid2_fix, { hausId: hid, name: "EG Rechts", typ: "wohnung", flaeche: 50, zimmer: 2, mea: 333.33, belegung: [{ mieterId: "k_d2", einzug: "2021-06-01", auszug: "" }] });
+            const eid3_fix = parts[0]+"/"+parts[1]+"/"+pad(parseInt(parts[2])+2,4);
+            dbEinheiten.set(eid3_fix, { hausId: hid, name: "Büro OG", typ: "gewerbe", flaeche: 50, zimmer: 3, mea: 333.34, belegung: [{ mieterId: "k_d3", einzug: "2019-01-01", auszug: "2023-12-31" }] });
+            saveLocal(); renderLists(); alert("Testdaten angelegt!");
         }
 
         // --- INIT UI ---
-        function initUnitTypes() {
-            const sel = document.getElementById('einheitTypSelect'); if(sel) { sel.innerHTML = ""; UNIT_TYPES.forEach(t => sel.add(new Option(t.label, t.id))); }
-        }
+        function initUnitTypes() { const sel = document.getElementById('einheitTypSelect'); if(sel) { sel.innerHTML = ""; UNIT_TYPES.forEach(t => sel.add(new Option(t.label, t.id))); } }
         function initHausMatrix() {
             const tbody = document.getElementById('hausSollMatrixBody'); if(tbody) {
-                tbody.innerHTML = "";
-                UNIT_TYPES.forEach(t => {
-                    const tr = document.createElement('tr');
-                    tr.id = `row_${t.id}`;
-                    tr.innerHTML = `<td>${t.label}</td>
-                        <td><input type="number" step="1" id="soll_count_${t.id}" class="matrix-inp" placeholder="0" oninput="calcMatrixSum()"></td>
-                        <td class="readonly-val" id="ist_count_${t.id}">0</td>
-                        <td class="diff-val" id="diff_count_${t.id}">0</td>
-                        <td><input type="number" step="0.01" id="soll_area_${t.id}" class="matrix-inp" placeholder="0.00" oninput="calcMatrixSum()"></td>
-                        <td class="readonly-val" id="ist_area_${t.id}">0</td>
-                        <td class="diff-val" id="diff_area_${t.id}">0.00</td>`;
-                    tbody.appendChild(tr);
-                });
+                tbody.innerHTML = ""; UNIT_TYPES.forEach(t => { const tr = document.createElement('tr'); tr.id = `row_${t.id}`; tr.innerHTML = `<td>${t.label}</td><td><input type="number" step="1" id="soll_count_${t.id}" class="matrix-inp" placeholder="0" oninput="calcMatrixSum()"></td><td class="readonly-val" id="ist_count_${t.id}">0</td><td class="diff-val" id="diff_count_${t.id}">0</td><td><input type="number" step="0.01" id="soll_area_${t.id}" class="matrix-inp" placeholder="0.00" oninput="calcMatrixSum()"></td><td class="readonly-val" id="ist_area_${t.id}">0</td><td class="diff-val" id="diff_area_${t.id}">0.00</td>`; tbody.appendChild(tr); });
             }
         }
 
@@ -450,7 +387,7 @@
         function saveLocal() { localStorage.setItem("immo_objekte", JSON.stringify(Array.from(dbObjekte.entries()))); localStorage.setItem("immo_haeuser", JSON.stringify(Array.from(dbHaeuser.entries()))); localStorage.setItem("immo_einheiten", JSON.stringify(Array.from(dbEinheiten.entries()))); }
         function showStatus(msg, type) { const s=document.getElementById('onedriveStatus'); s.textContent=msg; s.className='onedrive-status '+type; s.style.display='inline-block'; setTimeout(()=>s.style.display='none', 4000); }
 
-        // --- CALCULATIONS & LOGIC ---
+        // --- LOGIC ---
         function calcMatrixSum() {
             let sumCnt=0, sumArea=0; const hid = document.getElementById('hausIdInput').value;
             const einheiten = hid ? Array.from(dbEinheiten.values()).filter(e => e.hausId === hid) : [];
@@ -472,11 +409,9 @@
                 document.getElementById(`ist_area_${t.id}`).innerText = formatNum(istA);
                 const diffC = istC - sollC; const diffA = istA - sollA;
                 const elDiffC = document.getElementById(`diff_count_${t.id}`);
-                elDiffC.innerText = (diffC > 0 ? '+' : '') + diffC;
-                elDiffC.style.color = (diffC === 0) ? '#2e7d32' : '#c62828';
+                elDiffC.innerText = (diffC > 0 ? '+' : '') + diffC; elDiffC.style.color = (diffC === 0) ? '#2e7d32' : '#c62828';
                 const elDiffA = document.getElementById(`diff_area_${t.id}`);
-                elDiffA.innerText = (diffA > 0 ? '+' : '') + formatNum(diffA);
-                elDiffA.style.color = (Math.abs(diffA) < 0.1) ? '#2e7d32' : '#c62828';
+                elDiffA.innerText = (diffA > 0 ? '+' : '') + formatNum(diffA); elDiffA.style.color = (Math.abs(diffA) < 0.1) ? '#2e7d32' : '#c62828';
             });
             document.getElementById('matrixSumCount').innerText = sumCnt;
             document.getElementById('matrixSumArea').innerText = formatNum(sumArea);
@@ -485,17 +420,14 @@
         }
 
         function onHausSelectionChange(isFirstLoad = false) {
-            updateHausIdPreview(); // Haus ID für Einheit generieren
+            updateHausIdPreview(); 
             updateHausTypeOverview(isFirstLoad);
             updateUnitLiveStatus();
         }
 
         function updateHausIdPreview() {
-            // Nur bei Haus-Anlage relevant
             const oid = document.getElementById('hausObjektSelect').value;
-            if(oid && !document.getElementById('hausIdInput').value) {
-                document.getElementById('hausNummerDisplay').value = getNextHausID(oid);
-            }
+            if(oid && !document.getElementById('hausIdInput').value) { document.getElementById('hausNummerDisplay').value = getNextHausID(oid); }
         }
 
         function updateHausTypeOverview(isFirstLoad) {
@@ -506,7 +438,6 @@
             if(!hid) { container.innerHTML = '<span style="color:#666;">Kein Haus gewählt.</span>'; return; }
             const h = dbHaeuser.get(hid); if(!h) return;
             const units = Array.from(dbEinheiten.values()).filter(u => u.hausId === hid);
-            
             let html = ''; let foundAny = false; let firstOpenType = null; let allTypesFull = true;
             UNIT_TYPES.forEach(t => {
                 const sollCnt = safeFloat(h.sollMatrix?.[t.id]?.count);
@@ -514,12 +445,9 @@
                 if (sollCnt > 0 || istCnt > 0) {
                     foundAny = true; let cssClass = ""; let text = `${t.label}: ${istCnt} / ${sollCnt}`;
                     if (sollCnt > 0) {
-                        if (istCnt < sollCnt) {
-                            cssClass = "type-badge open"; text += ` (Offen: ${sollCnt - istCnt})`;
-                            if(!firstOpenType) firstOpenType = t.id;
-                            allTypesFull = false;
-                        } else if (istCnt === sollCnt) { cssClass = "type-badge full"; text += " (Voll)";
-                        } else { cssClass = "type-badge over"; text += ` (Zuviel: +${istCnt - sollCnt})`; }
+                        if (istCnt < sollCnt) { cssClass = "type-badge open"; text += ` (Offen: ${sollCnt - istCnt})`; if(!firstOpenType) firstOpenType = t.id; allTypesFull = false; }
+                        else if (istCnt === sollCnt) { cssClass = "type-badge full"; text += " (Voll)"; }
+                        else { cssClass = "type-badge over"; text += ` (Zuviel: +${istCnt - sollCnt})`; }
                     } else if (istCnt > 0) { cssClass = "type-badge over"; text += " (Nicht geplant!)"; }
                     html += `<div class="${cssClass}" onclick="document.getElementById('einheitTypSelect').value='${t.id}'; updateUnitLiveStatus();">${text}</div>`;
                 }
@@ -527,15 +455,9 @@
             if(foundAny && allTypesFull) html = '<span class="full-house-warning">⚠️ HINWEIS: Dieses Haus ist laut Planung bereits vollständig eingerichtet.</span>' + html;
             else if(!foundAny) html += '<span style="color:#666; font-style:italic;">Keine Typen im Haus definiert.</span>';
             container.innerHTML = html;
-            
-            // Auto Select Type & Generate ID
             const currentUnitId = document.getElementById('einheitIdInput').value;
-            if(!currentUnitId) {
-                if(firstOpenType && isFirstLoad) typeSelect.value = firstOpenType;
-                document.getElementById('einheitNummerDisplay').value = getNextEinheitID(hid);
-            } else {
-                document.getElementById('einheitNummerDisplay').value = currentUnitId;
-            }
+            if(!currentUnitId) { if(firstOpenType && isFirstLoad) typeSelect.value = firstOpenType; document.getElementById('einheitNummerDisplay').value = getNextEinheitID(hid); }
+            else document.getElementById('einheitNummerDisplay').value = currentUnitId;
         }
 
         function updateUnitLiveStatus() {
@@ -553,9 +475,8 @@
             const open = sollArea - istOther; 
             box.style.display = "block";
             let msg = `<b>Haus-Check (${UNIT_TYPES.find(t=>t.id===typ).label}):</b><br>`;
-            if (open < 0) {
-                box.className = "live-status-box live-status-err"; msg += `⚠️ Das Soll (${formatNum(sollArea)} m²) ist bereits durch andere Einheiten um ${formatNum(Math.abs(open))} m² überschritten!`;
-            } else {
+            if (open < 0) { box.className = "live-status-box live-status-err"; msg += `⚠️ Das Soll (${formatNum(sollArea)} m²) ist bereits durch andere Einheiten um ${formatNum(Math.abs(open))} m² überschritten!`; }
+            else {
                 msg += `Bisher belegt: ${formatNum(istOther)} m² (von ${formatNum(sollArea)} m² Soll).<br>`;
                 if (Math.abs(diff) < 0.1) { box.className = "live-status-box live-status-ok"; msg += `✅ Perfekt! Mit dieser Eingabe ist das Soll exakt erfüllt.`; }
                 else if (diff > 0) { box.className = "live-status-box live-status-err"; msg += `⚠️ Achtung: Überschreitung um ${formatNum(diff)} m²!`; }
@@ -582,7 +503,7 @@
             box.innerHTML = msg;
         }
 
-        // --- RENDER LISTS ---
+        // --- RENDER LISTS & PDF (wie zuvor) ---
         function switchTab(id) {
             document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -595,7 +516,7 @@
 
         function renderLists() {
             const oSel = document.getElementById('hausObjektSelect'); const eObjSel = document.getElementById('einheitObjektSelect');
-            if (oSel && eObjSel) { oSel.innerHTML = ""; eObjSel.innerHTML = "<option value=''>-- Objekt wählen --</option>"; dbObjekte.forEach((o, id) => { oSel.add(new Option(`${o.name} [${o.nummer}]`, id)); eObjSel.add(new Option(`${o.name} [${o.nummer}]`, id)); }); }
+            if (oSel && eObjSel) { oSel.innerHTML = ""; eObjSel.innerHTML = "<option value=''>-- Objekt wählen --</option>"; dbObjekte.forEach((o, id) => { oSel.add(new Option(`${o.name}`, id)); eObjSel.add(new Option(`${o.name}`, id)); }); }
             const mSel = document.getElementById('einheitMieterSelect'); 
             if(mSel) { mSel.innerHTML = "<option value=''>-- Leerstand / Keiner --</option>"; Array.from(dbKontakte.entries()).sort((a,b)=>(a[1].fn||"").localeCompare(b[1].fn||"")).forEach(([id, k]) => mSel.add(new Option(k.fn + (k.org ? ` (${k.org})` : ""), id))); }
 
@@ -651,16 +572,8 @@
                         const act = e.belegung.find(b => (b.einzug||'0000')<=today && (b.auszug||'9999')>=today);
                         const fut = e.belegung.find(b => (b.einzug||'0000')>today);
                         const sortedBel = [...e.belegung].sort((a,b) => (a.einzug||'').localeCompare(b.einzug||''));
-                        
-                        if(act) { 
-                            const m=dbKontakte.get(act.mieterId); 
-                            const seqIndex = sortedBel.indexOf(act) + 1;
-                            contractId = e.id + "/" + pad(seqIndex, 2);
-                            stHtml = `<span class="status-vermietet">✅ ${m?m.fn:'?'}</span> <span class="contract-id" title="Vertragsnummer">${contractId}</span> <span style="color:#666;font-size:0.8em;">(${formatDate(act.einzug)}...)</span>`; 
-                        } else if(fut) { 
-                            const m=dbKontakte.get(fut.mieterId); 
-                            stHtml = `<span class="status-leerstand">⚠️ LEER</span> <span class="status-zukunft">➡️ Ab ${formatDate(fut.einzug)}: ${m?m.fn:'?'}</span>`; 
-                        }
+                        if(act) { const m=dbKontakte.get(act.mieterId); const seqIndex = sortedBel.indexOf(act) + 1; contractId = e.id + "/" + pad(seqIndex, 2); stHtml = `<span class="status-vermietet">✅ ${m?m.fn:'?'}</span> <span class="contract-id" title="Vertragsnummer">${contractId}</span> <span style="color:#666;font-size:0.8em;">(${formatDate(act.einzug)}...)</span>`; }
+                        else if(fut) { const m=dbKontakte.get(fut.mieterId); stHtml = `<span class="status-leerstand">⚠️ LEER</span> <span class="status-zukunft">➡️ Ab ${formatDate(fut.einzug)}: ${m?m.fn:'?'}</span>`; }
                     }
                     eDiv.innerHTML += `<div class="liste-item"><input type="checkbox" class="item-checkbox" value="${e.id}"><div class="liste-content"><div style="display:flex; justify-content:space-between;"><h4>${e.name} <span class="badge">${e.typ}</span> <small>(${e.hName})</small></h4><button onclick="openEinheitMask('${e.id}')">Bearbeiten</button></div><div class="sub-info">${formatNum(safeFloat(e.flaeche))}m² | MEA: ${formatNum(safeFloat(e.mea))}</div><div class="mieter-status">${stHtml}</div></div></div>`;
                 });
@@ -668,59 +581,21 @@
         }
 
         // --- CRUD MASKEN ---
-        function openObjektMask(id){ 
-            const o=id?dbObjekte.get(id):{}; 
-            document.getElementById('objektIdInput').value=id||""; 
-            document.getElementById('objektNummerInput').value=id || getNextObjektID(); // Auto ID bei Neu
-            document.getElementById('objektNameInput').value=o.name||""; 
-            document.getElementById('objektPlzInput').value=o.plz||""; 
-            document.getElementById('objektOrtInput').value=o.ort||""; 
-            document.getElementById('objektFlaecheInput').value=o.flaeche||""; 
-            document.getElementById('objektMeaInput').value=o.mea||"1000"; 
-            document.getElementById('objektSollHaeuser').value=o.sollHaeuser||"1"; 
-            updateObjektLiveStatus(); 
-            document.getElementById('objektModal').classList.add('active'); 
-        }
-        function saveObjekt(){ 
-            // ID aus dem (möglicherweise automatisch gefüllten) Input nehmen
-            let id = document.getElementById('objektNummerInput').value; 
-            if(!id) id=getNextObjektID(); 
-            
-            dbObjekte.set(String(id), { 
-                nummer: id, // ID ist gleich Nummer
-                name: document.getElementById('objektNameInput').value, 
-                plz: document.getElementById('objektPlzInput').value, 
-                ort: document.getElementById('objektOrtInput').value, 
-                flaeche: safeFloat(document.getElementById('objektFlaecheInput').value), 
-                mea: safeFloat(document.getElementById('objektMeaInput').value), 
-                sollHaeuser: safeFloat(document.getElementById('objektSollHaeuser').value) 
-            }); 
-            document.getElementById('objektModal').classList.remove('active'); 
-            saveLocal(); renderLists(); saveToOneDrive(false); 
-        }
+        function openObjektMask(id){ const o=id?dbObjekte.get(id):{}; document.getElementById('objektIdInput').value=id||""; document.getElementById('objektNummerInput').value=id || getNextObjektID(); document.getElementById('objektNameInput').value=o.name||""; document.getElementById('objektPlzInput').value=o.plz||""; document.getElementById('objektOrtInput').value=o.ort||""; document.getElementById('objektFlaecheInput').value=o.flaeche||""; document.getElementById('objektMeaInput').value=o.mea||"1000"; document.getElementById('objektSollHaeuser').value=o.sollHaeuser||"1"; updateObjektLiveStatus(); document.getElementById('objektModal').classList.add('active'); }
+        function saveObjekt(){ let id=document.getElementById('objektNummerInput').value; if(!id) id=getNextObjektID(); dbObjekte.set(String(id), { nummer: id, name: document.getElementById('objektNameInput').value, plz: document.getElementById('objektPlzInput').value, ort: document.getElementById('objektOrtInput').value, flaeche: safeFloat(document.getElementById('objektFlaecheInput').value), mea: safeFloat(document.getElementById('objektMeaInput').value), sollHaeuser: safeFloat(document.getElementById('objektSollHaeuser').value) }); document.getElementById('objektModal').classList.remove('active'); saveLocal(); renderLists(); saveToOneDrive(false); }
         function deleteObjekt(){ if(confirm("Löschen?")) { dbObjekte.delete(document.getElementById('objektIdInput').value); document.getElementById('objektModal').classList.remove('active'); saveLocal(); renderLists(); saveToOneDrive(false); } }
 
         function openHausMask(id){
             const h=id?dbHaeuser.get(id):{}; document.getElementById('hausIdInput').value=id||""; 
             const sel=document.getElementById('hausObjektSelect'); sel.innerHTML=""; dbObjekte.forEach((o,oid)=>sel.add(new Option(o.name,oid))); 
             if(h.objektId) sel.value=h.objektId;
-            // Wenn Neu: Auto ID generieren
-            if(!id && sel.value) document.getElementById('hausNummerDisplay').value = getNextHausID(sel.value);
-            else document.getElementById('hausNummerDisplay').value = id;
-
+            if(!id && sel.value) document.getElementById('hausNummerDisplay').value = getNextHausID(sel.value); else document.getElementById('hausNummerDisplay').value = id;
             document.getElementById('hausBezeichnungInput').value=h.bezeichnung||""; document.getElementById('hausAnteileInput').value=h.anteile||"";
             UNIT_TYPES.forEach(t=>{ document.getElementById(`soll_count_${t.id}`).value = h.sollMatrix?.[t.id]?.count||""; document.getElementById(`soll_area_${t.id}`).value = h.sollMatrix?.[t.id]?.area||""; });
-            calcMatrixSum();
-            document.getElementById('hausModal').classList.add('active');
+            calcMatrixSum(); document.getElementById('hausModal').classList.add('active');
         }
         function saveHaus(){
-            // ID aus dem Auto-Feld
-            let id=document.getElementById('hausNummerDisplay').value;
-            if(!id) {
-                const oid = document.getElementById('hausObjektSelect').value;
-                id = getNextHausID(oid);
-            }
-            
+            let id=document.getElementById('hausNummerDisplay').value; if(!id) { const oid=document.getElementById('hausObjektSelect').value; id=getNextHausID(oid); }
             let mx={}; UNIT_TYPES.forEach(t=>{ mx[t.id]={ count: document.getElementById(`soll_count_${t.id}`).value, area: document.getElementById(`soll_area_${t.id}`).value }; });
             dbHaeuser.set(String(id), { objektId: document.getElementById('hausObjektSelect').value, bezeichnung: document.getElementById('hausBezeichnungInput').value, anteile: safeFloat(document.getElementById('hausAnteileInput').value), sollMatrix: mx });
             document.getElementById('hausModal').classList.remove('active'); saveLocal(); renderLists(); saveToOneDrive(false);
@@ -728,114 +603,33 @@
         function deleteHaus(){ if(confirm("Löschen?")) { dbHaeuser.delete(document.getElementById('hausIdInput').value); document.getElementById('hausModal').classList.remove('active'); saveLocal(); renderLists(); saveToOneDrive(false); } }
 
         function filterHaeuserDropdown(){ const oid=document.getElementById('einheitObjektSelect').value; const h=document.getElementById('einheitHausSelect'); h.innerHTML=""; if(!oid)return; Array.from(dbHaeuser.entries()).filter(([hid,x])=>x.objektId===oid).forEach(([hid,x])=>h.add(new Option(x.bezeichnung,hid))); }
-        
-        function addBelegungRow(d={}){ 
-            const c=document.getElementById('belegungListe'); 
-            if(!c)return; 
-            const r=document.createElement('div'); 
-            r.className='belegung-row'; 
-            
-            const s=document.createElement('select'); 
-            s.className='belegung-mieter'; 
-            s.style.flex="2"; 
-            s.innerHTML="<option value=''>-- Mieter --</option>";
-            Array.from(dbKontakte.entries()).sort((a,b)=>(a[1].fn||"").localeCompare(b[1].fn||"")).forEach(([id,k])=>s.add(new Option(k.fn+(k.org?` (${k.org})`:""),id)));
-            if(d.mieterId) s.value=d.mieterId;
-            
-            const inEin=document.createElement('input'); 
-            inEin.type="date"; 
-            inEin.className="belegung-einzug"; 
-            if(d.einzug) inEin.value=d.einzug;
-            
-            const inAus=document.createElement('input'); 
-            inAus.type="date"; 
-            inAus.className="belegung-auszug"; 
-            if(d.auszug) inAus.value=d.auszug;
-            
-            const b=document.createElement('button'); 
-            b.className="warn-btn"; 
-            b.innerText="X"; 
-            b.onclick=()=>r.remove();
-            
-            r.append(s,inEin,inAus,b); 
-            c.appendChild(r);
-        }
-        
         function openEinheitMask(id){
-            const e=id?dbEinheiten.get(id):{}; 
-            document.getElementById('einheitIdInput').value=id||"";
-            
-            // Objekt/Haus Logic
-            const oSel=document.getElementById('einheitObjektSelect'); 
-            const hSel=document.getElementById('einheitHausSelect');
-            
-            let hid=e.hausId; 
-            let oid=hid?dbHaeuser.get(hid)?.objektId:"";
-            
-            // Objekt setzen
-            if(oid) oSel.value=oid; 
-            else if(oSel.options.length > 0) oSel.selectedIndex=0; // Wähle erstes Objekt wenn neu
-            
-            // Häuser laden
-            filterHaeuserDropdown(); 
-            
-            // Haus setzen
-            if(hid) hSel.value=hid;
-            else if(hSel.options.length > 0) hSel.selectedIndex=0; // Wähle erstes Haus wenn neu
-
-            // ID Anzeige
+            const e=id?dbEinheiten.get(id):{}; document.getElementById('einheitIdInput').value=id||"";
+            const oSel=document.getElementById('einheitObjektSelect'); const hSel=document.getElementById('einheitHausSelect');
+            let hid=e.hausId; let oid=hid?dbHaeuser.get(hid)?.objektId:"";
+            if(oid) oSel.value=oid; else if(oSel.options.length>0) oSel.selectedIndex=0; filterHaeuserDropdown();
+            if(hid) hSel.value=hid; else if(hSel.options.length>0) hSel.selectedIndex=0;
             if(id) document.getElementById('einheitNummerDisplay').value = id;
-            
-            // Werte füllen
-            document.getElementById('einheitNameInput').value=e.name||""; 
-            document.getElementById('einheitTypSelect').value=e.typ||"wohnung";
-            document.getElementById('einheitFlaecheInput').value=e.flaeche||""; 
-            document.getElementById('einheitHeizflaecheInput').value=e.heizflaeche||"";
-            document.getElementById('einheitZimmerInput').value=e.zimmer||""; 
-            document.getElementById('einheitMeaInput').value=e.mea||"";
-            
-            const c=document.getElementById('belegungListe'); 
-            c.innerHTML=""; 
-            if(e.belegung&&e.belegung.length) e.belegung.forEach(b=>addBelegungRow(b)); 
-            else addBelegungRow();
-            
-            // WICHTIG: Status Update & ID Generierung (falls neu)
-            onHausSelectionChange(!id); // true = Initiale ID Generierung & Typ Wahl
-            
+            document.getElementById('einheitNameInput').value=e.name||""; document.getElementById('einheitTypSelect').value=e.typ||"wohnung";
+            document.getElementById('einheitFlaecheInput').value=e.flaeche||""; document.getElementById('einheitHeizflaecheInput').value=e.heizflaeche||"";
+            document.getElementById('einheitZimmerInput').value=e.zimmer||""; document.getElementById('einheitMeaInput').value=e.mea||"";
+            const c=document.getElementById('belegungListe'); c.innerHTML=""; if(e.belegung&&e.belegung.length) e.belegung.forEach(b=>addBelegungRow(b)); else addBelegungRow();
+            onHausSelectionChange(!id);
             document.getElementById('einheitModal').classList.add('active');
         }
-        
         function saveEinheit(){
-            // ID aus Auto-Feld
-            let id=document.getElementById('einheitNummerDisplay').value;
-            if(!id) {
-                // Fallback
-                const hid = document.getElementById('einheitHausSelect').value;
-                id = getNextEinheitID(hid);
-            }
-            
+            let id=document.getElementById('einheitNummerDisplay').value; if(!id) { const hid=document.getElementById('einheitHausSelect').value; id=getNextEinheitID(hid); }
             const bel=[]; document.querySelectorAll('#belegungListe .belegung-row').forEach(r=>{ const m=r.querySelector('.belegung-mieter').value; if(m) bel.push({mieterId:m, einzug:r.querySelector('.belegung-einzug').value, auszug:r.querySelector('.belegung-auszug').value}); });
-            
-            dbEinheiten.set(String(id), { 
-                hausId: document.getElementById('einheitHausSelect').value, 
-                name: document.getElementById('einheitNameInput').value, 
-                typ: document.getElementById('einheitTypSelect').value, 
-                flaeche: safeFloat(document.getElementById('einheitFlaecheInput').value), 
-                heizflaeche: safeFloat(document.getElementById('einheitHeizflaecheInput').value), 
-                zimmer: document.getElementById('einheitZimmerInput').value, 
-                mea: safeFloat(document.getElementById('einheitMeaInput').value), 
-                belegung: bel 
-            });
+            dbEinheiten.set(String(id), { hausId: document.getElementById('einheitHausSelect').value, name: document.getElementById('einheitNameInput').value, typ: document.getElementById('einheitTypSelect').value, flaeche: safeFloat(document.getElementById('einheitFlaecheInput').value), heizflaeche: safeFloat(document.getElementById('einheitHeizflaecheInput').value), zimmer: document.getElementById('einheitZimmerInput').value, mea: safeFloat(document.getElementById('einheitMeaInput').value), belegung: bel });
             document.getElementById('einheitModal').classList.remove('active'); saveLocal(); renderLists(); saveToOneDrive(false);
         }
         function deleteEinheit(){ if(confirm("Löschen?")) { dbEinheiten.delete(document.getElementById('einheitIdInput').value); document.getElementById('einheitModal').classList.remove('active'); saveLocal(); renderLists(); saveToOneDrive(false); } }
         
-        // --- PDF FUNKTIONEN (wie gehabt) ---
         function getSelectedIds(containerId) { const checkboxes = document.querySelectorAll(`#${containerId} .item-checkbox:checked`); if(checkboxes.length === 0) return []; return Array.from(checkboxes).map(cb => cb.value); }
         function toggleAll(containerId, checked) { document.querySelectorAll(`#${containerId} .item-checkbox`).forEach(cb => cb.checked = checked); }
-        function generateObjectReportPDF() { /* ... PDF Code ... */ const ids=getSelectedIds('objekteListe'); const arr=ids.length?Array.from(dbObjekte.entries()).filter(([id])=>ids.includes(id)):Array.from(dbObjekte.entries()); const doc=new jspdf.jsPDF('l'); doc.text("Objekt-Statusbericht",14,15); const rows=arr.map(([id,o])=>{ const hArr=Array.from(dbHaeuser.values()).filter(h=>h.objektId===id); let sf=0; hArr.forEach(h=>{if(h.sollMatrix)Object.values(h.sollMatrix).forEach(v=>sf+=safeFloat(v.area));else sf+=(safeFloat(h.wohnflaeche)+safeFloat(h.gewerbeflaeche));}); return [o.nummer,o.name,`${hArr.length}/${o.sollHaeuser||0}`,`${formatNum(safeFloat(o.flaeche))} m²`,`${formatNum(sf)} m²`,Math.abs(sf-safeFloat(o.flaeche))>0.1?formatNum(sf-safeFloat(o.flaeche)):'OK']; }); doc.autoTable({head:[['Nr','Objekt','Häuser','Soll-Fl','Ist-Plan','Diff']],body:rows,startY:20}); doc.save('objekt_bericht.pdf'); }
-        function generateHouseReportPDF() { /* ... */ const ids=getSelectedIds('haeuserListe'); const arr=ids.length?Array.from(dbHaeuser.entries()).filter(([id])=>ids.includes(id)):Array.from(dbHaeuser.entries()); const doc=new jspdf.jsPDF('l'); doc.text("Haus-Statusbericht",14,15); const rows=arr.map(([id,h])=>{ const uArr=Array.from(dbEinheiten.values()).filter(e=>e.hausId===id); let sF=0; if(h.sollMatrix)Object.values(h.sollMatrix).forEach(v=>sF+=safeFloat(v.area)); const iF=uArr.reduce((s,e)=>s+safeFloat(e.flaeche),0); return [h.bezeichnung,uArr.length,`${formatNum(sF)} m²`,`${formatNum(iF)} m²`,Math.abs(iF-sF)>0.1?formatNum(iF-sF):'OK']; }); doc.autoTable({head:[['Haus','Einheiten','Soll-Fl','Ist-Fl','Diff']],body:rows,startY:20}); doc.save('haus_bericht.pdf'); }
-        function generateUnitReportPDF() { /* ... */ const ids=getSelectedIds('einheitenListe'); const arr=ids.length?Array.from(dbEinheiten.entries()).filter(([id])=>ids.includes(id)):Array.from(dbEinheiten.entries()); const doc=new jspdf.jsPDF('l'); doc.text("Vermietungsliste",14,15); const rows=arr.map(([id,e])=>{ const h=dbHaeuser.get(e.hausId); let st="LEERSTAND"; let mi=""; if(e.belegung&&e.belegung.length){ const act=e.belegung.find(b=>(b.einzug||'0000')<=new Date().toISOString().split('T')[0]&&(b.auszug||'9999')>=new Date().toISOString().split('T')[0]); if(act){ const m=dbKontakte.get(act.mieterId); st="Vermietet"; mi=m?m.fn:"?"; } } return [h?h.bezeichnung:'?',e.name,e.typ,`${formatNum(safeFloat(e.flaeche))} m²`,st,mi]; }); doc.autoTable({head:[['Haus','Einheit','Typ','Fläche','Status','Mieter']],body:rows,startY:20,didParseCell:function(d){if(d.column.index===4&&d.cell.raw==='LEERSTAND')d.cell.styles.textColor=[200,0,0];}}); doc.save('vermietung.pdf'); }
+        function generateObjectReportPDF() { const ids=getSelectedIds('objekteListe'); const arr=ids.length?Array.from(dbObjekte.entries()).filter(([id])=>ids.includes(id)):Array.from(dbObjekte.entries()); const doc=new jspdf.jsPDF('l'); doc.text("Objekt-Statusbericht",14,15); const rows=arr.map(([id,o])=>{ const hArr=Array.from(dbHaeuser.values()).filter(h=>h.objektId===id); let sf=0; hArr.forEach(h=>{if(h.sollMatrix)Object.values(h.sollMatrix).forEach(v=>sf+=safeFloat(v.area));else sf+=(safeFloat(h.wohnflaeche)+safeFloat(h.gewerbeflaeche));}); return [o.nummer,o.name,`${hArr.length}/${o.sollHaeuser||0}`,`${formatNum(safeFloat(o.flaeche))} m²`,`${formatNum(sf)} m²`,Math.abs(sf-safeFloat(o.flaeche))>0.1?formatNum(sf-safeFloat(o.flaeche)):'OK']; }); doc.autoTable({head:[['Nr','Objekt','Häuser','Soll-Fl','Ist-Plan','Diff']],body:rows,startY:20}); doc.save('objekt_bericht.pdf'); }
+        function generateHouseReportPDF() { const ids=getSelectedIds('haeuserListe'); const arr=ids.length?Array.from(dbHaeuser.entries()).filter(([id])=>ids.includes(id)):Array.from(dbHaeuser.entries()); const doc=new jspdf.jsPDF('l'); doc.text("Haus-Statusbericht",14,15); const rows=arr.map(([id,h])=>{ const uArr=Array.from(dbEinheiten.values()).filter(e=>e.hausId===id); let sF=0; if(h.sollMatrix)Object.values(h.sollMatrix).forEach(v=>sF+=safeFloat(v.area)); const iF=uArr.reduce((s,e)=>s+safeFloat(e.flaeche),0); return [h.bezeichnung,uArr.length,`${formatNum(sF)} m²`,`${formatNum(iF)} m²`,Math.abs(iF-sF)>0.1?formatNum(iF-sF):'OK']; }); doc.autoTable({head:[['Haus','Einheiten','Soll-Fl','Ist-Fl','Diff']],body:rows,startY:20}); doc.save('haus_bericht.pdf'); }
+        function generateUnitReportPDF() { const ids=getSelectedIds('einheitenListe'); const arr=ids.length?Array.from(dbEinheiten.entries()).filter(([id])=>ids.includes(id)):Array.from(dbEinheiten.entries()); const doc=new jspdf.jsPDF('l'); doc.text("Vermietungsliste",14,15); const rows=arr.map(([id,e])=>{ const h=dbHaeuser.get(e.hausId); let st="LEERSTAND"; let mi=""; if(e.belegung&&e.belegung.length){ const act=e.belegung.find(b=>(b.einzug||'0000')<=new Date().toISOString().split('T')[0]&&(b.auszug||'9999')>=new Date().toISOString().split('T')[0]); if(act){ const m=dbKontakte.get(act.mieterId); st="Vermietet"; mi=m?m.fn:"?"; } } return [h?h.bezeichnung:'?',e.name,e.typ,`${formatNum(safeFloat(e.flaeche))} m²`,st,mi]; }); doc.autoTable({head:[['Haus','Einheit','Typ','Fläche','Status','Mieter']],body:rows,startY:20,didParseCell:function(d){if(d.column.index===4&&d.cell.raw==='LEERSTAND')d.cell.styles.textColor=[200,0,0];}}); doc.save('vermietung.pdf'); }
     </script>
 </body>
 </html>
