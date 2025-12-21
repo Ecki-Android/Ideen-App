@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Objektverwaltung (Pro + Testdaten)</title>
+    <title>Objektverwaltung Pro</title>
     <!-- PDF Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
@@ -342,7 +342,12 @@
         // --- DUMMY DATA ---
         function createDummyData() {
             if(!confirm("Musterdaten (Wohnpark Test) erzeugen?")) return;
-            if(dbKontakte.size === 0) { dbKontakte.set("k_d1", {fn: "Max Mustermann"}); dbKontakte.set("k_d2", {fn: "Erika Musterfrau"}); dbKontakte.set("k_d3", {fn: "GmbH", org: "Muster"}); }
+            
+            // Dummy Kontakte anlegen (wichtig für Dropdown)
+            dbKontakte.set("k_d1", {fn: "Max Mustermann", org: ""});
+            dbKontakte.set("k_d2", {fn: "Erika Musterfrau", org: ""});
+            dbKontakte.set("k_d3", {fn: "Muster GmbH", org: "Logistik"});
+
             const oid = getNextObjektID();
             dbObjekte.set(oid, { nummer: oid, name: "Wohnpark Test", plz: "12345", ort: "Musterstadt", flaeche: 150, mea: 1000, sollHaeuser: 1 });
             const hid = getNextHausID(oid);
@@ -350,9 +355,6 @@
             dbHaeuser.set(hid, { objektId: oid, bezeichnung: "Haus A", anteile: 1000, sollMatrix: matrix });
             const eid1 = getNextEinheitID(hid);
             dbEinheiten.set(eid1, { hausId: hid, name: "EG Links", typ: "wohnung", flaeche: 50, zimmer: 2, mea: 333.33, belegung: [{ mieterId: "k_d1", einzug: "2020-01-01", auszug: "" }] });
-            const eid2 = getNextEinheitID(hid); // ACHTUNG: Hier muss in Realität neu berechnet werden nach Set
-            // Da JS synchron läuft, ist eid2 == eid1, wenn wir nicht zwischenspeichern. 
-            // Workaround für Dummy: Manuell hochzählen
             const parts = eid1.split('/'); const eid2_fix = parts[0]+"/"+parts[1]+"/"+pad(parseInt(parts[2])+1,4);
             dbEinheiten.set(eid2_fix, { hausId: hid, name: "EG Rechts", typ: "wohnung", flaeche: 50, zimmer: 2, mea: 333.33, belegung: [{ mieterId: "k_d2", einzug: "2021-06-01", auszug: "" }] });
             const eid3_fix = parts[0]+"/"+parts[1]+"/"+pad(parseInt(parts[2])+2,4);
@@ -603,28 +605,108 @@
         function deleteHaus(){ if(confirm("Löschen?")) { dbHaeuser.delete(document.getElementById('hausIdInput').value); document.getElementById('hausModal').classList.remove('active'); saveLocal(); renderLists(); saveToOneDrive(false); } }
 
         function filterHaeuserDropdown(){ const oid=document.getElementById('einheitObjektSelect').value; const h=document.getElementById('einheitHausSelect'); h.innerHTML=""; if(!oid)return; Array.from(dbHaeuser.entries()).filter(([hid,x])=>x.objektId===oid).forEach(([hid,x])=>h.add(new Option(x.bezeichnung,hid))); }
+        function addBelegungRow(d={}){ 
+            const c=document.getElementById('belegungListe'); 
+            if(!c)return; 
+            const r=document.createElement('div'); 
+            r.className='belegung-row'; 
+            
+            const s=document.createElement('select'); 
+            s.className='belegung-mieter'; 
+            s.style.flex="2"; 
+            s.innerHTML="<option value=''>-- Mieter --</option>";
+            Array.from(dbKontakte.entries()).sort((a,b)=>(a[1].fn||"").localeCompare(b[1].fn||"")).forEach(([id,k])=>s.add(new Option(k.fn+(k.org?` (${k.org})`:""),id)));
+            if(d.mieterId) s.value=d.mieterId;
+            
+            const inEin=document.createElement('input'); 
+            inEin.type="date"; 
+            inEin.className="belegung-einzug"; 
+            if(d.einzug) inEin.value=d.einzug;
+            
+            const inAus=document.createElement('input'); 
+            inAus.type="date"; 
+            inAus.className="belegung-auszug"; 
+            if(d.auszug) inAus.value=d.auszug;
+            
+            const b=document.createElement('button'); 
+            b.className="warn-btn"; 
+            b.innerText="X"; 
+            b.onclick=()=>r.remove();
+            
+            r.append(s,inEin,inAus,b); 
+            c.appendChild(r);
+        }
+        
         function openEinheitMask(id){
-            const e=id?dbEinheiten.get(id):{}; document.getElementById('einheitIdInput').value=id||"";
-            const oSel=document.getElementById('einheitObjektSelect'); const hSel=document.getElementById('einheitHausSelect');
-            let hid=e.hausId; let oid=hid?dbHaeuser.get(hid)?.objektId:"";
-            if(oid) oSel.value=oid; else if(oSel.options.length>0) oSel.selectedIndex=0; filterHaeuserDropdown();
-            if(hid) hSel.value=hid; else if(hSel.options.length>0) hSel.selectedIndex=0;
+            const e=id?dbEinheiten.get(id):{}; 
+            document.getElementById('einheitIdInput').value=id||"";
+            
+            // Objekt/Haus Logic
+            const oSel=document.getElementById('einheitObjektSelect'); 
+            const hSel=document.getElementById('einheitHausSelect');
+            
+            let hid=e.hausId; 
+            let oid=hid?dbHaeuser.get(hid)?.objektId:"";
+            
+            // Objekt setzen
+            if(oid) oSel.value=oid; 
+            else if(oSel.options.length > 0) oSel.selectedIndex=0; // Wähle erstes Objekt wenn neu
+            
+            // Häuser laden
+            filterHaeuserDropdown(); 
+            
+            // Haus setzen
+            if(hid) hSel.value=hid;
+            else if(hSel.options.length > 0) hSel.selectedIndex=0; // Wähle erstes Haus wenn neu
+
+            // ID Anzeige
             if(id) document.getElementById('einheitNummerDisplay').value = id;
-            document.getElementById('einheitNameInput').value=e.name||""; document.getElementById('einheitTypSelect').value=e.typ||"wohnung";
-            document.getElementById('einheitFlaecheInput').value=e.flaeche||""; document.getElementById('einheitHeizflaecheInput').value=e.heizflaeche||"";
-            document.getElementById('einheitZimmerInput').value=e.zimmer||""; document.getElementById('einheitMeaInput').value=e.mea||"";
-            const c=document.getElementById('belegungListe'); c.innerHTML=""; if(e.belegung&&e.belegung.length) e.belegung.forEach(b=>addBelegungRow(b)); else addBelegungRow();
-            onHausSelectionChange(!id);
+            
+            // Werte füllen
+            document.getElementById('einheitNameInput').value=e.name||""; 
+            document.getElementById('einheitTypSelect').value=e.typ||"wohnung";
+            document.getElementById('einheitFlaecheInput').value=e.flaeche||""; 
+            document.getElementById('einheitHeizflaecheInput').value=e.heizflaeche||"";
+            document.getElementById('einheitZimmerInput').value=e.zimmer||""; 
+            document.getElementById('einheitMeaInput').value=e.mea||"";
+            
+            const c=document.getElementById('belegungListe'); 
+            c.innerHTML=""; 
+            if(e.belegung&&e.belegung.length) e.belegung.forEach(b=>addBelegungRow(b)); 
+            else addBelegungRow();
+            
+            // WICHTIG: Erst Status-Update, dann Modal öffnen
+            onHausSelectionChange(!id); // true = Initiale ID Generierung & Typ Wahl
+            
             document.getElementById('einheitModal').classList.add('active');
         }
+        
         function saveEinheit(){
-            let id=document.getElementById('einheitNummerDisplay').value; if(!id) { const hid=document.getElementById('einheitHausSelect').value; id=getNextEinheitID(hid); }
+            // ID aus Auto-Feld
+            let id=document.getElementById('einheitNummerDisplay').value;
+            if(!id) {
+                // Fallback
+                const hid = document.getElementById('einheitHausSelect').value;
+                id = getNextEinheitID(hid);
+            }
+            
             const bel=[]; document.querySelectorAll('#belegungListe .belegung-row').forEach(r=>{ const m=r.querySelector('.belegung-mieter').value; if(m) bel.push({mieterId:m, einzug:r.querySelector('.belegung-einzug').value, auszug:r.querySelector('.belegung-auszug').value}); });
-            dbEinheiten.set(String(id), { hausId: document.getElementById('einheitHausSelect').value, name: document.getElementById('einheitNameInput').value, typ: document.getElementById('einheitTypSelect').value, flaeche: safeFloat(document.getElementById('einheitFlaecheInput').value), heizflaeche: safeFloat(document.getElementById('einheitHeizflaecheInput').value), zimmer: document.getElementById('einheitZimmerInput').value, mea: safeFloat(document.getElementById('einheitMeaInput').value), belegung: bel });
+            
+            dbEinheiten.set(String(id), { 
+                hausId: document.getElementById('einheitHausSelect').value, 
+                name: document.getElementById('einheitNameInput').value, 
+                typ: document.getElementById('einheitTypSelect').value, 
+                flaeche: safeFloat(document.getElementById('einheitFlaecheInput').value), 
+                heizflaeche: safeFloat(document.getElementById('einheitHeizflaecheInput').value), 
+                zimmer: document.getElementById('einheitZimmerInput').value, 
+                mea: safeFloat(document.getElementById('einheitMeaInput').value), 
+                belegung: bel 
+            });
             document.getElementById('einheitModal').classList.remove('active'); saveLocal(); renderLists(); saveToOneDrive(false);
         }
         function deleteEinheit(){ if(confirm("Löschen?")) { dbEinheiten.delete(document.getElementById('einheitIdInput').value); document.getElementById('einheitModal').classList.remove('active'); saveLocal(); renderLists(); saveToOneDrive(false); } }
         
+        // --- PDF FUNKTIONEN (wie gehabt) ---
         function getSelectedIds(containerId) { const checkboxes = document.querySelectorAll(`#${containerId} .item-checkbox:checked`); if(checkboxes.length === 0) return []; return Array.from(checkboxes).map(cb => cb.value); }
         function toggleAll(containerId, checked) { document.querySelectorAll(`#${containerId} .item-checkbox`).forEach(cb => cb.checked = checked); }
         function generateObjectReportPDF() { const ids=getSelectedIds('objekteListe'); const arr=ids.length?Array.from(dbObjekte.entries()).filter(([id])=>ids.includes(id)):Array.from(dbObjekte.entries()); const doc=new jspdf.jsPDF('l'); doc.text("Objekt-Statusbericht",14,15); const rows=arr.map(([id,o])=>{ const hArr=Array.from(dbHaeuser.values()).filter(h=>h.objektId===id); let sf=0; hArr.forEach(h=>{if(h.sollMatrix)Object.values(h.sollMatrix).forEach(v=>sf+=safeFloat(v.area));else sf+=(safeFloat(h.wohnflaeche)+safeFloat(h.gewerbeflaeche));}); return [o.nummer,o.name,`${hArr.length}/${o.sollHaeuser||0}`,`${formatNum(safeFloat(o.flaeche))} m²`,`${formatNum(sf)} m²`,Math.abs(sf-safeFloat(o.flaeche))>0.1?formatNum(sf-safeFloat(o.flaeche)):'OK']; }); doc.autoTable({head:[['Nr','Objekt','Häuser','Soll-Fl','Ist-Plan','Diff']],body:rows,startY:20}); doc.save('objekt_bericht.pdf'); }
