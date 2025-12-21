@@ -34,6 +34,10 @@
         
         .report-actions { margin-left: auto; display: flex; gap: 5px; }
 
+        /* Filter Banner */
+        #filterBanner { display: none; background-color: #e3f2fd; border: 1px solid #90caf9; color: #0d47a1; padding: 10px; margin-bottom: 15px; border-radius: 4px; align-items: center; justify-content: space-between; }
+        #filterBanner button { margin: 0; padding: 5px 10px; background: #fff; border: 1px solid #90caf9; color: #0d47a1; }
+
         .panel { display: none; background: white; padding: 15px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         .panel.active { display: block; }
         .liste-item { border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; background: #fff; border-radius: 4px; display: flex; gap: 10px; align-items: flex-start; }
@@ -65,7 +69,6 @@
         .modal-content input, .modal-content select, .modal-content textarea { width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 15px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
         .modal-actions { text-align: right; margin-top: 20px; }
         
-        /* UPDATED: Belegung Layout */
         .belegung-container, .historie-container { border: 1px solid #eee; padding: 10px; background: #fafafa; border-radius: 4px; margin-bottom: 15px; max-height: 350px; overflow-y: auto; }
         
         .belegung-wrapper { border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom: 10px; background: #fff; padding: 10px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
@@ -110,6 +113,9 @@
 
         h4 { margin: 0; padding: 0; }
         .sub-info { color: #666; font-size: 0.9em; margin-top: 4px; }
+        
+        .filter-btn { background: #fff; color: #333; border: 1px solid #aaa; padding: 4px 8px; font-size: 0.85em; }
+        .filter-btn.active { background: #e0f2f1; border-color: #00695c; color: #00695c; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -125,6 +131,12 @@
     </div>
 
     <div style="max-width: 1200px; margin: 0 auto;">
+        <!-- FILTER BANNER -->
+        <div id="filterBanner">
+            <span id="filterText">Filter aktiv</span>
+            <button onclick="toggleFilter(null)">Filter aufheben</button>
+        </div>
+
         <div class="tab-bar">
             <button class="tab-btn active" onclick="switchTab('objekte')">🏠 Objekte</button>
             <button class="tab-btn" onclick="switchTab('haeuser')">🏘️ Häuser</button>
@@ -318,6 +330,7 @@
         let msalInstance, accessToken;
         
         let dbObjekte = new Map(), dbHaeuser = new Map(), dbEinheiten = new Map(), dbKontakte = new Map(); 
+        let activeFilterId = null; // FÜR DEN FOKUS-FILTER
 
         document.addEventListener('DOMContentLoaded', async () => {
             loadLocal(); 
@@ -344,6 +357,22 @@
             if(isOk) return `<div class="validation-row"><span class="stat-ok">✅ ${formatNum(ist)} ${unit} (Soll: ${formatNum(soll)})</span></div>`;
             const diffStr = diff > 0 ? `+${formatNum(diff)}` : formatNum(diff);
             return `<div class="validation-row"><span class="stat-err">⚠️ ${formatNum(ist)} ${unit} (Soll: ${formatNum(soll)}) <small style="margin-left:5px;">Diff: ${diffStr}</small></span></div>`;
+        }
+
+        // --- FILTER LOGIC ---
+        function toggleFilter(id) {
+            activeFilterId = id;
+            const banner = document.getElementById('filterBanner');
+            const txt = document.getElementById('filterText');
+            
+            if(activeFilterId) {
+                const o = dbObjekte.get(activeFilterId);
+                banner.style.display = "flex";
+                txt.innerHTML = `<b>Fokus aktiv:</b> ${o ? o.name : 'Objekt'}`;
+            } else {
+                banner.style.display = "none";
+            }
+            renderLists();
         }
 
         // --- ID GENERATORS ---
@@ -389,6 +418,14 @@
             const eid3_fix = parts[0]+"/"+parts[1]+"/"+pad(parseInt(parts[2])+2,4);
             dbEinheiten.set(eid3_fix, { hausId: hid, name: "Büro OG", typ: "gewerbe", flaeche: 50, zimmer: 3, mea: 333.34, belegung: [{ mieterId: "k_d3", einzug: "2019-01-01", auszug: "2023-12-31" }] });
             saveLocal(); renderLists(); alert("Testdaten angelegt!");
+        }
+
+        // --- INIT UI ---
+        function initUnitTypes() { const sel = document.getElementById('einheitTypSelect'); if(sel) { sel.innerHTML = ""; UNIT_TYPES.forEach(t => sel.add(new Option(t.label, t.id))); } }
+        function initHausMatrix() {
+            const tbody = document.getElementById('hausSollMatrixBody'); if(tbody) {
+                tbody.innerHTML = ""; UNIT_TYPES.forEach(t => { const tr = document.createElement('tr'); tr.id = `row_${t.id}`; tr.innerHTML = `<td>${t.label}</td><td><input type="number" step="1" id="soll_count_${t.id}" class="matrix-inp" placeholder="0" oninput="calcMatrixSum()"></td><td class="readonly-val" id="ist_count_${t.id}">0</td><td class="diff-val" id="diff_count_${t.id}">0</td><td><input type="number" step="0.01" id="soll_area_${t.id}" class="matrix-inp" placeholder="0.00" oninput="calcMatrixSum()"></td><td class="readonly-val" id="ist_area_${t.id}">0</td><td class="diff-val" id="diff_area_${t.id}">0.00</td>`; tbody.appendChild(tr); });
+            }
         }
 
         // --- AUTH & CLOUD ---
@@ -650,10 +687,28 @@
             const mSel = document.getElementById('einheitMieterSelect'); 
             if(mSel) { mSel.innerHTML = "<option value=''>-- Leerstand / Keiner --</option>"; Array.from(dbKontakte.entries()).sort((a,b)=>(a[1].fn||"").localeCompare(b[1].fn||"")).forEach(([id, k]) => mSel.add(new Option(k.fn + (k.org ? ` (${k.org})` : ""), id))); }
 
+            // Filter Check
+            let showObj = dbObjekte;
+            let showHaus = dbHaeuser;
+            let showEin = dbEinheiten;
+            
+            if(activeFilterId) {
+                // Nur das aktive Objekt
+                showObj = new Map();
+                if(dbObjekte.has(activeFilterId)) showObj.set(activeFilterId, dbObjekte.get(activeFilterId));
+                
+                // Nur Häuser dieses Objekts
+                showHaus = new Map(Array.from(dbHaeuser.entries()).filter(([id, h]) => h.objektId === activeFilterId));
+                
+                // Nur Einheiten dieser Häuser
+                const hausIds = Array.from(showHaus.keys());
+                showEin = new Map(Array.from(dbEinheiten.entries()).filter(([id, e]) => hausIds.includes(e.hausId)));
+            }
+
             const oDiv = document.getElementById('objekteListe');
             if(oDiv) {
                 oDiv.innerHTML = "";
-                dbObjekte.forEach((o, id) => {
+                showObj.forEach((o, id) => {
                     const haeuser = Array.from(dbHaeuser.values()).filter(h => h.objektId === id);
                     let sumHausFlaeche = 0; let sumHausMea = haeuser.reduce((s,h) => s + safeFloat(h.anteile), 0);
                     haeuser.forEach(h => { if(h.sollMatrix) Object.values(h.sollMatrix).forEach(v => sumHausFlaeche += safeFloat(v.area)); else sumHausFlaeche += (safeFloat(h.wohnflaeche)+safeFloat(h.gewerbeflaeche)); });
@@ -661,19 +716,23 @@
                     let valHtml = validateVal(o.sollHaeuser || 0, haeuser.length, "Häuser", 0);
                     valHtml += validateVal(o.flaeche || 0, sumHausFlaeche, "m²");
                     valHtml += validateVal(o.mea || 1000, sumHausMea, "MEA");
-                    oDiv.innerHTML += `<div class="liste-item"><input type="checkbox" class="item-checkbox" value="${id}"><div class="liste-content"><div style="display:flex; justify-content:space-between;"><h4>${o.name} <small>[${o.nummer}]</small></h4><button onclick="openObjektMask('${id}')">Bearbeiten</button></div><div class="sub-info">${o.plz} ${o.ort}</div><div class="objekt-stats">${valHtml}</div></div></div>`;
+                    
+                    const filterBtn = (activeFilterId === id) 
+                        ? `<button class="filter-btn active" onclick="toggleFilter(null)">Filter lösen</button>`
+                        : `<button class="filter-btn" onclick="toggleFilter('${id}')">🎯 Fokus</button>`;
+
+                    oDiv.innerHTML += `<div class="liste-item"><input type="checkbox" class="item-checkbox" value="${id}"><div class="liste-content"><div style="display:flex; justify-content:space-between; align-items:center;"><h4>${o.name} <small>[${o.nummer}]</small></h4><div>${filterBtn} <button onclick="openObjektMask('${id}')">Bearbeiten</button></div></div><div class="sub-info">${o.plz} ${o.ort}</div><div class="objekt-stats">${valHtml}</div></div></div>`;
                 });
             }
 
             const hDiv = document.getElementById('haeuserListe');
             if(hDiv) {
                 hDiv.innerHTML = "";
-                dbHaeuser.forEach((h, id) => {
+                showHaus.forEach((h, id) => {
                     const o = dbObjekte.get(h.objektId);
                     const einheiten = Array.from(dbEinheiten.values()).filter(e => e.hausId === id);
                     let valHtml = ""; let hasError = false;
                     
-                    // Render Validation for ALL types in Matrix (Standard + Custom)
                     if(h.sollMatrix) {
                         Object.keys(h.sollMatrix).forEach(tid => {
                             const tLabel = h.sollMatrix[tid].label;
@@ -699,7 +758,7 @@
             const eDiv = document.getElementById('einheitenListe');
             if(eDiv) {
                 eDiv.innerHTML = "";
-                const listE = Array.from(dbEinheiten.entries()).map(([id, e]) => { const h = dbHaeuser.get(e.hausId); const o = h ? dbObjekte.get(h.objektId) : null; return { id, ...e, hName: h?h.bezeichnung:'?', oName: o?o.name:'?' }; }).sort((a,b) => a.oName.localeCompare(b.oName) || a.hName.localeCompare(b.hName));
+                const listE = Array.from(showEin.entries()).map(([id, e]) => { const h = dbHaeuser.get(e.hausId); const o = h ? dbObjekte.get(h.objektId) : null; return { id, ...e, hName: h?h.bezeichnung:'?', oName: o?o.name:'?' }; }).sort((a,b) => a.oName.localeCompare(b.oName) || a.hName.localeCompare(b.hName));
                 const today = new Date().toISOString().split('T')[0];
                 listE.forEach(e => {
                     let stHtml = '<span class="status-leerstand">⚠️ LEERSTAND</span>';
@@ -850,7 +909,7 @@
         }
         function deleteEinheit(){ if(confirm("Löschen?")) { dbEinheiten.delete(document.getElementById('einheitIdInput').value); document.getElementById('einheitModal').classList.remove('active'); saveLocal(); renderLists(); saveToOneDrive(false); } }
         
-        // --- PDF FUNKTIONEN ---
+        // --- PDF FUNKTIONEN (wie gehabt) ---
         function getSelectedIds(containerId) { const checkboxes = document.querySelectorAll(`#${containerId} .item-checkbox:checked`); if(checkboxes.length === 0) return []; return Array.from(checkboxes).map(cb => cb.value); }
         function toggleAll(containerId, checked) { document.querySelectorAll(`#${containerId} .item-checkbox`).forEach(cb => cb.checked = checked); }
         function generateObjectReportPDF() { const ids=getSelectedIds('objekteListe'); const arr=ids.length?Array.from(dbObjekte.entries()).filter(([id])=>ids.includes(id)):Array.from(dbObjekte.entries()); const doc=new jspdf.jsPDF('l'); doc.text("Objekt-Statusbericht",14,15); const rows=arr.map(([id,o])=>{ const hArr=Array.from(dbHaeuser.values()).filter(h=>h.objektId===id); let sf=0; hArr.forEach(h=>{if(h.sollMatrix)Object.values(h.sollMatrix).forEach(v=>sf+=safeFloat(v.area));else sf+=(safeFloat(h.wohnflaeche)+safeFloat(h.gewerbeflaeche));}); return [o.nummer,o.name,`${hArr.length}/${o.sollHaeuser||0}`,`${formatNum(safeFloat(o.flaeche))} m²`,`${formatNum(sf)} m²`,Math.abs(sf-safeFloat(o.flaeche))>0.1?formatNum(sf-safeFloat(o.flaeche)):'OK']; }); doc.autoTable({head:[['Nr','Objekt','Häuser','Soll-Fl','Ist-Plan','Diff']],body:rows,startY:20}); doc.save('objekt_bericht.pdf'); }
