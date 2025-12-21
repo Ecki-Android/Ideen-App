@@ -530,7 +530,7 @@
             renderLists();
         }
 
-        // --- ID GENERATORS ---
+        // --- ID GENERATORS (ROBUST GEMACHT) ---
         function getNextObjektID() {
             let max = 0;
             dbObjekte.forEach((o, id) => { const num = parseInt(id, 10); if (!isNaN(num) && num > max) max = num; });
@@ -539,14 +539,24 @@
         function getNextHausID(objektId) {
             let max = 0;
             dbHaeuser.forEach((h, id) => {
-                if (id.startsWith(objektId + "/")) { const parts = id.split('/'); const num = parseInt(parts[1], 10); if (!isNaN(num) && num > max) max = num; }
+                if (id.startsWith(objektId + "/")) { 
+                    const parts = id.split('/'); 
+                    // Nimm immer den letzten Teil der ID, um sicherzugehen (Robustheit für 0001/02)
+                    const num = parseInt(parts[parts.length - 1], 10); 
+                    if (!isNaN(num) && num > max) max = num; 
+                }
             });
             return objektId + "/" + pad(max + 1, 2);
         }
         function getNextEinheitID(hausId) {
             let max = 0;
             dbEinheiten.forEach((e, id) => {
-                if (id.startsWith(hausId + "/")) { const parts = id.split('/'); const num = parseInt(parts[2], 10); if (!isNaN(num) && num > max) max = num; }
+                if (id.startsWith(hausId + "/")) { 
+                    const parts = id.split('/'); 
+                    // Nimm immer den letzten Teil, falls Haus-ID auch Slashes enthält (Robustheit)
+                    const num = parseInt(parts[parts.length - 1], 10); 
+                    if (!isNaN(num) && num > max) max = num; 
+                }
             });
             return hausId + "/" + pad(max + 1, 4);
         }
@@ -701,7 +711,7 @@
             } catch(e) { alert("Fehler beim Laden: "+e.message); }
         }
 
-        // --- HAUS MATRIX LOGIC (unverändert) ---
+        // --- HAUS MATRIX LOGIC ---
         function renderHausMatrix(haus) {
             const tbody = document.getElementById('hausSollMatrixBody'); tbody.innerHTML = "";
             STANDARD_TYPES.forEach(t => addMatrixRowToUI(t.id, t.label, haus ? haus.sollMatrix : null, false));
@@ -732,18 +742,33 @@
             document.getElementById('matrixIstCount').innerText = istTotalCnt; document.getElementById('matrixIstArea').innerText = formatNum(istTotalArea);
         }
 
-        // --- HOUSE TYPE OVERVIEW ---
+        // --- HOUSE TYPE OVERVIEW (FIXED FOR SELECTION BUG) ---
         function onHausSelectionChange(isFirstLoad = false) { updateHausIdPreview(); updateHausTypeOverview(isFirstLoad); updateUnitLiveStatus(); }
         function updateHausIdPreview() { const oid = document.getElementById('hausObjektSelect').value; if(oid && !document.getElementById('hausIdInput').value) document.getElementById('hausNummerDisplay').value = getNextHausID(oid); }
+        
         function updateHausTypeOverview(isFirstLoad) {
-            const hid = document.getElementById('einheitHausSelect').value; const container = document.getElementById('hausTypeOverview'); const typeSelect = document.getElementById('einheitTypSelect');
+            const hid = document.getElementById('einheitHausSelect').value; 
+            const container = document.getElementById('hausTypeOverview'); 
+            const typeSelect = document.getElementById('einheitTypSelect');
+            
+            // --- FIX: Save current selection so it doesn't get lost on rebuild ---
+            const currentSelection = typeSelect.value;
+            
             container.innerHTML = ""; typeSelect.innerHTML = "";
+            
             if(!hid) { container.innerHTML = '<span style="color:#666;">Kein Haus gewählt.</span>'; return; }
             const h = dbHaeuser.get(hid); if(!h) return;
             const units = Array.from(dbEinheiten.values()).filter(u => u.hausId === hid);
             let availableTypes = [...STANDARD_TYPES];
             if(h.sollMatrix) Object.keys(h.sollMatrix).forEach(k => { if(!availableTypes.some(t => t.id === k)) availableTypes.push({ id: k, label: h.sollMatrix[k].label || "Custom" }); });
+            
             availableTypes.forEach(t => typeSelect.add(new Option(t.label, t.id)));
+            
+            // --- FIX: Restore selection if it exists in the new list ---
+            if(currentSelection && Array.from(typeSelect.options).some(o => o.value === currentSelection)) {
+                typeSelect.value = currentSelection;
+            }
+
             let html = ''; let foundAny = false; let firstOpenType = null;
             availableTypes.forEach(t => {
                 const sollCnt = safeFloat(h.sollMatrix?.[t.id]?.count); const istCnt = units.filter(u => u.typ === t.id).length;
@@ -754,6 +779,8 @@
                 }
             });
             container.innerHTML = html || '<span style="color:#666; font-style:italic;">Keine Typen im Haus definiert.</span>';
+            
+            // Auto-Select only if NEW unit
             if(!document.getElementById('einheitIdInput').value && firstOpenType && isFirstLoad) typeSelect.value = firstOpenType;
             if(!document.getElementById('einheitIdInput').value) document.getElementById('einheitNummerDisplay').value = getNextEinheitID(hid);
         }
@@ -768,9 +795,6 @@
             if(id==='objekte'&&btns[0])btns[0].classList.add('active'); if(id==='haeuser'&&btns[1])btns[1].classList.add('active'); if(id==='einheiten'&&btns[2])btns[2].classList.add('active');
         }
 
-        // =========================================================================
-        // === HIER IST DER KORRIGIERTE RENDER-BLOCK MIT ABSTIMMUNGEN ===
-        // =========================================================================
         function renderLists() {
             const oSel = document.getElementById('hausObjektSelect'); const eObjSel = document.getElementById('einheitObjektSelect');
             if (oSel && eObjSel) { oSel.innerHTML = ""; eObjSel.innerHTML = "<option value=''>-- Objekt wählen --</option>"; dbObjekte.forEach((o, id) => { oSel.add(new Option(`${o.name}`, id)); eObjSel.add(new Option(`${o.name}`, id)); }); }
@@ -865,9 +889,8 @@
 
         function filterHaeuserDropdown(){ const oid=document.getElementById('einheitObjektSelect').value; const h=document.getElementById('einheitHausSelect'); h.innerHTML=""; if(!oid)return; Array.from(dbHaeuser.entries()).filter(([hid,x])=>x.objektId===oid).forEach(([hid,x])=>h.add(new Option(x.bezeichnung,hid))); }
         
-        // --- EINHEIT MASKE ERWEITERT ---
+        // --- EINHEIT MASKE (FIXED FOR TYPE DISPLAY) ---
         function openEinheitMask(id){
-            // --- NEU: Datalist aktualisieren bevor wir starten ---
             updateKonditionDatalist();
 
             const e=id?dbEinheiten.get(id):{}; document.getElementById('einheitIdInput').value=id||"";
@@ -878,9 +901,13 @@
             if(id) document.getElementById('einheitNummerDisplay').value = id;
             
             document.getElementById('einheitNameInput').value=e.name||""; 
-            document.getElementById('einheitTypSelect').innerHTML=""; STANDARD_TYPES.forEach(t=>document.getElementById('einheitTypSelect').add(new Option(t.label,t.id)));
-            if(e.typ) document.getElementById('einheitTypSelect').value=e.typ;
-
+            
+            // Populate Types initially
+            document.getElementById('einheitTypSelect').innerHTML=""; 
+            STANDARD_TYPES.forEach(t=>document.getElementById('einheitTypSelect').add(new Option(t.label,t.id)));
+            
+            // --- FIX MOVED: Do not set value yet, it will be wiped by onHausSelectionChange ---
+            
             document.getElementById('einheitFlaecheInput').value=e.flaeche||""; document.getElementById('einheitHeizflaecheInput').value=e.heizflaeche||"";
             document.getElementById('einheitZimmerInput').value=e.zimmer||""; document.getElementById('einheitMeaInput').value=e.mea||"";
             
@@ -900,7 +927,12 @@
             const kList = document.getElementById('konditionenListe'); kList.innerHTML="";
             if(e.konditionen && e.konditionen.length) e.konditionen.forEach(k=>addKonditionRow(k)); else addKonditionRow();
 
+            // Rebuild dropdowns based on House
             onHausSelectionChange(!id);
+
+            // --- FIX: SET VALUE NOW, AFTER DROPDOWN IS REBUILT ---
+            if(e.typ) document.getElementById('einheitTypSelect').value = e.typ;
+
             document.getElementById('einheitModal').classList.add('active');
         }
 
