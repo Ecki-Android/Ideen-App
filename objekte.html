@@ -46,9 +46,10 @@
         .stat-ok { color: #2e7d32; font-weight: bold; }
         .stat-err { color: #d32f2f; font-weight: bold; }
         
-        /* Matrix Tabelle Update */
-        .soll-matrix { width: 100%; border-collapse: collapse; font-size: 0.85em; margin-bottom: 15px; }
-        .soll-matrix th { text-align: center; background: #eee; padding: 5px; border: 1px solid #ccc; font-weight: 600; }
+        /* SCROLLABLE MATRIX */
+        .matrix-wrapper { max-height: 300px; overflow-y: auto; border: 1px solid #ccc; margin-bottom: 10px; }
+        .soll-matrix { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+        .soll-matrix th { text-align: center; background: #eee; padding: 5px; border: 1px solid #ccc; font-weight: 600; position: sticky; top: 0; z-index: 2; }
         .soll-matrix td { border: 1px solid #ccc; padding: 4px; text-align: center; }
         .soll-matrix input { width: 100%; text-align: center; border: 1px solid transparent; background: #f9fbe7; font-weight: bold; }
         .soll-matrix input:focus { background: #fff; border: 1px solid #2e7d32; outline: none; }
@@ -69,10 +70,9 @@
         
         .belegung-wrapper { border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom: 10px; background: #fff; padding: 10px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .belegung-row { display: flex; gap: 8px; align-items: center; }
-        .belegung-row select { flex: 3; min-width: 200px; margin: 0; font-weight: bold; } /* Breiter Mieter */
-        .belegung-row input[type="date"] { flex: 0 0 130px; margin: 0; font-size: 0.9em; } /* Schmaler Datum */
+        .belegung-row select { flex: 3; min-width: 200px; margin: 0; font-weight: bold; } 
+        .belegung-row input[type="date"] { flex: 0 0 130px; margin: 0; font-size: 0.9em; } 
         
-        /* Grid für strukturierte Adresse */
         .belegung-extra { display: none; margin-top: 8px; background: #fff3e0; padding: 8px; border-radius: 4px; border: 1px solid #ffe0b2; }
         .belegung-adresse-grid { display: grid; grid-template-columns: 3fr 1fr 1fr 3fr; gap: 5px; }
         .belegung-adresse-grid input { margin: 0; font-size: 0.9em; width: 100%; border: 1px solid #ffcc80; background: #fff; }
@@ -205,31 +205,36 @@
             </div>
 
             <h4 style="margin-top:15px; margin-bottom:5px;">Validierungs-Matrix</h4>
-            <table class="soll-matrix">
-                <thead>
-                    <tr>
-                        <th style="width:20%;">Typ</th>
-                        <th style="width:10%;">Soll Anz.</th>
-                        <th style="width:10%; background:#f5f5f5;">Ist</th>
-                        <th style="width:10%; background:#f5f5f5;">Diff</th>
-                        <th style="width:15%;">Soll Fläche</th>
-                        <th style="width:15%; background:#f5f5f5;">Ist</th>
-                        <th style="width:15%; background:#f5f5f5;">Diff</th>
-                    </tr>
-                </thead>
-                <tbody id="hausSollMatrixBody"></tbody>
-                <tfoot>
-                    <tr class="matrix-sum-row">
-                        <td>Summe:</td>
-                        <td id="matrixSumCount">0</td>
-                        <td id="matrixIstCount" class="readonly-val">-</td>
-                        <td></td>
-                        <td id="matrixSumArea">0.00</td>
-                        <td id="matrixIstArea" class="readonly-val">-</td>
-                        <td></td>
-                    </tr>
-                </tfoot>
-            </table>
+            <div class="matrix-wrapper">
+                <table class="soll-matrix">
+                    <thead>
+                        <tr>
+                            <th style="width:25%;">Typ / Bez.</th>
+                            <th style="width:10%;">Soll Anz.</th>
+                            <th style="width:10%; background:#f5f5f5;">Ist</th>
+                            <th style="width:10%; background:#f5f5f5;">Diff</th>
+                            <th style="width:15%;">Soll Fläche</th>
+                            <th style="width:15%; background:#f5f5f5;">Ist</th>
+                            <th style="width:15%; background:#f5f5f5;">Diff</th>
+                            <th style="width:5%;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="hausSollMatrixBody"></tbody>
+                    <tfoot>
+                        <tr class="matrix-sum-row">
+                            <td>Summe:</td>
+                            <td id="matrixSumCount">0</td>
+                            <td id="matrixIstCount" class="readonly-val">-</td>
+                            <td></td>
+                            <td id="matrixSumArea">0.00</td>
+                            <td id="matrixIstArea" class="readonly-val">-</td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            <button type="button" onclick="addCustomTypeRow()" style="font-size:0.8em;">+ Weiteren Typ hinzufügen</button>
             
             <div style="display:flex; gap:10px; margin-top:10px;">
                 <div style="flex:1;"><label>Gesamt MEA (Soll):</label><input type="number" step="0.001" id="hausAnteileInput" oninput="calcMatrixSum()"></div>
@@ -303,7 +308,7 @@
 
     <script>
         // --- DEFINITIONEN ---
-        const UNIT_TYPES = [
+        const STANDARD_TYPES = [
             { id: 'wohnung', label: 'Wohnung' }, { id: 'gewerbe', label: 'Gewerbe' }, { id: 'halle', label: 'Gewerbe-Halle' },
             { id: 'geschaeft', label: 'Geschäft' }, { id: 'garage', label: 'Garage' }, { id: 'parkplatz', label: 'Parkplatz' },
             { id: 'keller', label: 'Keller' }, { id: 'garten', label: 'Garten' }, { id: 'sonstige', label: 'Sonstige' }
@@ -315,7 +320,7 @@
         let dbObjekte = new Map(), dbHaeuser = new Map(), dbEinheiten = new Map(), dbKontakte = new Map(); 
 
         document.addEventListener('DOMContentLoaded', async () => {
-            initUnitTypes(); initHausMatrix(); loadLocal(); 
+            loadLocal(); 
             try { renderLists(); } catch (err) { console.error("Fehler beim Initial-Rendering:", err); }
             try {
                 msalInstance = new msal.PublicClientApplication(msalConfig);
@@ -371,7 +376,11 @@
             const oid = getNextObjektID();
             dbObjekte.set(oid, { nummer: oid, name: "Wohnpark Test", plz: "12345", ort: "Musterstadt", flaeche: 150, mea: 1000, sollHaeuser: 1 });
             const hid = getNextHausID(oid);
-            const matrix = {}; matrix['wohnung'] = { count: 2, area: 100 }; matrix['gewerbe'] = { count: 1, area: 50 };
+            const matrix = {}; 
+            // Labels storen
+            matrix['wohnung'] = { count: 2, area: 100, label: "Wohnung" }; 
+            matrix['gewerbe'] = { count: 1, area: 50, label: "Gewerbe" };
+            
             dbHaeuser.set(hid, { objektId: oid, bezeichnung: "Haus A", anteile: 1000, sollMatrix: matrix });
             const eid1 = getNextEinheitID(hid);
             dbEinheiten.set(eid1, { hausId: hid, name: "EG Links", typ: "wohnung", flaeche: 50, zimmer: 2, mea: 333.33, belegung: [{ mieterId: "k_d1", einzug: "2020-01-01", auszug: "" }] });
@@ -380,14 +389,6 @@
             const eid3_fix = parts[0]+"/"+parts[1]+"/"+pad(parseInt(parts[2])+2,4);
             dbEinheiten.set(eid3_fix, { hausId: hid, name: "Büro OG", typ: "gewerbe", flaeche: 50, zimmer: 3, mea: 333.34, belegung: [{ mieterId: "k_d3", einzug: "2019-01-01", auszug: "2023-12-31" }] });
             saveLocal(); renderLists(); alert("Testdaten angelegt!");
-        }
-
-        // --- INIT UI ---
-        function initUnitTypes() { const sel = document.getElementById('einheitTypSelect'); if(sel) { sel.innerHTML = ""; UNIT_TYPES.forEach(t => sel.add(new Option(t.label, t.id))); } }
-        function initHausMatrix() {
-            const tbody = document.getElementById('hausSollMatrixBody'); if(tbody) {
-                tbody.innerHTML = ""; UNIT_TYPES.forEach(t => { const tr = document.createElement('tr'); tr.id = `row_${t.id}`; tr.innerHTML = `<td>${t.label}</td><td><input type="number" step="1" id="soll_count_${t.id}" class="matrix-inp" placeholder="0" oninput="calcMatrixSum()"></td><td class="readonly-val" id="ist_count_${t.id}">0</td><td class="diff-val" id="diff_count_${t.id}">0</td><td><input type="number" step="0.01" id="soll_area_${t.id}" class="matrix-inp" placeholder="0.00" oninput="calcMatrixSum()"></td><td class="readonly-val" id="ist_area_${t.id}">0</td><td class="diff-val" id="diff_area_${t.id}">0.00</td>`; tbody.appendChild(tr); });
-            }
         }
 
         // --- AUTH & CLOUD ---
@@ -409,38 +410,111 @@
         function saveLocal() { localStorage.setItem("immo_objekte", JSON.stringify(Array.from(dbObjekte.entries()))); localStorage.setItem("immo_haeuser", JSON.stringify(Array.from(dbHaeuser.entries()))); localStorage.setItem("immo_einheiten", JSON.stringify(Array.from(dbEinheiten.entries()))); }
         function showStatus(msg, type) { const s=document.getElementById('onedriveStatus'); s.textContent=msg; s.className='onedrive-status '+type; s.style.display='inline-block'; setTimeout(()=>s.style.display='none', 4000); }
 
-        // --- LOGIC ---
+        // --- HAUS MODAL MATRIX & TYPES ---
+        
+        function renderHausMatrix(haus) {
+            const tbody = document.getElementById('hausSollMatrixBody');
+            tbody.innerHTML = "";
+            
+            // Standard Types
+            STANDARD_TYPES.forEach(t => {
+                addMatrixRowToUI(t.id, t.label, haus ? haus.sollMatrix : null, false);
+            });
+
+            // Custom Types (if any in loaded house)
+            if(haus && haus.sollMatrix) {
+                Object.keys(haus.sollMatrix).forEach(key => {
+                    // Check if key is standard
+                    if(!STANDARD_TYPES.some(st => st.id === key)) {
+                        // It's a custom type
+                        addMatrixRowToUI(key, haus.sollMatrix[key].label || "Unbenannt", haus.sollMatrix, true);
+                    }
+                });
+            }
+        }
+
+        function addMatrixRowToUI(id, label, matrixData, isCustom) {
+            const tbody = document.getElementById('hausSollMatrixBody');
+            const tr = document.createElement('tr');
+            tr.dataset.typeId = id;
+            
+            const cnt = matrixData && matrixData[id] ? matrixData[id].count : "";
+            const area = matrixData && matrixData[id] ? matrixData[id].area : "";
+            
+            let labelHtml = label;
+            if(isCustom) {
+                labelHtml = `<input type="text" class="custom-label-inp" value="${label}" style="text-align:left; background:#fff; border:1px solid #ccc; padding:2px;">`;
+            }
+
+            tr.innerHTML = `
+                <td>${labelHtml}</td>
+                <td><input type="number" step="1" class="soll-count matrix-inp" placeholder="0" value="${cnt}" oninput="calcMatrixSum()"></td>
+                <td class="readonly-val ist-count">0</td>
+                <td class="diff-val diff-count">0</td>
+                <td><input type="number" step="0.01" class="soll-area matrix-inp" placeholder="0.00" value="${area}" oninput="calcMatrixSum()"></td>
+                <td class="readonly-val ist-area">0</td>
+                <td class="diff-val diff-area">0.00</td>
+                <td>${isCustom ? '<button type="button" class="warn-btn" style="padding:2px 6px;" onclick="this.closest(\'tr\').remove(); calcMatrixSum();">X</button>' : ''}</td>
+            `;
+            tbody.appendChild(tr);
+        }
+
+        function addCustomTypeRow() {
+            const id = 'custom_' + Date.now();
+            addMatrixRowToUI(id, "Neuer Typ", null, true);
+        }
+
+        // --- LIVE MATRIX BERECHNUNG ---
         function calcMatrixSum() {
-            let sumCnt=0, sumArea=0; const hid = document.getElementById('hausIdInput').value;
+            let sumCnt=0, sumArea=0; 
+            const hid = document.getElementById('hausIdInput').value;
             const einheiten = hid ? Array.from(dbEinheiten.values()).filter(e => e.hausId === hid) : [];
+
+            // MEA Calc
             const sollMea = safeFloat(document.getElementById('hausAnteileInput').value);
             const istMea = einheiten.reduce((s,e) => s + safeFloat(e.mea), 0);
             const diffMea = Math.round((istMea - sollMea)*1000)/1000;
             const meaStat = document.getElementById('hausMeaStatus');
             meaStat.innerText = `Ist: ${formatNum(istMea)} | Diff: ${formatNum(diffMea)}`;
             meaStat.style.color = (Math.abs(diffMea) <= 0.01) ? '#2e7d32' : '#c62828';
+
             let istTotalCnt = 0; let istTotalArea = 0;
-            UNIT_TYPES.forEach(t => {
-                const sollC = safeFloat(document.getElementById(`soll_count_${t.id}`).value);
-                const sollA = safeFloat(document.getElementById(`soll_area_${t.id}`).value);
+
+            // Iterate UI Rows to handle dynamic types
+            document.querySelectorAll('#hausSollMatrixBody tr').forEach(tr => {
+                const typeId = tr.dataset.typeId;
+                const sollC = safeFloat(tr.querySelector('.soll-count').value);
+                const sollA = safeFloat(tr.querySelector('.soll-area').value);
+                
                 sumCnt += sollC; sumArea += sollA;
-                const unitsOfType = einheiten.filter(e => e.typ === t.id);
-                const istC = unitsOfType.length; const istA = unitsOfType.reduce((s,e)=>s+safeFloat(e.flaeche), 0);
+
+                const unitsOfType = einheiten.filter(e => e.typ === typeId);
+                const istC = unitsOfType.length; 
+                const istA = unitsOfType.reduce((s,e)=>s+safeFloat(e.flaeche), 0);
+                
                 istTotalCnt += istC; istTotalArea += istA;
-                document.getElementById(`ist_count_${t.id}`).innerText = istC;
-                document.getElementById(`ist_area_${t.id}`).innerText = formatNum(istA);
+
+                tr.querySelector('.ist-count').innerText = istC;
+                tr.querySelector('.ist-area').innerText = formatNum(istA);
+                
                 const diffC = istC - sollC; const diffA = istA - sollA;
-                const elDiffC = document.getElementById(`diff_count_${t.id}`);
-                elDiffC.innerText = (diffC > 0 ? '+' : '') + diffC; elDiffC.style.color = (diffC === 0) ? '#2e7d32' : '#c62828';
-                const elDiffA = document.getElementById(`diff_area_${t.id}`);
-                elDiffA.innerText = (diffA > 0 ? '+' : '') + formatNum(diffA); elDiffA.style.color = (Math.abs(diffA) < 0.1) ? '#2e7d32' : '#c62828';
+                
+                const elDiffC = tr.querySelector('.diff-count');
+                elDiffC.innerText = (diffC > 0 ? '+' : '') + diffC; 
+                elDiffC.style.color = (diffC === 0) ? '#2e7d32' : '#c62828';
+
+                const elDiffA = tr.querySelector('.diff-area');
+                elDiffA.innerText = (diffA > 0 ? '+' : '') + formatNum(diffA); 
+                elDiffA.style.color = (Math.abs(diffA) < 0.1) ? '#2e7d32' : '#c62828';
             });
+
             document.getElementById('matrixSumCount').innerText = sumCnt;
             document.getElementById('matrixSumArea').innerText = formatNum(sumArea);
             document.getElementById('matrixIstCount').innerText = istTotalCnt;
             document.getElementById('matrixIstArea').innerText = formatNum(istTotalArea);
         }
 
+        // --- HOUSE TYPE OVERVIEW ---
         function onHausSelectionChange(isFirstLoad = false) {
             updateHausIdPreview(); 
             updateHausTypeOverview(isFirstLoad);
@@ -457,13 +531,31 @@
             const container = document.getElementById('hausTypeOverview');
             const typeSelect = document.getElementById('einheitTypSelect');
             container.innerHTML = "";
+            typeSelect.innerHTML = ""; // Rebuild dropdown
+
             if(!hid) { container.innerHTML = '<span style="color:#666;">Kein Haus gewählt.</span>'; return; }
             const h = dbHaeuser.get(hid); if(!h) return;
             const units = Array.from(dbEinheiten.values()).filter(u => u.hausId === hid);
+            
+            // Build Unified Type List (Standard + Custom from House)
+            let availableTypes = [...STANDARD_TYPES];
+            if(h.sollMatrix) {
+                Object.keys(h.sollMatrix).forEach(k => {
+                    if(!availableTypes.some(t => t.id === k)) {
+                        availableTypes.push({ id: k, label: h.sollMatrix[k].label || "Custom" });
+                    }
+                });
+            }
+
+            // Populate Dropdown
+            availableTypes.forEach(t => typeSelect.add(new Option(t.label, t.id)));
+
             let html = ''; let foundAny = false; let firstOpenType = null; let allTypesFull = true;
-            UNIT_TYPES.forEach(t => {
+
+            availableTypes.forEach(t => {
                 const sollCnt = safeFloat(h.sollMatrix?.[t.id]?.count);
                 const istCnt = units.filter(u => u.typ === t.id).length;
+                
                 if (sollCnt > 0 || istCnt > 0) {
                     foundAny = true; let cssClass = ""; let text = `${t.label}: ${istCnt} / ${sollCnt}`;
                     if (sollCnt > 0) {
@@ -477,9 +569,17 @@
             if(foundAny && allTypesFull) html = '<span class="full-house-warning">⚠️ HINWEIS: Dieses Haus ist laut Planung bereits vollständig eingerichtet.</span>' + html;
             else if(!foundAny) html += '<span style="color:#666; font-style:italic;">Keine Typen im Haus definiert.</span>';
             container.innerHTML = html;
+            
             const currentUnitId = document.getElementById('einheitIdInput').value;
-            if(!currentUnitId) { if(firstOpenType && isFirstLoad) typeSelect.value = firstOpenType; document.getElementById('einheitNummerDisplay').value = getNextEinheitID(hid); }
-            else document.getElementById('einheitNummerDisplay').value = currentUnitId;
+            if(!currentUnitId) { 
+                if(firstOpenType && isFirstLoad) typeSelect.value = firstOpenType; 
+                document.getElementById('einheitNummerDisplay').value = getNextEinheitID(hid); 
+            } else {
+                document.getElementById('einheitNummerDisplay').value = currentUnitId;
+                // Ensure current type is selected even if it's not "open"
+                const currentType = dbEinheiten.get(currentUnitId)?.typ;
+                if(currentType) typeSelect.value = currentType;
+            }
         }
 
         function updateUnitLiveStatus() {
@@ -488,15 +588,23 @@
             const currentArea = safeFloat(document.getElementById('einheitFlaecheInput').value);
             const box = document.getElementById('einheitLiveStatus');
             const uid = document.getElementById('einheitIdInput').value; 
-            if (!hid) { box.style.display="none"; return; }
+            
+            if (!hid || !typ) { box.style.display="none"; return; }
             const h = dbHaeuser.get(hid); if (!h) { box.style.display="none"; return; }
+
+            // Get Type Label
+            const typeLabel = h.sollMatrix?.[typ]?.label || STANDARD_TYPES.find(t=>t.id===typ)?.label || "Typ";
             const sollArea = safeFloat(h.sollMatrix?.[typ]?.area);
+            
             const otherUnits = Array.from(dbEinheiten.entries()).filter(([id, e]) => e.hausId === hid && e.typ === typ && id !== uid).map(([id, e]) => e);
             const istOther = otherUnits.reduce((s,e) => s + safeFloat(e.flaeche), 0);
-            const diff = (istOther + currentArea) - sollArea;
+            
+            const newTotal = istOther + currentArea;
+            const diff = newTotal - sollArea;
             const open = sollArea - istOther; 
+
             box.style.display = "block";
-            let msg = `<b>Haus-Check (${UNIT_TYPES.find(t=>t.id===typ).label}):</b><br>`;
+            let msg = `<b>Haus-Check (${typeLabel}):</b><br>`;
             if (open < 0) { box.className = "live-status-box live-status-err"; msg += `⚠️ Das Soll (${formatNum(sollArea)} m²) ist bereits durch andere Einheiten um ${formatNum(Math.abs(open))} m² überschritten!`; }
             else {
                 msg += `Bisher belegt: ${formatNum(istOther)} m² (von ${formatNum(sollArea)} m² Soll).<br>`;
@@ -525,7 +633,7 @@
             box.innerHTML = msg;
         }
 
-        // --- RENDER LISTS & PDF ---
+        // --- RENDER LISTS ---
         function switchTab(id) {
             document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -564,17 +672,23 @@
                     const o = dbObjekte.get(h.objektId);
                     const einheiten = Array.from(dbEinheiten.values()).filter(e => e.hausId === id);
                     let valHtml = ""; let hasError = false;
-                    UNIT_TYPES.forEach(t => {
-                        const sollCnt = safeFloat(h.sollMatrix?.[t.id]?.count);
-                        const sollArea = safeFloat(h.sollMatrix?.[t.id]?.area);
-                        if(sollCnt>0 || sollArea>0) {
-                            const act = einheiten.filter(e => e.typ === t.id);
-                            const istCnt = act.length;
-                            const istArea = act.reduce((s,e)=>s+safeFloat(e.flaeche),0);
-                            if(istCnt!=sollCnt) { hasError=true; valHtml += `<div class="validation-row"><span class="stat-err">⚠️ ${t.label} Anzahl: ${istCnt}/${sollCnt}</span></div>`; }
-                            if(Math.abs(istArea-sollArea)>0.1) { hasError=true; valHtml += `<div class="validation-row"><span class="stat-err">⚠️ ${t.label} Fläche: ${formatNum(istArea)}/${formatNum(sollArea)} m²</span></div>`; }
-                        }
-                    });
+                    
+                    // Render Validation for ALL types in Matrix (Standard + Custom)
+                    if(h.sollMatrix) {
+                        Object.keys(h.sollMatrix).forEach(tid => {
+                            const tLabel = h.sollMatrix[tid].label;
+                            const sollCnt = safeFloat(h.sollMatrix[tid].count);
+                            const sollArea = safeFloat(h.sollMatrix[tid].area);
+                            if(sollCnt>0 || sollArea>0) {
+                                const act = einheiten.filter(e => e.typ === tid);
+                                const istCnt = act.length;
+                                const istArea = act.reduce((s,e)=>s+safeFloat(e.flaeche),0);
+                                if(istCnt!=sollCnt) { hasError=true; valHtml += `<div class="validation-row"><span class="stat-err">⚠️ ${tLabel} Anz: ${istCnt}/${sollCnt}</span></div>`; }
+                                if(Math.abs(istArea-sollArea)>0.1) { hasError=true; valHtml += `<div class="validation-row"><span class="stat-err">⚠️ ${tLabel} Fl.: ${formatNum(istArea)}/${formatNum(sollArea)} m²</span></div>`; }
+                            }
+                        });
+                    }
+
                     const sumMea = einheiten.reduce((s,e)=>s+safeFloat(e.mea),0);
                     valHtml += validateVal(h.anteile||0, sumMea, "MEA");
                     if(!hasError && valHtml.indexOf('⚠️')===-1) valHtml = '<div class="stat-ok">✅ Alle Vorgaben erfüllt.</div>' + valHtml;
@@ -597,7 +711,11 @@
                         if(act) { const m=dbKontakte.get(act.mieterId); const seqIndex = sortedBel.indexOf(act) + 1; contractId = e.id + "/" + pad(seqIndex, 2); stHtml = `<span class="status-vermietet">✅ ${m?m.fn:'?'}</span> <span class="contract-id" title="Vertragsnummer">${contractId}</span> <span style="color:#666;font-size:0.8em;">(${formatDate(act.einzug)}...)</span>`; }
                         else if(fut) { const m=dbKontakte.get(fut.mieterId); stHtml = `<span class="status-leerstand">⚠️ LEER</span> <span class="status-zukunft">➡️ Ab ${formatDate(fut.einzug)}: ${m?m.fn:'?'}</span>`; }
                     }
-                    eDiv.innerHTML += `<div class="liste-item"><input type="checkbox" class="item-checkbox" value="${e.id}"><div class="liste-content"><div style="display:flex; justify-content:space-between;"><h4>${e.name} <span class="badge">${e.typ}</span> <small>(${e.hName})</small></h4><button onclick="openEinheitMask('${e.id}')">Bearbeiten</button></div><div class="sub-info">${formatNum(safeFloat(e.flaeche))}m² | MEA: ${formatNum(safeFloat(e.mea))}</div><div class="mieter-status">${stHtml}</div></div></div>`;
+                    // Resolve Label
+                    const h = dbHaeuser.get(e.hausId);
+                    const tLabel = (h && h.sollMatrix && h.sollMatrix[e.typ]) ? h.sollMatrix[e.typ].label : (STANDARD_TYPES.find(t=>t.id===e.typ)?.label || e.typ);
+
+                    eDiv.innerHTML += `<div class="liste-item"><input type="checkbox" class="item-checkbox" value="${e.id}"><div class="liste-content"><div style="display:flex; justify-content:space-between;"><h4>${e.name} <span class="badge">${tLabel}</span> <small>(${e.hName})</small></h4><button onclick="openEinheitMask('${e.id}')">Bearbeiten</button></div><div class="sub-info">${formatNum(safeFloat(e.flaeche))}m² | MEA: ${formatNum(safeFloat(e.mea))}</div><div class="mieter-status">${stHtml}</div></div></div>`;
                 });
             }
         }
@@ -613,12 +731,27 @@
             if(h.objektId) sel.value=h.objektId;
             if(!id && sel.value) document.getElementById('hausNummerDisplay').value = getNextHausID(sel.value); else document.getElementById('hausNummerDisplay').value = id;
             document.getElementById('hausBezeichnungInput').value=h.bezeichnung||""; document.getElementById('hausAnteileInput').value=h.anteile||"";
-            UNIT_TYPES.forEach(t=>{ document.getElementById(`soll_count_${t.id}`).value = h.sollMatrix?.[t.id]?.count||""; document.getElementById(`soll_area_${t.id}`).value = h.sollMatrix?.[t.id]?.area||""; });
+            
+            renderHausMatrix(h);
+            
             calcMatrixSum(); document.getElementById('hausModal').classList.add('active');
         }
         function saveHaus(){
             let id=document.getElementById('hausNummerDisplay').value; if(!id) { const oid=document.getElementById('hausObjektSelect').value; id=getNextHausID(oid); }
-            let mx={}; UNIT_TYPES.forEach(t=>{ mx[t.id]={ count: document.getElementById(`soll_count_${t.id}`).value, area: document.getElementById(`soll_area_${t.id}`).value }; });
+            
+            // Build Matrix from UI
+            let mx={}; 
+            document.querySelectorAll('#hausSollMatrixBody tr').forEach(tr => {
+                const tid = tr.dataset.typeId;
+                const lblInput = tr.querySelector('.custom-label-inp');
+                const lbl = lblInput ? lblInput.value : tr.cells[0].innerText;
+                const cnt = tr.querySelector('.soll-count').value;
+                const area = tr.querySelector('.soll-area').value;
+                if(cnt || area) {
+                    mx[tid] = { count: cnt, area: area, label: lbl };
+                }
+            });
+
             dbHaeuser.set(String(id), { objektId: document.getElementById('hausObjektSelect').value, bezeichnung: document.getElementById('hausBezeichnungInput').value, anteile: safeFloat(document.getElementById('hausAnteileInput').value), sollMatrix: mx });
             document.getElementById('hausModal').classList.remove('active'); saveLocal(); renderLists(); saveToOneDrive(false);
         }
@@ -626,172 +759,98 @@
 
         function filterHaeuserDropdown(){ const oid=document.getElementById('einheitObjektSelect').value; const h=document.getElementById('einheitHausSelect'); h.innerHTML=""; if(!oid)return; Array.from(dbHaeuser.entries()).filter(([hid,x])=>x.objektId===oid).forEach(([hid,x])=>h.add(new Option(x.bezeichnung,hid))); }
         
-        // ADD BELEGUNG ROW (UPDATED with Address Button & Contact Info)
         function addBelegungRow(d={}){ 
             const c=document.getElementById('belegungListe'); if(!c)return; 
             const wrapper = document.createElement('div'); wrapper.className = 'belegung-wrapper';
             
-            // Row 1: Basic Info
             const r=document.createElement('div'); r.className='belegung-row'; 
-            
             const s=document.createElement('select'); s.className='belegung-mieter'; 
             s.innerHTML="<option value=''>-- Mieter --</option>";
             Array.from(dbKontakte.entries()).sort((a,b)=>(a[1].fn||"").localeCompare(b[1].fn||"")).forEach(([id,k])=>s.add(new Option(k.fn+(k.org?` (${k.org})`:""),id)));
             if(d.mieterId) s.value=d.mieterId;
-            
-            // Event listener for contact info display
             s.onchange = function() { updateContactInfoDisplay(this.value, wrapper); };
 
             const inEin=document.createElement('input'); inEin.type="date"; inEin.className="belegung-einzug"; if(d.einzug) inEin.value=d.einzug;
             const inAus=document.createElement('input'); inAus.type="date"; inAus.className="belegung-auszug"; if(d.auszug) inAus.value=d.auszug;
-            
-            const btnAddr = document.createElement('button'); btnAddr.type="button"; btnAddr.innerText="📍"; btnAddr.title="Abweichende Adresse bei Auszug";
-            btnAddr.style.padding="4px 8px";
-            
+            const btnAddr = document.createElement('button'); btnAddr.type="button"; btnAddr.innerText="📍"; btnAddr.title="Abweichende Adresse bei Auszug"; btnAddr.style.padding="4px 8px";
             const b=document.createElement('button'); b.className="warn-btn"; b.innerText="X"; b.onclick=()=>wrapper.remove();
             
             r.append(s,inEin,inAus,btnAddr,b); 
-            
-            // Contact Info Display Container
-            const infoDiv = document.createElement('div');
-            infoDiv.className = 'contact-info-display';
-            wrapper.appendChild(r);
-            wrapper.appendChild(infoDiv); // Insert info div here
-
-            // Initialize contact info if mieter is selected
+            const infoDiv = document.createElement('div'); infoDiv.className = 'contact-info-display';
             if(d.mieterId) updateContactInfoDisplay(d.mieterId, wrapper);
 
-            // Row 2: Extra Address Field (Hidden by default)
             const extra = document.createElement('div'); extra.className='belegung-extra';
-            
-            // Grid Structure for Address
             const grid = document.createElement('div'); grid.className='belegung-adresse-grid';
-            
-            const inStr = document.createElement('input'); inStr.type="text"; inStr.className="addr-strasse"; inStr.placeholder="Straße"; if(d.strasse) inStr.value=d.strasse; else if(d.adresse) inStr.value=d.adresse; // Migration
+            const inStr = document.createElement('input'); inStr.type="text"; inStr.className="addr-strasse"; inStr.placeholder="Straße"; if(d.strasse) inStr.value=d.strasse; else if(d.adresse) inStr.value=d.adresse; 
             const inHnr = document.createElement('input'); inHnr.type="text"; inHnr.className="addr-hausnr"; inHnr.placeholder="Nr."; if(d.hausnr) inHnr.value=d.hausnr;
             const inPlz = document.createElement('input'); inPlz.type="text"; inPlz.className="addr-plz"; inPlz.placeholder="PLZ"; if(d.plz) inPlz.value=d.plz;
             const inOrt = document.createElement('input'); inOrt.type="text"; inOrt.className="addr-ort"; inOrt.placeholder="Ort"; if(d.ort) inOrt.value=d.ort;
-            
-            grid.append(inStr, inHnr, inPlz, inOrt);
-            extra.appendChild(grid);
-
+            grid.append(inStr, inHnr, inPlz, inOrt); extra.appendChild(grid);
             if(d.strasse || d.adresse) extra.style.display="block";
-
             btnAddr.onclick = () => { extra.style.display = extra.style.display === 'none' ? 'block' : 'none'; };
 
-            wrapper.appendChild(extra);
+            wrapper.appendChild(r); wrapper.appendChild(infoDiv); wrapper.appendChild(extra);
             c.appendChild(wrapper);
         }
 
         function updateContactInfoDisplay(mieterId, wrapper) {
-            const infoDiv = wrapper.querySelector('.contact-info-display');
-            if(!infoDiv) return;
-            
-            infoDiv.innerHTML = "";
-            if(!mieterId) return;
-
+            const infoDiv = wrapper.querySelector('.contact-info-display'); if(!infoDiv) return;
+            infoDiv.innerHTML = ""; if(!mieterId) return;
             const m = dbKontakte.get(mieterId);
             if(m) {
                 let text = "";
-                // Get Phone
-                if(m.telefon && m.telefon.length > 0) {
-                    text += `<span class="contact-info-item">📞 ${m.telefon[0].number}</span>`;
-                }
-                // Get Email
-                if(m.email && m.email.length > 0) {
-                    text += `<span class="contact-info-item">📧 ${m.email[0].address}</span>`;
-                }
+                if(m.telefon && m.telefon.length > 0) text += `<span class="contact-info-item">📞 ${m.telefon[0].number}</span>`;
+                if(m.email && m.email.length > 0) text += `<span class="contact-info-item">📧 ${m.email[0].address}</span>`;
                 if(!text) text = "<span style='font-style:italic;'>Keine Kontaktdaten hinterlegt</span>";
                 infoDiv.innerHTML = text;
             }
         }
 
-        // ADD HISTORIE ROW
         function addHistorieRow(d={}){
             const c=document.getElementById('historieListe'); if(!c)return;
             const r=document.createElement('div'); r.className='historie-row';
-            
             const inDate = document.createElement('input'); inDate.type="date"; inDate.className="hist-date"; if(d.date) inDate.value=d.date;
             const inText = document.createElement('input'); inText.type="text"; inText.className="hist-desc"; inText.placeholder="Beschreibung der Änderung..."; if(d.text) inText.value=d.text;
-            
             const b=document.createElement('button'); b.className="warn-btn"; b.innerText="X"; b.onclick=()=>r.remove();
-            
-            r.append(inDate, inText, b);
-            c.appendChild(r);
+            r.append(inDate, inText, b); c.appendChild(r);
         }
         
         function openEinheitMask(id){
-            const e=id?dbEinheiten.get(id):{}; 
-            document.getElementById('einheitIdInput').value=id||"";
-            
+            const e=id?dbEinheiten.get(id):{}; document.getElementById('einheitIdInput').value=id||"";
             const oSel=document.getElementById('einheitObjektSelect'); const hSel=document.getElementById('einheitHausSelect');
             let hid=e.hausId; let oid=hid?dbHaeuser.get(hid)?.objektId:"";
             if(oid) oSel.value=oid; else if(oSel.options.length>0) oSel.selectedIndex=0; filterHaeuserDropdown();
             if(hid) hSel.value=hid; else if(hSel.options.length>0) hSel.selectedIndex=0;
             if(id) document.getElementById('einheitNummerDisplay').value = id;
-            
             document.getElementById('einheitNameInput').value=e.name||""; 
-            document.getElementById('einheitTypSelect').value=e.typ||"wohnung";
-            document.getElementById('einheitFlaecheInput').value=e.flaeche||""; 
-            document.getElementById('einheitHeizflaecheInput').value=e.heizflaeche||"";
-            document.getElementById('einheitZimmerInput').value=e.zimmer||""; 
-            document.getElementById('einheitMeaInput').value=e.mea||"";
+            document.getElementById('einheitFlaecheInput').value=e.flaeche||""; document.getElementById('einheitHeizflaecheInput').value=e.heizflaeche||"";
+            document.getElementById('einheitZimmerInput').value=e.zimmer||""; document.getElementById('einheitMeaInput').value=e.mea||"";
             
-            // Belegung laden
             const c=document.getElementById('belegungListe'); c.innerHTML=""; 
             if(e.belegung&&e.belegung.length) e.belegung.forEach(b=>addBelegungRow(b)); else addBelegungRow();
             
-            // Historie laden
             const hList = document.getElementById('historieListe'); hList.innerHTML="";
             if(e.historie && e.historie.length) e.historie.forEach(h=>addHistorieRow(h));
             
-            onHausSelectionChange(!id);
+            onHausSelectionChange(!id); // Init Type Dropdown
+            // Set type AFTER dropdown rebuild
+            if(e.typ) document.getElementById('einheitTypSelect').value = e.typ;
+            
+            updateUnitLiveStatus();
             document.getElementById('einheitModal').classList.add('active');
         }
         
         function saveEinheit(){
             let id=document.getElementById('einheitNummerDisplay').value; 
             if(!id) { const hid=document.getElementById('einheitHausSelect').value; id=getNextEinheitID(hid); }
-            
-            // Collect Belegung
-            const bel=[]; 
-            document.querySelectorAll('#belegungListe .belegung-wrapper').forEach(w=>{ 
-                const m=w.querySelector('.belegung-mieter').value; 
-                if(m) bel.push({
-                    mieterId:m, 
-                    einzug:w.querySelector('.belegung-einzug').value, 
-                    auszug:w.querySelector('.belegung-auszug').value,
-                    strasse:w.querySelector('.addr-strasse').value,
-                    hausnr:w.querySelector('.addr-hausnr').value,
-                    plz:w.querySelector('.addr-plz').value,
-                    ort:w.querySelector('.addr-ort').value
-                }); 
-            });
-
-            // Collect Historie
-            const hist=[];
-            document.querySelectorAll('#historieListe .historie-row').forEach(r=>{
-                const d = r.querySelector('.hist-date').value;
-                const t = r.querySelector('.hist-desc').value;
-                if(d || t) hist.push({date:d, text:t});
-            });
-            
-            dbEinheiten.set(String(id), { 
-                hausId: document.getElementById('einheitHausSelect').value, 
-                name: document.getElementById('einheitNameInput').value, 
-                typ: document.getElementById('einheitTypSelect').value, 
-                flaeche: safeFloat(document.getElementById('einheitFlaecheInput').value), 
-                heizflaeche: safeFloat(document.getElementById('einheitHeizflaecheInput').value), 
-                zimmer: document.getElementById('einheitZimmerInput').value, 
-                mea: safeFloat(document.getElementById('einheitMeaInput').value), 
-                belegung: bel,
-                historie: hist
-            });
+            const bel=[]; document.querySelectorAll('#belegungListe .belegung-wrapper').forEach(w=>{ const m=w.querySelector('.belegung-mieter').value; if(m) bel.push({mieterId:m, einzug:w.querySelector('.belegung-einzug').value, auszug:w.querySelector('.belegung-auszug').value, strasse:w.querySelector('.addr-strasse').value, hausnr:w.querySelector('.addr-hausnr').value, plz:w.querySelector('.addr-plz').value, ort:w.querySelector('.addr-ort').value}); });
+            const hist=[]; document.querySelectorAll('#historieListe .historie-row').forEach(r=>{ const d = r.querySelector('.hist-date').value; const t = r.querySelector('.hist-desc').value; if(d || t) hist.push({date:d, text:t}); });
+            dbEinheiten.set(String(id), { hausId: document.getElementById('einheitHausSelect').value, name: document.getElementById('einheitNameInput').value, typ: document.getElementById('einheitTypSelect').value, flaeche: safeFloat(document.getElementById('einheitFlaecheInput').value), heizflaeche: safeFloat(document.getElementById('einheitHeizflaecheInput').value), zimmer: document.getElementById('einheitZimmerInput').value, mea: safeFloat(document.getElementById('einheitMeaInput').value), belegung: bel, historie: hist });
             document.getElementById('einheitModal').classList.remove('active'); saveLocal(); renderLists(); saveToOneDrive(false);
         }
         function deleteEinheit(){ if(confirm("Löschen?")) { dbEinheiten.delete(document.getElementById('einheitIdInput').value); document.getElementById('einheitModal').classList.remove('active'); saveLocal(); renderLists(); saveToOneDrive(false); } }
         
-        // --- PDF FUNKTIONEN (wie gehabt) ---
+        // --- PDF FUNKTIONEN ---
         function getSelectedIds(containerId) { const checkboxes = document.querySelectorAll(`#${containerId} .item-checkbox:checked`); if(checkboxes.length === 0) return []; return Array.from(checkboxes).map(cb => cb.value); }
         function toggleAll(containerId, checked) { document.querySelectorAll(`#${containerId} .item-checkbox`).forEach(cb => cb.checked = checked); }
         function generateObjectReportPDF() { const ids=getSelectedIds('objekteListe'); const arr=ids.length?Array.from(dbObjekte.entries()).filter(([id])=>ids.includes(id)):Array.from(dbObjekte.entries()); const doc=new jspdf.jsPDF('l'); doc.text("Objekt-Statusbericht",14,15); const rows=arr.map(([id,o])=>{ const hArr=Array.from(dbHaeuser.values()).filter(h=>h.objektId===id); let sf=0; hArr.forEach(h=>{if(h.sollMatrix)Object.values(h.sollMatrix).forEach(v=>sf+=safeFloat(v.area));else sf+=(safeFloat(h.wohnflaeche)+safeFloat(h.gewerbeflaeche));}); return [o.nummer,o.name,`${hArr.length}/${o.sollHaeuser||0}`,`${formatNum(safeFloat(o.flaeche))} m²`,`${formatNum(sf)} m²`,Math.abs(sf-safeFloat(o.flaeche))>0.1?formatNum(sf-safeFloat(o.flaeche)):'OK']; }); doc.autoTable({head:[['Nr','Objekt','Häuser','Soll-Fl','Ist-Plan','Diff']],body:rows,startY:20}); doc.save('objekt_bericht.pdf'); }
