@@ -154,7 +154,7 @@
             <button onclick="openSollstellungModal()" class="finance-btn" title="Monatliche Mieten berechnen">💰 Sollstellung</button>
             <span style="border-left: 1px solid #ccc; height: 20px; margin: 0 5px;"></span>
             
-            <button onclick="createDummyData()" class="test-btn" title="Erstellt Musterobjekt">🧪 Testdaten</button>
+            <button onclick="createDummyData()" class="test-btn" title="Erstellt Musterobjekt mit Finanz-Historie">🧪 Testdaten</button>
             
             <button id="msLoginBtn" onclick="handleMicrosoftLogin()" class="onedrive-btn">🔑 Login</button>
             <button id="msLogoutBtn" onclick="handleLogout()" class="warn-btn" style="display:none;">🔒 Logout</button>
@@ -412,6 +412,7 @@
                     </select>
                 </div>
                 <div>
+                    <button class="warn-btn" onclick="resetKonto()" title="Löscht ALLE Buchungen dieser Einheit (für Testdaten/Neustart)">🧹 Konto bereinigen</button>
                     <button class="primary-btn" onclick="openManuelleBuchung()">+ Manuelle Buchung</button>
                     <button onclick="exportKontoPDF()">🖨️ Auszug PDF</button>
                 </div>
@@ -478,7 +479,7 @@
         let msalInstance, accessToken;
         
         let dbObjekte = new Map(), dbHaeuser = new Map(), dbEinheiten = new Map(), dbKontakte = new Map(); 
-        let dbFinanzen = []; // [{ id, einheitId, mieterId, datum, text, soll, haben, monatRef, typ }]
+        let dbFinanzen = []; // [{ id, einheitId, mieterId, datum, text, soll, haben, monatRef, typ, locked, kategorie }]
         
         let activeFilterId = null; 
         let autoSaveTimer = null;
@@ -551,25 +552,50 @@
         }
 
         function createDummyData() {
-            if(!confirm("Musterdaten (Wohnpark Test) erzeugen?")) return;
+            if(!confirm("Musterdaten (Wohnpark Test) erzeugen?\nDies erstellt auch ein Muster-Mieterkonto.")) return;
             const oid = getNextObjektID();
             dbObjekte.set(oid, { nummer: oid, name: "Wohnpark Test", plz: "12345", ort: "Musterstadt", flaeche: 150, mea: 1000, sollHaeuser: 1 });
             const hid = getNextHausID(oid);
             const matrix = {}; matrix['wohnung'] = { count: 1, area: 50, label: "Wohnung" };
             dbHaeuser.set(hid, { objektId: oid, bezeichnung: "Haus A", anteile: 1000, sollMatrix: matrix });
             const eid1 = getNextEinheitID(hid);
-            // Einheit mit Konditionen
+            
+            // Einheit mit Konditionen (Erweiterbar)
             dbEinheiten.set(eid1, { 
                 hausId: hid, name: "EG Links", typ: "wohnung", flaeche: 50, zimmer: 2, mea: 1000, 
                 ww_m3: 123.4, kw_m3: 456.7,
                 konditionen: [
                     { id: 'k1', label: 'Kaltmiete', betrag: 500, konto: '8000', gueltigAb: '2023-01-01' },
                     { id: 'k2', label: 'BK-Vorausz.', betrag: 100, konto: '8010', gueltigAb: '2023-01-01' },
-                    { id: 'k3', label: 'HK-Vorausz.', betrag: 80, konto: '8020', gueltigAb: '2023-01-01' }
+                    { id: 'k3', label: 'Küchenzuschlag', betrag: 50, konto: '8050', gueltigAb: '2023-01-01' } // Beispiel für Erweiterung
                 ],
                 belegung: [{ mieterId: "dummy_mieter", einzug: "2023-01-01", auszug: "" }] 
             });
-            saveLocal(); renderLists(); alert("Testdaten angelegt!");
+
+            // FINANZ HISTORIE ERZEUGEN (Letzte 3 Monate)
+            const now = new Date();
+            for (let i = 3; i >= 1; i--) {
+                const d = new Date(now.getFullYear(), now.getMonth() - i, 1); // 1. des Monats
+                const monatStr = d.toISOString().slice(0, 7); // YYYY-MM
+                const buchDatum = d.toISOString().slice(0, 10);
+                
+                // Soll (Miete + BK + Küche)
+                dbFinanzen.push({
+                    id: getNextFinanzId(), einheitId: eid1, mieterId: "dummy_mieter",
+                    monatRef: monatStr, buchungsdatum: buchDatum, typ: 'soll',
+                    kategorie: 'Miete Gesamt', text: `Sollstellung ${monatStr} (Test)`, betrag: 650, konto: '8000'
+                });
+                
+                // Haben (Zahlung 3 Tage später)
+                const zahlDatum = new Date(d); zahlDatum.setDate(4);
+                dbFinanzen.push({
+                    id: getNextFinanzId(), einheitId: eid1, mieterId: "dummy_mieter",
+                    monatRef: monatStr, buchungsdatum: zahlDatum.toISOString().slice(0, 10), typ: 'haben',
+                    kategorie: 'Zahlung', text: `Mieteigang ${monatStr}`, betrag: 650, konto: '1200'
+                });
+            }
+
+            saveLocal(); renderLists(); alert("Wohnpark Test + Finanzhistorie angelegt!");
         }
 
         // --- AUTH & CLOUD ---
@@ -1059,11 +1085,9 @@
                                         kategorie: k.label,
                                         text: `Sollstellung ${monat}/${jahr} (${k.label}) - ${activeDays} Tage`,
                                         betrag: betrag,
-                                        konto: k.konto
+                                        konto: k.konto,
+                                        locked: true // FESTGESCHRIEBEN: Kann nicht gelöscht werden
                                     };
-                                    
-                                    // Check ob schon existiert (doppelte Läufe vermeiden wäre gut, aber hier erlauben wir Nachberechnung)
-                                    // Einfache Dublettenprüfung optional hier einfügen...
                                     
                                     dbFinanzen.push(tx);
                                     count++;
@@ -1124,13 +1148,18 @@
                 sumS += s; sumH += h;
                 saldo += (s - h); // Soll erhöht Forderung (positiv im Saldo wenn Schuld)
 
+                let delBtn = `<button class="warn-btn" style="padding:2px 5px;" onclick="deleteBuchung('${tx.id}')">x</button>`;
+                if(tx.locked) {
+                    delBtn = `<span style="font-size:1.2em;" title="Sollstellung: Festgeschrieben">🔒</span>`;
+                }
+
                 tr.innerHTML = `
                     <td>${formatDate(tx.buchungsdatum)}</td>
                     <td>${tx.text} <small style="color:#888;">[${tx.kategorie||'-'}]</small></td>
                     <td class="text-right betrag-soll">${s > 0 ? formatNum(s) : ''}</td>
                     <td class="text-right betrag-haben">${h > 0 ? formatNum(h) : ''}</td>
                     <td class="text-right" style="font-weight:bold;">${formatNum(saldo)}</td>
-                    <td><button class="warn-btn" style="padding:2px 5px;" onclick="deleteBuchung('${tx.id}')">x</button></td>
+                    <td>${delBtn}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -1166,7 +1195,8 @@
                 kategorie: "Manuell",
                 text: txt || "Manuelle Buchung",
                 betrag: betrag,
-                konto: ""
+                konto: "",
+                locked: false // Manuelle Buchungen sind löschbar
             };
             dbFinanzen.push(tx);
             saveLocal(); triggerAutoSave();
@@ -1175,10 +1205,26 @@
         }
 
         function deleteBuchung(id) {
+            const tx = dbFinanzen.find(t => t.id === id);
+            if(tx && tx.locked) {
+                alert("Diese Buchung entstammt einer festgeschriebenen Sollstellung und darf nicht gelöscht werden!\nBitte nutzen Sie eine Gegenbuchung zur Korrektur.");
+                return;
+            }
             if(!confirm("Buchung löschen?")) return;
             dbFinanzen = dbFinanzen.filter(tx => tx.id !== id);
             saveLocal(); triggerAutoSave();
             renderKontoTable();
+        }
+
+        function resetKonto() {
+            const eid = document.getElementById('kontoEinheitId').value;
+            if(!confirm("ACHTUNG: Möchten Sie wirklich ALLE Buchungen dieser Einheit löschen?\nDas ist sinnvoll, um Testdaten zu entfernen, bevor Sie echt starten.\nDieser Schritt kann nicht rückgängig gemacht werden!")) return;
+            
+            // Lösche alle Buchungen dieser Einheit
+            dbFinanzen = dbFinanzen.filter(tx => tx.einheitId !== eid);
+            saveLocal(); triggerAutoSave();
+            renderKontoTable();
+            alert("Konto wurde erfolgreich geleert/bereinigt.");
         }
 
         function exportKontoPDF() {
