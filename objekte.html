@@ -64,9 +64,20 @@
         .modal-content input, .modal-content select, .modal-content textarea { width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 15px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
         .modal-actions { text-align: right; margin-top: 20px; }
         
-        .belegung-container { border: 1px solid #eee; padding: 10px; background: #fafafa; border-radius: 4px; margin-bottom: 15px; max-height: 200px; overflow-y: auto; }
-        .belegung-row { display: flex; gap: 5px; align-items: center; margin-bottom: 5px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        /* UPDATED: Belegung Layout */
+        .belegung-container, .historie-container { border: 1px solid #eee; padding: 10px; background: #fafafa; border-radius: 4px; margin-bottom: 15px; max-height: 250px; overflow-y: auto; }
         
+        .belegung-wrapper { border-bottom: 1px solid #ddd; padding-bottom: 8px; margin-bottom: 8px; }
+        .belegung-row { display: flex; gap: 8px; align-items: center; }
+        .belegung-row select { flex: 3; min-width: 200px; margin: 0; font-weight: bold; } /* Breiter Mieter */
+        .belegung-row input[type="date"] { flex: 0 0 130px; margin: 0; font-size: 0.9em; } /* Schmaler Datum */
+        .belegung-extra { display: none; margin-top: 5px; background: #fff3e0; padding: 5px; border-radius: 4px; border: 1px solid #ffe0b2; }
+        .belegung-extra input { margin: 0; font-size: 0.9em; width: 100%; border: 1px solid #ffcc80; }
+        
+        .historie-row { display: flex; gap: 5px; align-items: center; margin-bottom: 5px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .historie-row input[type="date"] { width: 130px; margin:0; }
+        .historie-row input[type="text"] { flex: 1; margin:0; }
+
         .badge { padding: 2px 6px; border-radius: 4px; font-size: 0.8em; font-weight: bold; margin-left: 5px; border: 1px solid #ccc; background: #f0f0f0; color: #333; }
         .mieter-status { margin-top: 8px; padding-top: 8px; border-top: 1px solid #eee; font-size: 0.95em; }
         .status-leerstand { color: #c62828; font-weight: bold; background: #ffebee; padding: 2px 6px; border-radius: 3px; display:inline-block; }
@@ -267,9 +278,15 @@
                 <div style="flex:1;"><label>Zimmer:</label><input type="number" step="0.5" id="einheitZimmerInput"></div>
                 <div style="flex:1;"><label>MEA Anteil:</label><input type="number" step="0.001" id="einheitMeaInput"></div>
             </div>
+            
             <h4 style="margin-top:15px; border-bottom:1px solid #eee;">Belegung / Mieterhistorie</h4>
             <div id="belegungListe" class="belegung-container"></div>
-            <button type="button" onclick="addBelegungRow()" style="margin-top:0;">+ Mieterwechsel hinzufügen</button>
+            <button type="button" onclick="addBelegungRow()" style="margin-top:5px; font-size:0.85em;">+ Mieterwechsel hinzufügen</button>
+
+            <h4 style="margin-top:15px; border-bottom:1px solid #eee;">Bauliche Historie & Änderungen</h4>
+            <div id="historieListe" class="historie-container"></div>
+            <button type="button" onclick="addHistorieRow()" style="margin-top:5px; font-size:0.85em;">+ Änderung dokumentieren</button>
+
             <div class="modal-actions">
                 <button onclick="document.getElementById('einheitModal').classList.remove('active')">Abbrechen</button>
                 <button class="primary-btn" onclick="saveEinheit()">Speichern</button>
@@ -308,7 +325,7 @@
         function formatNum(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}); }
         function pad(n, width, z) { z = z || '0'; n = n + ''; return n.length >= width ? n : new Array(width - n.length + 1).join(z) + n; }
         
-        // --- DIE VERMISSTE FUNKTION ---
+        // --- VALIDATE VAL ---
         function validateVal(soll, ist, unit = '', tolerance = 0.01) {
             soll = safeFloat(soll); ist = safeFloat(ist);
             const diff = Math.round((ist - soll) * 1000) / 1000;
@@ -343,10 +360,7 @@
         function createDummyData() {
             if(!confirm("Musterdaten (Wohnpark Test) erzeugen?")) return;
             
-            // Dummy Kontakte anlegen (wichtig für Dropdown)
-            dbKontakte.set("k_d1", {fn: "Max Mustermann", org: ""});
-            dbKontakte.set("k_d2", {fn: "Erika Musterfrau", org: ""});
-            dbKontakte.set("k_d3", {fn: "Muster GmbH", org: "Logistik"});
+            if(dbKontakte.size === 0) { dbKontakte.set("k_d1", {fn: "Max Mustermann", org: ""}); dbKontakte.set("k_d2", {fn: "Erika Musterfrau", org: ""}); dbKontakte.set("k_d3", {fn: "Muster GmbH", org: "Logistik"}); }
 
             const oid = getNextObjektID();
             dbObjekte.set(oid, { nummer: oid, name: "Wohnpark Test", plz: "12345", ort: "Musterstadt", flaeche: 150, mea: 1000, sollHaeuser: 1 });
@@ -505,7 +519,7 @@
             box.innerHTML = msg;
         }
 
-        // --- RENDER LISTS & PDF (wie zuvor) ---
+        // --- RENDER LISTS & PDF ---
         function switchTab(id) {
             document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -605,35 +619,57 @@
         function deleteHaus(){ if(confirm("Löschen?")) { dbHaeuser.delete(document.getElementById('hausIdInput').value); document.getElementById('hausModal').classList.remove('active'); saveLocal(); renderLists(); saveToOneDrive(false); } }
 
         function filterHaeuserDropdown(){ const oid=document.getElementById('einheitObjektSelect').value; const h=document.getElementById('einheitHausSelect'); h.innerHTML=""; if(!oid)return; Array.from(dbHaeuser.entries()).filter(([hid,x])=>x.objektId===oid).forEach(([hid,x])=>h.add(new Option(x.bezeichnung,hid))); }
+        
+        // ADD BELEGUNG ROW (UPDATED with Address Button)
         function addBelegungRow(d={}){ 
-            const c=document.getElementById('belegungListe'); 
-            if(!c)return; 
-            const r=document.createElement('div'); 
-            r.className='belegung-row'; 
+            const c=document.getElementById('belegungListe'); if(!c)return; 
+            const wrapper = document.createElement('div'); wrapper.className = 'belegung-wrapper';
             
-            const s=document.createElement('select'); 
-            s.className='belegung-mieter'; 
-            s.style.flex="2"; 
+            // Row 1: Basic Info
+            const r=document.createElement('div'); r.className='belegung-row'; 
+            
+            const s=document.createElement('select'); s.className='belegung-mieter'; 
             s.innerHTML="<option value=''>-- Mieter --</option>";
             Array.from(dbKontakte.entries()).sort((a,b)=>(a[1].fn||"").localeCompare(b[1].fn||"")).forEach(([id,k])=>s.add(new Option(k.fn+(k.org?` (${k.org})`:""),id)));
             if(d.mieterId) s.value=d.mieterId;
             
-            const inEin=document.createElement('input'); 
-            inEin.type="date"; 
-            inEin.className="belegung-einzug"; 
-            if(d.einzug) inEin.value=d.einzug;
+            const inEin=document.createElement('input'); inEin.type="date"; inEin.className="belegung-einzug"; if(d.einzug) inEin.value=d.einzug;
+            const inAus=document.createElement('input'); inAus.type="date"; inAus.className="belegung-auszug"; if(d.auszug) inAus.value=d.auszug;
             
-            const inAus=document.createElement('input'); 
-            inAus.type="date"; 
-            inAus.className="belegung-auszug"; 
-            if(d.auszug) inAus.value=d.auszug;
+            // Toggle Address Button
+            const btnAddr = document.createElement('button'); btnAddr.type="button"; btnAddr.innerText="📍"; btnAddr.title="Abweichende Adresse bei Auszug";
+            btnAddr.style.padding="4px 8px";
             
-            const b=document.createElement('button'); 
-            b.className="warn-btn"; 
-            b.innerText="X"; 
-            b.onclick=()=>r.remove();
+            const b=document.createElement('button'); b.className="warn-btn"; b.innerText="X"; b.onclick=()=>wrapper.remove();
             
-            r.append(s,inEin,inAus,b); 
+            r.append(s,inEin,inAus,btnAddr,b); 
+            
+            // Row 2: Extra Address Field (Hidden by default)
+            const extra = document.createElement('div'); extra.className='belegung-extra';
+            const inAddr = document.createElement('input'); inAddr.type="text"; inAddr.className="belegung-adresse"; 
+            inAddr.placeholder="Abweichende Anschrift für Abrechnung..."; 
+            if(d.adresse) { inAddr.value = d.adresse; extra.style.display="block"; }
+            extra.appendChild(inAddr);
+
+            // Toggle Logic
+            btnAddr.onclick = () => { extra.style.display = extra.style.display === 'none' ? 'block' : 'none'; };
+
+            wrapper.appendChild(r);
+            wrapper.appendChild(extra);
+            c.appendChild(wrapper);
+        }
+
+        // ADD HISTORIE ROW
+        function addHistorieRow(d={}){
+            const c=document.getElementById('historieListe'); if(!c)return;
+            const r=document.createElement('div'); r.className='historie-row';
+            
+            const inDate = document.createElement('input'); inDate.type="date"; inDate.className="hist-date"; if(d.date) inDate.value=d.date;
+            const inText = document.createElement('input'); inText.type="text"; inText.className="hist-desc"; inText.placeholder="Beschreibung der Änderung..."; if(d.text) inText.value=d.text;
+            
+            const b=document.createElement('button'); b.className="warn-btn"; b.innerText="X"; b.onclick=()=>r.remove();
+            
+            r.append(inDate, inText, b);
             c.appendChild(r);
         }
         
@@ -641,28 +677,12 @@
             const e=id?dbEinheiten.get(id):{}; 
             document.getElementById('einheitIdInput').value=id||"";
             
-            // Objekt/Haus Logic
-            const oSel=document.getElementById('einheitObjektSelect'); 
-            const hSel=document.getElementById('einheitHausSelect');
-            
-            let hid=e.hausId; 
-            let oid=hid?dbHaeuser.get(hid)?.objektId:"";
-            
-            // Objekt setzen
-            if(oid) oSel.value=oid; 
-            else if(oSel.options.length > 0) oSel.selectedIndex=0; // Wähle erstes Objekt wenn neu
-            
-            // Häuser laden
-            filterHaeuserDropdown(); 
-            
-            // Haus setzen
-            if(hid) hSel.value=hid;
-            else if(hSel.options.length > 0) hSel.selectedIndex=0; // Wähle erstes Haus wenn neu
-
-            // ID Anzeige
+            const oSel=document.getElementById('einheitObjektSelect'); const hSel=document.getElementById('einheitHausSelect');
+            let hid=e.hausId; let oid=hid?dbHaeuser.get(hid)?.objektId:"";
+            if(oid) oSel.value=oid; else if(oSel.options.length>0) oSel.selectedIndex=0; filterHaeuserDropdown();
+            if(hid) hSel.value=hid; else if(hSel.options.length>0) hSel.selectedIndex=0;
             if(id) document.getElementById('einheitNummerDisplay').value = id;
             
-            // Werte füllen
             document.getElementById('einheitNameInput').value=e.name||""; 
             document.getElementById('einheitTypSelect').value=e.typ||"wohnung";
             document.getElementById('einheitFlaecheInput').value=e.flaeche||""; 
@@ -670,27 +690,41 @@
             document.getElementById('einheitZimmerInput').value=e.zimmer||""; 
             document.getElementById('einheitMeaInput').value=e.mea||"";
             
-            const c=document.getElementById('belegungListe'); 
-            c.innerHTML=""; 
-            if(e.belegung&&e.belegung.length) e.belegung.forEach(b=>addBelegungRow(b)); 
-            else addBelegungRow();
+            // Belegung laden
+            const c=document.getElementById('belegungListe'); c.innerHTML=""; 
+            if(e.belegung&&e.belegung.length) e.belegung.forEach(b=>addBelegungRow(b)); else addBelegungRow();
             
-            // WICHTIG: Erst Status-Update, dann Modal öffnen
-            onHausSelectionChange(!id); // true = Initiale ID Generierung & Typ Wahl
+            // Historie laden
+            const hList = document.getElementById('historieListe'); hList.innerHTML="";
+            if(e.historie && e.historie.length) e.historie.forEach(h=>addHistorieRow(h));
             
+            onHausSelectionChange(!id);
             document.getElementById('einheitModal').classList.add('active');
         }
         
         function saveEinheit(){
-            // ID aus Auto-Feld
-            let id=document.getElementById('einheitNummerDisplay').value;
-            if(!id) {
-                // Fallback
-                const hid = document.getElementById('einheitHausSelect').value;
-                id = getNextEinheitID(hid);
-            }
+            let id=document.getElementById('einheitNummerDisplay').value; 
+            if(!id) { const hid=document.getElementById('einheitHausSelect').value; id=getNextEinheitID(hid); }
             
-            const bel=[]; document.querySelectorAll('#belegungListe .belegung-row').forEach(r=>{ const m=r.querySelector('.belegung-mieter').value; if(m) bel.push({mieterId:m, einzug:r.querySelector('.belegung-einzug').value, auszug:r.querySelector('.belegung-auszug').value}); });
+            // Collect Belegung
+            const bel=[]; 
+            document.querySelectorAll('#belegungListe .belegung-wrapper').forEach(w=>{ 
+                const m=w.querySelector('.belegung-mieter').value; 
+                if(m) bel.push({
+                    mieterId:m, 
+                    einzug:w.querySelector('.belegung-einzug').value, 
+                    auszug:w.querySelector('.belegung-auszug').value,
+                    adresse:w.querySelector('.belegung-adresse').value
+                }); 
+            });
+
+            // Collect Historie
+            const hist=[];
+            document.querySelectorAll('#historieListe .historie-row').forEach(r=>{
+                const d = r.querySelector('.hist-date').value;
+                const t = r.querySelector('.hist-desc').value;
+                if(d || t) hist.push({date:d, text:t});
+            });
             
             dbEinheiten.set(String(id), { 
                 hausId: document.getElementById('einheitHausSelect').value, 
@@ -700,7 +734,8 @@
                 heizflaeche: safeFloat(document.getElementById('einheitHeizflaecheInput').value), 
                 zimmer: document.getElementById('einheitZimmerInput').value, 
                 mea: safeFloat(document.getElementById('einheitMeaInput').value), 
-                belegung: bel 
+                belegung: bel,
+                historie: hist
             });
             document.getElementById('einheitModal').classList.remove('active'); saveLocal(); renderLists(); saveToOneDrive(false);
         }
