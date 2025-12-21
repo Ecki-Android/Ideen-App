@@ -867,6 +867,9 @@
         
         // --- EINHEIT MASKE ERWEITERT ---
         function openEinheitMask(id){
+            // --- NEU: Datalist aktualisieren bevor wir starten ---
+            updateKonditionDatalist();
+
             const e=id?dbEinheiten.get(id):{}; document.getElementById('einheitIdInput').value=id||"";
             const oSel=document.getElementById('einheitObjektSelect'); const hSel=document.getElementById('einheitHausSelect');
             let hid=e.hausId; let oid=hid?dbHaeuser.get(hid)?.objektId:"";
@@ -900,16 +903,46 @@
             onHausSelectionChange(!id);
             document.getElementById('einheitModal').classList.add('active');
         }
+
+        // --- NEU: Dynamische Datalist-Funktion ---
+        function updateKonditionDatalist() {
+            // Sammle alle Standard-Typen
+            const allTypes = new Set(KONDITION_TYPES);
+            
+            // Scanne alle vorhandenen Einheiten nach benutzerdefinierten Konditionen
+            dbEinheiten.forEach(e => {
+                if(e.konditionen) {
+                    e.konditionen.forEach(k => {
+                        if(k.label) allTypes.add(k.label);
+                    });
+                }
+            });
+
+            // Prüfe oder erstelle Datalist
+            let dl = document.getElementById('konditionTypes');
+            if(!dl) {
+                dl = document.createElement('datalist');
+                dl.id = "konditionTypes";
+                document.body.appendChild(dl);
+            }
+            
+            // Neu befüllen
+            dl.innerHTML = "";
+            Array.from(allTypes).sort().forEach(t => {
+                const op = document.createElement('option');
+                op.value = t;
+                dl.appendChild(op);
+            });
+        }
         
         function addKonditionRow(d={}) {
             const c = document.getElementById('konditionenListe');
             const row = document.createElement('div'); row.className = 'kondition-row';
             
-            // Bezeichnung (Select + Custom Input Combo handling would be complex, simplified here)
-            // Wir nutzen ein Datalist-ähnliches Verhalten oder einfaches Input mit Vorschlägen
+            // Bezeichnung 
             const descInput = document.createElement('input'); 
             descInput.setAttribute('list', 'konditionTypes'); 
-            descInput.placeholder = "Art (z.B. Kaltmiete)"; 
+            descInput.placeholder = "Wählen oder tippen..."; // Text angepasst
             descInput.className="kond-label";
             if(d.label) descInput.value = d.label;
             
@@ -937,13 +970,6 @@
 
             row.append(descInput, betragInput, kontoInput, dateInput, delBtn);
             c.appendChild(row);
-
-            // Datalist für Vorschläge erstellen falls nicht existent
-            if(!document.getElementById('konditionTypes')) {
-                const dl = document.createElement('datalist'); dl.id="konditionTypes";
-                KONDITION_TYPES.forEach(t => { const op=document.createElement('option'); op.value=t; dl.appendChild(op); });
-                document.body.appendChild(dl);
-            }
         }
 
         function addBelegungRow(d={}){ 
