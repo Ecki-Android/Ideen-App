@@ -308,7 +308,7 @@
             <div style="display:flex; gap:10px;">
                 <div style="flex:1;">
                     <label>Objekt wählen*:</label>
-                    <select id="einheitObjektSelect" onchange="filterHaeuserDropdown()"></select>
+                    <select id="einheitObjektSelect" onchange="filterHaeuserDropdown(true)"></select>
                 </div>
                 <div style="flex:1;">
                     <label>Haus wählen*:</label>
@@ -711,7 +711,7 @@
             } catch(e) { alert("Fehler beim Laden: "+e.message); }
         }
 
-        // --- HAUS MATRIX LOGIC ---
+        // --- HAUS MATRIX LOGIC (unverändert) ---
         function renderHausMatrix(haus) {
             const tbody = document.getElementById('hausSollMatrixBody'); tbody.innerHTML = "";
             STANDARD_TYPES.forEach(t => addMatrixRowToUI(t.id, t.label, haus ? haus.sollMatrix : null, false));
@@ -751,12 +751,21 @@
             const container = document.getElementById('hausTypeOverview'); 
             const typeSelect = document.getElementById('einheitTypSelect');
             
-            // --- FIX: Save current selection so it doesn't get lost on rebuild ---
             const currentSelection = typeSelect.value;
             
-            container.innerHTML = ""; typeSelect.innerHTML = "";
+            container.innerHTML = ""; 
+            // FIX: Dropdown nicht sofort leeren, falls Fehler.
+            // Nur wenn wir wirklich ein Haus haben, bauen wir neu auf.
+            if(!hid) { 
+                container.innerHTML = '<span style="color:#666;">Kein Haus gewählt.</span>'; 
+                // Fallback: Standard Typen rein, damit es nicht leer ist
+                typeSelect.innerHTML = "";
+                STANDARD_TYPES.forEach(t => typeSelect.add(new Option(t.label, t.id)));
+                return; 
+            }
             
-            if(!hid) { container.innerHTML = '<span style="color:#666;">Kein Haus gewählt.</span>'; return; }
+            // Haus da -> Dropdown neu aufbauen
+            typeSelect.innerHTML = "";
             const h = dbHaeuser.get(hid); if(!h) return;
             const units = Array.from(dbEinheiten.values()).filter(u => u.hausId === hid);
             let availableTypes = [...STANDARD_TYPES];
@@ -764,7 +773,6 @@
             
             availableTypes.forEach(t => typeSelect.add(new Option(t.label, t.id)));
             
-            // --- FIX: Restore selection if it exists in the new list ---
             if(currentSelection && Array.from(typeSelect.options).some(o => o.value === currentSelection)) {
                 typeSelect.value = currentSelection;
             }
@@ -780,7 +788,6 @@
             });
             container.innerHTML = html || '<span style="color:#666; font-style:italic;">Keine Typen im Haus definiert.</span>';
             
-            // Auto-Select only if NEW unit
             if(!document.getElementById('einheitIdInput').value && firstOpenType && isFirstLoad) typeSelect.value = firstOpenType;
             if(!document.getElementById('einheitIdInput').value) document.getElementById('einheitNummerDisplay').value = getNextEinheitID(hid);
         }
@@ -824,7 +831,7 @@
                 oDiv.innerHTML += `<div class="liste-item"><input type="checkbox" class="item-checkbox" value="${id}"><div class="liste-content"><div style="display:flex; justify-content:space-between; align-items:center;"><h4>${o.name} <small>[${o.nummer}]</small></h4><div>${filterBtn} <button onclick="openObjektMask('${id}')">Bearbeiten</button></div></div><div class="sub-info">${o.plz} ${o.ort}</div><div class="objekt-stats">${valHtml}</div></div></div>`; 
             });
 
-            // RENDER HÄUSER (MIT VALIDIERUNG)
+            // RENDER HÄUSER (MIT VALIDIERUNG & OBJEKT-ANZEIGE)
             const hDiv = document.getElementById('haeuserListe'); hDiv.innerHTML = "";
             showHaus.forEach((h, id) => { 
                 // Abstimmung Haus
@@ -849,10 +856,12 @@
                 valHtml += validateVal(h.anteile||0, sumMea, "MEA");
                 if(!hasError && valHtml.indexOf('⚠️')===-1) valHtml = '<div class="stat-ok">✅ Alle Vorgaben erfüllt.</div>' + valHtml;
 
-                hDiv.innerHTML += `<div class="liste-item"><input type="checkbox" class="item-checkbox" value="${id}"><div class="liste-content"><div style="display:flex; justify-content:space-between;"><h4>${h.bezeichnung}</h4><button onclick="openHausMask('${id}')">Bearbeiten</button></div><div class="objekt-stats">${valHtml}</div></div></div>`; 
+                // FIX: Objekt-Nr anzeigen
+                const objNr = o ? o.nummer : "???";
+                hDiv.innerHTML += `<div class="liste-item"><input type="checkbox" class="item-checkbox" value="${id}"><div class="liste-content"><div style="display:flex; justify-content:space-between;"><h4>${h.bezeichnung} <span style="font-size:0.7em; font-weight:normal; color:#555;">(Objekt ${objNr})</span></h4><button onclick="openHausMask('${id}')">Bearbeiten</button></div><div class="objekt-stats">${valHtml}</div></div></div>`; 
             });
 
-            // RENDER EINHEITEN (MIT KONTO BUTTON)
+            // RENDER EINHEITEN (MIT KONTO BUTTON & ID ANZEIGE)
             const eDiv = document.getElementById('einheitenListe'); eDiv.innerHTML = "";
             const listE = Array.from(showEin.entries()).map(([id, e]) => { const h = dbHaeuser.get(e.hausId); const o = h ? dbObjekte.get(h.objektId) : null; return { id, ...e, hName: h?h.bezeichnung:'?', oName: o?o.name:'?' }; }).sort((a,b) => a.oName.localeCompare(b.oName) || a.hName.localeCompare(b.hName));
             
@@ -863,31 +872,51 @@
                 if(e.belegung && e.belegung.length>0) {
                     const act = e.belegung.find(b => (b.einzug||'0000')<=today && (b.auszug||'9999')>=today);
                     const fut = e.belegung.find(b => (b.einzug||'0000')>today);
+                    const sortedBel = [...e.belegung].sort((a,b) => (a.einzug||'').localeCompare(b.einzug||''));
+                    
                     if(act) { 
                         const m=dbKontakte.get(act.mieterId); 
-                        stHtml = `<span class="status-vermietet">✅ ${m?m.fn:'?'}</span>`; 
+                        const seqIndex = sortedBel.indexOf(act) + 1; 
+                        const contractId = e.id + "/" + pad(seqIndex, 2);
+                        
+                        stHtml = `<div style="margin-bottom:3px;"><span class="status-vermietet">✅ ${m?m.fn:'?'}</span> <small style="color:#666; font-family:monospace;">(Vertrag: ${contractId})</small></div>`;
+                        stHtml += `<span style="font-size:0.85em; color:#555;">Seit: ${formatDate(act.einzug)}</span>`;
                         isVermietet = true;
                     }
                     else if(fut) { const m=dbKontakte.get(fut.mieterId); stHtml = `<span class="status-zukunft">➡️ Ab ${formatDate(fut.einzug)}: ${m?m.fn:'?'}</span>`; }
                 }
                 
-                // KONTO BUTTON nur wenn vermietet oder Historie da
                 const kontoBtn = `<button class="account-btn" onclick="openKontoModal('${e.id}')">💶 Konto</button>`;
                 
-                eDiv.innerHTML += `<div class="liste-item"><input type="checkbox" class="item-checkbox" value="${e.id}"><div class="liste-content"><div style="display:flex; justify-content:space-between;"><h4>${e.name} <small>(${e.hName})</small></h4><div>${kontoBtn} <button onclick="openEinheitMask('${e.id}')">Bearbeiten</button></div></div><div class="sub-info">${formatNum(safeFloat(e.flaeche))}m²</div><div class="mieter-status">${stHtml}</div></div></div>`;
+                // FIX: Einheit-ID anzeigen
+                eDiv.innerHTML += `<div class="liste-item"><input type="checkbox" class="item-checkbox" value="${e.id}"><div class="liste-content"><div style="display:flex; justify-content:space-between;"><h4>${e.name} <small style="font-family:monospace; color:#000;">[ID: ${e.id}]</small> <small>(${e.hName})</small></h4><div>${kontoBtn} <button onclick="openEinheitMask('${e.id}')">Bearbeiten</button></div></div><div class="sub-info">${formatNum(safeFloat(e.flaeche))}m²</div><div class="mieter-status">${stHtml}</div></div></div>`;
             });
         }
 
         // --- CRUD MASKEN ---
         // (Objekt & Haus CRUD sind Standard und hier gekürzt dargestellt, Einheit ist wichtig)
         function openObjektMask(id){ const o=id?dbObjekte.get(id):{}; document.getElementById('objektIdInput').value=id||""; document.getElementById('objektNummerInput').value=id || getNextObjektID(); document.getElementById('objektNameInput').value=o.name||""; document.getElementById('objektPlzInput').value=o.plz||""; document.getElementById('objektOrtInput').value=o.ort||""; document.getElementById('objektFlaecheInput').value=o.flaeche||""; document.getElementById('objektMeaInput').value=o.mea||"1000"; document.getElementById('objektSollHaeuser').value=o.sollHaeuser||"1"; updateObjektLiveStatus(); document.getElementById('objektModal').classList.add('active'); }
-        function saveObjekt(){ let id=document.getElementById('objektNummerInput').value; if(!id) id=getNextObjektID(); dbObjekte.set(String(id), { nummer: id, name: document.getElementById('objektNameInput').value, plz: document.getElementById('objektPlzInput').value, ort: document.getElementById('objektOrtInput').value, flaeche: safeFloat(document.getElementById('objektFlaecheInput').value), mea: safeFloat(document.getElementById('objektMeaInput').value), sollHaeuser: safeFloat(document.getElementById('objektSollHaeuser').value) }); document.getElementById('objektModal').classList.remove('active'); saveLocal(); renderLists(); triggerAutoSave(); }
+        function saveObjekt(){ let id=document.getElementById('objektNummerInput').value; if(!id) id=getNextObjektID(); dbObjekte.set(String(id), { nummer: id, name: document.getElementById('objektNameInput').value, plz: document.getElementById('objektPlzInput').value, ort: document.getElementById('objektOrtInput').value, flaeche: safeFloat(document.getElementById('objektFlaecheInput').value), mea: safeFloat(document.getElementById('objektMeaInput').value), sollHaeuser: safeFloat(document.getElementById('objektSollHaeuser').value) }); document.getElementById('objektModal').classList.remove('active'); 
+        // FIX: Clear Filter after new Object so it appears
+        activeFilterId=null; toggleFilter(null); saveLocal(); renderLists(); triggerAutoSave(); }
+        
         function deleteObjekt(){ if(confirm("Löschen?")) { dbObjekte.delete(document.getElementById('objektIdInput').value); document.getElementById('objektModal').classList.remove('active'); saveLocal(); renderLists(); triggerAutoSave(); } }
         function openHausMask(id){ /* Standard... */ document.getElementById('hausIdInput').value=id||""; const sel=document.getElementById('hausObjektSelect'); sel.innerHTML=""; dbObjekte.forEach((o,oid)=>sel.add(new Option(o.name,oid))); const h=id?dbHaeuser.get(id):{}; if(h.objektId) sel.value=h.objektId; if(!id && sel.value) document.getElementById('hausNummerDisplay').value = getNextHausID(sel.value); else document.getElementById('hausNummerDisplay').value = id; document.getElementById('hausBezeichnungInput').value=h.bezeichnung||""; document.getElementById('hausAnteileInput').value=h.anteile||""; renderHausMatrix(h); calcMatrixSum(); document.getElementById('hausModal').classList.add('active'); }
         function saveHaus(){ /* Standard... */ let id=document.getElementById('hausNummerDisplay').value; if(!id) { const oid=document.getElementById('hausObjektSelect').value; id=getNextHausID(oid); } let mx={}; document.querySelectorAll('#hausSollMatrixBody tr').forEach(tr => { const tid = tr.dataset.typeId; const lblInput = tr.querySelector('.custom-label-inp'); const lbl = lblInput ? lblInput.value : tr.cells[0].innerText; const cnt = tr.querySelector('.soll-count').value; const area = tr.querySelector('.soll-area').value; if(cnt || area) { mx[tid] = { count: cnt, area: area, label: lbl }; } }); dbHaeuser.set(String(id), { objektId: document.getElementById('hausObjektSelect').value, bezeichnung: document.getElementById('hausBezeichnungInput').value, anteile: safeFloat(document.getElementById('hausAnteileInput').value), sollMatrix: mx }); document.getElementById('hausModal').classList.remove('active'); saveLocal(); renderLists(); triggerAutoSave(); }
         function deleteHaus(){ if(confirm("Löschen?")) { dbHaeuser.delete(document.getElementById('hausIdInput').value); document.getElementById('hausModal').classList.remove('active'); saveLocal(); renderLists(); triggerAutoSave(); } }
 
-        function filterHaeuserDropdown(){ const oid=document.getElementById('einheitObjektSelect').value; const h=document.getElementById('einheitHausSelect'); h.innerHTML=""; if(!oid)return; Array.from(dbHaeuser.entries()).filter(([hid,x])=>x.objektId===oid).forEach(([hid,x])=>h.add(new Option(x.bezeichnung,hid))); }
+        function filterHaeuserDropdown(keepSelection=false){ 
+            const oid=document.getElementById('einheitObjektSelect').value; 
+            const h=document.getElementById('einheitHausSelect'); 
+            const oldVal = h.value;
+            h.innerHTML=""; 
+            if(!oid)return; 
+            Array.from(dbHaeuser.entries()).filter(([hid,x])=>x.objektId===oid).forEach(([hid,x])=>h.add(new Option(x.bezeichnung,hid))); 
+            if(keepSelection && oldVal) {
+                // Try to restore if it belongs to new object (rare, but good for stability)
+                if(Array.from(h.options).some(o=>o.value===oldVal)) h.value = oldVal;
+            }
+        }
         
         // --- EINHEIT MASKE (FIXED FOR TYPE DISPLAY) ---
         function openEinheitMask(id){
@@ -895,18 +924,37 @@
 
             const e=id?dbEinheiten.get(id):{}; document.getElementById('einheitIdInput').value=id||"";
             const oSel=document.getElementById('einheitObjektSelect'); const hSel=document.getElementById('einheitHausSelect');
-            let hid=e.hausId; let oid=hid?dbHaeuser.get(hid)?.objektId:"";
-            if(oid) oSel.value=oid; else if(oSel.options.length>0) oSel.selectedIndex=0; filterHaeuserDropdown();
-            if(hid) hSel.value=hid; else if(hSel.options.length>0) hSel.selectedIndex=0;
+            
+            // --- FIX: Filter handling for New Units ---
+            let oid, hid;
+            if(id) {
+                // Editing existing
+                hid = e.hausId;
+                oid = hid ? dbHaeuser.get(hid)?.objektId : "";
+            } else {
+                // Creating new
+                if(activeFilterId) {
+                    oid = activeFilterId; // Use current filter context
+                } else if(oSel.options.length > 0) {
+                    oid = oSel.options[0].value;
+                }
+                hid = ""; // Will be set later or default
+            }
+
+            if(oid) oSel.value=oid; 
+            filterHaeuserDropdown(); // Refill House dropdown based on Object
+
+            if(hid) hSel.value=hid; 
+            else if(hSel.options.length>0) hSel.selectedIndex=0;
+            
             if(id) document.getElementById('einheitNummerDisplay').value = id;
+            else if(hSel.value) document.getElementById('einheitNummerDisplay').value = getNextEinheitID(hSel.value);
             
             document.getElementById('einheitNameInput').value=e.name||""; 
             
             // Populate Types initially
             document.getElementById('einheitTypSelect').innerHTML=""; 
             STANDARD_TYPES.forEach(t=>document.getElementById('einheitTypSelect').add(new Option(t.label,t.id)));
-            
-            // --- FIX MOVED: Do not set value yet, it will be wiped by onHausSelectionChange ---
             
             document.getElementById('einheitFlaecheInput').value=e.flaeche||""; document.getElementById('einheitHeizflaecheInput').value=e.heizflaeche||"";
             document.getElementById('einheitZimmerInput').value=e.zimmer||""; document.getElementById('einheitMeaInput').value=e.mea||"";
