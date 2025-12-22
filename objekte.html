@@ -121,7 +121,7 @@
         .type-badge.selected { box-shadow: 0 0 0 2px #333; }
 
         /* Styles für Finanz-Modul */
-        .kondition-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 30px; gap: 5px; margin-bottom: 5px; align-items: center; }
+        .kondition-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 30px; gap: 5px; margin-bottom: 5px; align-items: center; border-bottom:1px dashed #eee; padding-bottom:5px;}
         .kondition-row input, .kondition-row select { margin: 0; font-size: 0.9em; }
         
         .konto-tabelle { width: 100%; border-collapse: collapse; font-size: 0.9em; }
@@ -358,17 +358,18 @@
                 <div style="flex:1;"><label>Kaltwasser m³ (Info):</label><input type="number" step="0.001" id="einheitKwInput" placeholder="z.B. Zählerstand"></div>
             </div>
             
-            <!-- MIET-KONDITIONEN (NEU) -->
+            <!-- MIET-KONDITIONEN (NEU: Scrollbar & Bis-Datum) -->
             <div class="section-header">
-                <span>Miet-Konditionen & Vorauszahlungen (Monatlich)</span>
+                <span>Miet-Konditionen & Vorauszahlungen</span>
                 <button type="button" onclick="addKonditionRow()" style="font-size:0.8em; padding:2px 8px;">+ Position</button>
             </div>
-            <div style="background:#f9f9f9; padding:5px; border-radius:4px; border:1px solid #eee; margin-bottom:10px;">
-                <div style="display:grid; grid-template-columns: 2fr 1fr 1fr 1fr 30px; gap:5px; font-size:0.8em; font-weight:bold; margin-bottom:5px;">
+            <div style="background:#f9f9f9; padding:5px; border-radius:4px; border:1px solid #eee; margin-bottom:10px; max-height:250px; overflow-y:auto;">
+                <div style="display:grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 30px; gap:5px; font-size:0.8em; font-weight:bold; margin-bottom:5px; padding-right:10px;">
                     <div>Bezeichnung</div>
                     <div>Betrag (€)</div>
-                    <div>Konto (S/H)</div>
+                    <div>Konto (Erlös)</div>
                     <div>Gültig Ab</div>
+                    <div>Gültig Bis</div>
                     <div></div>
                 </div>
                 <div id="konditionenListe"></div>
@@ -394,7 +395,7 @@
     <div id="sollstellungModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')">
         <div class="modal-content" style="max-width:500px;">
             <h3>💰 Sollstellung generieren</h3>
-            <p style="font-size:0.9em; color:#555;">Hiermit werden die monatlichen Forderungen für alle aktiven Mietverhältnisse berechnet (taggenau).</p>
+            <p style="font-size:0.9em; color:#555;">Hiermit werden die monatlichen Forderungen für alle aktiven Mietverhältnisse berechnet. Es werden nur Positionen gebucht, die im gewählten Monat gültig sind.</p>
             
             <label>Abrechnungs-Monat:</label>
             <input type="month" id="sollMonatInput">
@@ -408,7 +409,7 @@
         </div>
     </div>
 
-    <!-- Modal 5: Mieterkonto (NEU) -->
+    <!-- Modal 5: Mieterkonto (NEU: Erweiterte Felder) -->
     <div id="kontoModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')">
         <div class="modal-content" style="max-width:1000px;">
             <h3>💶 Mieterkonto</h3>
@@ -453,16 +454,24 @@
                 </table>
             </div>
 
-            <!-- Manuelle Buchung Form (Inline) -->
+            <!-- Manuelle Buchung Form (Erweitert für DATEV/Export) -->
             <div id="manuelleBuchungForm" style="display:none; background:#e3f2fd; padding:10px; border:1px solid #90caf9; margin-top:10px;">
                 <b>Neue Buchung erfassen:</b>
-                <div style="display:flex; gap:5px; margin-top:5px;">
-                    <input type="date" id="mbDatum">
-                    <input type="text" id="mbText" placeholder="Beschreibung (z.B. Mieteingang, Korrektur)">
-                    <select id="mbTyp"><option value="haben">Haben (Zahlung/Gutschrift)</option><option value="soll">Soll (Forderung/Nachb.)</option></select>
-                    <input type="number" step="0.01" id="mbBetrag" placeholder="Betrag €">
-                    <button class="primary-btn" onclick="saveManuelleBuchung()">Buchen</button>
-                    <button onclick="document.getElementById('manuelleBuchungForm').style.display='none'">Abbr.</button>
+                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:5px; margin-top:5px;">
+                    <div><label style="font-size:0.8em">Datum:</label><input type="date" id="mbDatum"></div>
+                    <div><label style="font-size:0.8em">Typ:</label><select id="mbTyp"><option value="haben">Haben (Zahlung/Gutschrift)</option><option value="soll">Soll (Forderung/Nachb.)</option></select></div>
+                    <div><label style="font-size:0.8em">Betrag €:</label><input type="number" step="0.01" id="mbBetrag" placeholder="0,00"></div>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px; margin-top:5px;">
+                    <div><label style="font-size:0.8em">Buchungstext:</label><input type="text" id="mbText" placeholder="z.B. Mieteingang"></div>
+                    <div><label style="font-size:0.8em">Belegfeld 1 (Optional):</label><input type="text" id="mbBeleg" placeholder="Belegnummer"></div>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px; margin-top:5px;">
+                    <div><label style="font-size:0.8em">Gegenkonto (Erlös/Bank):</label><input type="text" id="mbKonto" placeholder="z.B. 1200 oder 8000"></div>
+                    <div style="display:flex; align-items:flex-end; gap:5px;">
+                        <button class="primary-btn" style="flex:1;" onclick="saveManuelleBuchung()">Buchen</button>
+                        <button style="flex:1;" onclick="document.getElementById('manuelleBuchungForm').style.display='none'">Abbrechen</button>
+                    </div>
                 </div>
             </div>
 
@@ -736,8 +745,8 @@
                 hausId: hid, name: "EG Links", typ: "wohnung", flaeche: 50, zimmer: 2, mea: 333.33, 
                 ww_m3: 123.4, kw_m3: 456.7,
                 konditionen: [
-                    { id: 'k1', label: 'Kaltmiete', betrag: 500, konto: '8000', gueltigAb: '2023-01-01' },
-                    { id: 'k2', label: 'BK-Vorausz.', betrag: 100, konto: '8010', gueltigAb: '2023-01-01' } 
+                    { id: 'k1', label: 'Kaltmiete', betrag: 500, konto: '8000', gueltigAb: '2023-01-01', gueltigBis: '' },
+                    { id: 'k2', label: 'BK-Vorausz.', betrag: 100, konto: '8010', gueltigAb: '2023-01-01', gueltigBis: '' } 
                 ],
                 belegung: [{ mieterId: "dummy_mieter", einzug: "2023-01-01", auszug: "" }] 
             });
@@ -1035,7 +1044,6 @@
                         
                         stHtml = `<div style="margin-bottom:3px;"><span class="status-vermietet">✅ ${m?m.fn:'?'}</span> <small style="color:#666; font-family:monospace;">(Vertrag: ${contractId})</small></div>`;
                         
-                        // --- NEU: Telefonnummer & E-Mail anzeigen ---
                         if(m) {
                             let contactInfo = "";
                             if(m.telefon && m.telefon.length > 0) {
@@ -1050,7 +1058,6 @@
                                 stHtml += `<div style="font-size:0.8em; color:#555; margin-top:2px; border-top:1px dotted #ccc; padding-top:2px;">${contactInfo}</div>`;
                             }
                         }
-                        // ---------------------------------------------
                         
                         stHtml += `<span style="font-size:0.85em; color:#555;">Seit: ${formatDate(act.einzug)}</span>`;
                     }
@@ -1110,7 +1117,6 @@
             const oSel=document.getElementById('einheitObjektSelect'); 
             const hSel=document.getElementById('einheitHausSelect'); 
             
-            // LOGIC CHANGE: Filter Dropdown if activeFilterId is set
             oSel.innerHTML="";
             if(activeFilterId) {
                 const o=dbObjekte.get(activeFilterId);
@@ -1128,7 +1134,6 @@
                 if(activeFilterId) { 
                     oid = activeFilterId; 
                 } else if(oSel.options.length > 0 && !oSel.value) { 
-                    // No filter active, wait for user selection
                 } 
                 hid = ""; 
             } 
@@ -1155,10 +1160,59 @@
         }
 
         function updateKonditionDatalist() { const allTypes = new Set(KONDITION_TYPES); dbEinheiten.forEach(e => { if(e.konditionen) { e.konditionen.forEach(k => { if(k.label) allTypes.add(k.label); }); } }); let dl = document.getElementById('konditionTypes'); if(!dl) { dl = document.createElement('datalist'); dl.id = "konditionTypes"; document.body.appendChild(dl); } dl.innerHTML = ""; Array.from(allTypes).sort().forEach(t => { const op = document.createElement('option'); op.value = t; dl.appendChild(op); }); }
-        function addKonditionRow(d={}) { const c = document.getElementById('konditionenListe'); const row = document.createElement('div'); row.className = 'kondition-row'; const descInput = document.createElement('input'); descInput.setAttribute('list', 'konditionTypes'); descInput.placeholder = "Wählen oder tippen..."; descInput.className="kond-label"; if(d.label) descInput.value = d.label; const betragInput = document.createElement('input'); betragInput.type="number"; betragInput.step="0.01"; betragInput.placeholder="Betrag €"; betragInput.className="kond-betrag"; if(d.betrag) betragInput.value = d.betrag; const kontoInput = document.createElement('input'); kontoInput.type="text"; kontoInput.placeholder="Konto (z.B. 8000)"; kontoInput.className="kond-konto"; if(d.konto) kontoInput.value = d.konto; const dateInput = document.createElement('input'); dateInput.type="date"; dateInput.className="kond-date"; if(d.gueltigAb) dateInput.value = d.gueltigAb; else dateInput.value = new Date().toISOString().split('T')[0]; const delBtn = document.createElement('button'); delBtn.innerText="X"; delBtn.className="warn-btn"; delBtn.style.padding="2px 5px"; delBtn.onclick = () => row.remove(); row.append(descInput, betragInput, kontoInput, dateInput, delBtn); c.appendChild(row); }
-        function addBelegungRow(d={}){ const c=document.getElementById('belegungListe'); const wrapper = document.createElement('div'); wrapper.className = 'belegung-wrapper'; const r=document.createElement('div'); r.className='belegung-row'; const s=document.createElement('select'); s.className='belegung-mieter'; s.innerHTML="<option value=''>-- Mieter --</option>"; Array.from(dbKontakte.entries()).sort((a,b)=>(a[1].fn||"").localeCompare(b[1].fn||"")).forEach(([id,k])=>s.add(new Option(k.fn+(k.org?` (${k.org})`:""),id))); if(d.mieterId) s.value=d.mieterId; const inEin=document.createElement('input'); inEin.type="date"; inEin.className="belegung-einzug"; if(d.einzug) inEin.value=d.einzug; const inAus=document.createElement('input'); inAus.type="date"; inAus.className="belegung-auszug"; if(d.auszug) inAus.value=d.auszug; const b=document.createElement('button'); b.className="warn-btn"; b.innerText="X"; b.onclick=()=>wrapper.remove(); r.append(s,inEin,inAus,b); wrapper.appendChild(r); c.appendChild(wrapper); }
+        function addKonditionRow(d={}) { 
+            const c = document.getElementById('konditionenListe'); 
+            const row = document.createElement('div'); row.className = 'kondition-row'; 
+            const descInput = document.createElement('input'); descInput.setAttribute('list', 'konditionTypes'); descInput.placeholder = "Wählen oder tippen..."; descInput.className="kond-label"; if(d.label) descInput.value = d.label; 
+            const betragInput = document.createElement('input'); betragInput.type="number"; betragInput.step="0.01"; betragInput.placeholder="Betrag €"; betragInput.className="kond-betrag"; if(d.betrag) betragInput.value = d.betrag; 
+            const kontoInput = document.createElement('input'); kontoInput.type="text"; kontoInput.placeholder="Konto (z.B. 8000)"; kontoInput.className="kond-konto"; if(d.konto) kontoInput.value = d.konto; 
+            const dateInput = document.createElement('input'); dateInput.type="date"; dateInput.className="kond-date"; if(d.gueltigAb) dateInput.value = d.gueltigAb; else dateInput.value = new Date().toISOString().split('T')[0]; 
+            // NEU: Gültig Bis
+            const dateBisInput = document.createElement('input'); dateBisInput.type="date"; dateBisInput.className="kond-date-bis"; if(d.gueltigBis) dateBisInput.value = d.gueltigBis;
+            
+            const delBtn = document.createElement('button'); delBtn.innerText="X"; delBtn.className="warn-btn"; delBtn.style.padding="2px 5px"; delBtn.onclick = () => row.remove(); 
+            row.append(descInput, betragInput, kontoInput, dateInput, dateBisInput, delBtn); 
+            c.appendChild(row); 
+        }
+        function addBelegungRow(d={}){ 
+            const c=document.getElementById('belegungListe'); 
+            const wrapper = document.createElement('div'); wrapper.className = 'belegung-wrapper'; 
+            const r=document.createElement('div'); r.className='belegung-row'; 
+            const s=document.createElement('select'); s.className='belegung-mieter'; 
+            s.innerHTML="<option value=''>-- Mieter --</option>"; 
+            Array.from(dbKontakte.entries()).sort((a,b)=>(a[1].fn||"").localeCompare(b[1].fn||"")).forEach(([id,k])=>s.add(new Option(k.fn+(k.org?` (${k.org})`:""),id))); 
+            if(d.mieterId) s.value=d.mieterId; 
+            const inEin=document.createElement('input'); inEin.type="date"; inEin.className="belegung-einzug"; if(d.einzug) inEin.value=d.einzug; 
+            const inAus=document.createElement('input'); inAus.type="date"; inAus.className="belegung-auszug"; if(d.auszug) inAus.value=d.auszug; 
+            const b=document.createElement('button'); b.className="warn-btn"; b.innerText="X"; 
+            
+            // NEU: Lösch-Schutz
+            b.onclick=()=>{
+                const currentEid = document.getElementById('einheitIdInput').value;
+                const mieterVal = s.value;
+                if(currentEid && mieterVal) {
+                    const hasTx = dbFinanzen.some(tx => tx.einheitId === currentEid && tx.mieterId === mieterVal);
+                    if(hasTx) {
+                        alert("Dieser Mieter kann nicht gelöscht werden, da bereits Buchungen für ihn existieren!\nBitte setzen Sie stattdessen ein Auszugsdatum.");
+                        return;
+                    }
+                }
+                wrapper.remove();
+            }; 
+            
+            r.append(s,inEin,inAus,b); 
+            wrapper.appendChild(r); c.appendChild(wrapper); 
+        }
         function addHistorieRow(d={}){ const c=document.getElementById('historieListe'); const r=document.createElement('div'); r.className='historie-row'; const inDate = document.createElement('input'); inDate.type="date"; inDate.className="hist-date"; if(d.date) inDate.value=d.date; const inText = document.createElement('input'); inText.type="text"; inText.className="hist-desc"; inText.placeholder="Beschreibung..."; if(d.text) inText.value=d.text; const b=document.createElement('button'); b.className="warn-btn"; b.innerText="X"; b.onclick=()=>r.remove(); r.append(inDate, inText, b); c.appendChild(r); }
-        function saveEinheit(){ let id=document.getElementById('einheitNummerDisplay').value; if(!id) { const hid=document.getElementById('einheitHausSelect').value; id=getNextEinheitID(hid); } const bel=[]; document.querySelectorAll('#belegungListe .belegung-wrapper').forEach(w=>{ const m=w.querySelector('.belegung-mieter').value; if(m) bel.push({mieterId:m, einzug:w.querySelector('.belegung-einzug').value, auszug:w.querySelector('.belegung-auszug').value}); }); const hist=[]; document.querySelectorAll('#historieListe .historie-row').forEach(r=>{ const d = r.querySelector('.hist-date').value; const t = r.querySelector('.hist-desc').value; if(d || t) hist.push({date:d, text:t}); }); const kond=[]; document.querySelectorAll('#konditionenListe .kondition-row').forEach(r=>{ const l = r.querySelector('.kond-label').value; const b = safeFloat(r.querySelector('.kond-betrag').value); const k = r.querySelector('.kond-konto').value; const d = r.querySelector('.kond-date').value; if(l && b) kond.push({ label:l, betrag:b, konto:k, gueltigAb:d }); }); dbEinheiten.set(String(id), { hausId: document.getElementById('einheitHausSelect').value, name: document.getElementById('einheitNameInput').value, typ: document.getElementById('einheitTypSelect').value, flaeche: safeFloat(document.getElementById('einheitFlaecheInput').value), heizflaeche: safeFloat(document.getElementById('einheitHeizflaecheInput').value), zimmer: document.getElementById('einheitZimmerInput').value, mea: safeFloat(document.getElementById('einheitMeaInput').value), ww_m3: safeFloat(document.getElementById('einheitWwInput').value), kw_m3: safeFloat(document.getElementById('einheitKwInput').value), konditionen: kond, belegung: bel, historie: hist }); document.getElementById('einheitModal').classList.remove('active'); saveLocal(); renderLists(); triggerAutoSave(); }
+        function saveEinheit(){ 
+            let id=document.getElementById('einheitNummerDisplay').value; 
+            if(!id) { const hid=document.getElementById('einheitHausSelect').value; id=getNextEinheitID(hid); } 
+            const bel=[]; document.querySelectorAll('#belegungListe .belegung-wrapper').forEach(w=>{ const m=w.querySelector('.belegung-mieter').value; if(m) bel.push({mieterId:m, einzug:w.querySelector('.belegung-einzug').value, auszug:w.querySelector('.belegung-auszug').value}); }); 
+            const hist=[]; document.querySelectorAll('#historieListe .historie-row').forEach(r=>{ const d = r.querySelector('.hist-date').value; const t = r.querySelector('.hist-desc').value; if(d || t) hist.push({date:d, text:t}); }); 
+            const kond=[]; document.querySelectorAll('#konditionenListe .kondition-row').forEach(r=>{ const l = r.querySelector('.kond-label').value; const b = safeFloat(r.querySelector('.kond-betrag').value); const k = r.querySelector('.kond-konto').value; const d = r.querySelector('.kond-date').value; const dbis = r.querySelector('.kond-date-bis').value; if(l && b) kond.push({ label:l, betrag:b, konto:k, gueltigAb:d, gueltigBis:dbis }); }); 
+            dbEinheiten.set(String(id), { hausId: document.getElementById('einheitHausSelect').value, name: document.getElementById('einheitNameInput').value, typ: document.getElementById('einheitTypSelect').value, flaeche: safeFloat(document.getElementById('einheitFlaecheInput').value), heizflaeche: safeFloat(document.getElementById('einheitHeizflaecheInput').value), zimmer: document.getElementById('einheitZimmerInput').value, mea: safeFloat(document.getElementById('einheitMeaInput').value), ww_m3: safeFloat(document.getElementById('einheitWwInput').value), kw_m3: safeFloat(document.getElementById('einheitKwInput').value), konditionen: kond, belegung: bel, historie: hist }); 
+            document.getElementById('einheitModal').classList.remove('active'); saveLocal(); renderLists(); triggerAutoSave(); 
+        }
         function deleteEinheit(){ if(confirm("Löschen?")) { dbEinheiten.delete(document.getElementById('einheitIdInput').value); document.getElementById('einheitModal').classList.remove('active'); saveLocal(); renderLists(); triggerAutoSave(); } }
 
         // --- SOLLSTELLUNG & FINANZEN ---
@@ -1195,11 +1249,16 @@
                             const sortedBel = [...e.belegung].sort((a,b) => (a.einzug||'').localeCompare(b.einzug||'')); 
                             const seqIndex = sortedBel.indexOf(b) + 1; 
                             const contractId = e.id + "/" + pad(seqIndex, 2); 
-                            // const opCode = `${contractId}-${pad(monat, 2)}${jahr}`; 
+                            const opCode = `${contractId}-${pad(monat, 2)}${jahr}`; 
                             
                             if(e.konditionen) e.konditionen.forEach(k => { 
-                                const gueltigAb = new Date(k.gueltigAb); 
-                                if(gueltigAb <= monthEnd) { 
+                                const gueltigAb = new Date(k.gueltigAb);
+                                // NEU: Enddatum prüfen
+                                let gueltigBis = k.gueltigBis ? new Date(k.gueltigBis) : new Date('2099-12-31');
+                                
+                                // Kondition muss im Abrechnungsmonat bereits begonnen haben UND noch nicht vorbei sein
+                                // Startdatum <= Monatsende UND Enddatum >= Monatsanfang
+                                if(gueltigAb <= monthEnd && gueltigBis >= monthStart) { 
                                     const betrag = safeFloat(k.betrag) * faktor; 
                                     const tx = { 
                                         id: getNextFinanzId(), 
@@ -1209,9 +1268,9 @@
                                         buchungsdatum: new Date().toISOString().split('T')[0], 
                                         typ: 'soll', 
                                         kategorie: k.label, 
-                                        text: `${k.label}, ${contractId}`, // Format: Kondition, Obj/Haus/Einh/MieterNr
+                                        text: `${opCode} (${k.label})`, // Belegtext für DATEV: eindeutige ID + Typ
                                         betrag: betrag, 
-                                        konto: k.konto, 
+                                        konto: k.konto, // Erlöskonto
                                         locked: true 
                                     }; 
                                     dbFinanzen.push(tx); 
@@ -1230,7 +1289,38 @@
         function openKontoModal(einheitId) { const e = dbEinheiten.get(einheitId); if(!e) return; document.getElementById('kontoEinheitId').value = einheitId; document.getElementById('kontoTitle').innerText = `Konto: ${e.name}`; document.getElementById('manuelleBuchungForm').style.display = 'none'; const years = new Set(dbFinanzen.filter(tx => tx.einheitId === einheitId).map(tx => tx.buchungsdatum.substr(0,4))); const sel = document.getElementById('kontoJahrSelect'); sel.innerHTML = '<option value="all">Alle Jahre</option>'; Array.from(years).sort().reverse().forEach(y => sel.add(new Option(y, y))); renderKontoTable(); document.getElementById('kontoModal').classList.add('active'); }
         function renderKontoTable() { const eid = document.getElementById('kontoEinheitId').value; const yearFilter = document.getElementById('kontoJahrSelect').value; const tbody = document.getElementById('kontoBody'); tbody.innerHTML = ""; let txs = dbFinanzen.filter(tx => tx.einheitId === eid); if(yearFilter !== 'all') txs = txs.filter(tx => tx.buchungsdatum.startsWith(yearFilter)); txs.sort((a,b) => a.buchungsdatum.localeCompare(b.buchungsdatum)); let sumS = 0, sumH = 0, saldo = 0; txs.forEach(tx => { const tr = document.createElement('tr'); const s = tx.typ === 'soll' ? safeFloat(tx.betrag) : 0; const h = tx.typ === 'haben' ? safeFloat(tx.betrag) : 0; sumS += s; sumH += h; saldo += (s - h); let delBtn = `<button class="warn-btn" style="padding:2px 5px;" onclick="deleteBuchung('${tx.id}')">x</button>`; if(tx.locked) { delBtn = `<span style="font-size:1.2em;" title="Sollstellung: Festgeschrieben">🔒</span>`; } tr.innerHTML = `<td>${formatDate(tx.buchungsdatum)}</td><td>${tx.text} <small style="color:#888;">[${tx.kategorie||'-'}]</small></td><td class="text-right betrag-soll">${s > 0 ? formatNum(s) : ''}</td><td class="text-right betrag-haben">${h > 0 ? formatNum(h) : ''}</td><td class="text-right" style="font-weight:bold;">${formatNum(saldo)}</td><td>${delBtn}</td>`; tbody.appendChild(tr); }); document.getElementById('sumSoll').innerText = formatCurrency(sumS); document.getElementById('sumHaben').innerText = formatCurrency(sumH); const elSaldo = document.getElementById('sumSaldo'); elSaldo.innerText = formatCurrency(saldo); elSaldo.style.color = saldo > 0 ? '#c62828' : (saldo < 0 ? '#2e7d32' : 'black'); }
         function openManuelleBuchung() { document.getElementById('manuelleBuchungForm').style.display='block'; document.getElementById('mbDatum').value = new Date().toISOString().split('T')[0]; }
-        function saveManuelleBuchung() { const eid = document.getElementById('kontoEinheitId').value; const dat = document.getElementById('mbDatum').value; const txt = document.getElementById('mbText').value; const typ = document.getElementById('mbTyp').value; const betrag = safeFloat(document.getElementById('mbBetrag').value); if(!dat || !betrag) return alert("Datum und Betrag erforderlich"); const tx = { id: getNextFinanzId(), einheitId: eid, mieterId: "manuell", monatRef: dat.substr(0,7), buchungsdatum: dat, typ: typ, kategorie: "Manuell", text: txt || "Manuelle Buchung", betrag: betrag, konto: "", locked: false }; dbFinanzen.push(tx); saveLocal(); triggerAutoSave(); renderKontoTable(); document.getElementById('manuelleBuchungForm').style.display='none'; }
+        function saveManuelleBuchung() { 
+            const eid = document.getElementById('kontoEinheitId').value; 
+            const dat = document.getElementById('mbDatum').value; 
+            const txt = document.getElementById('mbText').value; 
+            const typ = document.getElementById('mbTyp').value; 
+            const betrag = safeFloat(document.getElementById('mbBetrag').value); 
+            const beleg = document.getElementById('mbBeleg').value;
+            const konto = document.getElementById('mbKonto').value;
+
+            if(!dat || !betrag) return alert("Datum und Betrag erforderlich"); 
+            
+            // DATEV kompatibler Textaufbau
+            let finalTx = txt || "Manuelle Buchung";
+            if(beleg) finalTx = `${beleg} ${finalTx}`;
+
+            const tx = { 
+                id: getNextFinanzId(), 
+                einheitId: eid, 
+                mieterId: "manuell", 
+                monatRef: dat.substr(0,7), 
+                buchungsdatum: dat, 
+                typ: typ, 
+                kategorie: "Manuell", 
+                text: finalTx, 
+                betrag: betrag, 
+                konto: konto, 
+                locked: false 
+            }; 
+            dbFinanzen.push(tx); 
+            saveLocal(); triggerAutoSave(); renderKontoTable(); 
+            document.getElementById('manuelleBuchungForm').style.display='none'; 
+        }
         function deleteBuchung(id) { const tx = dbFinanzen.find(t => t.id === id); if(tx && tx.locked) { alert("Diese Buchung entstammt einer festgeschriebenen Sollstellung und darf nicht gelöscht werden!\nBitte nutzen Sie eine Gegenbuchung zur Korrektur."); return; } if(!confirm("Buchung löschen?")) return; dbFinanzen = dbFinanzen.filter(tx => tx.id !== id); saveLocal(); triggerAutoSave(); renderKontoTable(); }
         function resetKonto() { const eid = document.getElementById('kontoEinheitId').value; if(!confirm("ACHTUNG: Möchten Sie wirklich ALLE Buchungen dieser Einheit löschen?\nDas ist sinnvoll, um Testdaten zu entfernen, bevor Sie echt starten.\nDieser Schritt kann nicht rückgängig gemacht werden!")) return; dbFinanzen = dbFinanzen.filter(tx => tx.einheitId !== eid); saveLocal(); triggerAutoSave(); renderKontoTable(); alert("Konto wurde erfolgreich geleert/bereinigt."); }
         function exportKontoPDF() { const eid = document.getElementById('kontoEinheitId').value; const e = dbEinheiten.get(eid); const doc = new jspdf.jsPDF(); doc.setFontSize(14); doc.text(`Mieterkonto: ${e.name}`, 14, 15); doc.setFontSize(10); doc.text(`Stand: ${new Date().toLocaleDateString('de-DE')}`, 14, 22); let txs = dbFinanzen.filter(tx => tx.einheitId === eid); txs.sort((a,b) => a.buchungsdatum.localeCompare(b.buchungsdatum)); let saldo = 0; const rows = txs.map(tx => { const s = tx.typ === 'soll' ? safeFloat(tx.betrag) : 0; const h = tx.typ === 'haben' ? safeFloat(tx.betrag) : 0; saldo += (s - h); return [ formatDate(tx.buchungsdatum), tx.text, tx.kategorie, s > 0 ? formatNum(s) : '', h > 0 ? formatNum(h) : '', formatNum(saldo) ]; }); doc.autoTable({ head: [['Datum', 'Text', 'Kat', 'Soll', 'Haben', 'Saldo']], body: rows, startY: 30, theme: 'striped', columnStyles: { 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right', fontStyle: 'bold' } } }); doc.save(`Konto_${e.name}.pdf`); }
