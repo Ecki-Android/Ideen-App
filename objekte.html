@@ -1077,11 +1077,83 @@
         function openObjektMask(id){ const o=id?dbObjekte.get(id):{}; document.getElementById('objektIdInput').value=id||""; document.getElementById('objektNummerInput').value=id || getNextObjektID(); document.getElementById('objektNameInput').value=o.name||""; document.getElementById('objektPlzInput').value=o.plz||""; document.getElementById('objektOrtInput').value=o.ort||""; document.getElementById('objektFlaecheInput').value=o.flaeche||""; document.getElementById('objektMeaInput').value=o.mea||"1000"; document.getElementById('objektSollHaeuser').value=o.sollHaeuser||"1"; updateObjektLiveStatus(); document.getElementById('objektModal').classList.add('active'); }
         function saveObjekt(){ let id=document.getElementById('objektNummerInput').value; if(!id) id=getNextObjektID(); dbObjekte.set(String(id), { nummer: id, name: document.getElementById('objektNameInput').value, plz: document.getElementById('objektPlzInput').value, ort: document.getElementById('objektOrtInput').value, flaeche: safeFloat(document.getElementById('objektFlaecheInput').value), mea: safeFloat(document.getElementById('objektMeaInput').value), sollHaeuser: safeFloat(document.getElementById('objektSollHaeuser').value) }); document.getElementById('objektModal').classList.remove('active'); activeFilterId=null; toggleFilter(null); saveLocal(); renderLists(); triggerAutoSave(); }
         function deleteObjekt() { const oid = document.getElementById('objektIdInput').value; if (!oid) return; const associatedHouses = Array.from(dbHaeuser.values()).filter(h => h.objektId === oid); const associatedHouseIds = Array.from(dbHaeuser.entries()).filter(([hid, h]) => h.objektId === oid).map(([hid, h]) => hid); const associatedUnits = Array.from(dbEinheiten.values()).filter(e => associatedHouseIds.includes(e.hausId)); const msg = `ACHTUNG: Möchten Sie das Objekt ${oid} wirklich löschen?\n\nDies löscht automatisch:\n- ${associatedHouses.length} zugehörige Häuser\n- ${associatedUnits.length} zugehörige Einheiten\n\nDieser Vorgang kann nicht rückgängig gemacht werden!`; if (confirm(msg)) { const unitIdsToDelete = []; dbEinheiten.forEach((u, uid) => { if (associatedHouseIds.includes(u.hausId)) { unitIdsToDelete.push(uid); } }); unitIdsToDelete.forEach(uid => dbEinheiten.delete(uid)); associatedHouseIds.forEach(hid => dbHaeuser.delete(hid)); dbObjekte.delete(oid); document.getElementById('objektModal').classList.remove('active'); if(activeFilterId === oid) { activeFilterId = null; toggleFilter(null); } saveLocal(); renderLists(); triggerAutoSave(); } }
-        function openHausMask(id){ document.getElementById('hausIdInput').value=id||""; const sel=document.getElementById('hausObjektSelect'); sel.innerHTML=""; dbObjekte.forEach((o,oid)=>sel.add(new Option(o.name,oid))); const h=id?dbHaeuser.get(id):{}; if(h.objektId) sel.value=h.objektId; if(!id && sel.value) document.getElementById('hausNummerDisplay').value = getNextHausID(sel.value); else document.getElementById('hausNummerDisplay').value = id; document.getElementById('hausBezeichnungInput').value=h.bezeichnung||""; document.getElementById('hausAnteileInput').value=h.anteile||""; renderHausMatrix(h); calcMatrixSum(); document.getElementById('hausModal').classList.add('active'); }
+        
+        function openHausMask(id){ 
+            document.getElementById('hausIdInput').value=id||""; 
+            const sel=document.getElementById('hausObjektSelect'); 
+            sel.innerHTML=""; 
+            if(activeFilterId) { 
+                const o=dbObjekte.get(activeFilterId); 
+                if(o) sel.add(new Option(o.name,activeFilterId)); 
+            } else { 
+                dbObjekte.forEach((o,oid)=>sel.add(new Option(o.name,oid))); 
+            } 
+            const h=id?dbHaeuser.get(id):{}; 
+            if(h.objektId) sel.value=h.objektId; 
+            if(!id && sel.value) document.getElementById('hausNummerDisplay').value = getNextHausID(sel.value); 
+            else document.getElementById('hausNummerDisplay').value = id; 
+            document.getElementById('hausBezeichnungInput').value=h.bezeichnung||""; 
+            document.getElementById('hausAnteileInput').value=h.anteile||""; 
+            renderHausMatrix(h); 
+            calcMatrixSum(); 
+            document.getElementById('hausModal').classList.add('active'); 
+        }
+
         function saveHaus(){ let id=document.getElementById('hausNummerDisplay').value; if(!id) { const oid=document.getElementById('hausObjektSelect').value; id=getNextHausID(oid); } let mx={}; document.querySelectorAll('#hausSollMatrixBody tr').forEach(tr => { const tid = tr.dataset.typeId; const lblInput = tr.querySelector('.custom-label-inp'); const lbl = lblInput ? lblInput.value : tr.cells[0].innerText; const cnt = tr.querySelector('.soll-count').value; const area = tr.querySelector('.soll-area').value; if(cnt || area) { mx[tid] = { count: cnt, area: area, label: lbl }; } }); dbHaeuser.set(String(id), { objektId: document.getElementById('hausObjektSelect').value, bezeichnung: document.getElementById('hausBezeichnungInput').value, anteile: safeFloat(document.getElementById('hausAnteileInput').value), sollMatrix: mx }); document.getElementById('hausModal').classList.remove('active'); saveLocal(); renderLists(); triggerAutoSave(); }
         function deleteHaus() { const hid = document.getElementById('hausIdInput').value; if(!hid) return; const associatedUnits = Array.from(dbEinheiten.values()).filter(e => e.hausId === hid); const msg = `Haus wirklich löschen?\n\nDies löscht automatisch ${associatedUnits.length} zugehörige Einheiten!`; if(confirm(msg)) { const unitIdsToDelete = []; dbEinheiten.forEach((u, uid) => { if (u.hausId === hid) unitIdsToDelete.push(uid); }); unitIdsToDelete.forEach(uid => dbEinheiten.delete(uid)); dbHaeuser.delete(hid); document.getElementById('hausModal').classList.remove('active'); saveLocal(); renderLists(); triggerAutoSave(); } }
         function filterHaeuserDropdown(keepSelection=false){ const oid=document.getElementById('einheitObjektSelect').value; const h=document.getElementById('einheitHausSelect'); const oldVal = h.value; h.innerHTML=""; if(!oid)return; Array.from(dbHaeuser.entries()).filter(([hid,x])=>x.objektId===oid).forEach(([hid,x])=>h.add(new Option(x.bezeichnung,hid))); if(keepSelection && oldVal) { if(Array.from(h.options).some(o=>o.value===oldVal)) h.value = oldVal; } }
-        function openEinheitMask(id){ updateKonditionDatalist(); const e=id?dbEinheiten.get(id):{}; document.getElementById('einheitIdInput').value=id||""; const oSel=document.getElementById('einheitObjektSelect'); const hSel=document.getElementById('einheitHausSelect'); let oid, hid; if(id) { hid = e.hausId; oid = hid ? dbHaeuser.get(hid)?.objektId : ""; } else { if(activeFilterId) { oid = activeFilterId; } else if(oSel.options.length > 0) { oid = oSel.options[0].value; } hid = ""; } if(oid) oSel.value=oid; filterHaeuserDropdown(); if(hid) hSel.value=hid; else if(hSel.options.length>0) hSel.selectedIndex=0; if(id) document.getElementById('einheitNummerDisplay').value = id; else if(hSel.value) document.getElementById('einheitNummerDisplay').value = getNextEinheitID(hSel.value); document.getElementById('einheitNameInput').value=e.name||""; document.getElementById('einheitTypSelect').innerHTML=""; STANDARD_TYPES.forEach(t=>document.getElementById('einheitTypSelect').add(new Option(t.label,t.id))); document.getElementById('einheitFlaecheInput').value=e.flaeche||""; document.getElementById('einheitHeizflaecheInput').value=e.heizflaeche||""; document.getElementById('einheitZimmerInput').value=e.zimmer||""; document.getElementById('einheitMeaInput').value=e.mea||""; document.getElementById('einheitWwInput').value = e.ww_m3 || ""; document.getElementById('einheitKwInput').value = e.kw_m3 || ""; const c=document.getElementById('belegungListe'); c.innerHTML=""; if(e.belegung&&e.belegung.length) e.belegung.forEach(b=>addBelegungRow(b)); else addBelegungRow(); const hList = document.getElementById('historieListe'); hList.innerHTML=""; if(e.historie && e.historie.length) e.historie.forEach(h=>addHistorieRow(h)); const kList = document.getElementById('konditionenListe'); kList.innerHTML=""; if(e.konditionen && e.konditionen.length) e.konditionen.forEach(k=>addKonditionRow(k)); else addKonditionRow(); onHausSelectionChange(!id); if(e.typ) document.getElementById('einheitTypSelect').value = e.typ; document.getElementById('einheitModal').classList.add('active'); }
+        
+        function openEinheitMask(id){ 
+            updateKonditionDatalist(); 
+            const e=id?dbEinheiten.get(id):{}; 
+            document.getElementById('einheitIdInput').value=id||""; 
+            const oSel=document.getElementById('einheitObjektSelect'); 
+            const hSel=document.getElementById('einheitHausSelect'); 
+            
+            // LOGIC CHANGE: Filter Dropdown if activeFilterId is set
+            oSel.innerHTML="";
+            if(activeFilterId) {
+                const o=dbObjekte.get(activeFilterId);
+                if(o) oSel.add(new Option(o.name, activeFilterId));
+            } else {
+                oSel.innerHTML = "<option value=''>-- Objekt wählen --</option>";
+                dbObjekte.forEach((o,oid)=>oSel.add(new Option(o.name,oid)));
+            }
+
+            let oid, hid; 
+            if(id) { 
+                hid = e.hausId; 
+                oid = hid ? dbHaeuser.get(hid)?.objektId : ""; 
+            } else { 
+                if(activeFilterId) { 
+                    oid = activeFilterId; 
+                } else if(oSel.options.length > 0 && !oSel.value) { 
+                    // No filter active, wait for user selection
+                } 
+                hid = ""; 
+            } 
+            
+            if(oid) oSel.value=oid; 
+            filterHaeuserDropdown(); 
+            if(hid) hSel.value=hid; else if(hSel.options.length>0) hSel.selectedIndex=0; 
+            if(id) document.getElementById('einheitNummerDisplay').value = id; else if(hSel.value) document.getElementById('einheitNummerDisplay').value = getNextEinheitID(hSel.value); 
+            document.getElementById('einheitNameInput').value=e.name||""; 
+            document.getElementById('einheitTypSelect').innerHTML=""; 
+            STANDARD_TYPES.forEach(t=>document.getElementById('einheitTypSelect').add(new Option(t.label,t.id))); 
+            document.getElementById('einheitFlaecheInput').value=e.flaeche||""; 
+            document.getElementById('einheitHeizflaecheInput').value=e.heizflaeche||""; 
+            document.getElementById('einheitZimmerInput').value=e.zimmer||""; 
+            document.getElementById('einheitMeaInput').value=e.mea||""; 
+            document.getElementById('einheitWwInput').value = e.ww_m3 || ""; 
+            document.getElementById('einheitKwInput').value = e.kw_m3 || ""; 
+            const c=document.getElementById('belegungListe'); c.innerHTML=""; if(e.belegung&&e.belegung.length) e.belegung.forEach(b=>addBelegungRow(b)); else addBelegungRow(); 
+            const hList = document.getElementById('historieListe'); hList.innerHTML=""; if(e.historie && e.historie.length) e.historie.forEach(h=>addHistorieRow(h)); 
+            const kList = document.getElementById('konditionenListe'); kList.innerHTML=""; if(e.konditionen && e.konditionen.length) e.konditionen.forEach(k=>addKonditionRow(k)); else addKonditionRow(); 
+            onHausSelectionChange(!id); 
+            if(e.typ) document.getElementById('einheitTypSelect').value = e.typ; 
+            document.getElementById('einheitModal').classList.add('active'); 
+        }
+
         function updateKonditionDatalist() { const allTypes = new Set(KONDITION_TYPES); dbEinheiten.forEach(e => { if(e.konditionen) { e.konditionen.forEach(k => { if(k.label) allTypes.add(k.label); }); } }); let dl = document.getElementById('konditionTypes'); if(!dl) { dl = document.createElement('datalist'); dl.id = "konditionTypes"; document.body.appendChild(dl); } dl.innerHTML = ""; Array.from(allTypes).sort().forEach(t => { const op = document.createElement('option'); op.value = t; dl.appendChild(op); }); }
         function addKonditionRow(d={}) { const c = document.getElementById('konditionenListe'); const row = document.createElement('div'); row.className = 'kondition-row'; const descInput = document.createElement('input'); descInput.setAttribute('list', 'konditionTypes'); descInput.placeholder = "Wählen oder tippen..."; descInput.className="kond-label"; if(d.label) descInput.value = d.label; const betragInput = document.createElement('input'); betragInput.type="number"; betragInput.step="0.01"; betragInput.placeholder="Betrag €"; betragInput.className="kond-betrag"; if(d.betrag) betragInput.value = d.betrag; const kontoInput = document.createElement('input'); kontoInput.type="text"; kontoInput.placeholder="Konto (z.B. 8000)"; kontoInput.className="kond-konto"; if(d.konto) kontoInput.value = d.konto; const dateInput = document.createElement('input'); dateInput.type="date"; dateInput.className="kond-date"; if(d.gueltigAb) dateInput.value = d.gueltigAb; else dateInput.value = new Date().toISOString().split('T')[0]; const delBtn = document.createElement('button'); delBtn.innerText="X"; delBtn.className="warn-btn"; delBtn.style.padding="2px 5px"; delBtn.onclick = () => row.remove(); row.append(descInput, betragInput, kontoInput, dateInput, delBtn); c.appendChild(row); }
         function addBelegungRow(d={}){ const c=document.getElementById('belegungListe'); const wrapper = document.createElement('div'); wrapper.className = 'belegung-wrapper'; const r=document.createElement('div'); r.className='belegung-row'; const s=document.createElement('select'); s.className='belegung-mieter'; s.innerHTML="<option value=''>-- Mieter --</option>"; Array.from(dbKontakte.entries()).sort((a,b)=>(a[1].fn||"").localeCompare(b[1].fn||"")).forEach(([id,k])=>s.add(new Option(k.fn+(k.org?` (${k.org})`:""),id))); if(d.mieterId) s.value=d.mieterId; const inEin=document.createElement('input'); inEin.type="date"; inEin.className="belegung-einzug"; if(d.einzug) inEin.value=d.einzug; const inAus=document.createElement('input'); inAus.type="date"; inAus.className="belegung-auszug"; if(d.auszug) inAus.value=d.auszug; const b=document.createElement('button'); b.className="warn-btn"; b.innerText="X"; b.onclick=()=>wrapper.remove(); r.append(s,inEin,inAus,b); wrapper.appendChild(r); c.appendChild(wrapper); }
