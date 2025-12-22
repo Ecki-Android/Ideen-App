@@ -815,7 +815,8 @@
         // --- ID GENERATORS ---
         function getNextObjektID() { let max = 0; dbObjekte.forEach((o, id) => { const num = parseInt(id, 10); if (!isNaN(num) && num > max) max = num; }); return pad(max + 1, 4); }
         function getNextHausID(objektId) { let max = 0; dbHaeuser.forEach((h, id) => { if (id.startsWith(objektId + "/")) { const parts = id.split('/'); const num = parseInt(parts[parts.length - 1], 10); if (!isNaN(num) && num > max) max = num; } }); return objektId + "/" + pad(max + 1, 2); }
-        function getNextEinheitID(hausId) { let max = 0; dbEinheiten.forEach((e, id) => { if (id.startsWith(hausId + "/")) { const parts = id.split('/'); const num = parseInt(parts[parts.length - 1], 10); if (!isNaN(num) && num > max) max = num; } }); return hausId + "/" + pad(max + 4, 4); }
+        // KORREKTUR: ID Generator repariert (war +4 statt +1)
+        function getNextEinheitID(hausId) { let max = 0; dbEinheiten.forEach((e, id) => { if (id.startsWith(hausId + "/")) { const parts = id.split('/'); const num = parseInt(parts[parts.length - 1], 10); if (!isNaN(num) && num > max) max = num; } }); return hausId + "/" + pad(max + 1, 4); }
 
         function createDummyData() {
             if(!confirm("Musterdaten (Wohnpark + Finanzhistorie) erzeugen?\nDies überschreibt ggf. keine Daten, fügt aber neue hinzu.")) return;
@@ -828,24 +829,23 @@
             // Haus übernimmt Objekt Status oder ist explizit gesetzt
             dbHaeuser.set(hid, { objektId: oid, bezeichnung: "Haus A", anteile: 1000, sollMatrix: matrix, steuerStatus: "opt" });
             
+            // Einheit 1: Wohnung Links
             let eid = getNextEinheitID(hid);
-            // Einheit 1: Mit Konditionen & Historie
             const contractId = `${eid}/01`; 
             const now = new Date();
             const year = now.getFullYear();
             const month = now.getMonth() + 1;
-            const dateStr = now.toISOString().split('T')[0];
 
             dbEinheiten.set(eid, { 
                 hausId: hid, name: "EG Links", typ: "wohnung", flaeche: 50, zimmer: 2, mea: 333.33, ww_m3: 123.4, kw_m3: 456.7, 
                 konditionen: [
-                    { id: 'k1', label: 'Kaltmiete', betrag: 500, konto: '8000', gueltigAb: '2023-01-01', gueltigBis: '', steuerKey: '2' }, // 7% Dummy
-                    { id: 'k2', label: 'BK-Vorausz.', betrag: 100, konto: '8010', gueltigAb: '2023-01-01', gueltigBis: '', steuerKey: '20' }
+                    { id: 'k1', label: 'Kaltmiete', betrag: 500, konto: '8000', gueltigAb: '2023-01-01', gueltigBis: '', steuerKey: '2' }, // 7%
+                    { id: 'k2', label: 'BK-Vorausz.', betrag: 100, konto: '8010', gueltigAb: '2023-01-01', gueltigBis: '', steuerKey: '20' } // 0%
                 ], 
                 belegung: [{ mieterId: "dummy_mieter", einzug: "2023-01-01", auszug: "" }] 
             });
 
-            // Finanzhistorie generieren
+            // Finanzhistorie für Einheit 1
             for(let i=1; i<=3; i++) {
                 let m = month - i;
                 let y = year;
@@ -853,7 +853,6 @@
                 const mStr = `${y}-${pad(m,2)}`;
                 const dBuch = `${mStr}-01`;
                 
-                // Sollstellung simulieren
                 dbFinanzen.push({
                     id: getNextFinanzId(), einheitId: eid, mieterId: "dummy_mieter", monatRef: mStr, buchungsdatum: dBuch,
                     typ: 'soll', kategorie: 'Kaltmiete', text: `${contractId}-${pad(m,2)}${y} (Kaltmiete)`,
@@ -864,7 +863,6 @@
                     typ: 'soll', kategorie: 'BK-Vorausz.', text: `${contractId}-${pad(m,2)}${y} (BK-Vorausz.)`,
                     betrag: 100, konto: '8010', steuerschluessel: '20', steuerbetrag: 0, locked: true
                 });
-                // Zahlungseingang
                 dbFinanzen.push({
                     id: getNextFinanzId(), einheitId: eid, mieterId: "dummy_mieter", monatRef: mStr, buchungsdatum: `${mStr}-05`,
                     typ: 'haben', kategorie: 'Mieteingang', text: `Miete ${m}/${y}`,
@@ -872,11 +870,21 @@
                 });
             }
 
-            // Weitere Einheiten
+            // Einheit 2: Wohnung Rechts
             eid = getNextEinheitID(hid);
             dbEinheiten.set(eid, { hausId: hid, name: "EG Rechts", typ: "wohnung", flaeche: 50, zimmer: 2, mea: 333.33, belegung: [] });
+
+            // Einheit 3: Gewerbe (FEHLTE VORHER)
+            eid = getNextEinheitID(hid);
+            dbEinheiten.set(eid, { 
+                hausId: hid, name: "Büro OG", typ: "gewerbe", flaeche: 50, zimmer: 3, mea: 333.34, 
+                konditionen: [
+                    { id: 'k1', label: 'Kaltmiete', betrag: 800, konto: '8000', gueltigAb: '2023-01-01', gueltigBis: '', steuerKey: '3' } // 19%
+                ],
+                belegung: [] 
+            });
             
-            saveLocal(); renderLists(); alert("Vollständige Testdaten mit Historie und Steuerschlüsseln angelegt!");
+            saveLocal(); renderLists(); alert("Vollständige Testdaten (2 Whg, 1 Gew) angelegt!");
         }
 
         // --- LOAD / SAVE ---
