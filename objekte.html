@@ -62,6 +62,11 @@
         .stat-ok { color: #2e7d32; font-weight: bold; }
         .stat-err { color: #d32f2f; font-weight: bold; }
         
+        /* NEW: Detail Box für Objekt/Haus Aufschlüsselung */
+        .detail-box { margin-top: 8px; border-top: 1px solid #eee; padding-top: 5px; font-size: 0.85em; color: #444; }
+        .detail-row { display: flex; justify-content: space-between; padding: 1px 0; }
+        .detail-header { font-weight: bold; margin-bottom: 2px; color: #333; margin-top: 5px; }
+
         /* SCROLLABLE MATRIX */
         .matrix-wrapper { max-height: 300px; overflow-y: auto; border: 1px solid #ccc; margin-bottom: 10px; background: #fff; }
         .soll-matrix { width: 100%; border-collapse: collapse; font-size: 0.85em; }
@@ -503,6 +508,11 @@
         function pad(n, width, z) { z = z || '0'; n = n + ''; return n.length >= width ? n : new Array(width - n.length + 1).join(z) + n; }
         function formatCurrency(n) { return n.toLocaleString('de-DE', {style:'currency', currency:'EUR'}); }
         
+        function getTypeLabel(typId) {
+            const std = STANDARD_TYPES.find(t => t.id === typId);
+            return std ? std.label : (typId || 'Unbekannt');
+        }
+
         // --- DATA LAYER ---
         function getNextFinanzId() { return 'tx_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5); }
 
@@ -819,16 +829,67 @@
             const oDiv = document.getElementById('objekteListe'); oDiv.innerHTML = "";
             showObj.forEach((o, id) => { 
                 // Abstimmung Objekt
-                const haeuser = Array.from(dbHaeuser.values()).filter(h => h.objektId === id);
-                let sumHausFlaeche = 0; let sumHausMea = haeuser.reduce((s,h) => s + safeFloat(h.anteile), 0);
-                haeuser.forEach(h => { if(h.sollMatrix) Object.values(h.sollMatrix).forEach(v => sumHausFlaeche += safeFloat(v.area)); else sumHausFlaeche += (safeFloat(h.wohnflaeche)+safeFloat(h.gewerbeflaeche)); });
+                const haeuserArr = Array.from(dbHaeuser.entries()).filter(([hid, h]) => h.objektId === id);
+                let sumHausFlaecheSoll = 0; 
+                let sumHausMea = haeuserArr.reduce((s,[hid,h]) => s + safeFloat(h.anteile), 0);
                 
-                let valHtml = validateVal(o.sollHaeuser || 0, haeuser.length, "Häuser", 0);
-                valHtml += validateVal(o.flaeche || 0, sumHausFlaeche, "m²");
+                // --- Berechnungen für Detail-Ansicht ---
+                let realTotalArea = 0;
+                let objTypeStats = {}; // { typId: {count, area} }
+                let hausListHtml = '<div class="detail-header">Häuser-Übersicht:</div>';
+
+                haeuserArr.forEach(([hid, h]) => { 
+                    // Soll Fläche aus Matrix
+                    if(h.sollMatrix) Object.values(h.sollMatrix).forEach(v => sumHausFlaecheSoll += safeFloat(v.area)); 
+                    else sumHausFlaecheSoll += (safeFloat(h.wohnflaeche)+safeFloat(h.gewerbeflaeche)); 
+                    
+                    // Ist-Werte aus Einheiten
+                    const hEinheiten = Array.from(dbEinheiten.values()).filter(e => e.hausId === hid);
+                    const hArea = hEinheiten.reduce((s,e) => s + safeFloat(e.flaeche), 0);
+                    realTotalArea += hArea;
+
+                    hausListHtml += `<div class="detail-row"><span>${h.bezeichnung}</span><span>${formatNum(hArea)} m²</span></div>`;
+
+                    // Typen aggregieren
+                    hEinheiten.forEach(e => {
+                        const t = e.typ || 'sonstige';
+                        if(!objTypeStats[t]) objTypeStats[t] = { count: 0, area: 0 };
+                        objTypeStats[t].count++;
+                        objTypeStats[t].area += safeFloat(e.flaeche);
+                    });
+                });
+
+                // HTML für Typen
+                let typeListHtml = '<div class="detail-header">Typen-Verteilung (Gesamt):</div>';
+                Object.keys(objTypeStats).forEach(tid => {
+                    const s = objTypeStats[tid];
+                    typeListHtml += `<div class="detail-row"><span>${getTypeLabel(tid)} (${s.count})</span><span>${formatNum(s.area)} m²</span></div>`;
+                });
+
+                let valHtml = validateVal(o.sollHaeuser || 0, haeuserArr.length, "Häuser", 0);
+                valHtml += validateVal(o.flaeche || 0, sumHausFlaecheSoll, "m² (Plan)");
+                valHtml += `<div class="validation-row" style="margin-top:5px; border-top:1px solid #ccc; font-weight:bold;"><span>Ist-Fläche (Einheiten):</span><span>${formatNum(realTotalArea)} m²</span></div>`;
                 valHtml += validateVal(o.mea || 1000, sumHausMea, "MEA");
 
                 const filterBtn = (activeFilterId === id) ? `<button class="filter-btn active" onclick="toggleFilter(null)">Filter lösen</button>` : `<button class="filter-btn" onclick="toggleFilter('${id}')">🎯 Fokus</button>`;
-                oDiv.innerHTML += `<div class="liste-item"><input type="checkbox" class="item-checkbox" value="${id}"><div class="liste-content"><div style="display:flex; justify-content:space-between; align-items:center;"><h4>${o.name} <small>[${o.nummer}]</small></h4><div>${filterBtn} <button onclick="openObjektMask('${id}')">Bearbeiten</button></div></div><div class="sub-info">${o.plz} ${o.ort}</div><div class="objekt-stats">${valHtml}</div></div></div>`; 
+                
+                oDiv.innerHTML += `
+                <div class="liste-item">
+                    <input type="checkbox" class="item-checkbox" value="${id}">
+                    <div class="liste-content">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <h4>${o.name} <small>[${o.nummer}]</small></h4>
+                            <div>${filterBtn} <button onclick="openObjektMask('${id}')">Bearbeiten</button></div>
+                        </div>
+                        <div class="sub-info">${o.plz} ${o.ort}</div>
+                        <div class="objekt-stats">${valHtml}</div>
+                        
+                        <div class="detail-box">
+                            ${hausListHtml}
+                            ${typeListHtml}
+                        </div>
+                    </div>
+                </div>`; 
             });
 
             // RENDER HÄUSER (MIT VALIDIERUNG & OBJEKT-ANZEIGE)
@@ -837,6 +898,27 @@
                 // Abstimmung Haus
                 const o = dbObjekte.get(h.objektId);
                 const einheiten = Array.from(dbEinheiten.values()).filter(e => e.hausId === id);
+                
+                // --- Typen Verteilung im Haus ---
+                let hausTypeStats = {};
+                let hausRealArea = 0;
+                einheiten.forEach(e => {
+                    const t = e.typ || 'sonstige';
+                    if(!hausTypeStats[t]) hausTypeStats[t] = { count: 0, area: 0 };
+                    hausTypeStats[t].count++;
+                    const fl = safeFloat(e.flaeche);
+                    hausTypeStats[t].area += fl;
+                    hausRealArea += fl;
+                });
+
+                let typeListHtml = '<div class="detail-header">Typen im Haus:</div>';
+                if(Object.keys(hausTypeStats).length === 0) typeListHtml += '<div style="font-style:italic; color:#777;">Keine Einheiten.</div>';
+                Object.keys(hausTypeStats).forEach(tid => {
+                    const s = hausTypeStats[tid];
+                    typeListHtml += `<div class="detail-row"><span>${getTypeLabel(tid)} (${s.count})</span><span>${formatNum(s.area)} m²</span></div>`;
+                });
+
+
                 let valHtml = ""; let hasError = false;
                 if(h.sollMatrix) {
                     Object.keys(h.sollMatrix).forEach(tid => {
@@ -858,7 +940,23 @@
 
                 // FIX: Objekt-Nr anzeigen
                 const objNr = o ? o.nummer : "???";
-                hDiv.innerHTML += `<div class="liste-item"><input type="checkbox" class="item-checkbox" value="${id}"><div class="liste-content"><div style="display:flex; justify-content:space-between;"><h4>${h.bezeichnung} <span style="font-size:0.7em; font-weight:normal; color:#555;">(Objekt ${objNr})</span></h4><button onclick="openHausMask('${id}')">Bearbeiten</button></div><div class="objekt-stats">${valHtml}</div></div></div>`; 
+                hDiv.innerHTML += `
+                <div class="liste-item">
+                    <input type="checkbox" class="item-checkbox" value="${id}">
+                    <div class="liste-content">
+                        <div style="display:flex; justify-content:space-between;">
+                            <h4>${h.bezeichnung} <span style="font-size:0.7em; font-weight:normal; color:#555;">(Objekt ${objNr})</span></h4>
+                            <button onclick="openHausMask('${id}')">Bearbeiten</button>
+                        </div>
+                        <div class="objekt-stats">${valHtml}</div>
+                        <div class="detail-box">
+                            <div class="detail-row" style="border-bottom:1px solid #ddd; margin-bottom:3px;">
+                                <span><b>Gesamtfläche (Ist):</b></span><span><b>${formatNum(hausRealArea)} m²</b></span>
+                            </div>
+                            ${typeListHtml}
+                        </div>
+                    </div>
+                </div>`; 
             });
 
             // RENDER EINHEITEN (MIT KONTO BUTTON & ID ANZEIGE)
