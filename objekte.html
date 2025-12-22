@@ -502,6 +502,7 @@
                             <th>Korr.</th>
                             <th>Datum</th>
                             <th>Vorgang / Text</th>
+                            <th>Sachk.</th> <!-- NEUE SPALTE -->
                             <th>St.-S.</th>
                             <th class="text-right">Soll (Forderung)</th>
                             <th class="text-right">Haben (Zahlung)</th>
@@ -512,7 +513,7 @@
                     <tbody id="kontoBody"></tbody>
                     <tfoot>
                         <tr style="font-weight:bold; background:#eee;">
-                            <td colspan="4">Endstand:</td>
+                            <td colspan="5">Endstand:</td>
                             <td id="sumSoll" class="text-right">0,00 €</td>
                             <td id="sumHaben" class="text-right">0,00 €</td>
                             <td id="sumSaldo" class="text-right">0,00 €</td>
@@ -569,6 +570,8 @@
                     <label style="font-size:0.8em">Datum:</label><input type="date" id="detailDatumInp">
                     <label style="font-size:0.8em">Betrag €:</label><input type="number" step="0.01" id="detailBetragInp">
                     <label style="font-size:0.8em">Buchungstext:</label><input type="text" id="detailTextInp">
+                    <!-- NEU: Sachkonto Editierbar -->
+                    <label style="font-size:0.8em">Sachkonto (Erlös):</label><input type="text" id="detailKontoInp">
                     <label style="font-size:0.8em">Steuerschlüssel:</label><select id="detailSteuerInp"></select>
                 </div>
             </div>
@@ -696,13 +699,17 @@
             if(!id || !label || isNaN(rate)) return alert("Bitte alle Felder füllen");
             if(taxKeys.find(t=>t.id===id)) return alert("ID existiert bereits");
             taxKeys.push({id, label, rate});
-            saveLocal(); initTaxSelect(); renderTaxTable();
+            saveLocal(); 
+            refreshAllTaxSelects(); // Aktualisiere ALLE Dropdowns
+            renderTaxTable();
             document.getElementById('newTaxId').value=""; document.getElementById('newTaxLabel').value=""; document.getElementById('newTaxRate').value="";
         }
         function deleteTaxKey(id) {
             if(!confirm("Löschen?")) return;
             taxKeys = taxKeys.filter(t => t.id !== id);
-            saveLocal(); initTaxSelect(); renderTaxTable();
+            saveLocal(); 
+            refreshAllTaxSelects(); // Aktualisiere ALLE Dropdowns
+            renderTaxTable();
         }
         function initTaxSelect() {
             const selects = ['mbSteuer', 'detailSteuerInp'];
@@ -714,6 +721,16 @@
                     taxKeys.forEach(t => sel.add(new Option(t.label, t.id)));
                     sel.value = oldVal;
                 }
+            });
+        }
+        function refreshAllTaxSelects() {
+            initTaxSelect(); // Statische
+            // Dynamische in Konditionen-Liste
+            document.querySelectorAll('.kond-tax').forEach(sel => {
+                const oldVal = sel.value;
+                sel.innerHTML = '<option value="">-</option>';
+                taxKeys.forEach(t => sel.add(new Option(t.label, t.id)));
+                sel.value = oldVal;
             });
         }
 
@@ -1206,12 +1223,21 @@
             const dateBisInput = document.createElement('input'); dateBisInput.type="date"; dateBisInput.className="kond-date-bis"; if(d.gueltigBis) dateBisInput.value = d.gueltigBis;
             
             let taxSelect;
+            let taxBtn = null;
             if(showTax) {
                 const s = document.createElement('select'); s.className="kond-tax"; 
                 s.add(new Option("-", ""));
-                taxKeys.forEach(t => s.add(new Option(t.id, t.id))); 
+                taxKeys.forEach(t => s.add(new Option(t.label, t.id))); 
                 if(d.steuerKey) s.value = d.steuerKey;
                 taxSelect = s;
+
+                // NEU: Button zum Verwalten
+                taxBtn = document.createElement('button');
+                taxBtn.innerText = "⚙️";
+                taxBtn.className = "finance-btn";
+                taxBtn.style.padding = "2px 5px";
+                taxBtn.title = "Steuerschlüssel verwalten";
+                taxBtn.onclick = () => openTaxModal();
             } else {
                 taxSelect = document.createElement('span'); 
             }
@@ -1225,7 +1251,9 @@
 
             const delBtn = document.createElement('button'); delBtn.innerText="X"; delBtn.className="warn-btn"; delBtn.style.padding="2px 5px"; delBtn.onclick = () => row.remove(); 
             
-            row.append(descInput, betragInput, kontoInput, dateInput, dateBisInput, taxSelect, copyBtn, delBtn); 
+            row.append(descInput, betragInput, kontoInput, dateInput, dateBisInput, taxSelect);
+            if(taxBtn) row.appendChild(taxBtn);
+            row.append(copyBtn, delBtn); 
             c.appendChild(row); 
         }
 
@@ -1265,6 +1293,7 @@
             document.getElementById('detailDatumInp').value = tx.buchungsdatum;
             document.getElementById('detailBetragInp').value = safeFloat(tx.betrag);
             document.getElementById('detailTextInp').value = tx.text;
+            document.getElementById('detailKontoInp').value = tx.konto || ""; // NEU
             
             const sInp = document.getElementById('detailSteuerInp');
             sInp.innerHTML = '<option value="">--</option>';
@@ -1284,19 +1313,21 @@
             const newDatum = document.getElementById('detailDatumInp').value;
             const newBetrag = safeFloat(document.getElementById('detailBetragInp').value);
             const newText = document.getElementById('detailTextInp').value;
+            const newKonto = document.getElementById('detailKontoInp').value; // NEU
             const newSteuer = document.getElementById('detailSteuerInp').value;
 
-            if(newDatum !== tx.buchungsdatum || newBetrag !== safeFloat(tx.betrag) || newText !== tx.text || newSteuer !== (tx.steuerschluessel||"")) {
+            if(newDatum !== tx.buchungsdatum || newBetrag !== safeFloat(tx.betrag) || newText !== tx.text || newKonto !== (tx.konto||"") || newSteuer !== (tx.steuerschluessel||"")) {
                 if(!tx.history) tx.history = [];
                 tx.history.push({
                     datum: new Date().toISOString(),
-                    old_data: { buchungsdatum: tx.buchungsdatum, betrag: tx.betrag, text: tx.text, steuerschluessel: tx.steuerschluessel },
+                    old_data: { buchungsdatum: tx.buchungsdatum, betrag: tx.betrag, text: tx.text, konto: tx.konto, steuerschluessel: tx.steuerschluessel },
                     doku_at_time: tx.doku
                 });
                 
                 tx.buchungsdatum = newDatum;
                 tx.betrag = newBetrag;
                 tx.text = newText;
+                tx.konto = newKonto; // NEU
                 tx.steuerschluessel = newSteuer;
                 if(newSteuer) {
                     const sObj = taxKeys.find(k => k.id === newSteuer);
@@ -1365,7 +1396,8 @@
                 const korrBadge = (tx.history && tx.history.length > 0) ? `<span style="color:#d32f2f; font-weight:bold; font-size:0.8em; margin-right:5px;">(Korr. ${tx.history.length})</span>` : "";
                 
                 const tr = document.createElement('tr'); tr.onclick = () => openBuchungDetail(tx.id);
-                tr.innerHTML = `<td>${korrBadge}</td><td>${formatDate(tx.buchungsdatum)}</td><td>${tx.text}</td><td style="text-align:center;">${steuerInfo}</td><td class="text-right betrag-soll">${s > 0 ? formatNum(s) : ''}</td><td class="text-right betrag-haben">${h > 0 ? formatNum(h) : ''}</td><td class="text-right" style="font-weight:bold;">${formatNum(saldo)}</td><td>${delBtn}</td>`; tbody.appendChild(tr); 
+                // NEU: Sachkonto Spalte
+                tr.innerHTML = `<td>${korrBadge}</td><td>${formatDate(tx.buchungsdatum)}</td><td>${tx.text}</td><td>${tx.konto || '-'}</td><td style="text-align:center;">${steuerInfo}</td><td class="text-right betrag-soll">${s > 0 ? formatNum(s) : ''}</td><td class="text-right betrag-haben">${h > 0 ? formatNum(h) : ''}</td><td class="text-right" style="font-weight:bold;">${formatNum(saldo)}</td><td>${delBtn}</td>`; tbody.appendChild(tr); 
             }); 
             document.getElementById('sumSoll').innerText = formatCurrency(sumS); document.getElementById('sumHaben').innerText = formatCurrency(sumH); document.getElementById('sumSaldo').innerText = formatCurrency(saldo); 
         }
