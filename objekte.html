@@ -127,6 +127,7 @@
         .konto-tabelle { width: 100%; border-collapse: collapse; font-size: 0.9em; }
         .konto-tabelle th, .konto-tabelle td { border: 1px solid #ddd; padding: 6px; text-align: left; }
         .konto-tabelle th { background: #f5f5f5; }
+        .konto-tabelle tr:hover { background-color: #e3f2fd; cursor: pointer; } /* Hover Effekt für Zeilen */
         .text-right { text-align: right; }
         .betrag-soll { color: #c62828; }
         .betrag-haben { color: #2e7d32; }
@@ -435,6 +436,7 @@
                         <tr>
                             <th>Datum</th>
                             <th>Vorgang / Text</th>
+                            <th>St.-S.</th> <!-- NEU: Steuerschlüssel -->
                             <th class="text-right">Soll (Forderung)</th>
                             <th class="text-right">Haben (Zahlung)</th>
                             <th class="text-right">Saldo</th>
@@ -444,7 +446,7 @@
                     <tbody id="kontoBody"></tbody>
                     <tfoot>
                         <tr style="font-weight:bold; background:#eee;">
-                            <td colspan="2">Endstand:</td>
+                            <td colspan="3">Endstand:</td>
                             <td id="sumSoll" class="text-right">0,00 €</td>
                             <td id="sumHaben" class="text-right">0,00 €</td>
                             <td id="sumSaldo" class="text-right">0,00 €</td>
@@ -466,8 +468,13 @@
                     <div><label style="font-size:0.8em">Buchungstext:</label><input type="text" id="mbText" placeholder="z.B. Mieteingang"></div>
                     <div><label style="font-size:0.8em">Belegfeld 1 (Optional):</label><input type="text" id="mbBeleg" placeholder="Belegnummer"></div>
                 </div>
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px; margin-top:5px;">
+                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:5px; margin-top:5px;">
                     <div><label style="font-size:0.8em">Gegenkonto (Erlös/Bank):</label><input type="text" id="mbKonto" placeholder="z.B. 1200 oder 8000"></div>
+                    <!-- NEU: Steuerschlüssel -->
+                    <div>
+                        <label style="font-size:0.8em">Steuerschlüssel:</label>
+                        <select id="mbSteuer" title="Steuerschlüssel nach DATEV"></select>
+                    </div>
                     <div style="display:flex; align-items:flex-end; gap:5px;">
                         <button class="primary-btn" style="flex:1;" onclick="saveManuelleBuchung()">Buchen</button>
                         <button style="flex:1;" onclick="document.getElementById('manuelleBuchungForm').style.display='none'">Abbrechen</button>
@@ -477,6 +484,32 @@
 
             <div class="modal-actions">
                 <button onclick="document.getElementById('kontoModal').classList.remove('active')">Schließen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- NEU: Modal 6: Buchungs-Detail / Dokumentation -->
+    <div id="buchungDetailModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')">
+        <div class="modal-content" style="max-width:600px;">
+            <h3>Buchungs-Detail & Dokumentation</h3>
+            <input type="hidden" id="detailBuchungId">
+            <div style="background:#f9f9f9; padding:10px; border-radius:4px; margin-bottom:15px; font-size:0.9em;">
+                <div class="detail-row"><span>ID:</span><span id="detailId"></span></div>
+                <div class="detail-row"><span>Datum:</span><span id="detailDatum" style="font-weight:bold;"></span></div>
+                <div class="detail-row"><span>Text:</span><span id="detailText"></span></div>
+                <div class="detail-row"><span>Kategorie:</span><span id="detailKat"></span></div>
+                <div class="detail-row"><span>Typ:</span><span id="detailTyp"></span></div>
+                <div class="detail-row"><span>Betrag:</span><span id="detailBetrag" style="font-weight:bold;"></span></div>
+                <div class="detail-row"><span>Konto:</span><span id="detailKonto"></span></div>
+                <div class="detail-row"><span>Steuerschlüssel:</span><span id="detailSteuer"></span></div>
+            </div>
+            
+            <label>Dokumentation / Bemerkung (Editierbar):</label>
+            <textarea id="detailDoku" rows="4" placeholder="Hier können Sie den Vorgang dokumentieren..."></textarea>
+            
+            <div class="modal-actions">
+                <button class="primary-btn" onclick="saveBuchungDoku()">Dokumentation speichern</button>
+                <button onclick="document.getElementById('buchungDetailModal').classList.remove('active')">Schließen</button>
             </div>
         </div>
     </div>
@@ -492,6 +525,13 @@
         // Standard Miet-Konditionen Typen
         const KONDITION_TYPES = [
             "Kaltmiete", "BK-Vorausz.", "HK-Vorausz.", "Stellplatz", "Garage", "Küchenzuschlag", "Mietminderung", "Sonstiges"
+        ];
+
+        // NEU: DATEV Steuerschlüssel
+        const TAX_KEYS = [
+            { id: '2', label: '2 - Umsatzsteuer ermäßigt (7%)', rate: 7 },
+            { id: '3', label: '3 - Umsatzsteuer allgemein (19%)', rate: 19 },
+            { id: '20', label: '20 - Umsatzsteuer 0% (0,00)', rate: 0 }
         ];
 
         // Auth Config
@@ -515,6 +555,7 @@
 
         document.addEventListener('DOMContentLoaded', async () => {
             loadLocal(); 
+            initTaxSelect(); // NEU: Steuerschlüssel Dropdown füllen
             try { renderLists(); } catch (err) { console.error("Fehler beim Initial-Rendering:", err); }
             
             try {
@@ -526,6 +567,16 @@
                 
             } catch(e) { console.error("MSAL Fehler:", e); }
         });
+
+        // --- NEU: Steuerschlüssel initialisieren ---
+        function initTaxSelect() {
+            const sel = document.getElementById('mbSteuer');
+            if(!sel) return;
+            sel.innerHTML = '<option value="">-- Kein/Auto --</option>';
+            TAX_KEYS.forEach(t => {
+                sel.add(new Option(t.label, t.id));
+            });
+        }
 
         // --- AUTH & WACHHUND LOGIK (ANALOG KONTAKTE-APP) ---
 
@@ -1253,11 +1304,8 @@
                             
                             if(e.konditionen) e.konditionen.forEach(k => { 
                                 const gueltigAb = new Date(k.gueltigAb);
-                                // NEU: Enddatum prüfen
                                 let gueltigBis = k.gueltigBis ? new Date(k.gueltigBis) : new Date('2099-12-31');
                                 
-                                // Kondition muss im Abrechnungsmonat bereits begonnen haben UND noch nicht vorbei sein
-                                // Startdatum <= Monatsende UND Enddatum >= Monatsanfang
                                 if(gueltigAb <= monthEnd && gueltigBis >= monthStart) { 
                                     const betrag = safeFloat(k.betrag) * faktor; 
                                     const tx = { 
@@ -1268,9 +1316,11 @@
                                         buchungsdatum: new Date().toISOString().split('T')[0], 
                                         typ: 'soll', 
                                         kategorie: k.label, 
-                                        text: `${opCode} (${k.label})`, // Belegtext für DATEV: eindeutige ID + Typ
+                                        text: `${opCode} (${k.label})`, 
                                         betrag: betrag, 
-                                        konto: k.konto, // Erlöskonto
+                                        konto: k.konto, 
+                                        steuerschluessel: '', // Sollstellung hat hier noch keine Steuer-Logik explizit, kann erweitert werden
+                                        steuerbetrag: 0,
                                         locked: true 
                                     }; 
                                     dbFinanzen.push(tx); 
@@ -1287,8 +1337,43 @@
         }
 
         function openKontoModal(einheitId) { const e = dbEinheiten.get(einheitId); if(!e) return; document.getElementById('kontoEinheitId').value = einheitId; document.getElementById('kontoTitle').innerText = `Konto: ${e.name}`; document.getElementById('manuelleBuchungForm').style.display = 'none'; const years = new Set(dbFinanzen.filter(tx => tx.einheitId === einheitId).map(tx => tx.buchungsdatum.substr(0,4))); const sel = document.getElementById('kontoJahrSelect'); sel.innerHTML = '<option value="all">Alle Jahre</option>'; Array.from(years).sort().reverse().forEach(y => sel.add(new Option(y, y))); renderKontoTable(); document.getElementById('kontoModal').classList.add('active'); }
-        function renderKontoTable() { const eid = document.getElementById('kontoEinheitId').value; const yearFilter = document.getElementById('kontoJahrSelect').value; const tbody = document.getElementById('kontoBody'); tbody.innerHTML = ""; let txs = dbFinanzen.filter(tx => tx.einheitId === eid); if(yearFilter !== 'all') txs = txs.filter(tx => tx.buchungsdatum.startsWith(yearFilter)); txs.sort((a,b) => a.buchungsdatum.localeCompare(b.buchungsdatum)); let sumS = 0, sumH = 0, saldo = 0; txs.forEach(tx => { const tr = document.createElement('tr'); const s = tx.typ === 'soll' ? safeFloat(tx.betrag) : 0; const h = tx.typ === 'haben' ? safeFloat(tx.betrag) : 0; sumS += s; sumH += h; saldo += (s - h); let delBtn = `<button class="warn-btn" style="padding:2px 5px;" onclick="deleteBuchung('${tx.id}')">x</button>`; if(tx.locked) { delBtn = `<span style="font-size:1.2em;" title="Sollstellung: Festgeschrieben">🔒</span>`; } tr.innerHTML = `<td>${formatDate(tx.buchungsdatum)}</td><td>${tx.text} <small style="color:#888;">[${tx.kategorie||'-'}]</small></td><td class="text-right betrag-soll">${s > 0 ? formatNum(s) : ''}</td><td class="text-right betrag-haben">${h > 0 ? formatNum(h) : ''}</td><td class="text-right" style="font-weight:bold;">${formatNum(saldo)}</td><td>${delBtn}</td>`; tbody.appendChild(tr); }); document.getElementById('sumSoll').innerText = formatCurrency(sumS); document.getElementById('sumHaben').innerText = formatCurrency(sumH); const elSaldo = document.getElementById('sumSaldo'); elSaldo.innerText = formatCurrency(saldo); elSaldo.style.color = saldo > 0 ? '#c62828' : (saldo < 0 ? '#2e7d32' : 'black'); }
+        
+        function renderKontoTable() { 
+            const eid = document.getElementById('kontoEinheitId').value; 
+            const yearFilter = document.getElementById('kontoJahrSelect').value; 
+            const tbody = document.getElementById('kontoBody'); 
+            tbody.innerHTML = ""; 
+            let txs = dbFinanzen.filter(tx => tx.einheitId === eid); 
+            if(yearFilter !== 'all') txs = txs.filter(tx => tx.buchungsdatum.startsWith(yearFilter)); 
+            txs.sort((a,b) => a.buchungsdatum.localeCompare(b.buchungsdatum)); 
+            let sumS = 0, sumH = 0, saldo = 0; 
+            txs.forEach(tx => { 
+                const tr = document.createElement('tr'); 
+                const s = tx.typ === 'soll' ? safeFloat(tx.betrag) : 0; 
+                const h = tx.typ === 'haben' ? safeFloat(tx.betrag) : 0; 
+                sumS += s; sumH += h; saldo += (s - h); 
+                
+                // NEU: Anzeige Steuer-Schlüssel
+                const steuerInfo = tx.steuerschluessel ? `<span class="badge" style="background:#e3f2fd;">${tx.steuerschluessel}</span>` : '-';
+
+                let delBtn = `<button class="warn-btn" style="padding:2px 5px;" onclick="event.stopPropagation(); deleteBuchung('${tx.id}')">x</button>`; 
+                if(tx.locked) { delBtn = `<span style="font-size:1.2em;" title="Sollstellung: Festgeschrieben">🔒</span>`; } 
+                
+                // NEU: Onclick für Detail-Ansicht
+                tr.onclick = () => openBuchungDetail(tx.id);
+
+                tr.innerHTML = `<td>${formatDate(tx.buchungsdatum)}</td><td>${tx.text} <small style="color:#888;">[${tx.kategorie||'-'}]</small></td><td style="text-align:center;">${steuerInfo}</td><td class="text-right betrag-soll">${s > 0 ? formatNum(s) : ''}</td><td class="text-right betrag-haben">${h > 0 ? formatNum(h) : ''}</td><td class="text-right" style="font-weight:bold;">${formatNum(saldo)}</td><td>${delBtn}</td>`; 
+                tbody.appendChild(tr); 
+            }); 
+            document.getElementById('sumSoll').innerText = formatCurrency(sumS); 
+            document.getElementById('sumHaben').innerText = formatCurrency(sumH); 
+            const elSaldo = document.getElementById('sumSaldo'); 
+            elSaldo.innerText = formatCurrency(saldo); 
+            elSaldo.style.color = saldo > 0 ? '#c62828' : (saldo < 0 ? '#2e7d32' : 'black'); 
+        }
+        
         function openManuelleBuchung() { document.getElementById('manuelleBuchungForm').style.display='block'; document.getElementById('mbDatum').value = new Date().toISOString().split('T')[0]; }
+        
         function saveManuelleBuchung() { 
             const eid = document.getElementById('kontoEinheitId').value; 
             const dat = document.getElementById('mbDatum').value; 
@@ -1297,10 +1382,19 @@
             const betrag = safeFloat(document.getElementById('mbBetrag').value); 
             const beleg = document.getElementById('mbBeleg').value;
             const konto = document.getElementById('mbKonto').value;
+            
+            // NEU: Steuerschlüssel
+            const steuerId = document.getElementById('mbSteuer').value;
+            let steuerBetrag = 0;
+            if(steuerId) {
+                const sObj = TAX_KEYS.find(k => k.id === steuerId);
+                if(sObj && sObj.rate > 0) {
+                    steuerBetrag = betrag - (betrag / (1 + sObj.rate/100)); // Herausrechnen aus Brutto
+                }
+            }
 
             if(!dat || !betrag) return alert("Datum und Betrag erforderlich"); 
             
-            // DATEV kompatibler Textaufbau
             let finalTx = txt || "Manuelle Buchung";
             if(beleg) finalTx = `${beleg} ${finalTx}`;
 
@@ -1315,12 +1409,53 @@
                 text: finalTx, 
                 betrag: betrag, 
                 konto: konto, 
+                steuerschluessel: steuerId, // NEU
+                steuerbetrag: steuerBetrag, // NEU
+                doku: "", // NEU: Feld für Dokumentation
                 locked: false 
             }; 
             dbFinanzen.push(tx); 
             saveLocal(); triggerAutoSave(); renderKontoTable(); 
             document.getElementById('manuelleBuchungForm').style.display='none'; 
         }
+
+        // --- NEU: Buchungs-Details anzeigen/dokumentieren ---
+        function openBuchungDetail(id) {
+            const tx = dbFinanzen.find(t => t.id === id);
+            if(!tx) return;
+            document.getElementById('detailBuchungId').value = id;
+            document.getElementById('detailId').innerText = id;
+            document.getElementById('detailDatum').innerText = formatDate(tx.buchungsdatum);
+            document.getElementById('detailText').innerText = tx.text;
+            document.getElementById('detailKat').innerText = tx.kategorie || '-';
+            document.getElementById('detailTyp').innerText = tx.typ === 'soll' ? 'Forderung' : 'Zahlung';
+            document.getElementById('detailBetrag').innerText = formatCurrency(safeFloat(tx.betrag));
+            document.getElementById('detailKonto').innerText = tx.konto || '-';
+            
+            let steuerTxt = '-';
+            if(tx.steuerschluessel) {
+                const sObj = TAX_KEYS.find(k => k.id === tx.steuerschluessel);
+                steuerTxt = sObj ? sObj.label : tx.steuerschluessel;
+                if(tx.steuerbetrag) steuerTxt += ` (${formatCurrency(tx.steuerbetrag)} Steuer)`;
+            }
+            document.getElementById('detailSteuer').innerText = steuerTxt;
+            
+            document.getElementById('detailDoku').value = tx.doku || "";
+            document.getElementById('buchungDetailModal').classList.add('active');
+        }
+
+        function saveBuchungDoku() {
+            const id = document.getElementById('detailBuchungId').value;
+            const doku = document.getElementById('detailDoku').value;
+            const tx = dbFinanzen.find(t => t.id === id);
+            if(tx) {
+                tx.doku = doku;
+                saveLocal(); triggerAutoSave();
+                alert("Dokumentation gespeichert.");
+                document.getElementById('buchungDetailModal').classList.remove('active');
+            }
+        }
+
         function deleteBuchung(id) { const tx = dbFinanzen.find(t => t.id === id); if(tx && tx.locked) { alert("Diese Buchung entstammt einer festgeschriebenen Sollstellung und darf nicht gelöscht werden!\nBitte nutzen Sie eine Gegenbuchung zur Korrektur."); return; } if(!confirm("Buchung löschen?")) return; dbFinanzen = dbFinanzen.filter(tx => tx.id !== id); saveLocal(); triggerAutoSave(); renderKontoTable(); }
         function resetKonto() { const eid = document.getElementById('kontoEinheitId').value; if(!confirm("ACHTUNG: Möchten Sie wirklich ALLE Buchungen dieser Einheit löschen?\nDas ist sinnvoll, um Testdaten zu entfernen, bevor Sie echt starten.\nDieser Schritt kann nicht rückgängig gemacht werden!")) return; dbFinanzen = dbFinanzen.filter(tx => tx.einheitId !== eid); saveLocal(); triggerAutoSave(); renderKontoTable(); alert("Konto wurde erfolgreich geleert/bereinigt."); }
         function exportKontoPDF() { const eid = document.getElementById('kontoEinheitId').value; const e = dbEinheiten.get(eid); const doc = new jspdf.jsPDF(); doc.setFontSize(14); doc.text(`Mieterkonto: ${e.name}`, 14, 15); doc.setFontSize(10); doc.text(`Stand: ${new Date().toLocaleDateString('de-DE')}`, 14, 22); let txs = dbFinanzen.filter(tx => tx.einheitId === eid); txs.sort((a,b) => a.buchungsdatum.localeCompare(b.buchungsdatum)); let saldo = 0; const rows = txs.map(tx => { const s = tx.typ === 'soll' ? safeFloat(tx.betrag) : 0; const h = tx.typ === 'haben' ? safeFloat(tx.betrag) : 0; saldo += (s - h); return [ formatDate(tx.buchungsdatum), tx.text, tx.kategorie, s > 0 ? formatNum(s) : '', h > 0 ? formatNum(h) : '', formatNum(saldo) ]; }); doc.autoTable({ head: [['Datum', 'Text', 'Kat', 'Soll', 'Haben', 'Saldo']], body: rows, startY: 30, theme: 'striped', columnStyles: { 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right', fontStyle: 'bold' } } }); doc.save(`Konto_${e.name}.pdf`); }
