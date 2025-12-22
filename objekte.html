@@ -985,9 +985,24 @@
                 }
                 
                 const kontoBtn = `<button class="account-btn" onclick="openKontoModal('${e.id}')">💶 Konto</button>`;
+                const typeLabel = getTypeLabel(e.typ);
                 
                 // FIX: Einheit-ID anzeigen
-                eDiv.innerHTML += `<div class="liste-item"><input type="checkbox" class="item-checkbox" value="${e.id}"><div class="liste-content"><div style="display:flex; justify-content:space-between;"><h4>${e.name} <small style="font-family:monospace; color:#000;">[ID: ${e.id}]</small> <small>(${e.hName})</small></h4><div>${kontoBtn} <button onclick="openEinheitMask('${e.id}')">Bearbeiten</button></div></div><div class="sub-info">${formatNum(safeFloat(e.flaeche))}m²</div><div class="mieter-status">${stHtml}</div></div></div>`;
+                eDiv.innerHTML += `
+                <div class="liste-item">
+                    <input type="checkbox" class="item-checkbox" value="${e.id}">
+                    <div class="liste-content">
+                        <div style="display:flex; justify-content:space-between;">
+                            <h4>${e.name} <small style="font-family:monospace; color:#000;">[ID: ${e.id}]</small> <small>(${e.hName})</small></h4>
+                            <div>${kontoBtn} <button onclick="openEinheitMask('${e.id}')">Bearbeiten</button></div>
+                        </div>
+                        <div class="sub-info">
+                            <span style="display:inline-block; padding:2px 6px; background:#e3f2fd; color:#0d47a1; border-radius:4px; font-size:0.9em; margin-right:5px;">${typeLabel}</span>
+                            <b>${formatNum(safeFloat(e.flaeche))} m²</b>
+                        </div>
+                        <div class="mieter-status">${stHtml}</div>
+                    </div>
+                </div>`;
             });
         }
 
