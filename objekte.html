@@ -900,10 +900,85 @@
         // FIX: Clear Filter after new Object so it appears
         activeFilterId=null; toggleFilter(null); saveLocal(); renderLists(); triggerAutoSave(); }
         
-        function deleteObjekt(){ if(confirm("Löschen?")) { dbObjekte.delete(document.getElementById('objektIdInput').value); document.getElementById('objektModal').classList.remove('active'); saveLocal(); renderLists(); triggerAutoSave(); } }
+        function deleteObjekt() {
+            const oid = document.getElementById('objektIdInput').value;
+            if (!oid) return;
+            
+            // Count dependencies for the confirmation message
+            const associatedHouses = Array.from(dbHaeuser.values()).filter(h => h.objektId === oid);
+            const associatedHouseIds = Array.from(dbHaeuser.entries())
+                .filter(([hid, h]) => h.objektId === oid)
+                .map(([hid, h]) => hid);
+                
+            const associatedUnits = Array.from(dbEinheiten.values()).filter(e => associatedHouseIds.includes(e.hausId));
+            
+            const msg = `ACHTUNG: Möchten Sie das Objekt ${oid} wirklich löschen?\n\n` +
+                        `Dies löscht automatisch:\n` +
+                        `- ${associatedHouses.length} zugehörige Häuser\n` +
+                        `- ${associatedUnits.length} zugehörige Einheiten\n\n` +
+                        `Dieser Vorgang kann nicht rückgängig gemacht werden!`;
+
+            if (confirm(msg)) {
+                // 1. Delete Units
+                // We need to iterate entries to get keys
+                const unitIdsToDelete = [];
+                dbEinheiten.forEach((u, uid) => {
+                    if (associatedHouseIds.includes(u.hausId)) {
+                        unitIdsToDelete.push(uid);
+                    }
+                });
+                unitIdsToDelete.forEach(uid => dbEinheiten.delete(uid));
+
+                // 2. Delete Houses
+                associatedHouseIds.forEach(hid => dbHaeuser.delete(hid));
+
+                // 3. Delete Object
+                dbObjekte.delete(oid);
+
+                document.getElementById('objektModal').classList.remove('active');
+                
+                // Reset Filter if it was active on this object
+                if(activeFilterId === oid) {
+                    activeFilterId = null;
+                    toggleFilter(null);
+                }
+                
+                saveLocal();
+                renderLists();
+                triggerAutoSave();
+            }
+        }
+
         function openHausMask(id){ /* Standard... */ document.getElementById('hausIdInput').value=id||""; const sel=document.getElementById('hausObjektSelect'); sel.innerHTML=""; dbObjekte.forEach((o,oid)=>sel.add(new Option(o.name,oid))); const h=id?dbHaeuser.get(id):{}; if(h.objektId) sel.value=h.objektId; if(!id && sel.value) document.getElementById('hausNummerDisplay').value = getNextHausID(sel.value); else document.getElementById('hausNummerDisplay').value = id; document.getElementById('hausBezeichnungInput').value=h.bezeichnung||""; document.getElementById('hausAnteileInput').value=h.anteile||""; renderHausMatrix(h); calcMatrixSum(); document.getElementById('hausModal').classList.add('active'); }
         function saveHaus(){ /* Standard... */ let id=document.getElementById('hausNummerDisplay').value; if(!id) { const oid=document.getElementById('hausObjektSelect').value; id=getNextHausID(oid); } let mx={}; document.querySelectorAll('#hausSollMatrixBody tr').forEach(tr => { const tid = tr.dataset.typeId; const lblInput = tr.querySelector('.custom-label-inp'); const lbl = lblInput ? lblInput.value : tr.cells[0].innerText; const cnt = tr.querySelector('.soll-count').value; const area = tr.querySelector('.soll-area').value; if(cnt || area) { mx[tid] = { count: cnt, area: area, label: lbl }; } }); dbHaeuser.set(String(id), { objektId: document.getElementById('hausObjektSelect').value, bezeichnung: document.getElementById('hausBezeichnungInput').value, anteile: safeFloat(document.getElementById('hausAnteileInput').value), sollMatrix: mx }); document.getElementById('hausModal').classList.remove('active'); saveLocal(); renderLists(); triggerAutoSave(); }
-        function deleteHaus(){ if(confirm("Löschen?")) { dbHaeuser.delete(document.getElementById('hausIdInput').value); document.getElementById('hausModal').classList.remove('active'); saveLocal(); renderLists(); triggerAutoSave(); } }
+        
+        function deleteHaus() {
+            const hid = document.getElementById('hausIdInput').value;
+            if(!hid) return;
+
+            // Count units
+            const associatedUnits = Array.from(dbEinheiten.values()).filter(e => e.hausId === hid);
+            
+            const msg = `Haus wirklich löschen?\n\n` +
+                        `Dies löscht automatisch ${associatedUnits.length} zugehörige Einheiten!`;
+
+            if(confirm(msg)) {
+                // Delete Units
+                const unitIdsToDelete = [];
+                dbEinheiten.forEach((u, uid) => {
+                    if (u.hausId === hid) unitIdsToDelete.push(uid);
+                });
+                unitIdsToDelete.forEach(uid => dbEinheiten.delete(uid));
+
+                // Delete House
+                dbHaeuser.delete(hid);
+                
+                document.getElementById('hausModal').classList.remove('active');
+                saveLocal();
+                renderLists();
+                triggerAutoSave();
+            }
+        }
 
         function filterHaeuserDropdown(keepSelection=false){ 
             const oid=document.getElementById('einheitObjektSelect').value; 
