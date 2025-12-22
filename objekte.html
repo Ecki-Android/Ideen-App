@@ -603,8 +603,59 @@
                 const buchDatum = d.toISOString().slice(0, 10);
                 const zahlDatum = new Date(d); zahlDatum.setDate(4);
                 
-                dbFinanzen.push({ id: getNextFinanzId(), einheitId: eid, mieterId: "dummy_mieter", monatRef: monatStr, buchungsdatum: buchDatum, typ: 'soll', kategorie: 'Miete Gesamt', text: `Sollstellung ${monatStr} (Test)`, betrag: 650, konto: '8000' });
-                dbFinanzen.push({ id: getNextFinanzId(), einheitId: eid, mieterId: "dummy_mieter", monatRef: monatStr, buchungsdatum: zahlDatum.toISOString().slice(0, 10), typ: 'haben', kategorie: 'Zahlung', text: `Mieteigang ${monatStr}`, betrag: 650, konto: '1200' });
+                // --- KORREKTUR: Formatierung der Dummy-Buchungstexte wie in der echten Sollstellung ---
+                const monat = d.getMonth() + 1;
+                const jahr = d.getFullYear();
+                
+                // Dummy Contract ID: eid + "/01" (da es der 1. Mieter ist)
+                const contractId = eid + "/01";
+                const opCode = `${contractId}-${pad(monat, 2)}${jahr}`;
+
+                // --- WICHTIG: KEINE GESAMT-SOLLSTELLUNG, SONDERN EINZELPOSTEN ---
+                
+                // 1. Kaltmiete
+                dbFinanzen.push({ 
+                    id: getNextFinanzId(), 
+                    einheitId: eid, 
+                    mieterId: "dummy_mieter", 
+                    monatRef: monatStr, 
+                    buchungsdatum: buchDatum, 
+                    typ: 'soll', 
+                    kategorie: 'Kaltmiete', 
+                    text: `${opCode} (Kaltmiete)`, 
+                    betrag: 500, 
+                    konto: '8000', 
+                    locked: true 
+                });
+                
+                // 2. BK-Vorauszahlung
+                dbFinanzen.push({ 
+                    id: getNextFinanzId(), 
+                    einheitId: eid, 
+                    mieterId: "dummy_mieter", 
+                    monatRef: monatStr, 
+                    buchungsdatum: buchDatum, 
+                    typ: 'soll', 
+                    kategorie: 'BK-Vorausz.', 
+                    text: `${opCode} (BK-Vorausz.)`, 
+                    betrag: 100, 
+                    konto: '8010', 
+                    locked: true 
+                });
+                
+                // 3. Zahlung (Haben) - hier darf es eine Summe sein
+                dbFinanzen.push({ 
+                    id: getNextFinanzId(), 
+                    einheitId: eid, 
+                    mieterId: "dummy_mieter", 
+                    monatRef: monatStr, 
+                    buchungsdatum: zahlDatum.toISOString().slice(0, 10), 
+                    typ: 'haben', 
+                    kategorie: 'Zahlung', 
+                    text: `Mieteigang ${monatStr}`, 
+                    betrag: 600, 
+                    konto: '1200' 
+                });
             }
 
             // Einheit 2: Wohnung Rechts (ID generieren - da E1 schon im Map ist, wird E2 korrekt berechnet)
@@ -1361,6 +1412,16 @@
                             
                             logSoll(`   Einheit ${e.name}: Mieter ${mieterName} (${activeDays}/${daysInMonth} Tage)`);
 
+                            // --- NEU: Eindeutige OP-Nummer generieren ---
+                            // 1. Sequenz Index berechnen (wie in der Anzeige)
+                            const sortedBel = [...e.belegung].sort((a,b) => (a.einzug||'').localeCompare(b.einzug||''));
+                            const seqIndex = sortedBel.indexOf(b) + 1; 
+                            const contractId = e.id + "/" + pad(seqIndex, 2);
+                            
+                            // 2. Buchungscode erstellen (Format: ID-MMYYYY)
+                            // z.B. 0001/01/0001/01-012025
+                            const opCode = `${contractId}-${pad(monat, 2)}${jahr}`;
+
                             // Konditionen iterieren
                             if(e.konditionen) e.konditionen.forEach(k => {
                                 // Prüfen ob Kondition gültig ist
@@ -1377,7 +1438,7 @@
                                         buchungsdatum: new Date().toISOString().split('T')[0],
                                         typ: 'soll', // Forderung
                                         kategorie: k.label,
-                                        text: `Sollstellung ${monat}/${jahr} (${k.label}) - ${activeDays} Tage`,
+                                        text: `${opCode} (${k.label})`, // Eindeutige ID als Start, plus Typ
                                         betrag: betrag,
                                         konto: k.konto,
                                         locked: true // FESTGESCHRIEBEN: Kann nicht gelöscht werden
