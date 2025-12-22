@@ -28,10 +28,10 @@
         .local-btn { background: #fff3cd; color: #856404; border-color: #ffeeba; }
         .report-btn { background: #607d8b; color: white; border-color: #455a64; }
         .test-btn { background: #ff9800; color: white; border-color: #f57c00; }
-        .finance-btn { background: #673ab7; color: white; border-color: #512da8; } 
+        .finance-btn { background: #673ab7; color: white; border-color: #512da8; } /* LILA für Finanzen */
         .account-btn { background: #e1bee7; color: #4a148c; border-color: #ce93d8; font-weight:bold; }
         
-        /* Status Anzeige */
+        /* Status Anzeige (Analog Kontakte-App) */
         .onedrive-status { 
             display: none; align-items: center; padding: 6px 12px; font-size: 0.9em; font-weight: 500; 
             border-radius: 4px; transition: all 0.3s ease; margin-left: 10px; 
@@ -41,6 +41,7 @@
         .onedrive-status.error { background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; display: inline-flex; }
         .onedrive-status.info { background-color: #fffbeb; color: #92400e; border: 1px solid #fde68a; display: inline-flex; }
         
+        /* Wachhund Warnung */
         #sessionExpiredWarning { 
             margin: 0 0 15px 0; font-weight: bold; padding: 10px; border-radius: 4px; 
             display: none; background-color: #fffbe6; border: 1px solid #ffc107; color: #ff8f00; 
@@ -120,13 +121,13 @@
         .type-badge.selected { box-shadow: 0 0 0 2px #333; }
 
         /* Styles für Finanz-Modul */
-        .kondition-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 0.5fr 30px 30px; gap: 5px; margin-bottom: 5px; align-items: center; border-bottom:1px dashed #eee; padding-bottom:5px;}
+        .kondition-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 30px; gap: 5px; margin-bottom: 5px; align-items: center; border-bottom:1px dashed #eee; padding-bottom:5px;}
         .kondition-row input, .kondition-row select { margin: 0; font-size: 0.9em; }
         
         .konto-tabelle { width: 100%; border-collapse: collapse; font-size: 0.9em; }
         .konto-tabelle th, .konto-tabelle td { border: 1px solid #ddd; padding: 6px; text-align: left; }
         .konto-tabelle th { background: #f5f5f5; }
-        .konto-tabelle tr:hover { background-color: #e3f2fd; cursor: pointer; }
+        .konto-tabelle tr:hover { background-color: #e3f2fd; cursor: pointer; } /* Hover Effekt für Zeilen */
         .text-right { text-align: right; }
         .betrag-soll { color: #c62828; }
         .betrag-haben { color: #2e7d32; }
@@ -138,17 +139,6 @@
         .filter-btn.active { background: #e0f2f1; border-color: #00695c; color: #00695c; font-weight: bold; }
         
         .section-header { margin-top: 15px; margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px solid #eee; font-weight: bold; color: #333; display: flex; justify-content: space-between; align-items: center; }
-
-        /* Steuerschlüssel Tabelle */
-        .tax-table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
-        .tax-table th, .tax-table td { border: 1px solid #ccc; padding: 4px; text-align: left; }
-        .tax-table th { background: #eee; position: sticky; top: 0; }
-
-        /* Badge für Steuerstatus */
-        .tax-badge { display:inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.8em; font-weight: bold; margin-left: 5px; }
-        .tax-opt { background: #e8f5e9; color: #1b5e20; border:1px solid #c8e6c9; } /* Grün */
-        .tax-none { background: #f5f5f5; color: #616161; border:1px solid #e0e0e0; } /* Grau */
-        .tax-mixed { background: #fff3e0; color: #e65100; border:1px solid #ffe0b2; } /* Orange */
 
         /* Login Protection */
         #loginMessage { text-align: center; padding: 50px 20px; background: white; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-top: 20px; display: none; }
@@ -163,7 +153,6 @@
         <div class="app-title">Objektverwaltung Pro <span id="loggedInUser" style="font-size:0.6em; font-weight:normal; color:#555;"></span></div>
         <div class="cloud-actions">
             <!-- FINANCE BUTTON -->
-            <button onclick="openTaxModal()" class="finance-btn" title="Steuerschlüssel verwalten">🛠️ Steuerschlüssel</button>
             <button onclick="openSollstellungModal()" class="finance-btn" title="Monatliche Mieten berechnen">💰 Sollstellung</button>
             <span style="border-left: 1px solid #ccc; height: 20px; margin: 0 5px;"></span>
             
@@ -236,38 +225,6 @@
 
     <!-- ================= MODALS ================= -->
 
-    <!-- Modal: Steuerschlüssel Verwaltung -->
-    <div id="taxModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')">
-        <div class="modal-content" style="max-width:600px;">
-            <h3>Steuerschlüssel Verwaltung (DATEV)</h3>
-            <div style="max-height:300px; overflow-y:auto; margin-bottom:15px; border:1px solid #ccc;">
-                <table class="tax-table">
-                    <thead>
-                        <tr>
-                            <th style="width:50px;">Nr.</th>
-                            <th>Bezeichnung</th>
-                            <th style="width:80px;">% Satz</th>
-                            <th style="width:40px;"></th>
-                        </tr>
-                    </thead>
-                    <tbody id="taxTableBody"></tbody>
-                </table>
-            </div>
-            <div style="background:#eee; padding:10px; border-radius:4px;">
-                <b>Neuen Schlüssel anlegen:</b>
-                <div style="display:flex; gap:5px; margin-top:5px;">
-                    <input type="text" id="newTaxId" placeholder="Nr (z.B. 2)" style="width:60px; margin:0;">
-                    <input type="text" id="newTaxLabel" placeholder="Bezeichnung" style="flex:1; margin:0;">
-                    <input type="number" id="newTaxRate" placeholder="%" style="width:60px; margin:0;">
-                    <button onclick="addTaxKey()" class="primary-btn" style="margin:0;">+</button>
-                </div>
-            </div>
-            <div class="modal-actions">
-                <button onclick="document.getElementById('taxModal').classList.remove('active')">Schließen</button>
-            </div>
-        </div>
-    </div>
-
     <!-- Modal 1: Objekt -->
     <div id="objektModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')">
         <div class="modal-content">
@@ -289,16 +246,6 @@
                 <div style="flex:1;"><label>Gesamtfläche (m²):</label><input type="number" step="0.01" id="objektFlaecheInput" oninput="updateObjektLiveStatus()"></div>
                 <div style="flex:1;"><label>Gesamt MEA:</label><input type="number" step="0.001" id="objektMeaInput" value="1000" oninput="updateObjektLiveStatus()"></div>
             </div>
-            <!-- NEU: Steuerstatus -->
-            <div style="margin-top:10px;">
-                <label>Steuer-Status:</label>
-                <select id="objektSteuerStatus">
-                    <option value="opt">Mit USt/Vorsteuer (Optiert)</option>
-                    <option value="none">Ohne USt (Wohnen/Steuerfrei)</option>
-                    <option value="mixed">Gemischt (Einstellung je Haus)</option>
-                </select>
-            </div>
-
             <div class="modal-actions">
                 <button onclick="document.getElementById('objektModal').classList.remove('active')">Abbrechen</button>
                 <button class="primary-btn" onclick="saveObjekt()">Speichern</button>
@@ -317,15 +264,6 @@
                 <div style="flex:1;"><label>Gehört zu Objekt*:</label><select id="hausObjektSelect" onchange="updateHausIdPreview()"></select></div>
                 <div style="flex:1;"><label>Haus-ID (auto):</label><input type="text" id="hausNummerDisplay" readonly style="background:#eee; font-family:monospace;"></div>
                 <div style="flex:2;"><label>Bezeichnung*:</label><input type="text" id="hausBezeichnungInput"></div>
-            </div>
-
-            <!-- NEU: Steuerstatus nur bei gemischten Objekten -->
-            <div id="hausSteuerBox" style="display:none; margin-top:10px; background:#e3f2fd; padding:5px; border-radius:4px;">
-                <label>Steuer-Status (Haus):</label>
-                <select id="hausSteuerStatus">
-                    <option value="opt">Mit USt/Vorsteuer</option>
-                    <option value="none">Ohne USt</option>
-                </select>
             </div>
 
             <h4 style="margin-top:15px; margin-bottom:5px;">Validierungs-Matrix</h4>
@@ -427,14 +365,12 @@
                 <button type="button" onclick="addKonditionRow()" style="font-size:0.8em; padding:2px 8px;">+ Position</button>
             </div>
             <div style="background:#f9f9f9; padding:5px; border-radius:4px; border:1px solid #eee; margin-bottom:10px; max-height:250px; overflow-y:auto;">
-                <div id="konditionHeader" style="display:grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 0.5fr 30px 30px; gap:5px; font-size:0.8em; font-weight:bold; margin-bottom:5px; padding-right:10px;">
+                <div style="display:grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 30px; gap:5px; font-size:0.8em; font-weight:bold; margin-bottom:5px; padding-right:10px;">
                     <div>Bezeichnung</div>
                     <div>Betrag (€)</div>
                     <div>Konto (Erlös)</div>
                     <div>Gültig Ab</div>
                     <div>Gültig Bis</div>
-                    <div>St-S</div> <!-- Steuerschlüssel -->
-                    <div></div>
                     <div></div>
                 </div>
                 <div id="konditionenListe"></div>
@@ -498,10 +434,9 @@
                 <table class="konto-tabelle">
                     <thead>
                         <tr>
-                            <th>Korr.</th>
                             <th>Datum</th>
                             <th>Vorgang / Text</th>
-                            <th>St.-S.</th>
+                            <th>St.-S.</th> <!-- NEU: Steuerschlüssel -->
                             <th class="text-right">Soll (Forderung)</th>
                             <th class="text-right">Haben (Zahlung)</th>
                             <th class="text-right">Saldo</th>
@@ -511,7 +446,7 @@
                     <tbody id="kontoBody"></tbody>
                     <tfoot>
                         <tr style="font-weight:bold; background:#eee;">
-                            <td colspan="4">Endstand:</td>
+                            <td colspan="3">Endstand:</td>
                             <td id="sumSoll" class="text-right">0,00 €</td>
                             <td id="sumHaben" class="text-right">0,00 €</td>
                             <td id="sumSaldo" class="text-right">0,00 €</td>
@@ -553,30 +488,27 @@
         </div>
     </div>
 
-    <!-- NEU: Modal 6: Buchungs-Detail / Dokumentation & Bearbeiten -->
+    <!-- NEU: Modal 6: Buchungs-Detail / Dokumentation -->
     <div id="buchungDetailModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')">
         <div class="modal-content" style="max-width:600px;">
-            <h3>Buchungs-Detail & Bearbeitung</h3>
+            <h3>Buchungs-Detail & Dokumentation</h3>
             <input type="hidden" id="detailBuchungId">
-            <input type="hidden" id="detailKorrCount">
-            
             <div style="background:#f9f9f9; padding:10px; border-radius:4px; margin-bottom:15px; font-size:0.9em;">
                 <div class="detail-row"><span>ID:</span><span id="detailId"></span></div>
-                <div class="detail-row"><span>Korrektur-Nr:</span><span id="detailKorrNr" style="font-weight:bold; color:#d32f2f;"></span></div>
-                
-                <div style="margin-top:10px; border-top:1px solid #ddd; padding-top:10px;">
-                    <label style="font-size:0.8em">Datum:</label><input type="date" id="detailDatumInp">
-                    <label style="font-size:0.8em">Betrag €:</label><input type="number" step="0.01" id="detailBetragInp">
-                    <label style="font-size:0.8em">Buchungstext:</label><input type="text" id="detailTextInp">
-                    <label style="font-size:0.8em">Steuerschlüssel:</label><select id="detailSteuerInp"></select>
-                </div>
+                <div class="detail-row"><span>Datum:</span><span id="detailDatum" style="font-weight:bold;"></span></div>
+                <div class="detail-row"><span>Text:</span><span id="detailText"></span></div>
+                <div class="detail-row"><span>Kategorie:</span><span id="detailKat"></span></div>
+                <div class="detail-row"><span>Typ:</span><span id="detailTyp"></span></div>
+                <div class="detail-row"><span>Betrag:</span><span id="detailBetrag" style="font-weight:bold;"></span></div>
+                <div class="detail-row"><span>Konto:</span><span id="detailKonto"></span></div>
+                <div class="detail-row"><span>Steuerschlüssel:</span><span id="detailSteuer"></span></div>
             </div>
             
-            <label>Dokumentation / Notiz (Bleibt erhalten):</label>
-            <textarea id="detailDoku" rows="4" placeholder="Hier wird jede Änderung dokumentiert..."></textarea>
+            <label>Dokumentation / Bemerkung (Editierbar):</label>
+            <textarea id="detailDoku" rows="4" placeholder="Hier können Sie den Vorgang dokumentieren..."></textarea>
             
             <div class="modal-actions">
-                <button class="primary-btn" onclick="saveBuchungChanges()">Änderungen Speichern</button>
+                <button class="primary-btn" onclick="saveBuchungDoku()">Dokumentation speichern</button>
                 <button onclick="document.getElementById('buchungDetailModal').classList.remove('active')">Schließen</button>
             </div>
         </div>
@@ -595,19 +527,12 @@
             "Kaltmiete", "BK-Vorausz.", "HK-Vorausz.", "Stellplatz", "Garage", "Küchenzuschlag", "Mietminderung", "Sonstiges"
         ];
 
-        // Initiale Tax Keys, jetzt erweiterbar
-        let taxKeys = [
+        // NEU: DATEV Steuerschlüssel
+        const TAX_KEYS = [
             { id: '2', label: '2 - Umsatzsteuer ermäßigt (7%)', rate: 7 },
             { id: '3', label: '3 - Umsatzsteuer allgemein (19%)', rate: 19 },
             { id: '20', label: '20 - Umsatzsteuer 0% (0,00)', rate: 0 }
         ];
-
-        // Helper Map für Steuerstatus Anzeige
-        const TAX_STATUS_MAP = {
-            'opt': { label: 'USt/VSt', class: 'tax-opt' },
-            'none': { label: 'USt-Frei', class: 'tax-none' },
-            'mixed': { label: 'Gemischt', class: 'tax-mixed' }
-        };
 
         // Auth Config
         const msalConfig = { 
@@ -619,7 +544,7 @@
         };
         let msalInstance = null;
         let accessToken = null;
-        let tokenRefreshIntervalId = null; 
+        let tokenRefreshIntervalId = null; // Wachhund
         let userEmail = null;
         
         let dbObjekte = new Map(), dbHaeuser = new Map(), dbEinheiten = new Map(), dbKontakte = new Map(); 
@@ -628,113 +553,62 @@
         let activeFilterId = null; 
         let autoSaveTimer = null;
 
-        // FUNKTION VOR DOMContentLoaded DEFINIEREN UM FEHLER ZU VERMEIDEN
-        function updateKonditionDatalist() { 
-            const allTypes = new Set(KONDITION_TYPES); 
-            dbEinheiten.forEach(e => { 
-                if(e.konditionen) { 
-                    e.konditionen.forEach(k => { 
-                        if(k.label) allTypes.add(k.label); 
-                    }); 
-                } 
-            }); 
-            let dl = document.getElementById('konditionTypes'); 
-            if(!dl) { 
-                dl = document.createElement('datalist'); 
-                dl.id = "konditionTypes"; 
-                document.body.appendChild(dl); 
-            } 
-            dl.innerHTML = ""; 
-            Array.from(allTypes).sort().forEach(t => { 
-                const op = document.createElement('option'); 
-                op.value = t; 
-                dl.appendChild(op); 
-            }); 
-        }
-
-        // FEHLENDE FUNKTION: filterHaeuserDropdown
-        function filterHaeuserDropdown(keepSelection=false){ 
-            const oid=document.getElementById('einheitObjektSelect').value; 
-            const h=document.getElementById('einheitHausSelect'); 
-            const oldVal = h.value; 
-            h.innerHTML=""; 
-            if(!oid)return; 
-            Array.from(dbHaeuser.entries())
-                .filter(([hid,x])=>x.objektId===oid)
-                .forEach(([hid,x])=>h.add(new Option(x.bezeichnung,hid))); 
-            if(keepSelection && oldVal) { 
-                if(Array.from(h.options).some(o=>o.value===oldVal)) h.value = oldVal; 
-            } 
-        }
-
         document.addEventListener('DOMContentLoaded', async () => {
             loadLocal(); 
-            initTaxSelect(); // Dropdowns füllen
-            renderTaxTable(); // Verwaltungs-Tabelle
+            initTaxSelect(); // NEU: Steuerschlüssel Dropdown füllen
             try { renderLists(); } catch (err) { console.error("Fehler beim Initial-Rendering:", err); }
             
             try {
                 msalInstance = new msal.PublicClientApplication(msalConfig);
                 await msalInstance.initialize();
+                
+                // Wachhund Logik starten
                 await versucheSitzungWiederherzustellen();
+                
             } catch(e) { console.error("MSAL Fehler:", e); }
         });
 
-        // --- STEUER VERWALTUNG ---
-        function openTaxModal() { document.getElementById('taxModal').classList.add('active'); renderTaxTable(); }
-        function renderTaxTable() {
-            const tbody = document.getElementById('taxTableBody'); tbody.innerHTML = "";
-            taxKeys.forEach(t => {
-                tbody.innerHTML += `<tr><td>${t.id}</td><td>${t.label}</td><td>${t.rate}%</td><td><button class="warn-btn" style="padding:2px 5px;" onclick="deleteTaxKey('${t.id}')">x</button></td></tr>`;
-            });
-        }
-        function addTaxKey() {
-            const id = document.getElementById('newTaxId').value;
-            const label = document.getElementById('newTaxLabel').value;
-            const rate = parseFloat(document.getElementById('newTaxRate').value);
-            if(!id || !label || isNaN(rate)) return alert("Bitte alle Felder füllen");
-            if(taxKeys.find(t=>t.id===id)) return alert("ID existiert bereits");
-            taxKeys.push({id, label, rate});
-            saveLocal(); initTaxSelect(); renderTaxTable();
-            document.getElementById('newTaxId').value=""; document.getElementById('newTaxLabel').value=""; document.getElementById('newTaxRate').value="";
-        }
-        function deleteTaxKey(id) {
-            if(!confirm("Löschen?")) return;
-            taxKeys = taxKeys.filter(t => t.id !== id);
-            saveLocal(); initTaxSelect(); renderTaxTable();
-        }
+        // --- NEU: Steuerschlüssel initialisieren ---
         function initTaxSelect() {
-            const selects = ['mbSteuer', 'detailSteuerInp'];
-            selects.forEach(sid => {
-                const sel = document.getElementById(sid);
-                if(sel) {
-                    const oldVal = sel.value;
-                    sel.innerHTML = '<option value="">--</option>';
-                    taxKeys.forEach(t => sel.add(new Option(t.label, t.id)));
-                    sel.value = oldVal;
-                }
+            const sel = document.getElementById('mbSteuer');
+            if(!sel) return;
+            sel.innerHTML = '<option value="">-- Kein/Auto --</option>';
+            TAX_KEYS.forEach(t => {
+                sel.add(new Option(t.label, t.id));
             });
         }
 
-        // --- AUTH & WACHHUND LOGIK ---
+        // --- AUTH & WACHHUND LOGIK (ANALOG KONTAKTE-APP) ---
+
         async function versucheSitzungWiederherzustellen() {
             const savedLoginType = sessionStorage.getItem('loginType');
             const savedAccountId = sessionStorage.getItem('msalAccountIdentifier');
+
             if (savedLoginType === 'microsoft' && savedAccountId) {
+                console.log("Versuche, Sitzung wiederherzustellen...");
                 const account = await msalInstance.getAccountByHomeId(savedAccountId);
                 if (account) {
                     msalInstance.setActiveAccount(account);
                     const token = await getValidToken(false); 
-                    if (token) await handleLoginSuccess(account);
+                    if (token) {
+                        await handleLoginSuccess(account);
+                    }
                 }
             }
         }
+
         async function handleMicrosoftLogin() {
             try {
-                const loginResponse = await msalInstance.loginPopup({ scopes: ["Files.ReadWrite", "User.Read", "offline_access"], prompt: "select_account" });
+                const loginResponse = await msalInstance.loginPopup({ 
+                    scopes: ["Files.ReadWrite", "User.Read", "offline_access"],
+                    prompt: "select_account"
+                });
                 await handleLoginSuccess(loginResponse.account);
-            } catch (e) { zeigeStatus("Login fehlgeschlagen: " + e.message, "error"); }
+            } catch (e) {
+                zeigeStatus("Login fehlgeschlagen: " + e.message, "error");
+            }
         }
+
         async function handleLoginSuccess(account) {
             userEmail = account.username;
             document.getElementById('loggedInUser').textContent = `(${userEmail})`;
@@ -742,42 +616,95 @@
             document.getElementById('msLogoutBtn').style.display = 'inline-block';
             document.getElementById('cloudSaveBtn').disabled = false;
             document.getElementById('sessionExpiredWarning').style.display = 'none';
+
+            // Ansicht entsperren
+            setAppLocked(false);
+
             sessionStorage.setItem('loginType', 'microsoft');
             sessionStorage.setItem('userEmail', userEmail);
             sessionStorage.setItem('msalAccountIdentifier', account.homeAccountId);
+            
             const token = await getValidToken(false);
             if (token) {
                 clearInterval(tokenRefreshIntervalId);
-                tokenRefreshIntervalId = setInterval(() => getValidToken(false), 10 * 60 * 1000); 
+                tokenRefreshIntervalId = setInterval(() => getValidToken(false), 10 * 60 * 1000); // alle 10 min
+                
                 zeigeStatus("Angemeldet & Wachhund aktiv.", "info");
                 await loadFromOneDrive(); 
             }
         }
+
         async function getValidToken(interactive = false) {
             if (!msalInstance) return null;
             const account = msalInstance.getActiveAccount();
             if (!account) return null;
+
             try {
-                const response = await msalInstance.acquireTokenSilent({ scopes: ["Files.ReadWrite"], account: account });
+                const response = await msalInstance.acquireTokenSilent({ 
+                    scopes: ["Files.ReadWrite"], 
+                    account: account 
+                });
                 accessToken = response.accessToken;
                 document.getElementById('sessionExpiredWarning').style.display = 'none';
                 return accessToken;
             } catch (error) {
+                console.warn("Stiller Token-Refresh fehlgeschlagen", error);
                 if (interactive) {
                     try {
-                        const response = await msalInstance.acquireTokenPopup({ scopes: ["Files.ReadWrite"], account: account });
+                        const response = await msalInstance.acquireTokenPopup({ 
+                            scopes: ["Files.ReadWrite"], 
+                            account: account 
+                        });
                         accessToken = response.accessToken;
                         document.getElementById('sessionExpiredWarning').style.display = 'none';
                         return accessToken;
-                    } catch (err2) { handleExpiredSession(); return null; }
-                } else { handleExpiredSession(); return null; }
+                    } catch (err2) {
+                        handleExpiredSession();
+                        return null;
+                    }
+                } else {
+                    handleExpiredSession();
+                    return null;
+                }
             }
         }
-        function handleExpiredSession() { document.getElementById('sessionExpiredWarning').style.display = 'block'; accessToken = null; }
-        async function handleLogout() { await msalInstance.logoutPopup(); sessionStorage.clear(); location.reload(); }
+
+        function handleExpiredSession() {
+            document.getElementById('sessionExpiredWarning').style.display = 'block';
+            accessToken = null;
+        }
+
+        async function handleLogout() {
+            await msalInstance.logoutPopup();
+            sessionStorage.clear(); 
+            location.reload(); 
+        }
+
+        // --- UI Steuerung ---
+        function setAppLocked(locked) {
+            /* Da die Objekte-App auch lokal nutzbar ist, 
+               sperren wir hier nur Cloud-Buttons, falls gewünscht.
+               Wenn echte Sperre gewünscht, kann protectedContent ausgeblendet werden.
+               Hier: Wir zeigen den Login-Hinweis an, wenn nicht eingeloggt,
+               aber lassen lokale Daten zu.
+            */
+           /* const content = document.getElementById('protectedContent');
+            const msg = document.getElementById('loginMessage');
+            if (locked) {
+                content.style.display = 'none';
+                msg.style.display = 'block';
+            } else {
+                content.style.display = 'block';
+                msg.style.display = 'none';
+            }
+            */
+        }
         
         function zeigeStatus(msg, type) { 
-            const s = document.getElementById('onedriveStatus'); s.textContent = msg; s.className = 'onedrive-status ' + type; s.style.display = 'inline-flex'; 
+            const s = document.getElementById('onedriveStatus'); 
+            s.textContent = msg; 
+            s.className = 'onedrive-status ' + type; 
+            s.style.display = 'inline-flex'; 
             setTimeout(() => { if(s.textContent === msg) s.style.display = 'none'; }, 4000); 
         }
 
@@ -787,13 +714,20 @@
         function formatNum(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}); }
         function pad(n, width, z) { z = z || '0'; n = n + ''; return n.length >= width ? n : new Array(width - n.length + 1).join(z) + n; }
         function formatCurrency(n) { return n.toLocaleString('de-DE', {style:'currency', currency:'EUR'}); }
-        function getTypeLabel(typId) { const std = STANDARD_TYPES.find(t => t.id === typId); return std ? std.label : (typId || 'Unbekannt'); }
+        
+        function getTypeLabel(typId) {
+            const std = STANDARD_TYPES.find(t => t.id === typId);
+            return std ? std.label : (typId || 'Unbekannt');
+        }
+
+        // --- DATA LAYER ---
         function getNextFinanzId() { return 'tx_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5); }
 
         function validateVal(soll, ist, unit = '', tolerance = 0.01) {
             soll = safeFloat(soll); ist = safeFloat(ist);
             const diff = Math.round((ist - soll) * 1000) / 1000;
-            if(Math.abs(diff) <= tolerance) return `<div class="validation-row"><span class="stat-ok">✅ ${formatNum(ist)} ${unit} (Soll: ${formatNum(soll)})</span></div>`;
+            const isOk = Math.abs(diff) <= tolerance;
+            if(isOk) return `<div class="validation-row"><span class="stat-ok">✅ ${formatNum(ist)} ${unit} (Soll: ${formatNum(soll)})</span></div>`;
             const diffStr = diff > 0 ? `+${formatNum(diff)}` : formatNum(diff);
             return `<div class="validation-row"><span class="stat-err">⚠️ ${formatNum(ist)} ${unit} (Soll: ${formatNum(soll)}) <small style="margin-left:5px;">Diff: ${diffStr}</small></span></div>`;
         }
@@ -807,53 +741,164 @@
                 const o = dbObjekte.get(activeFilterId);
                 banner.style.display = "flex";
                 txt.innerHTML = `<b>Fokus aktiv:</b> ${o ? o.name : 'Objekt'}`;
-            } else { banner.style.display = "none"; }
+            } else {
+                banner.style.display = "none";
+            }
             renderLists();
         }
 
         // --- ID GENERATORS ---
-        function getNextObjektID() { let max = 0; dbObjekte.forEach((o, id) => { const num = parseInt(id, 10); if (!isNaN(num) && num > max) max = num; }); return pad(max + 1, 4); }
-        function getNextHausID(objektId) { let max = 0; dbHaeuser.forEach((h, id) => { if (id.startsWith(objektId + "/")) { const parts = id.split('/'); const num = parseInt(parts[parts.length - 1], 10); if (!isNaN(num) && num > max) max = num; } }); return objektId + "/" + pad(max + 1, 2); }
-        function getNextEinheitID(hausId) { let max = 0; dbEinheiten.forEach((e, id) => { if (id.startsWith(hausId + "/")) { const parts = id.split('/'); const num = parseInt(parts[parts.length - 1], 10); if (!isNaN(num) && num > max) max = num; } }); return hausId + "/" + pad(max + 1, 4); }
+        function getNextObjektID() {
+            let max = 0;
+            dbObjekte.forEach((o, id) => { const num = parseInt(id, 10); if (!isNaN(num) && num > max) max = num; });
+            return pad(max + 1, 4);
+        }
+        function getNextHausID(objektId) {
+            let max = 0;
+            dbHaeuser.forEach((h, id) => {
+                if (id.startsWith(objektId + "/")) { 
+                    const parts = id.split('/'); 
+                    const num = parseInt(parts[parts.length - 1], 10); 
+                    if (!isNaN(num) && num > max) max = num; 
+                }
+            });
+            return objektId + "/" + pad(max + 1, 2);
+        }
+        function getNextEinheitID(hausId) {
+            let max = 0;
+            dbEinheiten.forEach((e, id) => {
+                if (id.startsWith(hausId + "/")) { 
+                    const parts = id.split('/'); 
+                    const num = parseInt(parts[parts.length - 1], 10); 
+                    if (!isNaN(num) && num > max) max = num; 
+                }
+            });
+            return hausId + "/" + pad(max + 1, 4);
+        }
 
         function createDummyData() {
-            if(!confirm("Musterdaten erzeugen?")) return;
+            if(!confirm("Musterdaten (Wohnpark Test) erzeugen?\nDies erstellt auch ein Muster-Mieterkonto.")) return;
             const oid = getNextObjektID();
-            dbObjekte.set(oid, { nummer: oid, name: "Wohnpark Test", plz: "12345", ort: "Musterstadt", flaeche: 150, mea: 1000, sollHaeuser: 1, steuerStatus: "opt" });
+            dbObjekte.set(oid, { nummer: oid, name: "Wohnpark Test", plz: "12345", ort: "Musterstadt", flaeche: 150, mea: 1000, sollHaeuser: 1 });
             const hid = getNextHausID(oid);
-            const matrix = {}; matrix['wohnung'] = { count: 2, area: 100, label: "Wohnung" }; matrix['gewerbe'] = { count: 1, area: 50, label: "Gewerbe" };
+            const matrix = {}; 
+            matrix['wohnung'] = { count: 2, area: 100, label: "Wohnung" };
+            matrix['gewerbe'] = { count: 1, area: 50, label: "Gewerbe" };
+            
             dbHaeuser.set(hid, { objektId: oid, bezeichnung: "Haus A", anteile: 1000, sollMatrix: matrix });
+            
             let eid = getNextEinheitID(hid);
-            const contractId = `${eid}/01`; 
-            dbEinheiten.set(eid, { hausId: hid, name: "EG Links", typ: "wohnung", flaeche: 50, zimmer: 2, mea: 333.33, ww_m3: 123.4, kw_m3: 456.7, konditionen: [{ id: 'k1', label: 'Kaltmiete', betrag: 500, konto: '8000', gueltigAb: '2023-01-01', gueltigBis: '' }, { id: 'k2', label: 'BK-Vorausz.', betrag: 100, konto: '8010', gueltigAb: '2023-01-01', gueltigBis: '' }], belegung: [{ mieterId: "dummy_mieter", einzug: "2023-01-01", auszug: "" }] });
-            // ... Finanzhistorie ...
-            saveLocal(); renderLists(); alert("Daten angelegt!");
+            // Wir simulieren Mieternummer 01 für diese Einheit
+            const mieterNr = "01";
+            const contractId = `${eid}/${mieterNr}`; 
+            
+            dbEinheiten.set(eid, { 
+                hausId: hid, name: "EG Links", typ: "wohnung", flaeche: 50, zimmer: 2, mea: 333.33, 
+                ww_m3: 123.4, kw_m3: 456.7,
+                konditionen: [
+                    { id: 'k1', label: 'Kaltmiete', betrag: 500, konto: '8000', gueltigAb: '2023-01-01', gueltigBis: '' },
+                    { id: 'k2', label: 'BK-Vorausz.', betrag: 100, konto: '8010', gueltigAb: '2023-01-01', gueltigBis: '' } 
+                ],
+                belegung: [{ mieterId: "dummy_mieter", einzug: "2023-01-01", auszug: "" }] 
+            });
+
+            // FINANZ HISTORIE
+            const now = new Date();
+            for (let i = 3; i >= 1; i--) {
+                const d = new Date(now.getFullYear(), now.getMonth() - i, 1); 
+                const monatStr = d.toISOString().slice(0, 7);
+                const buchDatum = d.toISOString().slice(0, 10);
+                const zahlDatum = new Date(d); zahlDatum.setDate(4);
+                
+                // Textformat: Kondition, Objekt/Haus/Einheit/MieterNr
+                
+                dbFinanzen.push({ 
+                    id: getNextFinanzId(), einheitId: eid, mieterId: "dummy_mieter", monatRef: monatStr, buchungsdatum: buchDatum, 
+                    typ: 'soll', kategorie: 'Kaltmiete', 
+                    text: `Kaltmiete, ${contractId}`, // KORREKTES FORMAT
+                    betrag: 500, konto: '8000', locked: true 
+                });
+                
+                 dbFinanzen.push({ 
+                    id: getNextFinanzId(), einheitId: eid, mieterId: "dummy_mieter", monatRef: monatStr, buchungsdatum: buchDatum, 
+                    typ: 'soll', kategorie: 'BK-Vorausz.', 
+                    text: `BK-Vorausz., ${contractId}`, // KORREKTES FORMAT
+                    betrag: 100, konto: '8010', locked: true 
+                });
+                
+                dbFinanzen.push({ 
+                    id: getNextFinanzId(), einheitId: eid, mieterId: "dummy_mieter", monatRef: monatStr, buchungsdatum: zahlDatum.toISOString().slice(0, 10), 
+                    typ: 'haben', kategorie: 'Zahlung', text: `Mieteigang ${monatStr}, ${contractId}`, betrag: 600, konto: '1200' 
+                });
+            }
+
+            eid = getNextEinheitID(hid);
+            dbEinheiten.set(eid, { hausId: hid, name: "EG Rechts", typ: "wohnung", flaeche: 50, zimmer: 2, mea: 333.33, belegung: [] });
+            eid = getNextEinheitID(hid);
+            dbEinheiten.set(eid, { hausId: hid, name: "Büro OG", typ: "gewerbe", flaeche: 50, zimmer: 3, mea: 333.34, belegung: [] });
+
+            saveLocal(); renderLists(); alert("Wohnpark Test + Finanzhistorie angelegt!");
         }
 
-        // --- LOAD / SAVE ---
-        function triggerAutoSave() { if(!accessToken) return; zeigeStatus("⏳ Speichern...", "info"); clearTimeout(autoSaveTimer); autoSaveTimer = setTimeout(() => saveToOneDrive(false), 2000); }
-        async function loadFromOneDrive() {
-            if (!(await getValidToken(true))) return;
-            zeigeStatus("Lade Daten...", "saving");
-            try { const resC = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/ideenapp/stammdaten.json:/content", { headers: { "Authorization": `Bearer ${accessToken}` } }); if (resC.ok) { const d = await resC.json(); if(d.kontakte) dbKontakte = new Map(d.kontakte); } } catch(e) {}
-            try { const resF = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/ideenapp/finanzen.json:/content", { headers: { "Authorization": `Bearer ${accessToken}` } }); if (resF.ok) { const d = await resF.json(); if(d.finanzen) dbFinanzen = d.finanzen; if(d.taxKeys) taxKeys = d.taxKeys; initTaxSelect(); renderTaxTable(); } } catch(e) {}
-            try { const resI = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/ideenapp/immobilien.json:/content", { headers: { "Authorization": `Bearer ${accessToken}` } }); if (resI.ok) { const d = await resI.json(); if(d.objekte) dbObjekte = new Map(d.objekte); if(d.haeuser) dbHaeuser = new Map(d.haeuser); if(d.einheiten) dbEinheiten = new Map(d.einheiten); saveLocal(); renderLists(); zeigeStatus("Daten geladen", "success"); } } catch(e) { zeigeStatus("Fehler: " + e.message, "error"); }
+        // --- LOAD / SAVE (CLOUD & LOCAL) ---
+        
+        function triggerAutoSave() {
+            if(!accessToken) return;
+            zeigeStatus("⏳ Speichern...", "info");
+            clearTimeout(autoSaveTimer);
+            autoSaveTimer = setTimeout(() => saveToOneDrive(false), 2000);
         }
+
+        async function loadFromOneDrive() {
+            if (!(await getValidToken(true))) {
+                // Falls nicht eingeloggt, hier abbrechen (lokale Daten bleiben erhalten)
+                return;
+            }
+            zeigeStatus("Lade Daten...", "saving");
+            
+            // Stammdaten/Kontakte
+            try { const resC = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/ideenapp/stammdaten.json:/content", { headers: { "Authorization": `Bearer ${accessToken}` } }); if (resC.ok) { const d = await resC.json(); if(d.kontakte) dbKontakte = new Map(d.kontakte); } } catch(e) {}
+            // Finanzen
+            try { const resF = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/ideenapp/finanzen.json:/content", { headers: { "Authorization": `Bearer ${accessToken}` } }); if (resF.ok) { const d = await resF.json(); if(d.finanzen) dbFinanzen = d.finanzen; } } catch(e) {}
+            // Immobilien
+            try { 
+                const resI = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/ideenapp/immobilien.json:/content", { headers: { "Authorization": `Bearer ${accessToken}` } }); 
+                if (resI.ok) { 
+                    const d = await resI.json(); 
+                    if(d.objekte) dbObjekte = new Map(d.objekte); 
+                    if(d.haeuser) dbHaeuser = new Map(d.haeuser); 
+                    if(d.einheiten) dbEinheiten = new Map(d.einheiten); 
+                    saveLocal(); renderLists(); zeigeStatus("Daten geladen", "success"); 
+                } 
+            } catch(e) { zeigeStatus("Fehler: " + e.message, "error"); }
+        }
+
         async function saveToOneDrive(isManual = true) {
-            if (!(await getValidToken(isManual))) { if(isManual) alert("Session abgelaufen."); return; }
+            if (!(await getValidToken(isManual))) { 
+                if(isManual) alert("Sitzung abgelaufen. Bitte neu anmelden."); 
+                return; 
+            }
             zeigeStatus("☁️ Speichere...", "saving");
+            
             const dataImmo = { objekte: Array.from(dbObjekte.entries()), haeuser: Array.from(dbHaeuser.entries()), einheiten: Array.from(dbEinheiten.entries()), meta: { updated: new Date().toISOString() } };
             const p1 = fetch("https://graph.microsoft.com/v1.0/me/drive/root:/ideenapp/immobilien.json:/content", { method: "PUT", headers: { "Authorization": `Bearer ${accessToken}`, "Content-Type": "application/json" }, body: JSON.stringify(dataImmo, null, 2) });
-            const dataFin = { finanzen: dbFinanzen, taxKeys: taxKeys, meta: { updated: new Date().toISOString() } };
+            
+            const dataFin = { finanzen: dbFinanzen, meta: { updated: new Date().toISOString() } };
             const p2 = fetch("https://graph.microsoft.com/v1.0/me/drive/root:/ideenapp/finanzen.json:/content", { method: "PUT", headers: { "Authorization": `Bearer ${accessToken}`, "Content-Type": "application/json" }, body: JSON.stringify(dataFin, null, 2) });
-            try { await Promise.all([p1, p2]); zeigeStatus("✓ Gespeichert", "success"); } catch(e) { zeigeStatus("Fehler: " + e.message, "error"); }
+
+            try { 
+                await Promise.all([p1, p2]);
+                zeigeStatus("✓ Gespeichert", "success"); 
+            } catch(e) { zeigeStatus("Fehler: " + e.message, "error"); }
         }
+        
         function loadLocal() { 
             try { 
                 const o=localStorage.getItem("immo_objekte"); if(o) dbObjekte=new Map(JSON.parse(o)); 
                 const h=localStorage.getItem("immo_haeuser"); if(h) dbHaeuser=new Map(JSON.parse(h)); 
                 const e=localStorage.getItem("immo_einheiten"); if(e) dbEinheiten=new Map(JSON.parse(e)); 
-                const f=localStorage.getItem("immo_finanzen"); if(f) { const parsed=JSON.parse(f); dbFinanzen=parsed.finanzen || parsed; if(parsed.taxKeys) taxKeys = parsed.taxKeys; }
+                const f=localStorage.getItem("immo_finanzen"); if(f) dbFinanzen=JSON.parse(f);
+                // Kontakte laden (falls vorhanden)
                 const k=localStorage.getItem("kontakte_personen"); if(k) dbKontakte=new Map(JSON.parse(k));
             } catch(err){} 
         }
@@ -861,98 +906,137 @@
             localStorage.setItem("immo_objekte", JSON.stringify(Array.from(dbObjekte.entries()))); 
             localStorage.setItem("immo_haeuser", JSON.stringify(Array.from(dbHaeuser.entries()))); 
             localStorage.setItem("immo_einheiten", JSON.stringify(Array.from(dbEinheiten.entries()))); 
-            localStorage.setItem("immo_finanzen", JSON.stringify({finanzen: dbFinanzen, taxKeys: taxKeys}));
-        }
-        // ... (speichere/ladeDateiLokal analog) ...
-        async function speichereDateiLokal() {
-            const data = { objekte: Array.from(dbObjekte.entries()), haeuser: Array.from(dbHaeuser.entries()), einheiten: Array.from(dbEinheiten.entries()), finanzen: dbFinanzen, taxKeys: taxKeys };
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-            if (window.showSaveFilePicker) { try { const handle = await window.showSaveFilePicker({ suggestedName: "objekte_backup.json", types: [{ accept: { "application/json": [".json"] } }] }); const writable = await handle.createWritable(); await writable.write(blob); await writable.close(); zeigeStatus("Lokal gesichert", "success"); } catch(e) {} } else { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "objekte_backup.json"; a.click(); }
-        }
-        async function ladeDateiLokal() {
-            try { let text; if (window.showOpenFilePicker) { const [handle] = await window.showOpenFilePicker({ types: [{ accept: { "application/json": [".json"] } }] }); const file = await handle.getFile(); text = await file.text(); } else { const inp = document.createElement("input"); inp.type="file"; inp.click(); await new Promise(r => inp.onchange = e => { if(e.target.files[0]) { const reader = new FileReader(); reader.onload=ev=>r(text=ev.target.result); reader.readAsText(e.target.files[0]); } }); } if(text) { const d = JSON.parse(text); if(d.objekte) dbObjekte = new Map(d.objekte); if(d.haeuser) dbHaeuser = new Map(d.haeuser); if(d.einheiten) dbEinheiten = new Map(d.einheiten); if(d.finanzen) dbFinanzen = d.finanzen; if(d.taxKeys) taxKeys = d.taxKeys; initTaxSelect(); renderTaxTable(); saveLocal(); renderLists(); triggerAutoSave(); alert("Backup geladen!"); } } catch(e) { alert("Fehler: "+e.message); }
+            localStorage.setItem("immo_finanzen", JSON.stringify(dbFinanzen));
         }
 
-        // --- MATRIX LOGIK (Unverändert, aber nötig) ---
-        function renderHausMatrix(haus) { const tbody = document.getElementById('hausSollMatrixBody'); tbody.innerHTML = ""; STANDARD_TYPES.forEach(t => addMatrixRowToUI(t.id, t.label, haus ? haus.sollMatrix : null, false)); if(haus && haus.sollMatrix) Object.keys(haus.sollMatrix).forEach(key => { if(!STANDARD_TYPES.some(st => st.id === key)) addMatrixRowToUI(key, haus.sollMatrix[key].label || "Unbenannt", haus.sollMatrix, true); }); }
-        function addMatrixRowToUI(id, label, matrixData, isCustom) { const tbody = document.getElementById('hausSollMatrixBody'); const tr = document.createElement('tr'); tr.dataset.typeId = id; const cnt = matrixData && matrixData[id] ? matrixData[id].count : ""; const area = matrixData && matrixData[id] ? matrixData[id].area : ""; let labelHtml = label; if(isCustom) { labelHtml = `<input type="text" class="custom-label-inp" value="${label.replace(/"/g, '&quot;')}" style="text-align:left; background:#fff; border:1px solid #ccc; padding:2px;">`; } tr.innerHTML = `<td>${labelHtml}</td><td><input type="number" step="1" class="soll-count matrix-inp" value="${cnt}" oninput="calcMatrixSum()"></td><td class="readonly-val ist-count">0</td><td class="diff-val diff-count">0</td><td><input type="number" step="0.01" class="soll-area matrix-inp" value="${area}" oninput="calcMatrixSum()"></td><td class="readonly-val ist-area">0</td><td class="diff-val diff-area">0.00</td><td>${isCustom ? '<button type="button" class="warn-btn" style="padding:2px 6px;" onclick="this.closest(\'tr\').remove(); calcMatrixSum();">X</button>' : ''}</td>`; tbody.appendChild(tr); }
+        async function speichereDateiLokal() {
+            const data = { objekte: Array.from(dbObjekte.entries()), haeuser: Array.from(dbHaeuser.entries()), einheiten: Array.from(dbEinheiten.entries()), finanzen: dbFinanzen };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+            if (window.showSaveFilePicker) {
+                try {
+                    const handle = await window.showSaveFilePicker({ suggestedName: "objekte_backup.json", types: [{ accept: { "application/json": [".json"] } }] });
+                    const writable = await handle.createWritable(); await writable.write(blob); await writable.close();
+                    zeigeStatus("Lokal gesichert", "success");
+                } catch(e) {}
+            } else { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "objekte_backup.json"; a.click(); }
+        }
+
+        async function ladeDateiLokal() {
+            try {
+                let text;
+                if (window.showOpenFilePicker) { const [handle] = await window.showOpenFilePicker({ types: [{ accept: { "application/json": [".json"] } }] }); const file = await handle.getFile(); text = await file.text(); } 
+                else { const inp = document.createElement("input"); inp.type="file"; inp.click(); await new Promise(r => inp.onchange = e => { if(e.target.files[0]) { const reader = new FileReader(); reader.onload=ev=>r(text=ev.target.result); reader.readAsText(e.target.files[0]); } }); }
+                if(text) {
+                    const d = JSON.parse(text);
+                    if(d.objekte) dbObjekte = new Map(d.objekte);
+                    if(d.haeuser) dbHaeuser = new Map(d.haeuser);
+                    if(d.einheiten) dbEinheiten = new Map(d.einheiten);
+                    if(d.finanzen) dbFinanzen = d.finanzen;
+                    saveLocal(); renderLists(); triggerAutoSave(); alert("Backup erfolgreich geladen!");
+                }
+            } catch(e) { alert("Fehler beim Laden: "+e.message); }
+        }
+
+        // --- MATRIX LOGIK & HELPER ---
+        function renderHausMatrix(haus) {
+            const tbody = document.getElementById('hausSollMatrixBody'); tbody.innerHTML = "";
+            STANDARD_TYPES.forEach(t => addMatrixRowToUI(t.id, t.label, haus ? haus.sollMatrix : null, false));
+            if(haus && haus.sollMatrix) Object.keys(haus.sollMatrix).forEach(key => { if(!STANDARD_TYPES.some(st => st.id === key)) addMatrixRowToUI(key, haus.sollMatrix[key].label || "Unbenannt", haus.sollMatrix, true); });
+        }
+        function addMatrixRowToUI(id, label, matrixData, isCustom) {
+            const tbody = document.getElementById('hausSollMatrixBody'); const tr = document.createElement('tr'); tr.dataset.typeId = id;
+            const cnt = matrixData && matrixData[id] ? matrixData[id].count : ""; const area = matrixData && matrixData[id] ? matrixData[id].area : "";
+            let labelHtml = label; if(isCustom) { labelHtml = `<input type="text" class="custom-label-inp" value="${label.replace(/"/g, '&quot;')}" style="text-align:left; background:#fff; border:1px solid #ccc; padding:2px;">`; }
+            tr.innerHTML = `<td>${labelHtml}</td><td><input type="number" step="1" class="soll-count matrix-inp" value="${cnt}" oninput="calcMatrixSum()"></td><td class="readonly-val ist-count">0</td><td class="diff-val diff-count">0</td><td><input type="number" step="0.01" class="soll-area matrix-inp" value="${area}" oninput="calcMatrixSum()"></td><td class="readonly-val ist-area">0</td><td class="diff-val diff-area">0.00</td><td>${isCustom ? '<button type="button" class="warn-btn" style="padding:2px 6px;" onclick="this.closest(\'tr\').remove(); calcMatrixSum();">X</button>' : ''}</td>`;
+            tbody.appendChild(tr);
+        }
         function addCustomTypeRow() { addMatrixRowToUI('custom_' + Date.now(), "Neuer Typ", null, true); }
-        function calcMatrixSum() { /* (Logik bleibt gleich, gekürzt) */ let sumCnt=0, sumArea=0, istTotalCnt=0, istTotalArea=0; const hid = document.getElementById('hausIdInput').value; const einheiten = hid ? Array.from(dbEinheiten.values()).filter(e => e.hausId === hid) : []; const sollMea = safeFloat(document.getElementById('hausAnteileInput').value); const istMea = einheiten.reduce((s,e) => s + safeFloat(e.mea), 0); const meaStat = document.getElementById('hausMeaStatus'); meaStat.innerText = `Ist: ${formatNum(istMea)} | Diff: ${formatNum(istMea - sollMea)}`; meaStat.style.color = (Math.abs(istMea - sollMea) <= 0.01) ? '#2e7d32' : '#c62828'; document.querySelectorAll('#hausSollMatrixBody tr').forEach(tr => { const typeId = tr.dataset.typeId; const sollC = safeFloat(tr.querySelector('.soll-count').value); const sollA = safeFloat(tr.querySelector('.soll-area').value); sumCnt += sollC; sumArea += sollA; const unitsOfType = einheiten.filter(e => e.typ === typeId); const istC = unitsOfType.length; const istA = unitsOfType.reduce((s,e)=>s+safeFloat(e.flaeche), 0); istTotalCnt += istC; istTotalArea += istA; tr.querySelector('.ist-count').innerText = istC; tr.querySelector('.ist-area').innerText = formatNum(istA); tr.querySelector('.diff-count').innerText = (istC - sollC); tr.querySelector('.diff-count').style.color = (istC - sollC === 0) ? '#2e7d32' : '#c62828'; tr.querySelector('.diff-area').innerText = formatNum(istA - sollA); tr.querySelector('.diff-area').style.color = (Math.abs(istA - sollA) < 0.1) ? '#2e7d32' : '#c62828'; }); document.getElementById('matrixSumCount').innerText = sumCnt; document.getElementById('matrixSumArea').innerText = formatNum(sumArea); document.getElementById('matrixIstCount').innerText = istTotalCnt; document.getElementById('matrixIstArea').innerText = formatNum(istTotalArea); }
-        
-        // --- MASKEN & LOGIK ---
+        function calcMatrixSum() {
+            let sumCnt=0, sumArea=0, istTotalCnt=0, istTotalArea=0; const hid = document.getElementById('hausIdInput').value; const einheiten = hid ? Array.from(dbEinheiten.values()).filter(e => e.hausId === hid) : [];
+            const sollMea = safeFloat(document.getElementById('hausAnteileInput').value); const istMea = einheiten.reduce((s,e) => s + safeFloat(e.mea), 0);
+            const meaStat = document.getElementById('hausMeaStatus'); meaStat.innerText = `Ist: ${formatNum(istMea)} | Diff: ${formatNum(istMea - sollMea)}`; meaStat.style.color = (Math.abs(istMea - sollMea) <= 0.01) ? '#2e7d32' : '#c62828';
+            document.querySelectorAll('#hausSollMatrixBody tr').forEach(tr => {
+                const typeId = tr.dataset.typeId; const sollC = safeFloat(tr.querySelector('.soll-count').value); const sollA = safeFloat(tr.querySelector('.soll-area').value);
+                sumCnt += sollC; sumArea += sollA;
+                const unitsOfType = einheiten.filter(e => e.typ === typeId); const istC = unitsOfType.length; const istA = unitsOfType.reduce((s,e)=>s+safeFloat(e.flaeche), 0);
+                istTotalCnt += istC; istTotalArea += istA;
+                tr.querySelector('.ist-count').innerText = istC; tr.querySelector('.ist-area').innerText = formatNum(istA);
+                tr.querySelector('.diff-count').innerText = (istC - sollC); tr.querySelector('.diff-count').style.color = (istC - sollC === 0) ? '#2e7d32' : '#c62828';
+                tr.querySelector('.diff-area').innerText = formatNum(istA - sollA); tr.querySelector('.diff-area').style.color = (Math.abs(istA - sollA) < 0.1) ? '#2e7d32' : '#c62828';
+            });
+            document.getElementById('matrixSumCount').innerText = sumCnt; document.getElementById('matrixSumArea').innerText = formatNum(sumArea);
+            document.getElementById('matrixIstCount').innerText = istTotalCnt; document.getElementById('matrixIstArea').innerText = formatNum(istTotalArea);
+        }
         function onHausSelectionChange(isFirstLoad = false) { updateHausIdPreview(); updateHausTypeOverview(isFirstLoad); updateUnitLiveStatus(); }
         function updateHausIdPreview() { const oid = document.getElementById('hausObjektSelect').value; if(oid && !document.getElementById('hausIdInput').value) document.getElementById('hausNummerDisplay').value = getNextHausID(oid); }
-        function updateHausTypeOverview(isFirstLoad) { /* ... (bleibt) ... */ }
+        function updateHausTypeOverview(isFirstLoad) {
+            const hid = document.getElementById('einheitHausSelect').value; const container = document.getElementById('hausTypeOverview'); const typeSelect = document.getElementById('einheitTypSelect'); const currentSelection = typeSelect.value;
+            container.innerHTML = ""; 
+            if(!hid) { container.innerHTML = '<span style="color:#666;">Kein Haus gewählt.</span>'; typeSelect.innerHTML = ""; STANDARD_TYPES.forEach(t => typeSelect.add(new Option(t.label, t.id))); return; }
+            typeSelect.innerHTML = ""; const h = dbHaeuser.get(hid); if(!h) return; const units = Array.from(dbEinheiten.values()).filter(u => u.hausId === hid); let availableTypes = [...STANDARD_TYPES];
+            if(h.sollMatrix) Object.keys(h.sollMatrix).forEach(k => { if(!availableTypes.some(t => t.id === k)) availableTypes.push({ id: k, label: h.sollMatrix[k].label || "Custom" }); });
+            availableTypes.forEach(t => typeSelect.add(new Option(t.label, t.id))); if(currentSelection && Array.from(typeSelect.options).some(o => o.value === currentSelection)) { typeSelect.value = currentSelection; }
+            let html = ''; let foundAny = false; let firstOpenType = null;
+            availableTypes.forEach(t => {
+                const sollCnt = safeFloat(h.sollMatrix?.[t.id]?.count); const istCnt = units.filter(u => u.typ === t.id).length;
+                if (sollCnt > 0 || istCnt > 0) {
+                    foundAny = true; let cssClass = ""; let text = `${t.label}: ${istCnt} / ${sollCnt}`;
+                    if (sollCnt > 0) { if (istCnt < sollCnt) { cssClass = "type-badge open"; if(!firstOpenType) firstOpenType = t.id; } else if (istCnt === sollCnt) { cssClass = "type-badge full"; } else { cssClass = "type-badge over"; } } else if (istCnt > 0) { cssClass = "type-badge over"; }
+                    html += `<div class="${cssClass}" onclick="document.getElementById('einheitTypSelect').value='${t.id}'; updateUnitLiveStatus();">${text}</div>`;
+                }
+            });
+            container.innerHTML = html || '<span style="color:#666; font-style:italic;">Keine Typen im Haus definiert.</span>';
+            if(!document.getElementById('einheitIdInput').value && firstOpenType && isFirstLoad) typeSelect.value = firstOpenType;
+            if(!document.getElementById('einheitIdInput').value) document.getElementById('einheitNummerDisplay').value = getNextEinheitID(hid);
+        }
         function updateUnitLiveStatus() { document.getElementById('einheitLiveStatus').style.display = "none"; }
         function updateObjektLiveStatus() { }
-        function switchTab(id) { document.querySelectorAll('.panel').forEach(p => p.classList.remove('active')); document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); const p = document.getElementById('panel' + id.charAt(0).toUpperCase() + id.slice(1)); if(p) p.classList.add('active'); const btns = document.querySelectorAll('.tab-btn'); if(id==='objekte'&&btns[0])btns[0].classList.add('active'); if(id==='haeuser'&&btns[1])btns[1].classList.add('active'); if(id==='einheiten'&&btns[2])btns[2].classList.add('active'); }
-        
+
+        // --- RENDER LISTS & FILTER ---
+        function switchTab(id) {
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active')); document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            const p = document.getElementById('panel' + id.charAt(0).toUpperCase() + id.slice(1)); if(p) p.classList.add('active');
+            const btns = document.querySelectorAll('.tab-btn');
+            if(id==='objekte'&&btns[0])btns[0].classList.add('active'); if(id==='haeuser'&&btns[1])btns[1].classList.add('active'); if(id==='einheiten'&&btns[2])btns[2].classList.add('active');
+        }
+
         function renderLists() {
-            // Dropdowns füllen
-            const oSel = document.getElementById('hausObjektSelect'); 
-            const eObjSel = document.getElementById('einheitObjektSelect'); 
-            if (oSel && eObjSel) { 
-                oSel.innerHTML = ""; 
-                eObjSel.innerHTML = "<option value=''>-- Objekt wählen --</option>"; 
-                dbObjekte.forEach((o, id) => { 
-                    oSel.add(new Option(`${o.name}`, id)); 
-                    eObjSel.add(new Option(`${o.name}`, id)); 
-                }); 
-            }
-            
-            let showObj = dbObjekte; 
-            let showHaus = dbHaeuser; 
-            let showEin = dbEinheiten; 
-            
-            if(activeFilterId) { 
-                showObj = new Map(); 
-                if(dbObjekte.has(activeFilterId)) showObj.set(activeFilterId, dbObjekte.get(activeFilterId)); 
-                showHaus = new Map(Array.from(dbHaeuser.entries()).filter(([id, h]) => h.objektId === activeFilterId)); 
-                const hausIds = Array.from(showHaus.keys()); 
-                showEin = new Map(Array.from(dbEinheiten.entries()).filter(([id, e]) => hausIds.includes(e.hausId))); 
+            const oSel = document.getElementById('hausObjektSelect'); const eObjSel = document.getElementById('einheitObjektSelect');
+            if (oSel && eObjSel) { oSel.innerHTML = ""; eObjSel.innerHTML = "<option value=''>-- Objekt wählen --</option>"; dbObjekte.forEach((o, id) => { oSel.add(new Option(`${o.name}`, id)); eObjSel.add(new Option(`${o.name}`, id)); }); }
+            let showObj = dbObjekte; let showHaus = dbHaeuser; let showEin = dbEinheiten;
+            if(activeFilterId) {
+                showObj = new Map(); if(dbObjekte.has(activeFilterId)) showObj.set(activeFilterId, dbObjekte.get(activeFilterId));
+                showHaus = new Map(Array.from(dbHaeuser.entries()).filter(([id, h]) => h.objektId === activeFilterId));
+                const hausIds = Array.from(showHaus.keys());
+                showEin = new Map(Array.from(dbEinheiten.entries()).filter(([id, e]) => hausIds.includes(e.hausId)));
             }
 
-            // Objekte rendern
-            const oDiv = document.getElementById('objekteListe'); 
-            oDiv.innerHTML = ""; 
+            const oDiv = document.getElementById('objekteListe'); oDiv.innerHTML = "";
             showObj.forEach((o, id) => { 
                 const haeuserArr = Array.from(dbHaeuser.entries()).filter(([hid, h]) => h.objektId === id);
-                let sumHausFlaecheSoll = 0; 
-                let sumHausMea = haeuserArr.reduce((s,[hid,h]) => s + safeFloat(h.anteile), 0);
-                let realTotalArea = 0; 
-                let objTypeStats = {}; 
-                let hausListHtml = '<div class="detail-header">Häuser-Übersicht:</div>';
-                
+                let sumHausFlaecheSoll = 0; let sumHausMea = haeuserArr.reduce((s,[hid,h]) => s + safeFloat(h.anteile), 0);
+                let realTotalArea = 0; let objTypeStats = {}; let hausListHtml = '<div class="detail-header">Häuser-Übersicht:</div>';
                 haeuserArr.forEach(([hid, h]) => { 
-                    if(h.sollMatrix) Object.values(h.sollMatrix).forEach(v => sumHausFlaecheSoll += safeFloat(v.area)); 
-                    else sumHausFlaecheSoll += (safeFloat(h.wohnflaeche)+safeFloat(h.gewerbeflaeche)); 
-                    const hEinheiten = Array.from(dbEinheiten.values()).filter(e => e.hausId === hid); 
-                    const hArea = hEinheiten.reduce((s,e) => s + safeFloat(e.flaeche), 0); 
-                    realTotalArea += hArea; 
-                    hausListHtml += `<div class="detail-row"><span>${h.bezeichnung}</span><span>${formatNum(hArea)} m²</span></div>`; 
-                    hEinheiten.forEach(e => { const t = e.typ || 'sonstige'; if(!objTypeStats[t]) objTypeStats[t] = { count: 0, area: 0 }; objTypeStats[t].count++; objTypeStats[t].area += safeFloat(e.flaeche); }); 
+                    if(h.sollMatrix) Object.values(h.sollMatrix).forEach(v => sumHausFlaecheSoll += safeFloat(v.area)); else sumHausFlaecheSoll += (safeFloat(h.wohnflaeche)+safeFloat(h.gewerbeflaeche)); 
+                    const hEinheiten = Array.from(dbEinheiten.values()).filter(e => e.hausId === hid);
+                    const hArea = hEinheiten.reduce((s,e) => s + safeFloat(e.flaeche), 0);
+                    realTotalArea += hArea;
+                    hausListHtml += `<div class="detail-row"><span>${h.bezeichnung}</span><span>${formatNum(hArea)} m²</span></div>`;
+                    hEinheiten.forEach(e => { const t = e.typ || 'sonstige'; if(!objTypeStats[t]) objTypeStats[t] = { count: 0, area: 0 }; objTypeStats[t].count++; objTypeStats[t].area += safeFloat(e.flaeche); });
                 });
-                
-                let typeListHtml = '<div class="detail-header">Typen-Verteilung (Gesamt):</div>'; 
+                let typeListHtml = '<div class="detail-header">Typen-Verteilung (Gesamt):</div>';
                 Object.keys(objTypeStats).forEach(tid => { const s = objTypeStats[tid]; typeListHtml += `<div class="detail-row"><span>${getTypeLabel(tid)} (${s.count})</span><span>${formatNum(s.area)} m²</span></div>`; });
-                
-                let valHtml = validateVal(o.sollHaeuser || 0, haeuserArr.length, "Häuser", 0); 
-                valHtml += validateVal(o.flaeche || 0, sumHausFlaecheSoll, "m² (Plan)"); 
-                valHtml += `<div class="validation-row" style="margin-top:5px; border-top:1px solid #ccc; font-weight:bold;"><span>Ist-Fläche (Einheiten):</span><span>${formatNum(realTotalArea)} m²</span></div>`; 
+                let valHtml = validateVal(o.sollHaeuser || 0, haeuserArr.length, "Häuser", 0);
+                valHtml += validateVal(o.flaeche || 0, sumHausFlaecheSoll, "m² (Plan)");
+                valHtml += `<div class="validation-row" style="margin-top:5px; border-top:1px solid #ccc; font-weight:bold;"><span>Ist-Fläche (Einheiten):</span><span>${formatNum(realTotalArea)} m²</span></div>`;
                 valHtml += validateVal(o.mea || 1000, sumHausMea, "MEA");
-                
-                // Steuer Badge Objekt
-                const tSt = TAX_STATUS_MAP[o.steuerStatus || 'opt'];
-                const tBadge = `<span class="tax-badge ${tSt.class}">${tSt.label}</span>`;
-
                 const filterBtn = (activeFilterId === id) ? `<button class="filter-btn active" onclick="toggleFilter(null)">Filter lösen</button>` : `<button class="filter-btn" onclick="toggleFilter('${id}')">🎯 Fokus</button>`;
-                
                 oDiv.innerHTML += `
                 <div class="liste-item">
                     <input type="checkbox" class="item-checkbox" value="${id}">
                     <div class="liste-content">
                         <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <h4>${o.name} <small>[${o.nummer}]</small> ${tBadge}</h4>
+                            <h4>${o.name} <small>[${o.nummer}]</small></h4>
                             <div>${filterBtn} <button onclick="openObjektMask('${id}')">Bearbeiten</button></div>
                         </div>
                         <div class="sub-info">${o.plz} ${o.ort}</div>
@@ -962,40 +1046,26 @@
                 </div>`; 
             });
 
-            // Häuser rendern
-            const hDiv = document.getElementById('haeuserListe'); 
-            hDiv.innerHTML = ""; 
+            const hDiv = document.getElementById('haeuserListe'); hDiv.innerHTML = "";
             showHaus.forEach((h, id) => { 
-                const o = dbObjekte.get(h.objektId); 
-                const einheiten = Array.from(dbEinheiten.values()).filter(e => e.hausId === id); 
-                let hausTypeStats = {}; 
-                let hausRealArea = 0; 
+                const o = dbObjekte.get(h.objektId);
+                const einheiten = Array.from(dbEinheiten.values()).filter(e => e.hausId === id);
+                let hausTypeStats = {}; let hausRealArea = 0;
                 einheiten.forEach(e => { const t = e.typ || 'sonstige'; if(!hausTypeStats[t]) hausTypeStats[t] = { count: 0, area: 0 }; hausTypeStats[t].count++; const fl = safeFloat(e.flaeche); hausTypeStats[t].area += fl; hausRealArea += fl; });
-                
-                let typeListHtml = '<div class="detail-header">Typen im Haus:</div>'; 
-                if(Object.keys(hausTypeStats).length === 0) typeListHtml += '<div style="font-style:italic; color:#777;">Keine Einheiten.</div>'; 
+                let typeListHtml = '<div class="detail-header">Typen im Haus:</div>';
+                if(Object.keys(hausTypeStats).length === 0) typeListHtml += '<div style="font-style:italic; color:#777;">Keine Einheiten.</div>';
                 Object.keys(hausTypeStats).forEach(tid => { const s = hausTypeStats[tid]; typeListHtml += `<div class="detail-row"><span>${getTypeLabel(tid)} (${s.count})</span><span>${formatNum(s.area)} m²</span></div>`; });
-                
-                let valHtml = ""; let hasError = false; 
-                if(h.sollMatrix) { Object.keys(h.sollMatrix).forEach(tid => { const tLabel = h.sollMatrix[tid].label; const sollCnt = safeFloat(h.sollMatrix[tid].count); const sollArea = safeFloat(h.sollMatrix[tid].area); if(sollCnt>0 || sollArea>0) { const act = einheiten.filter(e => e.typ === tid); const istCnt = act.length; const istArea = act.reduce((s,e)=>s+safeFloat(e.flaeche),0); if(istCnt!=sollCnt) { hasError=true; valHtml += `<div class="validation-row"><span class="stat-err">⚠️ ${tLabel} Anz: ${istCnt}/${sollCnt}</span></div>`; } if(Math.abs(istArea-sollArea)>0.1) { hasError=true; valHtml += `<div class="validation-row"><span class="stat-err">⚠️ ${tLabel} Fl.: ${formatNum(istArea)}/${formatNum(sollArea)} m²</span></div>`; } } }); } 
-                const sumMea = einheiten.reduce((s,e)=>s+safeFloat(e.mea),0); 
-                valHtml += validateVal(h.anteile||0, sumMea, "MEA"); 
+                let valHtml = ""; let hasError = false;
+                if(h.sollMatrix) { Object.keys(h.sollMatrix).forEach(tid => { const tLabel = h.sollMatrix[tid].label; const sollCnt = safeFloat(h.sollMatrix[tid].count); const sollArea = safeFloat(h.sollMatrix[tid].area); if(sollCnt>0 || sollArea>0) { const act = einheiten.filter(e => e.typ === tid); const istCnt = act.length; const istArea = act.reduce((s,e)=>s+safeFloat(e.flaeche),0); if(istCnt!=sollCnt) { hasError=true; valHtml += `<div class="validation-row"><span class="stat-err">⚠️ ${tLabel} Anz: ${istCnt}/${sollCnt}</span></div>`; } if(Math.abs(istArea-sollArea)>0.1) { hasError=true; valHtml += `<div class="validation-row"><span class="stat-err">⚠️ ${tLabel} Fl.: ${formatNum(istArea)}/${formatNum(sollArea)} m²</span></div>`; } } }); }
+                const sumMea = einheiten.reduce((s,e)=>s+safeFloat(e.mea),0);
+                valHtml += validateVal(h.anteile||0, sumMea, "MEA");
                 if(!hasError && valHtml.indexOf('⚠️')===-1) valHtml = '<div class="stat-ok">✅ Alle Vorgaben erfüllt.</div>' + valHtml;
-                
-                // Steuer Badge Haus
-                let hStKey = 'opt';
-                if(o && o.steuerStatus === 'mixed') hStKey = h.steuerStatus || 'opt';
-                else if(o) hStKey = (o.steuerStatus === 'none') ? 'none' : 'opt';
-                
-                const tSt = TAX_STATUS_MAP[hStKey];
-                const tBadge = `<span class="tax-badge ${tSt.class}">${tSt.label}</span>`;
-
                 hDiv.innerHTML += `
                 <div class="liste-item">
                     <input type="checkbox" class="item-checkbox" value="${id}">
                     <div class="liste-content">
                         <div style="display:flex; justify-content:space-between;">
-                            <h4>${h.bezeichnung} <span style="font-size:0.7em; font-weight:normal; color:#555;">(Objekt ${o ? o.nummer : "?"})</span> ${tBadge}</h4>
+                            <h4>${h.bezeichnung} <span style="font-size:0.7em; font-weight:normal; color:#555;">(Objekt ${o ? o.nummer : "?"})</span></h4>
                             <button onclick="openHausMask('${id}')">Bearbeiten</button>
                         </div>
                         <div class="objekt-stats">${valHtml}</div>
@@ -1007,46 +1077,51 @@
                 </div>`; 
             });
 
-            // Einheiten rendern
-            const eDiv = document.getElementById('einheitenListe'); 
-            eDiv.innerHTML = ""; 
+            const eDiv = document.getElementById('einheitenListe'); eDiv.innerHTML = "";
             const listE = Array.from(showEin.entries()).map(([id, e]) => { const h = dbHaeuser.get(e.hausId); const o = h ? dbObjekte.get(h.objektId) : null; return { id, ...e, hName: h?h.bezeichnung:'?', oName: o?o.name:'?' }; }).sort((a,b) => a.oName.localeCompare(b.oName) || a.hName.localeCompare(b.hName));
+            const today = new Date().toISOString().split('T')[0];
             
             listE.forEach(e => {
                 let stHtml = '<span class="status-leerstand">⚠️ LEERSTAND</span>';
                 if(e.belegung && e.belegung.length>0) {
-                    const act = e.belegung.find(b => (b.einzug||'0000')<=new Date().toISOString().split('T')[0] && (b.auszug||'9999')>=new Date().toISOString().split('T')[0]);
-                    const fut = e.belegung.find(b => (b.einzug||'0000')>new Date().toISOString().split('T')[0]);
+                    const act = e.belegung.find(b => (b.einzug||'0000')<=today && (b.auszug||'9999')>=today);
+                    const fut = e.belegung.find(b => (b.einzug||'0000')>today);
                     const sortedBel = [...e.belegung].sort((a,b) => (a.einzug||'').localeCompare(b.einzug||''));
                     
                     if(act) { 
                         const m = dbKontakte.get(act.mieterId); 
                         const seqIndex = sortedBel.indexOf(act) + 1; 
                         const contractId = e.id + "/" + pad(seqIndex, 2);
+                        
                         stHtml = `<div style="margin-bottom:3px;"><span class="status-vermietet">✅ ${m?m.fn:'?'}</span> <small style="color:#666; font-family:monospace;">(Vertrag: ${contractId})</small></div>`;
-                        if(m) { let contactInfo = ""; if(m.telefon && m.telefon.length > 0) contactInfo += `<div>📞 ${m.telefon.map(t=>t.number).join(', ')}</div>`; if(m.email && m.email.length > 0) contactInfo += `<div>✉️ ${m.email.map(em=>em.address).join(', ')}</div>`; if(contactInfo) stHtml += `<div style="font-size:0.8em; color:#555; margin-top:2px; border-top:1px dotted #ccc; padding-top:2px;">${contactInfo}</div>`; }
+                        
+                        if(m) {
+                            let contactInfo = "";
+                            if(m.telefon && m.telefon.length > 0) {
+                                const tels = m.telefon.map(t => t.number).join(', ');
+                                contactInfo += `<div>📞 ${tels}</div>`;
+                            }
+                            if(m.email && m.email.length > 0) {
+                                const mails = m.email.map(em => em.address).join(', ');
+                                contactInfo += `<div>✉️ ${mails}</div>`;
+                            }
+                            if(contactInfo) {
+                                stHtml += `<div style="font-size:0.8em; color:#555; margin-top:2px; border-top:1px dotted #ccc; padding-top:2px;">${contactInfo}</div>`;
+                            }
+                        }
+                        
                         stHtml += `<span style="font-size:0.85em; color:#555;">Seit: ${formatDate(act.einzug)}</span>`;
                     }
                     else if(fut) { const m=dbKontakte.get(fut.mieterId); stHtml = `<span class="status-zukunft">➡️ Ab ${formatDate(fut.einzug)}: ${m?m.fn:'?'}</span>`; }
                 }
                 
-                // Steuer Badge Einheit (Implizit durch Haus)
-                let hStKey = 'opt';
-                const h = dbHaeuser.get(e.hausId);
-                const o = h ? dbObjekte.get(h.objektId) : null;
-                if(o && o.steuerStatus === 'mixed') hStKey = h.steuerStatus || 'opt';
-                else if(o) hStKey = (o.steuerStatus === 'none') ? 'none' : 'opt';
-                const tSt = TAX_STATUS_MAP[hStKey];
-                const tBadge = `<span class="tax-badge ${tSt.class}">${tSt.label}</span>`;
-
                 const kontoBtn = `<button class="account-btn" onclick="openKontoModal('${e.id}')">💶 Konto</button>`;
-                
                 eDiv.innerHTML += `
                 <div class="liste-item">
                     <input type="checkbox" class="item-checkbox" value="${e.id}">
                     <div class="liste-content">
                         <div style="display:flex; justify-content:space-between;">
-                            <h4>${e.name} <small style="font-family:monospace; color:#000;">[ID: ${e.id}]</small> <small>(${e.hName})</small> ${tBadge}</h4>
+                            <h4>${e.name} <small style="font-family:monospace; color:#000;">[ID: ${e.id}]</small> <small>(${e.hName})</small></h4>
                             <div>${kontoBtn} <button onclick="openEinheitMask('${e.id}')">Bearbeiten</button></div>
                         </div>
                         <div class="sub-info"><span style="display:inline-block; padding:2px 6px; background:#e3f2fd; color:#0d47a1; border-radius:4px; font-size:0.9em; margin-right:5px;">${getTypeLabel(e.typ)}</span><b>${formatNum(safeFloat(e.flaeche))} m²</b></div>
@@ -1057,236 +1132,340 @@
         }
 
         // --- CRUD MASKEN ---
-        function openObjektMask(id){ const o=id?dbObjekte.get(id):{}; document.getElementById('objektIdInput').value=id||""; document.getElementById('objektNummerInput').value=id || getNextObjektID(); document.getElementById('objektNameInput').value=o.name||""; document.getElementById('objektPlzInput').value=o.plz||""; document.getElementById('objektOrtInput').value=o.ort||""; document.getElementById('objektFlaecheInput').value=o.flaeche||""; document.getElementById('objektMeaInput').value=o.mea||"1000"; document.getElementById('objektSollHaeuser').value=o.sollHaeuser||"1"; document.getElementById('objektSteuerStatus').value = o.steuerStatus || 'opt'; updateObjektLiveStatus(); document.getElementById('objektModal').classList.add('active'); }
-        function saveObjekt(){ let id=document.getElementById('objektNummerInput').value; if(!id) id=getNextObjektID(); dbObjekte.set(String(id), { nummer: id, name: document.getElementById('objektNameInput').value, plz: document.getElementById('objektPlzInput').value, ort: document.getElementById('objektOrtInput').value, flaeche: safeFloat(document.getElementById('objektFlaecheInput').value), mea: safeFloat(document.getElementById('objektMeaInput').value), sollHaeuser: safeFloat(document.getElementById('objektSollHaeuser').value), steuerStatus: document.getElementById('objektSteuerStatus').value }); document.getElementById('objektModal').classList.remove('active'); activeFilterId=null; toggleFilter(null); saveLocal(); renderLists(); triggerAutoSave(); }
-        function deleteObjekt() { /* (wie zuvor) */ const oid = document.getElementById('objektIdInput').value; if (!oid) return; const associatedHouses = Array.from(dbHaeuser.values()).filter(h => h.objektId === oid); const associatedHouseIds = Array.from(dbHaeuser.entries()).filter(([hid, h]) => h.objektId === oid).map(([hid, h]) => hid); const associatedUnits = Array.from(dbEinheiten.values()).filter(e => associatedHouseIds.includes(e.hausId)); const msg = `ACHTUNG: Objekt ${oid} löschen?\n${associatedHouses.length} Häuser\n${associatedUnits.length} Einheiten`; if (confirm(msg)) { const unitIdsToDelete = []; dbEinheiten.forEach((u, uid) => { if (associatedHouseIds.includes(u.hausId)) { unitIdsToDelete.push(uid); } }); unitIdsToDelete.forEach(uid => dbEinheiten.delete(uid)); associatedHouseIds.forEach(hid => dbHaeuser.delete(hid)); dbObjekte.delete(oid); document.getElementById('objektModal').classList.remove('active'); if(activeFilterId === oid) { activeFilterId = null; toggleFilter(null); } saveLocal(); renderLists(); triggerAutoSave(); } }
+        function openObjektMask(id){ const o=id?dbObjekte.get(id):{}; document.getElementById('objektIdInput').value=id||""; document.getElementById('objektNummerInput').value=id || getNextObjektID(); document.getElementById('objektNameInput').value=o.name||""; document.getElementById('objektPlzInput').value=o.plz||""; document.getElementById('objektOrtInput').value=o.ort||""; document.getElementById('objektFlaecheInput').value=o.flaeche||""; document.getElementById('objektMeaInput').value=o.mea||"1000"; document.getElementById('objektSollHaeuser').value=o.sollHaeuser||"1"; updateObjektLiveStatus(); document.getElementById('objektModal').classList.add('active'); }
+        function saveObjekt(){ let id=document.getElementById('objektNummerInput').value; if(!id) id=getNextObjektID(); dbObjekte.set(String(id), { nummer: id, name: document.getElementById('objektNameInput').value, plz: document.getElementById('objektPlzInput').value, ort: document.getElementById('objektOrtInput').value, flaeche: safeFloat(document.getElementById('objektFlaecheInput').value), mea: safeFloat(document.getElementById('objektMeaInput').value), sollHaeuser: safeFloat(document.getElementById('objektSollHaeuser').value) }); document.getElementById('objektModal').classList.remove('active'); activeFilterId=null; toggleFilter(null); saveLocal(); renderLists(); triggerAutoSave(); }
+        function deleteObjekt() { const oid = document.getElementById('objektIdInput').value; if (!oid) return; const associatedHouses = Array.from(dbHaeuser.values()).filter(h => h.objektId === oid); const associatedHouseIds = Array.from(dbHaeuser.entries()).filter(([hid, h]) => h.objektId === oid).map(([hid, h]) => hid); const associatedUnits = Array.from(dbEinheiten.values()).filter(e => associatedHouseIds.includes(e.hausId)); const msg = `ACHTUNG: Möchten Sie das Objekt ${oid} wirklich löschen?\n\nDies löscht automatisch:\n- ${associatedHouses.length} zugehörige Häuser\n- ${associatedUnits.length} zugehörige Einheiten\n\nDieser Vorgang kann nicht rückgängig gemacht werden!`; if (confirm(msg)) { const unitIdsToDelete = []; dbEinheiten.forEach((u, uid) => { if (associatedHouseIds.includes(u.hausId)) { unitIdsToDelete.push(uid); } }); unitIdsToDelete.forEach(uid => dbEinheiten.delete(uid)); associatedHouseIds.forEach(hid => dbHaeuser.delete(hid)); dbObjekte.delete(oid); document.getElementById('objektModal').classList.remove('active'); if(activeFilterId === oid) { activeFilterId = null; toggleFilter(null); } saveLocal(); renderLists(); triggerAutoSave(); } }
         
         function openHausMask(id){ 
-            document.getElementById('hausIdInput').value=id||""; const sel=document.getElementById('hausObjektSelect'); sel.innerHTML=""; if(activeFilterId) { const o=dbObjekte.get(activeFilterId); if(o) sel.add(new Option(o.name,activeFilterId)); } else { dbObjekte.forEach((o,oid)=>sel.add(new Option(o.name,oid))); } const h=id?dbHaeuser.get(id):{}; if(h.objektId) sel.value=h.objektId; if(!id && sel.value) document.getElementById('hausNummerDisplay').value = getNextHausID(sel.value); else document.getElementById('hausNummerDisplay').value = id; document.getElementById('hausBezeichnungInput').value=h.bezeichnung||""; document.getElementById('hausAnteileInput').value=h.anteile||""; renderHausMatrix(h); calcMatrixSum(); 
-            // Steuer-Logik Haus
-            const obj = dbObjekte.get(sel.value);
-            const box = document.getElementById('hausSteuerBox');
-            if(obj && obj.steuerStatus === 'mixed') {
-                box.style.display = 'block';
-                document.getElementById('hausSteuerStatus').value = h.steuerStatus || 'opt';
-            } else {
-                box.style.display = 'none';
-            }
+            document.getElementById('hausIdInput').value=id||""; 
+            const sel=document.getElementById('hausObjektSelect'); 
+            sel.innerHTML=""; 
+            if(activeFilterId) { 
+                const o=dbObjekte.get(activeFilterId); 
+                if(o) sel.add(new Option(o.name,activeFilterId)); 
+            } else { 
+                dbObjekte.forEach((o,oid)=>sel.add(new Option(o.name,oid))); 
+            } 
+            const h=id?dbHaeuser.get(id):{}; 
+            if(h.objektId) sel.value=h.objektId; 
+            if(!id && sel.value) document.getElementById('hausNummerDisplay').value = getNextHausID(sel.value); 
+            else document.getElementById('hausNummerDisplay').value = id; 
+            document.getElementById('hausBezeichnungInput').value=h.bezeichnung||""; 
+            document.getElementById('hausAnteileInput').value=h.anteile||""; 
+            renderHausMatrix(h); 
+            calcMatrixSum(); 
             document.getElementById('hausModal').classList.add('active'); 
         }
-        function saveHaus(){ let id=document.getElementById('hausNummerDisplay').value; if(!id) { const oid=document.getElementById('hausObjektSelect').value; id=getNextHausID(oid); } let mx={}; document.querySelectorAll('#hausSollMatrixBody tr').forEach(tr => { const tid = tr.dataset.typeId; const lblInput = tr.querySelector('.custom-label-inp'); const lbl = lblInput ? lblInput.value : tr.cells[0].innerText; const cnt = tr.querySelector('.soll-count').value; const area = tr.querySelector('.soll-area').value; if(cnt || area) { mx[tid] = { count: cnt, area: area, label: lbl }; } }); 
-            const stStat = document.getElementById('hausSteuerBox').style.display !== 'none' ? document.getElementById('hausSteuerStatus').value : null;
-            dbHaeuser.set(String(id), { objektId: document.getElementById('hausObjektSelect').value, bezeichnung: document.getElementById('hausBezeichnungInput').value, anteile: safeFloat(document.getElementById('hausAnteileInput').value), sollMatrix: mx, steuerStatus: stStat }); document.getElementById('hausModal').classList.remove('active'); saveLocal(); renderLists(); triggerAutoSave(); }
-        function deleteHaus() { /* (wie zuvor) */ const hid = document.getElementById('hausIdInput').value; if(!hid) return; const associatedUnits = Array.from(dbEinheiten.values()).filter(e => e.hausId === hid); const msg = `Haus löschen? ${associatedUnits.length} Einheiten!`; if(confirm(msg)) { const unitIdsToDelete = []; dbEinheiten.forEach((u, uid) => { if (u.hausId === hid) unitIdsToDelete.push(uid); }); unitIdsToDelete.forEach(uid => dbEinheiten.delete(uid)); dbHaeuser.delete(hid); document.getElementById('hausModal').classList.remove('active'); saveLocal(); renderLists(); triggerAutoSave(); } }
+
+        function saveHaus(){ let id=document.getElementById('hausNummerDisplay').value; if(!id) { const oid=document.getElementById('hausObjektSelect').value; id=getNextHausID(oid); } let mx={}; document.querySelectorAll('#hausSollMatrixBody tr').forEach(tr => { const tid = tr.dataset.typeId; const lblInput = tr.querySelector('.custom-label-inp'); const lbl = lblInput ? lblInput.value : tr.cells[0].innerText; const cnt = tr.querySelector('.soll-count').value; const area = tr.querySelector('.soll-area').value; if(cnt || area) { mx[tid] = { count: cnt, area: area, label: lbl }; } }); dbHaeuser.set(String(id), { objektId: document.getElementById('hausObjektSelect').value, bezeichnung: document.getElementById('hausBezeichnungInput').value, anteile: safeFloat(document.getElementById('hausAnteileInput').value), sollMatrix: mx }); document.getElementById('hausModal').classList.remove('active'); saveLocal(); renderLists(); triggerAutoSave(); }
+        function deleteHaus() { const hid = document.getElementById('hausIdInput').value; if(!hid) return; const associatedUnits = Array.from(dbEinheiten.values()).filter(e => e.hausId === hid); const msg = `Haus wirklich löschen?\n\nDies löscht automatisch ${associatedUnits.length} zugehörige Einheiten!`; if(confirm(msg)) { const unitIdsToDelete = []; dbEinheiten.forEach((u, uid) => { if (u.hausId === hid) unitIdsToDelete.push(uid); }); unitIdsToDelete.forEach(uid => dbEinheiten.delete(uid)); dbHaeuser.delete(hid); document.getElementById('hausModal').classList.remove('active'); saveLocal(); renderLists(); triggerAutoSave(); } }
+        function filterHaeuserDropdown(keepSelection=false){ const oid=document.getElementById('einheitObjektSelect').value; const h=document.getElementById('einheitHausSelect'); const oldVal = h.value; h.innerHTML=""; if(!oid)return; Array.from(dbHaeuser.entries()).filter(([hid,x])=>x.objektId===oid).forEach(([hid,x])=>h.add(new Option(x.bezeichnung,hid))); if(keepSelection && oldVal) { if(Array.from(h.options).some(o=>o.value===oldVal)) h.value = oldVal; } }
         
         function openEinheitMask(id){ 
-            updateKonditionDatalist(); // Ensure this function exists!
-            const e=id?dbEinheiten.get(id):{}; document.getElementById('einheitIdInput').value=id||""; const oSel=document.getElementById('einheitObjektSelect'); const hSel=document.getElementById('einheitHausSelect'); oSel.innerHTML=""; if(activeFilterId) { const o=dbObjekte.get(activeFilterId); if(o) oSel.add(new Option(o.name, activeFilterId)); } else { oSel.innerHTML = "<option value=''>-- Objekt wählen --</option>"; dbObjekte.forEach((o,oid)=>oSel.add(new Option(o.name,oid))); }
-            let oid, hid; if(id) { hid = e.hausId; oid = hid ? dbHaeuser.get(hid)?.objektId : ""; } else { if(activeFilterId) { oid = activeFilterId; } else if(oSel.options.length > 0 && !oSel.value) { } hid = ""; } if(oid) oSel.value=oid; filterHaeuserDropdown(); if(hid) hSel.value=hid; else if(hSel.options.length>0) hSel.selectedIndex=0; if(id) document.getElementById('einheitNummerDisplay').value = id; else if(hSel.value) document.getElementById('einheitNummerDisplay').value = getNextEinheitID(hSel.value); document.getElementById('einheitNameInput').value=e.name||""; document.getElementById('einheitTypSelect').innerHTML=""; STANDARD_TYPES.forEach(t=>document.getElementById('einheitTypSelect').add(new Option(t.label,t.id))); document.getElementById('einheitFlaecheInput').value=e.flaeche||""; document.getElementById('einheitHeizflaecheInput').value=e.heizflaeche||""; document.getElementById('einheitZimmerInput').value=e.zimmer||""; document.getElementById('einheitMeaInput').value=e.mea||""; document.getElementById('einheitWwInput').value = e.ww_m3 || ""; document.getElementById('einheitKwInput').value = e.kw_m3 || ""; const c=document.getElementById('belegungListe'); c.innerHTML=""; if(e.belegung&&e.belegung.length) e.belegung.forEach(b=>addBelegungRow(b)); else addBelegungRow(); const hList = document.getElementById('historieListe'); hList.innerHTML=""; if(e.historie && e.historie.length) e.historie.forEach(h=>addHistorieRow(h)); 
+            updateKonditionDatalist(); 
+            const e=id?dbEinheiten.get(id):{}; 
+            document.getElementById('einheitIdInput').value=id||""; 
+            const oSel=document.getElementById('einheitObjektSelect'); 
+            const hSel=document.getElementById('einheitHausSelect'); 
             
-            // NEU: Steuer-Ermittlung für Konditionen
-            let showTax = false;
-            if(hSel.value) {
-                const h = dbHaeuser.get(hSel.value);
-                const o = h ? dbObjekte.get(h.objektId) : null;
-                if(o) {
-                    if(o.steuerStatus === 'opt') showTax = true;
-                    else if(o.steuerStatus === 'mixed' && h && h.steuerStatus === 'opt') showTax = true;
-                }
+            oSel.innerHTML="";
+            if(activeFilterId) {
+                const o=dbObjekte.get(activeFilterId);
+                if(o) oSel.add(new Option(o.name, activeFilterId));
+            } else {
+                oSel.innerHTML = "<option value=''>-- Objekt wählen --</option>";
+                dbObjekte.forEach((o,oid)=>oSel.add(new Option(o.name,oid)));
             }
+
+            let oid, hid; 
+            if(id) { 
+                hid = e.hausId; 
+                oid = hid ? dbHaeuser.get(hid)?.objektId : ""; 
+            } else { 
+                if(activeFilterId) { 
+                    oid = activeFilterId; 
+                } else if(oSel.options.length > 0 && !oSel.value) { 
+                } 
+                hid = ""; 
+            } 
             
-            const kList = document.getElementById('konditionenListe'); kList.innerHTML=""; 
-            if(e.konditionen && e.konditionen.length) e.konditionen.forEach(k=>addKonditionRow(k, showTax)); 
-            else addKonditionRow({}, showTax); 
-            
-            onHausSelectionChange(!id); if(e.typ) document.getElementById('einheitTypSelect').value = e.typ; document.getElementById('einheitModal').classList.add('active'); 
+            if(oid) oSel.value=oid; 
+            filterHaeuserDropdown(); 
+            if(hid) hSel.value=hid; else if(hSel.options.length>0) hSel.selectedIndex=0; 
+            if(id) document.getElementById('einheitNummerDisplay').value = id; else if(hSel.value) document.getElementById('einheitNummerDisplay').value = getNextEinheitID(hSel.value); 
+            document.getElementById('einheitNameInput').value=e.name||""; 
+            document.getElementById('einheitTypSelect').innerHTML=""; 
+            STANDARD_TYPES.forEach(t=>document.getElementById('einheitTypSelect').add(new Option(t.label,t.id))); 
+            document.getElementById('einheitFlaecheInput').value=e.flaeche||""; 
+            document.getElementById('einheitHeizflaecheInput').value=e.heizflaeche||""; 
+            document.getElementById('einheitZimmerInput').value=e.zimmer||""; 
+            document.getElementById('einheitMeaInput').value=e.mea||""; 
+            document.getElementById('einheitWwInput').value = e.ww_m3 || ""; 
+            document.getElementById('einheitKwInput').value = e.kw_m3 || ""; 
+            const c=document.getElementById('belegungListe'); c.innerHTML=""; if(e.belegung&&e.belegung.length) e.belegung.forEach(b=>addBelegungRow(b)); else addBelegungRow(); 
+            const hList = document.getElementById('historieListe'); hList.innerHTML=""; if(e.historie && e.historie.length) e.historie.forEach(h=>addHistorieRow(h)); 
+            const kList = document.getElementById('konditionenListe'); kList.innerHTML=""; if(e.konditionen && e.konditionen.length) e.konditionen.forEach(k=>addKonditionRow(k)); else addKonditionRow(); 
+            onHausSelectionChange(!id); 
+            if(e.typ) document.getElementById('einheitTypSelect').value = e.typ; 
+            document.getElementById('einheitModal').classList.add('active'); 
         }
 
-        function addKonditionRow(d={}, showTax=false) { 
+        function updateKonditionDatalist() { const allTypes = new Set(KONDITION_TYPES); dbEinheiten.forEach(e => { if(e.konditionen) { e.konditionen.forEach(k => { if(k.label) allTypes.add(k.label); }); } }); let dl = document.getElementById('konditionTypes'); if(!dl) { dl = document.createElement('datalist'); dl.id = "konditionTypes"; document.body.appendChild(dl); } dl.innerHTML = ""; Array.from(allTypes).sort().forEach(t => { const op = document.createElement('option'); op.value = t; dl.appendChild(op); }); }
+        function addKonditionRow(d={}) { 
             const c = document.getElementById('konditionenListe'); 
             const row = document.createElement('div'); row.className = 'kondition-row'; 
-            const descInput = document.createElement('input'); descInput.setAttribute('list', 'konditionTypes'); descInput.placeholder = "Bez..."; descInput.className="kond-label"; if(d.label) descInput.value = d.label; 
-            const betragInput = document.createElement('input'); betragInput.type="number"; betragInput.step="0.01"; betragInput.placeholder="€"; betragInput.className="kond-betrag"; if(d.betrag) betragInput.value = d.betrag; 
-            const kontoInput = document.createElement('input'); kontoInput.type="text"; kontoInput.placeholder="Konto"; kontoInput.className="kond-konto"; if(d.konto) kontoInput.value = d.konto; 
+            const descInput = document.createElement('input'); descInput.setAttribute('list', 'konditionTypes'); descInput.placeholder = "Wählen oder tippen..."; descInput.className="kond-label"; if(d.label) descInput.value = d.label; 
+            const betragInput = document.createElement('input'); betragInput.type="number"; betragInput.step="0.01"; betragInput.placeholder="Betrag €"; betragInput.className="kond-betrag"; if(d.betrag) betragInput.value = d.betrag; 
+            const kontoInput = document.createElement('input'); kontoInput.type="text"; kontoInput.placeholder="Konto (z.B. 8000)"; kontoInput.className="kond-konto"; if(d.konto) kontoInput.value = d.konto; 
             const dateInput = document.createElement('input'); dateInput.type="date"; dateInput.className="kond-date"; if(d.gueltigAb) dateInput.value = d.gueltigAb; else dateInput.value = new Date().toISOString().split('T')[0]; 
+            // NEU: Gültig Bis
             const dateBisInput = document.createElement('input'); dateBisInput.type="date"; dateBisInput.className="kond-date-bis"; if(d.gueltigBis) dateBisInput.value = d.gueltigBis;
             
-            let taxSelect = "";
-            if(showTax) {
-                const s = document.createElement('select'); s.className="kond-tax"; 
-                s.add(new Option("-", ""));
-                taxKeys.forEach(t => s.add(new Option(t.id, t.id))); // Nur ID anzeigen
-                if(d.steuerKey) s.value = d.steuerKey;
-                taxSelect = s;
-            } else {
-                taxSelect = document.createElement('span'); // Platzhalter
-            }
-
-            const copyBtn = document.createElement('button'); copyBtn.innerText="+"; copyBtn.className="primary-btn"; copyBtn.style.padding="2px 5px"; 
-            copyBtn.onclick = () => {
-                // Kopie einfügen
-                const newData = { label: descInput.value, betrag: betragInput.value, konto: kontoInput.value, steuerKey: showTax && taxSelect.value ? taxSelect.value : "" };
-                // Datum leer lassen für neue Gültigkeit
-                addKonditionRow(newData, showTax);
-                // Trick: Das neue Element ist jetzt am Ende. Wir wollen es aber DIREKT nach dieser Row.
-                c.insertBefore(c.lastChild, row.nextSibling);
-            };
-
             const delBtn = document.createElement('button'); delBtn.innerText="X"; delBtn.className="warn-btn"; delBtn.style.padding="2px 5px"; delBtn.onclick = () => row.remove(); 
-            
-            row.append(descInput, betragInput, kontoInput, dateInput, dateBisInput, taxSelect, copyBtn, delBtn); 
+            row.append(descInput, betragInput, kontoInput, dateInput, dateBisInput, delBtn); 
             c.appendChild(row); 
         }
-
-        // --- BUCHUNG BEARBEITEN & KORREKTUR ---
-        function openBuchungDetail(id) {
-            const tx = dbFinanzen.find(t => t.id === id);
-            if(!tx) return;
-            document.getElementById('detailBuchungId').value = id;
-            document.getElementById('detailId').innerText = id;
-            const korrCount = tx.history ? tx.history.length : 0;
-            document.getElementById('detailKorrCount').value = korrCount;
-            document.getElementById('detailKorrNr').innerText = korrCount > 0 ? `Korr. ${korrCount}` : '-';
+        function addBelegungRow(d={}){ 
+            const c=document.getElementById('belegungListe'); 
+            const wrapper = document.createElement('div'); wrapper.className = 'belegung-wrapper'; 
+            const r=document.createElement('div'); r.className='belegung-row'; 
+            const s=document.createElement('select'); s.className='belegung-mieter'; 
+            s.innerHTML="<option value=''>-- Mieter --</option>"; 
+            Array.from(dbKontakte.entries()).sort((a,b)=>(a[1].fn||"").localeCompare(b[1].fn||"")).forEach(([id,k])=>s.add(new Option(k.fn+(k.org?` (${k.org})`:""),id))); 
+            if(d.mieterId) s.value=d.mieterId; 
+            const inEin=document.createElement('input'); inEin.type="date"; inEin.className="belegung-einzug"; if(d.einzug) inEin.value=d.einzug; 
+            const inAus=document.createElement('input'); inAus.type="date"; inAus.className="belegung-auszug"; if(d.auszug) inAus.value=d.auszug; 
+            const b=document.createElement('button'); b.className="warn-btn"; b.innerText="X"; 
             
-            document.getElementById('detailDatumInp').value = tx.buchungsdatum;
-            document.getElementById('detailBetragInp').value = safeFloat(tx.betrag);
-            document.getElementById('detailTextInp').value = tx.text;
+            // NEU: Lösch-Schutz
+            b.onclick=()=>{
+                const currentEid = document.getElementById('einheitIdInput').value;
+                const mieterVal = s.value;
+                if(currentEid && mieterVal) {
+                    const hasTx = dbFinanzen.some(tx => tx.einheitId === currentEid && tx.mieterId === mieterVal);
+                    if(hasTx) {
+                        alert("Dieser Mieter kann nicht gelöscht werden, da bereits Buchungen für ihn existieren!\nBitte setzen Sie stattdessen ein Auszugsdatum.");
+                        return;
+                    }
+                }
+                wrapper.remove();
+            }; 
             
-            const sInp = document.getElementById('detailSteuerInp');
-            sInp.innerHTML = '<option value="">--</option>';
-            taxKeys.forEach(t => sInp.add(new Option(t.label, t.id)));
-            sInp.value = tx.steuerschluessel || "";
-
-            document.getElementById('detailDoku').value = tx.doku || "";
-            document.getElementById('buchungDetailModal').classList.add('active');
+            r.append(s,inEin,inAus,b); 
+            wrapper.appendChild(r); c.appendChild(wrapper); 
         }
-
-        function saveBuchungChanges() {
-            const id = document.getElementById('detailBuchungId').value;
-            const tx = dbFinanzen.find(t => t.id === id);
-            if(!tx) return;
-
-            const newDoku = document.getElementById('detailDoku').value;
-            const newDatum = document.getElementById('detailDatumInp').value;
-            const newBetrag = safeFloat(document.getElementById('detailBetragInp').value);
-            const newText = document.getElementById('detailTextInp').value;
-            const newSteuer = document.getElementById('detailSteuerInp').value;
-
-            // Historie anlegen (falls Änderungen relevant)
-            if(newDatum !== tx.buchungsdatum || newBetrag !== safeFloat(tx.betrag) || newText !== tx.text || newSteuer !== (tx.steuerschluessel||"")) {
-                if(!tx.history) tx.history = [];
-                tx.history.push({
-                    datum: new Date().toISOString(),
-                    old_data: { buchungsdatum: tx.buchungsdatum, betrag: tx.betrag, text: tx.text, steuerschluessel: tx.steuerschluessel },
-                    doku_at_time: tx.doku
-                });
-                
-                // Neue Werte setzen
-                tx.buchungsdatum = newDatum;
-                tx.betrag = newBetrag;
-                tx.text = newText;
-                tx.steuerschluessel = newSteuer;
-                // Steuerbetrag neu berechnen
-                if(newSteuer) {
-                    const sObj = taxKeys.find(k => k.id === newSteuer);
-                    if(sObj && sObj.rate > 0) tx.steuerbetrag = newBetrag - (newBetrag / (1 + sObj.rate/100));
-                    else tx.steuerbetrag = 0;
-                } else tx.steuerbetrag = 0;
-                
-                // Doku Timestamp
-                const timeStr = new Date().toLocaleString('de-DE');
-                tx.doku = (newDoku ? newDoku + "\n" : "") + `[Änderung am ${timeStr}]`;
-            } else {
-                // Nur Doku Update
-                tx.doku = newDoku;
-            }
-
-            saveLocal(); triggerAutoSave();
-            alert("Änderungen gespeichert.");
-            renderKontoTable(); // Refresh UI
-            document.getElementById('buchungDetailModal').classList.remove('active');
+        function addHistorieRow(d={}){ const c=document.getElementById('historieListe'); const r=document.createElement('div'); r.className='historie-row'; const inDate = document.createElement('input'); inDate.type="date"; inDate.className="hist-date"; if(d.date) inDate.value=d.date; const inText = document.createElement('input'); inText.type="text"; inText.className="hist-desc"; inText.placeholder="Beschreibung..."; if(d.text) inText.value=d.text; const b=document.createElement('button'); b.className="warn-btn"; b.innerText="X"; b.onclick=()=>r.remove(); r.append(inDate, inText, b); c.appendChild(r); }
+        function saveEinheit(){ 
+            let id=document.getElementById('einheitNummerDisplay').value; 
+            if(!id) { const hid=document.getElementById('einheitHausSelect').value; id=getNextEinheitID(hid); } 
+            const bel=[]; document.querySelectorAll('#belegungListe .belegung-wrapper').forEach(w=>{ const m=w.querySelector('.belegung-mieter').value; if(m) bel.push({mieterId:m, einzug:w.querySelector('.belegung-einzug').value, auszug:w.querySelector('.belegung-auszug').value}); }); 
+            const hist=[]; document.querySelectorAll('#historieListe .historie-row').forEach(r=>{ const d = r.querySelector('.hist-date').value; const t = r.querySelector('.hist-desc').value; if(d || t) hist.push({date:d, text:t}); }); 
+            const kond=[]; document.querySelectorAll('#konditionenListe .kondition-row').forEach(r=>{ const l = r.querySelector('.kond-label').value; const b = safeFloat(r.querySelector('.kond-betrag').value); const k = r.querySelector('.kond-konto').value; const d = r.querySelector('.kond-date').value; const dbis = r.querySelector('.kond-date-bis').value; if(l && b) kond.push({ label:l, betrag:b, konto:k, gueltigAb:d, gueltigBis:dbis }); }); 
+            dbEinheiten.set(String(id), { hausId: document.getElementById('einheitHausSelect').value, name: document.getElementById('einheitNameInput').value, typ: document.getElementById('einheitTypSelect').value, flaeche: safeFloat(document.getElementById('einheitFlaecheInput').value), heizflaeche: safeFloat(document.getElementById('einheitHeizflaecheInput').value), zimmer: document.getElementById('einheitZimmerInput').value, mea: safeFloat(document.getElementById('einheitMeaInput').value), ww_m3: safeFloat(document.getElementById('einheitWwInput').value), kw_m3: safeFloat(document.getElementById('einheitKwInput').value), konditionen: kond, belegung: bel, historie: hist }); 
+            document.getElementById('einheitModal').classList.remove('active'); saveLocal(); renderLists(); triggerAutoSave(); 
         }
+        function deleteEinheit(){ if(confirm("Löschen?")) { dbEinheiten.delete(document.getElementById('einheitIdInput').value); document.getElementById('einheitModal').classList.remove('active'); saveLocal(); renderLists(); triggerAutoSave(); } }
 
-        // --- RESTLICHE FUNKTIONEN (Sollstellung, PDF etc.) bleiben großteils gleich, nur Steuer in Sollstellung beachten ---
+        // --- SOLLSTELLUNG & FINANZEN ---
+        function openSollstellungModal() { document.getElementById('sollMonatInput').value = new Date().toISOString().slice(0, 7); document.getElementById('sollLog').style.display = 'none'; document.getElementById('sollLog').innerHTML = ''; document.getElementById('sollstellungModal').classList.add('active'); }
+        function logSoll(msg) { const l = document.getElementById('sollLog'); l.style.display = 'block'; l.innerHTML += `<div>${msg}</div>`; l.scrollTop = l.scrollHeight; }
+        
         function runSollstellung() { 
-            const monatStr = document.getElementById('sollMonatInput').value; if(!monatStr) return alert("Monat?"); 
-            const [jahr, monat] = monatStr.split('-').map(Number); const daysInMonth = new Date(jahr, monat, 0).getDate(); const monthStart = new Date(jahr, monat - 1, 1); const monthEnd = new Date(jahr, monat - 1, daysInMonth); 
-            logSoll(`Lauf: ${monat}/${jahr}`); let count = 0;
+            const monatStr = document.getElementById('sollMonatInput').value; 
+            if(!monatStr) return alert("Bitte Monat wählen"); 
+            const [jahr, monat] = monatStr.split('-').map(Number); 
+            const daysInMonth = new Date(jahr, monat, 0).getDate(); 
+            const monthStart = new Date(jahr, monat - 1, 1); 
+            const monthEnd = new Date(jahr, monat - 1, daysInMonth); 
+            logSoll(`>> Starte Lauf für ${monat}/${jahr} (${daysInMonth} Tage)`); 
+            let count = 0; 
             
             dbEinheiten.forEach((e, eid) => { 
                 if(!e.belegung || !e.belegung.length) return; 
                 e.belegung.forEach(b => { 
-                    const einzug = new Date(b.einzug); const auszug = b.auszug ? new Date(b.auszug) : new Date('2099-12-31'); 
+                    const einzug = new Date(b.einzug); 
+                    const auszug = b.auszug ? new Date(b.auszug) : new Date('2099-12-31'); 
                     if(einzug <= monthEnd && auszug >= monthStart) { 
-                        const start = einzug > monthStart ? einzug : monthStart; const end = auszug < monthEnd ? auszug : monthEnd; 
-                        const activeDays = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24)) + 1; 
+                        const start = einzug > monthStart ? einzug : monthStart; 
+                        const end = auszug < monthEnd ? auszug : monthEnd; 
+                        const diffTime = Math.abs(end - start); 
+                        const activeDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; 
+                        
                         if(activeDays > 0) { 
                             const faktor = activeDays / daysInMonth; 
+                            const mieter = dbKontakte.get(b.mieterId); 
+                            const mieterName = mieter ? mieter.fn : "Unbekannt"; 
+                            logSoll(`   Einheit ${e.name}: Mieter ${mieterName} (${activeDays}/${daysInMonth} Tage)`); 
+                            
                             const sortedBel = [...e.belegung].sort((a,b) => (a.einzug||'').localeCompare(b.einzug||'')); 
-                            const seqIndex = sortedBel.indexOf(b) + 1; const contractId = e.id + "/" + pad(seqIndex, 2); const opCode = `${contractId}-${pad(monat, 2)}${jahr}`; 
+                            const seqIndex = sortedBel.indexOf(b) + 1; 
+                            const contractId = e.id + "/" + pad(seqIndex, 2); 
+                            const opCode = `${contractId}-${pad(monat, 2)}${jahr}`; 
                             
                             if(e.konditionen) e.konditionen.forEach(k => { 
-                                const gueltigAb = new Date(k.gueltigAb); let gueltigBis = k.gueltigBis ? new Date(k.gueltigBis) : new Date('2099-12-31'); 
+                                const gueltigAb = new Date(k.gueltigAb);
+                                let gueltigBis = k.gueltigBis ? new Date(k.gueltigBis) : new Date('2099-12-31');
+                                
                                 if(gueltigAb <= monthEnd && gueltigBis >= monthStart) { 
                                     const betrag = safeFloat(k.betrag) * faktor; 
-                                    // Steuer berechnen für Sollstellung
-                                    let stBetrag = 0;
-                                    if(k.steuerKey) {
-                                        const sObj = taxKeys.find(t=>t.id===k.steuerKey);
-                                        if(sObj && sObj.rate > 0) stBetrag = betrag - (betrag / (1 + sObj.rate/100));
-                                    }
-
-                                    const tx = { id: getNextFinanzId(), einheitId: eid, mieterId: b.mieterId, monatRef: monatStr, buchungsdatum: new Date().toISOString().split('T')[0], typ: 'soll', kategorie: k.label, text: `${opCode} (${k.label})`, betrag: betrag, konto: k.konto, steuerschluessel: k.steuerKey || "", steuerbetrag: stBetrag, locked: true }; 
-                                    dbFinanzen.push(tx); count++; 
+                                    const tx = { 
+                                        id: getNextFinanzId(), 
+                                        einheitId: eid, 
+                                        mieterId: b.mieterId, 
+                                        monatRef: monatStr, 
+                                        buchungsdatum: new Date().toISOString().split('T')[0], 
+                                        typ: 'soll', 
+                                        kategorie: k.label, 
+                                        text: `${opCode} (${k.label})`, 
+                                        betrag: betrag, 
+                                        konto: k.konto, 
+                                        steuerschluessel: '', // Sollstellung hat hier noch keine Steuer-Logik explizit, kann erweitert werden
+                                        steuerbetrag: 0,
+                                        locked: true 
+                                    }; 
+                                    dbFinanzen.push(tx); 
+                                    count++; 
                                 } 
                             }); 
                         } 
                     } 
                 }); 
             }); 
-            logSoll(`Fertig: ${count} Buchungen.`); saveLocal(); triggerAutoSave(); 
+            logSoll(`>> Fertig. ${count} Buchungen generiert.`); 
+            saveLocal(); triggerAutoSave(); 
+            alert(`Sollstellung abgeschlossen.\n${count} Buchungen erstellt.`); 
         }
 
-        // --- (PDF, Löschen, Reset etc. bleiben) ---
+        function openKontoModal(einheitId) { const e = dbEinheiten.get(einheitId); if(!e) return; document.getElementById('kontoEinheitId').value = einheitId; document.getElementById('kontoTitle').innerText = `Konto: ${e.name}`; document.getElementById('manuelleBuchungForm').style.display = 'none'; const years = new Set(dbFinanzen.filter(tx => tx.einheitId === einheitId).map(tx => tx.buchungsdatum.substr(0,4))); const sel = document.getElementById('kontoJahrSelect'); sel.innerHTML = '<option value="all">Alle Jahre</option>'; Array.from(years).sort().reverse().forEach(y => sel.add(new Option(y, y))); renderKontoTable(); document.getElementById('kontoModal').classList.add('active'); }
+        
         function renderKontoTable() { 
-            const eid = document.getElementById('kontoEinheitId').value; const yearFilter = document.getElementById('kontoJahrSelect').value; const tbody = document.getElementById('kontoBody'); tbody.innerHTML = ""; 
-            let txs = dbFinanzen.filter(tx => tx.einheitId === eid); if(yearFilter !== 'all') txs = txs.filter(tx => tx.buchungsdatum.startsWith(yearFilter)); txs.sort((a,b) => a.buchungsdatum.localeCompare(b.buchungsdatum)); 
+            const eid = document.getElementById('kontoEinheitId').value; 
+            const yearFilter = document.getElementById('kontoJahrSelect').value; 
+            const tbody = document.getElementById('kontoBody'); 
+            tbody.innerHTML = ""; 
+            let txs = dbFinanzen.filter(tx => tx.einheitId === eid); 
+            if(yearFilter !== 'all') txs = txs.filter(tx => tx.buchungsdatum.startsWith(yearFilter)); 
+            txs.sort((a,b) => a.buchungsdatum.localeCompare(b.buchungsdatum)); 
             let sumS = 0, sumH = 0, saldo = 0; 
             txs.forEach(tx => { 
-                const s = tx.typ === 'soll' ? safeFloat(tx.betrag) : 0; const h = tx.typ === 'haben' ? safeFloat(tx.betrag) : 0; sumS += s; sumH += h; saldo += (s - h); 
-                const steuerInfo = tx.steuerschluessel ? `<span class="badge" style="background:#e3f2fd;">${tx.steuerschluessel}</span>` : '-'; 
-                let delBtn = `<button class="warn-btn" style="padding:2px 5px;" onclick="event.stopPropagation(); deleteBuchung('${tx.id}')">x</button>`; if(tx.locked) delBtn = `🔒`; 
-                // NEU: Korrektur Anzeige
-                const korrBadge = (tx.history && tx.history.length > 0) ? `<span style="color:#d32f2f; font-weight:bold; font-size:0.8em; margin-right:5px;">(Korr. ${tx.history.length})</span>` : "";
+                const tr = document.createElement('tr'); 
+                const s = tx.typ === 'soll' ? safeFloat(tx.betrag) : 0; 
+                const h = tx.typ === 'haben' ? safeFloat(tx.betrag) : 0; 
+                sumS += s; sumH += h; saldo += (s - h); 
                 
-                const tr = document.createElement('tr'); tr.onclick = () => openBuchungDetail(tx.id);
-                tr.innerHTML = `<td>${korrBadge}</td><td>${formatDate(tx.buchungsdatum)}</td><td>${tx.text}</td><td style="text-align:center;">${steuerInfo}</td><td class="text-right betrag-soll">${s > 0 ? formatNum(s) : ''}</td><td class="text-right betrag-haben">${h > 0 ? formatNum(h) : ''}</td><td class="text-right" style="font-weight:bold;">${formatNum(saldo)}</td><td>${delBtn}</td>`; tbody.appendChild(tr); 
+                // NEU: Anzeige Steuer-Schlüssel
+                const steuerInfo = tx.steuerschluessel ? `<span class="badge" style="background:#e3f2fd;">${tx.steuerschluessel}</span>` : '-';
+
+                let delBtn = `<button class="warn-btn" style="padding:2px 5px;" onclick="event.stopPropagation(); deleteBuchung('${tx.id}')">x</button>`; 
+                if(tx.locked) { delBtn = `<span style="font-size:1.2em;" title="Sollstellung: Festgeschrieben">🔒</span>`; } 
+                
+                // NEU: Onclick für Detail-Ansicht
+                tr.onclick = () => openBuchungDetail(tx.id);
+
+                tr.innerHTML = `<td>${formatDate(tx.buchungsdatum)}</td><td>${tx.text} <small style="color:#888;">[${tx.kategorie||'-'}]</small></td><td style="text-align:center;">${steuerInfo}</td><td class="text-right betrag-soll">${s > 0 ? formatNum(s) : ''}</td><td class="text-right betrag-haben">${h > 0 ? formatNum(h) : ''}</td><td class="text-right" style="font-weight:bold;">${formatNum(saldo)}</td><td>${delBtn}</td>`; 
+                tbody.appendChild(tr); 
             }); 
-            document.getElementById('sumSoll').innerText = formatCurrency(sumS); document.getElementById('sumHaben').innerText = formatCurrency(sumH); document.getElementById('sumSaldo').innerText = formatCurrency(saldo); 
+            document.getElementById('sumSoll').innerText = formatCurrency(sumS); 
+            document.getElementById('sumHaben').innerText = formatCurrency(sumH); 
+            const elSaldo = document.getElementById('sumSaldo'); 
+            elSaldo.innerText = formatCurrency(saldo); 
+            elSaldo.style.color = saldo > 0 ? '#c62828' : (saldo < 0 ? '#2e7d32' : 'black'); 
         }
-        // ... (Restliche Helper Funktionen bleiben erhalten) ...
-        function deleteBuchung(id) { const tx = dbFinanzen.find(t => t.id === id); if(tx && tx.locked) { alert("Sollstellung gesperrt!"); return; } if(!confirm("Löschen?")) return; dbFinanzen = dbFinanzen.filter(tx => tx.id !== id); saveLocal(); triggerAutoSave(); renderKontoTable(); }
-        function resetKonto() { if(!confirm("Konto leeren?")) return; const eid = document.getElementById('kontoEinheitId').value; dbFinanzen = dbFinanzen.filter(tx => tx.einheitId !== eid); saveLocal(); triggerAutoSave(); renderKontoTable(); }
-        function saveEinheit(){ /* wie zuvor, nur Konditionen Loop angepasst für SteuerKey */ 
-            let id=document.getElementById('einheitNummerDisplay').value; if(!id) { const hid=document.getElementById('einheitHausSelect').value; id=getNextEinheitID(hid); } 
-            const bel=[]; document.querySelectorAll('#belegungListe .belegung-wrapper').forEach(w=>{ const m=w.querySelector('.belegung-mieter').value; if(m) bel.push({mieterId:m, einzug:w.querySelector('.belegung-einzug').value, auszug:w.querySelector('.belegung-auszug').value}); }); 
-            const hist=[]; document.querySelectorAll('#historieListe .historie-row').forEach(r=>{ const d = r.querySelector('.hist-date').value; const t = r.querySelector('.hist-desc').value; if(d || t) hist.push({date:d, text:t}); }); 
-            const kond=[]; document.querySelectorAll('#konditionenListe .kondition-row').forEach(r=>{ const l = r.querySelector('.kond-label').value; const b = safeFloat(r.querySelector('.kond-betrag').value); const k = r.querySelector('.kond-konto').value; const d = r.querySelector('.kond-date').value; const dbis = r.querySelector('.kond-date-bis').value; const st = r.querySelector('.kond-tax') ? r.querySelector('.kond-tax').value : ""; if(l && b) kond.push({ label:l, betrag:b, konto:k, gueltigAb:d, gueltigBis:dbis, steuerKey: st }); }); 
-            dbEinheiten.set(String(id), { hausId: document.getElementById('einheitHausSelect').value, name: document.getElementById('einheitNameInput').value, typ: document.getElementById('einheitTypSelect').value, flaeche: safeFloat(document.getElementById('einheitFlaecheInput').value), heizflaeche: safeFloat(document.getElementById('einheitHeizflaecheInput').value), zimmer: document.getElementById('einheitZimmerInput').value, mea: safeFloat(document.getElementById('einheitMeaInput').value), ww_m3: safeFloat(document.getElementById('einheitWwInput').value), kw_m3: safeFloat(document.getElementById('einheitKwInput').value), konditionen: kond, belegung: bel, historie: hist }); 
-            document.getElementById('einheitModal').classList.remove('active'); saveLocal(); renderLists(); triggerAutoSave(); 
-        }
+        
         function openManuelleBuchung() { document.getElementById('manuelleBuchungForm').style.display='block'; document.getElementById('mbDatum').value = new Date().toISOString().split('T')[0]; }
-        function saveManuelleBuchung() { /* ... wie zuvor ... */
-            const eid = document.getElementById('kontoEinheitId').value; const dat = document.getElementById('mbDatum').value; const txt = document.getElementById('mbText').value; const typ = document.getElementById('mbTyp').value; const betrag = safeFloat(document.getElementById('mbBetrag').value); const beleg = document.getElementById('mbBeleg').value; const konto = document.getElementById('mbKonto').value; const steuerId = document.getElementById('mbSteuer').value; let steuerBetrag = 0; if(steuerId) { const sObj = taxKeys.find(k => k.id === steuerId); if(sObj && sObj.rate > 0) { steuerBetrag = betrag - (betrag / (1 + sObj.rate/100)); } } if(!dat || !betrag) return alert("Datum/Betrag?"); let finalTx = txt || "Manuelle Buchung"; if(beleg) finalTx = `${beleg} ${finalTx}`; const tx = { id: getNextFinanzId(), einheitId: eid, mieterId: "manuell", monatRef: dat.substr(0,7), buchungsdatum: dat, typ: typ, kategorie: "Manuell", text: finalTx, betrag: betrag, konto: konto, steuerschluessel: steuerId, steuerbetrag: steuerBetrag, doku: "", locked: false }; dbFinanzen.push(tx); saveLocal(); triggerAutoSave(); renderKontoTable(); document.getElementById('manuelleBuchungForm').style.display='none'; 
+        
+        function saveManuelleBuchung() { 
+            const eid = document.getElementById('kontoEinheitId').value; 
+            const dat = document.getElementById('mbDatum').value; 
+            const txt = document.getElementById('mbText').value; 
+            const typ = document.getElementById('mbTyp').value; 
+            const betrag = safeFloat(document.getElementById('mbBetrag').value); 
+            const beleg = document.getElementById('mbBeleg').value;
+            const konto = document.getElementById('mbKonto').value;
+            
+            // NEU: Steuerschlüssel
+            const steuerId = document.getElementById('mbSteuer').value;
+            let steuerBetrag = 0;
+            if(steuerId) {
+                const sObj = TAX_KEYS.find(k => k.id === steuerId);
+                if(sObj && sObj.rate > 0) {
+                    steuerBetrag = betrag - (betrag / (1 + sObj.rate/100)); // Herausrechnen aus Brutto
+                }
+            }
+
+            if(!dat || !betrag) return alert("Datum und Betrag erforderlich"); 
+            
+            let finalTx = txt || "Manuelle Buchung";
+            if(beleg) finalTx = `${beleg} ${finalTx}`;
+
+            const tx = { 
+                id: getNextFinanzId(), 
+                einheitId: eid, 
+                mieterId: "manuell", 
+                monatRef: dat.substr(0,7), 
+                buchungsdatum: dat, 
+                typ: typ, 
+                kategorie: "Manuell", 
+                text: finalTx, 
+                betrag: betrag, 
+                konto: konto, 
+                steuerschluessel: steuerId, // NEU
+                steuerbetrag: steuerBetrag, // NEU
+                doku: "", // NEU: Feld für Dokumentation
+                locked: false 
+            }; 
+            dbFinanzen.push(tx); 
+            saveLocal(); triggerAutoSave(); renderKontoTable(); 
+            document.getElementById('manuelleBuchungForm').style.display='none'; 
         }
-        function exportKontoPDF() { /* ... */ const eid = document.getElementById('kontoEinheitId').value; const e = dbEinheiten.get(eid); const doc = new jspdf.jsPDF(); doc.setFontSize(14); doc.text(`Mieterkonto: ${e.name}`, 14, 15); doc.setFontSize(10); doc.text(`Stand: ${new Date().toLocaleDateString('de-DE')}`, 14, 22); let txs = dbFinanzen.filter(tx => tx.einheitId === eid); txs.sort((a,b) => a.buchungsdatum.localeCompare(b.buchungsdatum)); let saldo = 0; const rows = txs.map(tx => { const s = tx.typ === 'soll' ? safeFloat(tx.betrag) : 0; const h = tx.typ === 'haben' ? safeFloat(tx.betrag) : 0; saldo += (s - h); return [ formatDate(tx.buchungsdatum), tx.text, tx.kategorie, s > 0 ? formatNum(s) : '', h > 0 ? formatNum(h) : '', formatNum(saldo) ]; }); doc.autoTable({ head: [['Datum', 'Text', 'Kat', 'Soll', 'Haben', 'Saldo']], body: rows, startY: 30, theme: 'striped', columnStyles: { 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right', fontStyle: 'bold' } } }); doc.save(`Konto_${e.name}.pdf`); }
+
+        // --- NEU: Buchungs-Details anzeigen/dokumentieren ---
+        function openBuchungDetail(id) {
+            const tx = dbFinanzen.find(t => t.id === id);
+            if(!tx) return;
+            document.getElementById('detailBuchungId').value = id;
+            document.getElementById('detailId').innerText = id;
+            document.getElementById('detailDatum').innerText = formatDate(tx.buchungsdatum);
+            document.getElementById('detailText').innerText = tx.text;
+            document.getElementById('detailKat').innerText = tx.kategorie || '-';
+            document.getElementById('detailTyp').innerText = tx.typ === 'soll' ? 'Forderung' : 'Zahlung';
+            document.getElementById('detailBetrag').innerText = formatCurrency(safeFloat(tx.betrag));
+            document.getElementById('detailKonto').innerText = tx.konto || '-';
+            
+            let steuerTxt = '-';
+            if(tx.steuerschluessel) {
+                const sObj = TAX_KEYS.find(k => k.id === tx.steuerschluessel);
+                steuerTxt = sObj ? sObj.label : tx.steuerschluessel;
+                if(tx.steuerbetrag) steuerTxt += ` (${formatCurrency(tx.steuerbetrag)} Steuer)`;
+            }
+            document.getElementById('detailSteuer').innerText = steuerTxt;
+            
+            document.getElementById('detailDoku').value = tx.doku || "";
+            document.getElementById('buchungDetailModal').classList.add('active');
+        }
+
+        function saveBuchungDoku() {
+            const id = document.getElementById('detailBuchungId').value;
+            const doku = document.getElementById('detailDoku').value;
+            const tx = dbFinanzen.find(t => t.id === id);
+            if(tx) {
+                tx.doku = doku;
+                saveLocal(); triggerAutoSave();
+                alert("Dokumentation gespeichert.");
+                document.getElementById('buchungDetailModal').classList.remove('active');
+            }
+        }
+
+        function deleteBuchung(id) { const tx = dbFinanzen.find(t => t.id === id); if(tx && tx.locked) { alert("Diese Buchung entstammt einer festgeschriebenen Sollstellung und darf nicht gelöscht werden!\nBitte nutzen Sie eine Gegenbuchung zur Korrektur."); return; } if(!confirm("Buchung löschen?")) return; dbFinanzen = dbFinanzen.filter(tx => tx.id !== id); saveLocal(); triggerAutoSave(); renderKontoTable(); }
+        function resetKonto() { const eid = document.getElementById('kontoEinheitId').value; if(!confirm("ACHTUNG: Möchten Sie wirklich ALLE Buchungen dieser Einheit löschen?\nDas ist sinnvoll, um Testdaten zu entfernen, bevor Sie echt starten.\nDieser Schritt kann nicht rückgängig gemacht werden!")) return; dbFinanzen = dbFinanzen.filter(tx => tx.einheitId !== eid); saveLocal(); triggerAutoSave(); renderKontoTable(); alert("Konto wurde erfolgreich geleert/bereinigt."); }
+        function exportKontoPDF() { const eid = document.getElementById('kontoEinheitId').value; const e = dbEinheiten.get(eid); const doc = new jspdf.jsPDF(); doc.setFontSize(14); doc.text(`Mieterkonto: ${e.name}`, 14, 15); doc.setFontSize(10); doc.text(`Stand: ${new Date().toLocaleDateString('de-DE')}`, 14, 22); let txs = dbFinanzen.filter(tx => tx.einheitId === eid); txs.sort((a,b) => a.buchungsdatum.localeCompare(b.buchungsdatum)); let saldo = 0; const rows = txs.map(tx => { const s = tx.typ === 'soll' ? safeFloat(tx.betrag) : 0; const h = tx.typ === 'haben' ? safeFloat(tx.betrag) : 0; saldo += (s - h); return [ formatDate(tx.buchungsdatum), tx.text, tx.kategorie, s > 0 ? formatNum(s) : '', h > 0 ? formatNum(h) : '', formatNum(saldo) ]; }); doc.autoTable({ head: [['Datum', 'Text', 'Kat', 'Soll', 'Haben', 'Saldo']], body: rows, startY: 30, theme: 'striped', columnStyles: { 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right', fontStyle: 'bold' } } }); doc.save(`Konto_${e.name}.pdf`); }
+
+        // --- REPORTS ---
+        function getSelectedIds(containerId) { const checkboxes = document.querySelectorAll(`#${containerId} .item-checkbox:checked`); if(checkboxes.length === 0) return []; return Array.from(checkboxes).map(cb => cb.value); }
+        function toggleAll(containerId, checked) { document.querySelectorAll(`#${containerId} .item-checkbox`).forEach(cb => cb.checked = checked); }
         function generateObjectReportPDF() { const ids=getSelectedIds('objekteListe'); const arr=ids.length?Array.from(dbObjekte.entries()).filter(([id])=>ids.includes(id)):Array.from(dbObjekte.entries()); const doc=new jspdf.jsPDF('l'); doc.text("Objekt-Statusbericht",14,15); const rows=arr.map(([id,o])=>{ const hArr=Array.from(dbHaeuser.values()).filter(h=>h.objektId===id); let sf=0; hArr.forEach(h=>{if(h.sollMatrix)Object.values(h.sollMatrix).forEach(v=>sf+=safeFloat(v.area));else sf+=(safeFloat(h.wohnflaeche)+safeFloat(h.gewerbeflaeche));}); return [o.nummer,o.name,`${hArr.length}/${o.sollHaeuser||0}`,`${formatNum(safeFloat(o.flaeche))} m²`,`${formatNum(sf)} m²`,Math.abs(sf-safeFloat(o.flaeche))>0.1?formatNum(sf-safeFloat(o.flaeche)):'OK']; }); doc.autoTable({head:[['Nr','Objekt','Häuser','Soll-Fl','Ist-Plan','Diff']],body:rows,startY:20}); doc.save('objekt_bericht.pdf'); }
         function generateHouseReportPDF() { const ids=getSelectedIds('haeuserListe'); const arr=ids.length?Array.from(dbHaeuser.entries()).filter(([id])=>ids.includes(id)):Array.from(dbHaeuser.entries()); const doc=new jspdf.jsPDF('l'); doc.text("Haus-Statusbericht",14,15); const rows=arr.map(([id,h])=>{ const uArr=Array.from(dbEinheiten.values()).filter(e=>e.hausId===id); let sF=0; if(h.sollMatrix)Object.values(h.sollMatrix).forEach(v=>sF+=safeFloat(v.area)); const iF=uArr.reduce((s,e)=>s+safeFloat(e.flaeche),0); return [h.bezeichnung,uArr.length,`${formatNum(sF)} m²`,`${formatNum(iF)} m²`,Math.abs(iF-sF)>0.1?formatNum(iF-sF):'OK']; }); doc.autoTable({head:[['Haus','Einheiten','Soll-Fl','Ist-Fl','Diff']],body:rows,startY:20}); doc.save('haus_bericht.pdf'); }
         function generateUnitReportPDF() { const ids=getSelectedIds('einheitenListe'); const arr=ids.length?Array.from(dbEinheiten.entries()).filter(([id])=>ids.includes(id)):Array.from(dbEinheiten.entries()); const doc=new jspdf.jsPDF('l'); doc.text("Vermietungsliste",14,15); const rows=arr.map(([id,e])=>{ const h=dbHaeuser.get(e.hausId); let st="LEERSTAND"; let mi=""; if(e.belegung&&e.belegung.length){ const act=e.belegung.find(b=>(b.einzug||'0000')<=new Date().toISOString().split('T')[0]&&(b.auszug||'9999')>=new Date().toISOString().split('T')[0]); if(act){ const m=dbKontakte.get(act.mieterId); st="Vermietet"; mi=m?m.fn:"?"; } } return [h?h.bezeichnung:'?',e.name,e.typ,`${formatNum(safeFloat(e.flaeche))} m²`,st,mi]; }); doc.autoTable({head:[['Haus','Einheit','Typ','Fläche','Status','Mieter']],body:rows,startY:20,didParseCell:function(d){if(d.column.index===4&&d.cell.raw==='LEERSTAND')d.cell.styles.textColor=[200,0,0];}}); doc.save('vermietung.pdf'); }
-        function getSelectedIds(c){ const l=document.querySelectorAll(`#${c} .item-checkbox:checked`); return l.length?Array.from(l).map(cb=>cb.value):[]; }
-        function toggleAll(c,v){ document.querySelectorAll(`#${c} .item-checkbox`).forEach(cb=>cb.checked=v); }
-        function addBelegungRow(d={}){ /* (wie zuvor) */ const c=document.getElementById('belegungListe'); const wrapper = document.createElement('div'); wrapper.className = 'belegung-wrapper'; const r=document.createElement('div'); r.className='belegung-row'; const s=document.createElement('select'); s.className='belegung-mieter'; s.innerHTML="<option value=''>-- Mieter --</option>"; Array.from(dbKontakte.entries()).sort((a,b)=>(a[1].fn||"").localeCompare(b[1].fn||"")).forEach(([id,k])=>s.add(new Option(k.fn+(k.org?` (${k.org})`:""),id))); if(d.mieterId) s.value=d.mieterId; const inEin=document.createElement('input'); inEin.type="date"; inEin.className="belegung-einzug"; if(d.einzug) inEin.value=d.einzug; const inAus=document.createElement('input'); inAus.type="date"; inAus.className="belegung-auszug"; if(d.auszug) inAus.value=d.auszug; const b=document.createElement('button'); b.className="warn-btn"; b.innerText="X"; b.onclick=()=>{ const currentEid = document.getElementById('einheitIdInput').value; const mieterVal = s.value; if(currentEid && mieterVal) { const hasTx = dbFinanzen.some(tx => tx.einheitId === currentEid && tx.mieterId === mieterVal); if(hasTx) { alert("Buchungen vorhanden! Bitte Auszugdatum setzen."); return; } } wrapper.remove(); }; r.append(s,inEin,inAus,b); wrapper.appendChild(r); c.appendChild(wrapper); }
-        function addHistorieRow(d={}){ const c=document.getElementById('historieListe'); const r=document.createElement('div'); r.className='historie-row'; const inDate = document.createElement('input'); inDate.type="date"; inDate.className="hist-date"; if(d.date) inDate.value=d.date; const inText = document.createElement('input'); inText.type="text"; inText.className="hist-desc"; if(d.text) inText.value=d.text; const b=document.createElement('button'); b.className="warn-btn"; b.innerText="X"; b.onclick=()=>r.remove(); r.append(inDate, inText, b); c.appendChild(r); }
     </script>
 </body>
 </html>
