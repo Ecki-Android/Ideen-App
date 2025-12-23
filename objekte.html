@@ -92,6 +92,12 @@
         .modal-content input, .modal-content select, .modal-content textarea { width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 15px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
         .modal-actions { text-align: right; margin-top: 20px; }
         
+        /* DRAGGABLE MODAL */
+        .modal-draggable { position: fixed; top: 100px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 500px; background: white; border-radius: 8px; box-shadow: 0 5px 25px rgba(0,0,0,0.4); z-index: 2000; display: none; border: 1px solid #bbb; }
+        .modal-draggable.active { display: block; }
+        .modal-header-drag { background: #444; color: white; padding: 10px; border-radius: 8px 8px 0 0; cursor: move; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
+        .modal-body { padding: 15px; max-height: 70vh; overflow-y: auto; }
+
         .sub-list-container { border: 1px solid #eee; padding: 10px; background: #fafafa; border-radius: 4px; margin-bottom: 15px; max-height: 350px; overflow-y: auto; }
         
         .belegung-wrapper { border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom: 10px; background: #fff; padding: 10px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
@@ -363,10 +369,13 @@
         </div>
     </div>
 
-    <!-- Modal: Steuerschlüssel Verwaltung -->
-    <div id="taxModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')">
-        <div class="modal-content" style="max-width:600px;">
-            <h3>Steuerschlüssel Verwaltung (DATEV)</h3>
+    <!-- Modal: Steuerschlüssel Verwaltung (DRAGGABLE) -->
+    <div id="taxModal" class="modal-draggable">
+        <div class="modal-header-drag" onmousedown="startDrag(event, 'taxModal')">
+            <span>Steuerschlüssel Verwaltung (DATEV)</span>
+            <button onclick="document.getElementById('taxModal').classList.remove('active')" style="background:transparent; border:none; color:white; font-weight:bold; cursor:pointer;">X</button>
+        </div>
+        <div class="modal-body">
             <div style="max-height:300px; overflow-y:auto; margin-bottom:15px; border:1px solid #ccc;">
                 <table class="tax-table">
                     <thead>
@@ -383,14 +392,41 @@
             <div style="background:#eee; padding:10px; border-radius:4px;">
                 <b>Neuen Schlüssel anlegen:</b>
                 <div style="display:flex; gap:5px; margin-top:5px;">
-                    <input type="text" id="newTaxId" placeholder="Nr (z.B. 2)" style="width:60px; margin:0;">
+                    <input type="text" id="newTaxId" placeholder="Nr" style="width:60px; margin:0;">
                     <input type="text" id="newTaxLabel" placeholder="Bezeichnung" style="flex:1; margin:0;">
                     <input type="number" id="newTaxRate" placeholder="%" style="width:60px; margin:0;">
                     <button onclick="addTaxKey()" class="primary-btn" style="margin:0;">+</button>
                 </div>
             </div>
-            <div class="modal-actions">
-                <button onclick="document.getElementById('taxModal').classList.remove('active')">Schließen</button>
+        </div>
+    </div>
+
+    <!-- NEU: Modal Verteilerschlüssel Verwaltung (DRAGGABLE) -->
+    <div id="verteilModal" class="modal-draggable">
+        <div class="modal-header-drag" onmousedown="startDrag(event, 'verteilModal')">
+            <span>Verteilerschlüssel Verwaltung</span>
+            <button onclick="document.getElementById('verteilModal').classList.remove('active')" style="background:transparent; border:none; color:white; font-weight:bold; cursor:pointer;">X</button>
+        </div>
+        <div class="modal-body">
+            <div style="max-height:300px; overflow-y:auto; margin-bottom:15px; border:1px solid #ccc;">
+                <table class="tax-table">
+                    <thead>
+                        <tr>
+                            <th style="width:80px;">ID</th>
+                            <th>Bezeichnung</th>
+                            <th style="width:40px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="verteilTableBody"></tbody>
+                </table>
+            </div>
+            <div style="background:#eee; padding:10px; border-radius:4px;">
+                <b>Neuen Schlüssel anlegen:</b>
+                <div style="display:flex; gap:5px; margin-top:5px;">
+                    <input type="text" id="newVerteilId" placeholder="ID (z.B. m3)" style="width:80px; margin:0;">
+                    <input type="text" id="newVerteilLabel" placeholder="Bezeichnung" style="flex:1; margin:0;">
+                    <button onclick="addVerteilKey()" class="primary-btn" style="margin:0;">+</button>
+                </div>
             </div>
         </div>
     </div>
@@ -726,12 +762,18 @@
             "Kaltmiete", "BK-Vorausz.", "HK-Vorausz.", "Stellplatz", "Garage", "Küchenzuschlag", "Mietminderung", "Sonstiges"
         ];
 
-        const VERTEIL_SCHLUESSEL = [
+        // ERWEITERTE VERTEILERSCHLÜSSEL
+        let verteilKeys = [
             { id: 'm2', label: 'Fläche (m²)' },
             { id: 'mea', label: 'MEA (Anteile)' },
             { id: 'einheiten', label: 'Einheiten (Stück)' },
             { id: 'personen', label: 'Personen' },
-            { id: 'direkt', label: 'Direkt (lt. Rg.)' }
+            { id: 'direkt', label: 'Direkt (lt. Rg.)' },
+            // Recherche Ergebnisse:
+            { id: 'm3', label: 'Umbauter Raum (m³)' },
+            { id: 'person_days', label: 'Personentage' },
+            { id: 'consumption', label: 'Verbrauch (Zähler)' },
+            { id: 'nutzeinheit', label: 'Nutzeinheiten' }
         ];
 
         // Initiale Tax Keys, jetzt erweiterbar (INKLUSIVE VORSTEUER)
@@ -817,6 +859,7 @@
             loadLocal(); 
             initTaxSelect(); // Dropdowns füllen
             renderTaxTable(); // Verwaltungs-Tabelle
+            renderVerteilTable(); // Verteilschlüssel Tabelle
             try { renderLists(); } catch (err) { console.error("Fehler beim Initial-Rendering:", err); }
             
             try {
@@ -827,7 +870,14 @@
         });
 
         // --- STEUER VERWALTUNG ---
-        function openTaxModal() { document.getElementById('taxModal').classList.add('active'); renderTaxTable(); }
+        function openTaxModal() { 
+            const m = document.getElementById('taxModal');
+            m.classList.add('active'); 
+            renderTaxTable(); 
+            // Reset position if off screen
+            m.style.top = "100px";
+            m.style.left = "50%";
+        }
         function renderTaxTable() {
             const tbody = document.getElementById('taxTableBody'); tbody.innerHTML = "";
             taxKeys.forEach(t => {
@@ -842,7 +892,7 @@
             if(taxKeys.find(t=>t.id===id)) return alert("ID existiert bereits");
             taxKeys.push({id, label, rate});
             saveLocal(); 
-            refreshAllTaxSelects(); // Aktualisiere ALLE Dropdowns
+            refreshAllTaxSelects(); 
             renderTaxTable();
             document.getElementById('newTaxId').value=""; document.getElementById('newTaxLabel').value=""; document.getElementById('newTaxRate').value="";
         }
@@ -850,7 +900,7 @@
             if(!confirm("Löschen?")) return;
             taxKeys = taxKeys.filter(t => t.id !== id);
             saveLocal(); 
-            refreshAllTaxSelects(); // Aktualisiere ALLE Dropdowns
+            refreshAllTaxSelects(); 
             renderTaxTable();
         }
         function initTaxSelect() {
@@ -889,6 +939,86 @@
                 sel.value = oldVal;
             });
         }
+
+        // --- VERTEILSCHLÜSSEL VERWALTUNG ---
+        function openVerteilModal() {
+            const m = document.getElementById('verteilModal');
+            m.classList.add('active');
+            renderVerteilTable();
+            m.style.top = "100px";
+            m.style.left = "50%";
+        }
+        function renderVerteilTable() {
+            const tbody = document.getElementById('verteilTableBody'); tbody.innerHTML = "";
+            verteilKeys.forEach(v => {
+                tbody.innerHTML += `<tr><td>${v.id}</td><td>${v.label}</td><td><button class="warn-btn" style="padding:2px 5px;" onclick="deleteVerteilKey('${v.id}')">x</button></td></tr>`;
+            });
+        }
+        function addVerteilKey() {
+            const id = document.getElementById('newVerteilId').value;
+            const label = document.getElementById('newVerteilLabel').value;
+            if(!id || !label) return alert("Bitte alle Felder füllen");
+            if(verteilKeys.find(v=>v.id===id)) return alert("ID existiert bereits");
+            verteilKeys.push({id, label});
+            saveLocal();
+            refreshVerteilSelects();
+            renderVerteilTable();
+            document.getElementById('newVerteilId').value=""; document.getElementById('newVerteilLabel').value="";
+        }
+        function deleteVerteilKey(id) {
+            if(!confirm("Löschen?")) return;
+            verteilKeys = verteilKeys.filter(v => v.id !== id);
+            saveLocal();
+            refreshVerteilSelects();
+            renderVerteilTable();
+        }
+        function refreshVerteilSelects() {
+            // Kostenliste
+            document.querySelectorAll('.k-verteil').forEach(sel => {
+                const oldVal = sel.value;
+                sel.innerHTML = '';
+                verteilKeys.forEach(v => sel.add(new Option(v.label, v.id)));
+                sel.value = oldVal;
+            });
+            // Split Modal
+            document.querySelectorAll('.split-verteil').forEach(sel => {
+                const oldVal = sel.value;
+                sel.innerHTML = '';
+                verteilKeys.forEach(v => sel.add(new Option(v.label, v.id)));
+                sel.value = oldVal;
+            });
+        }
+
+        // --- DRAGGABLE LOGIC ---
+        function startDrag(e, modalId) {
+            e.preventDefault();
+            const modal = document.getElementById(modalId);
+            // Bring to front
+            document.querySelectorAll('.modal-draggable').forEach(m => m.style.zIndex = 2000);
+            modal.style.zIndex = 2001;
+
+            let startX = e.clientX;
+            let startY = e.clientY;
+            let startLeft = modal.offsetLeft;
+            let startTop = modal.offsetTop;
+
+            function doDrag(ev) {
+                const dx = ev.clientX - startX;
+                const dy = ev.clientY - startY;
+                modal.style.left = (startLeft + dx) + 'px';
+                modal.style.top = (startTop + dy) + 'px';
+                modal.style.transform = 'none'; // Disable translate centering once moved
+            }
+
+            function stopDrag() {
+                document.removeEventListener('mousemove', doDrag);
+                document.removeEventListener('mouseup', stopDrag);
+            }
+
+            document.addEventListener('mousemove', doDrag);
+            document.addEventListener('mouseup', stopDrag);
+        }
+
 
         // --- AUTH & WACHHUND LOGIK ---
         async function versucheSitzungWiederherzustellen() {
@@ -1076,10 +1206,10 @@
             try { const resF = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/ideenapp/finanzen.json:/content", { headers: { "Authorization": `Bearer ${accessToken}` } }); if (resF.ok) { const d = await resF.json(); 
                 if(d.finanzen) dbFinanzen = d.finanzen; 
                 if(d.taxKeys) taxKeys = d.taxKeys; 
-                // NEU: Abrechnungen
+                if(d.verteilKeys) verteilKeys = d.verteilKeys; // NEU
                 if(d.abrechnungen) dbAbrechnungen = d.abrechnungen;
                 if(d.kosten) dbKosten = d.kosten;
-                initTaxSelect(); renderTaxTable(); 
+                initTaxSelect(); renderTaxTable(); renderVerteilTable();
             } } catch(e) {}
             try { const resI = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/ideenapp/immobilien.json:/content", { headers: { "Authorization": `Bearer ${accessToken}` } }); if (resI.ok) { const d = await resI.json(); if(d.objekte) dbObjekte = new Map(d.objekte); if(d.haeuser) dbHaeuser = new Map(d.haeuser); if(d.einheiten) dbEinheiten = new Map(d.einheiten); saveLocal(); renderLists(); zeigeStatus("Daten geladen", "success"); } } catch(e) { zeigeStatus("Fehler: " + e.message, "error"); }
         }
@@ -1088,8 +1218,8 @@
             zeigeStatus("☁️ Speichere...", "saving");
             const dataImmo = { objekte: Array.from(dbObjekte.entries()), haeuser: Array.from(dbHaeuser.entries()), einheiten: Array.from(dbEinheiten.entries()), meta: { updated: new Date().toISOString() } };
             const p1 = fetch("https://graph.microsoft.com/v1.0/me/drive/root:/ideenapp/immobilien.json:/content", { method: "PUT", headers: { "Authorization": `Bearer ${accessToken}`, "Content-Type": "application/json" }, body: JSON.stringify(dataImmo, null, 2) });
-            // NEU: inkl Abrechnungen und Kosten
-            const dataFin = { finanzen: dbFinanzen, taxKeys: taxKeys, abrechnungen: dbAbrechnungen, kosten: dbKosten, meta: { updated: new Date().toISOString() } };
+            // NEU: inkl Abrechnungen, Kosten, Verteilschlüssel
+            const dataFin = { finanzen: dbFinanzen, taxKeys: taxKeys, verteilKeys: verteilKeys, abrechnungen: dbAbrechnungen, kosten: dbKosten, meta: { updated: new Date().toISOString() } };
             const p2 = fetch("https://graph.microsoft.com/v1.0/me/drive/root:/ideenapp/finanzen.json:/content", { method: "PUT", headers: { "Authorization": `Bearer ${accessToken}`, "Content-Type": "application/json" }, body: JSON.stringify(dataFin, null, 2) });
             try { await Promise.all([p1, p2]); zeigeStatus("✓ Gespeichert", "success"); } catch(e) { zeigeStatus("Fehler: " + e.message, "error"); }
         }
@@ -1102,7 +1232,7 @@
                     const parsed=JSON.parse(f); 
                     dbFinanzen=parsed.finanzen || parsed; 
                     if(parsed.taxKeys) taxKeys = parsed.taxKeys; 
-                    // NEU
+                    if(parsed.verteilKeys) verteilKeys = parsed.verteilKeys; // NEU
                     if(parsed.abrechnungen) dbAbrechnungen = parsed.abrechnungen;
                     if(parsed.kosten) dbKosten = parsed.kosten;
                 }
@@ -1114,21 +1244,22 @@
             localStorage.setItem("immo_haeuser", JSON.stringify(Array.from(dbHaeuser.entries()))); 
             localStorage.setItem("immo_einheiten", JSON.stringify(Array.from(dbEinheiten.entries()))); 
             // NEU: inkl. abrechnungen und kosten
-            localStorage.setItem("immo_finanzen", JSON.stringify({finanzen: dbFinanzen, taxKeys: taxKeys, abrechnungen: dbAbrechnungen, kosten: dbKosten}));
+            localStorage.setItem("immo_finanzen", JSON.stringify({finanzen: dbFinanzen, taxKeys: taxKeys, verteilKeys: verteilKeys, abrechnungen: dbAbrechnungen, kosten: dbKosten}));
         }
         // ... (speichere/ladeDateiLokal analog) ...
         async function speichereDateiLokal() {
             // NEU: inkl Abrechnungen und Kosten
-            const data = { objekte: Array.from(dbObjekte.entries()), haeuser: Array.from(dbHaeuser.entries()), einheiten: Array.from(dbEinheiten.entries()), finanzen: dbFinanzen, taxKeys: taxKeys, abrechnungen: dbAbrechnungen, kosten: dbKosten };
+            const data = { objekte: Array.from(dbObjekte.entries()), haeuser: Array.from(dbHaeuser.entries()), einheiten: Array.from(dbEinheiten.entries()), finanzen: dbFinanzen, taxKeys: taxKeys, verteilKeys: verteilKeys, abrechnungen: dbAbrechnungen, kosten: dbKosten };
             const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
             if (window.showSaveFilePicker) { try { const handle = await window.showSaveFilePicker({ suggestedName: "objekte_backup.json", types: [{ accept: { "application/json": [".json"] } }] }); const writable = await handle.createWritable(); await writable.write(blob); await writable.close(); zeigeStatus("Lokal gesichert", "success"); } catch(e) {} } else { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "objekte_backup.json"; a.click(); }
         }
         async function ladeDateiLokal() {
             try { let text; if (window.showOpenFilePicker) { const [handle] = await window.showOpenFilePicker({ types: [{ accept: { "application/json": [".json"] } }] }); const file = await handle.getFile(); text = await file.text(); } else { const inp = document.createElement("input"); inp.type="file"; inp.click(); await new Promise(r => inp.onchange = e => { if(e.target.files[0]) { const reader = new FileReader(); reader.onload=ev=>r(text=ev.target.result); reader.readAsText(e.target.files[0]); } }); } if(text) { const d = JSON.parse(text); if(d.objekte) dbObjekte = new Map(d.objekte); if(d.haeuser) dbHaeuser = new Map(d.haeuser); if(d.einheiten) dbEinheiten = new Map(d.einheiten); if(d.finanzen) dbFinanzen = d.finanzen; if(d.taxKeys) taxKeys = d.taxKeys; 
                 // NEU
+                if(d.verteilKeys) verteilKeys = d.verteilKeys;
                 if(d.abrechnungen) dbAbrechnungen = d.abrechnungen;
                 if(d.kosten) dbKosten = d.kosten;
-                initTaxSelect(); renderTaxTable(); saveLocal(); renderLists(); triggerAutoSave(); alert("Backup geladen!"); } } catch(e) { alert("Fehler: "+e.message); }
+                initTaxSelect(); renderTaxTable(); renderVerteilTable(); saveLocal(); renderLists(); triggerAutoSave(); alert("Backup geladen!"); } } catch(e) { alert("Fehler: "+e.message); }
         }
 
         // --- MATRIX LOGIK (Unverändert, aber nötig) ---
@@ -1719,12 +1850,26 @@
             inpBrutto.oninput = () => calculateRow(row);
 
             // 4. Steuerschlüssel (Vorsteuer)
+            const taxWrapper = document.createElement('div');
+            taxWrapper.style = "display:flex; align-items:center;";
+            
             const selSteuer = document.createElement('select');
             selSteuer.className = "k-tax kosten-tax";
+            selSteuer.style = "flex:1; min-width:0;";
             selSteuer.add(new Option("-", ""));
             taxKeys.forEach(t => selSteuer.add(new Option(t.label, t.id)));
             if(data.steuerKey) selSteuer.value = data.steuerKey;
             selSteuer.onchange = () => calculateRow(row);
+
+            const btnTax = document.createElement('button');
+            btnTax.innerText = "⚙️";
+            btnTax.className = "finance-btn";
+            btnTax.style.padding = "2px 4px";
+            btnTax.style.marginLeft = "2px";
+            btnTax.title = "Steuerschlüssel verwalten";
+            btnTax.onclick = () => openTaxModal();
+            
+            taxWrapper.append(selSteuer, btnTax);
 
             // 5. Netto (Readonly)
             const outNetto = document.createElement('input');
@@ -1740,11 +1885,25 @@
             outTaxAmt.style.background = "#f0f0f0";
             outTaxAmt.value = data.steuerBetrag ? formatNum(data.steuerBetrag) : "";
 
-            // 7. Verteilschlüssel
+            // 7. Verteilschlüssel (MIT ZAHNRAD)
+            const verteilWrapper = document.createElement('div');
+            verteilWrapper.style = "display:flex; align-items:center;";
+
             const selVerteil = document.createElement('select');
             selVerteil.className = "k-verteil";
-            VERTEIL_SCHLUESSEL.forEach(v => selVerteil.add(new Option(v.label, v.id)));
+            selVerteil.style = "flex:1; min-width:0;";
+            verteilKeys.forEach(v => selVerteil.add(new Option(v.label, v.id)));
             if(data.verteilKey) selVerteil.value = data.verteilKey;
+
+            const btnVerteil = document.createElement('button');
+            btnVerteil.innerText = "⚙️";
+            btnVerteil.className = "finance-btn";
+            btnVerteil.style.padding = "2px 4px";
+            btnVerteil.style.marginLeft = "2px";
+            btnVerteil.title = "Verteilschlüssel verwalten";
+            btnVerteil.onclick = () => openVerteilModal();
+
+            verteilWrapper.append(selVerteil, btnVerteil);
 
             // Delete Btn
             const btnDel = document.createElement('button');
@@ -1753,7 +1912,7 @@
             btnDel.style.padding = "2px 5px";
             btnDel.onclick = () => { row.remove(); updateKostenSums(); };
 
-            row.append(inpKonto, inpText, inpBrutto, selSteuer, outNetto, outTaxAmt, selVerteil, btnDel);
+            row.append(inpKonto, inpText, inpBrutto, taxWrapper, outNetto, outTaxAmt, verteilWrapper, btnDel);
             container.appendChild(row);
         }
 
@@ -1910,7 +2069,7 @@
             // Verteilung
             const selVerteil = document.createElement('select');
             selVerteil.className = "split-verteil";
-            VERTEIL_SCHLUESSEL.forEach(v => selVerteil.add(new Option(v.label, v.id)));
+            verteilKeys.forEach(v => selVerteil.add(new Option(v.label, v.id)));
 
             // Del Button
             const btnDel = document.createElement('button');
