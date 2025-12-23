@@ -127,6 +127,7 @@
 
         /* Styles für Finanz-Modul */
         /* UPDATE: Neue Spaltenstruktur für Konditionen (mit Intervall) */
+        /* Bez | Betrag | Konto | Intervall (NEU) | Von | Bis | Steuer | Zahnrad | Button | Löschen */
         .kondition-row { display: grid; grid-template-columns: 2fr 0.8fr 0.8fr 1fr 0.9fr 0.9fr 0.6fr 30px 30px 30px; gap: 5px; margin-bottom: 5px; align-items: center; border-bottom:1px dashed #eee; padding-bottom:5px;}
         .kondition-row input, .kondition-row select { margin: 0; font-size: 0.9em; }
         
@@ -162,16 +163,33 @@
         #loginMessage h2 { border-bottom: none; color: #555; }
         #protectedContent { display: block; }
 
-        /* NEU: Styles für Kosten-Erfassung */
-        .kosten-row { display: grid; grid-template-columns: 1fr 2fr 1fr 1fr 1fr 1fr 1fr 30px; gap: 5px; margin-bottom: 5px; align-items: center; border-bottom: 1px dashed #ddd; padding-bottom: 5px; }
+        /* NEU: Styles für Kosten-Erfassung (inkl. Lohnanteil) */
+        /* Konto | Text | Brutto | Lohn(NEU) | VSt-Key | Netto | Steuer | Verteil | X */
+        .kosten-row { display: grid; grid-template-columns: 0.8fr 2fr 1fr 0.8fr 0.6fr 1fr 0.8fr 1fr 30px; gap: 5px; margin-bottom: 5px; align-items: center; border-bottom: 1px dashed #ddd; padding-bottom: 5px; }
         .kosten-row input, .kosten-row select { font-size: 0.85em; padding: 4px; margin: 0; border:1px solid #ccc; border-radius:3px; }
-        .kosten-header { display: grid; grid-template-columns: 1fr 2fr 1fr 1fr 1fr 1fr 1fr 30px; gap: 5px; font-weight: bold; background: #eee; padding: 8px 5px; border-radius: 4px 4px 0 0; font-size: 0.85em; }
+        .kosten-header { display: grid; grid-template-columns: 0.8fr 2fr 1fr 0.8fr 0.6fr 1fr 0.8fr 1fr 30px; gap: 5px; font-weight: bold; background: #eee; padding: 8px 5px; border-radius: 4px 4px 0 0; font-size: 0.85em; }
         .kosten-footer { display: flex; justify-content: flex-end; gap: 15px; padding: 10px; background: #e0f2f1; font-weight: bold; border-top: 2px solid #00695c; margin-top: 10px; }
         
-        /* NEU: Styles für Split-Modal */
-        .split-row { display: grid; grid-template-columns: 1fr 2fr 1fr 1fr 1fr 1fr 30px; gap: 5px; margin-bottom: 5px; align-items: center; }
+        /* NEU: Styles für Split-Modal (inkl. Lohnanteil) */
+        /* Betrag | Text | Konto | Lohn(NEU) | Tax | Verteil | X */
+        .split-row { display: grid; grid-template-columns: 1fr 2fr 1fr 1fr 0.8fr 1fr 30px; gap: 5px; margin-bottom: 5px; align-items: center; }
         .split-row input, .split-row select { width: 100%; font-size:0.9em; padding: 5px; margin: 0; border:1px solid #ccc; }
-        .split-header { display: grid; grid-template-columns: 1fr 2fr 1fr 1fr 1fr 1fr 30px; gap: 5px; margin-bottom: 10px; font-weight:bold; font-size:0.85em; background:#eee; padding:5px; }
+        .split-header { display: grid; grid-template-columns: 1fr 2fr 1fr 1fr 0.8fr 1fr 30px; gap: 5px; margin-bottom: 10px; font-weight:bold; font-size:0.85em; background:#eee; padding:5px; }
+
+        /* NEU: Styles für das Verbrauchsdaten-Modal */
+        .v-tab-bar { display: flex; border-bottom: 1px solid #ccc; margin-bottom: 15px; background: #f1f1f1; border-radius: 4px 4px 0 0; }
+        .v-tab { flex: 1; text-align: center; padding: 10px; cursor: pointer; border-bottom: 3px solid transparent; color: #555; font-weight: 500; }
+        .v-tab:hover { background: #e9e9e9; }
+        .v-tab.active { background: #fff; border-bottom: 3px solid #2e7d32; color: #2e7d32; font-weight: bold; border-radius: 4px 4px 0 0; }
+        
+        .v-panel { display: none; animation: fadeIn 0.3s; }
+        .v-panel.active { display: block; }
+
+        .verbrauchs-header { display: grid; gap: 5px; font-weight: bold; background: #e0f2f1; padding: 8px; border-radius: 4px; font-size: 0.85em; margin-bottom: 10px; border: 1px solid #b2dfdb; }
+        .verbrauchs-row { display: grid; gap: 5px; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 5px; }
+        .verbrauchs-row input, .verbrauchs-row select { width: 100%; box-sizing: border-box; font-size: 0.9em; padding: 4px; border: 1px solid #ccc; border-radius: 3px; }
+        
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
 <body>
@@ -219,7 +237,7 @@
                 <button class="tab-btn active" onclick="switchTab('objekte')">🏠 Objekte</button>
                 <button class="tab-btn" onclick="switchTab('haeuser')">🏘️ Häuser</button>
                 <button class="tab-btn" onclick="switchTab('einheiten')">🚪 Einheiten</button>
-                <button class="tab-btn" onclick="switchTab('kosten')">📉 BK-Abrechnung</button> <!-- NEU -->
+                <button class="tab-btn" onclick="switchTab('kosten')">📉 BK-Abrechnung</button> 
                 
                 <div class="report-actions">
                     <button onclick="generateObjectReportPDF()" class="report-btn">📄 Objekt-Status PDF</button>
@@ -251,7 +269,7 @@
                 <div id="einheitenListe" style="margin-top: 15px;"></div>
             </div>
 
-            <!-- NEU: PANEL KOSTEN (Betriebskosten) -->
+            <!-- PANEL KOSTEN (Betriebskosten) -->
             <div id="panelKosten" class="panel">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid #eee; padding-bottom:10px;">
                     <div style="display:flex; gap:10px; align-items:center;">
@@ -274,10 +292,12 @@
                                 </h3>
                                 <input type="hidden" id="currentAbrechnungId">
                                 
+                                <!-- KOMMENTAR: Header angepasst auf neue CSS Grid Struktur (Lohnspalte) -->
                                 <div class="kosten-header">
                                     <div>Konto</div>
                                     <div>Beschreibung / Text</div>
                                     <div>Brutto €</div>
+                                    <div>Lohn €</div> <!-- NEU: Spalte Lohnkosten -->
                                     <div>VSt.-Schlüssel</div>
                                     <div>Netto €</div>
                                     <div>Vorsteuer €</div>
@@ -311,11 +331,79 @@
         </div>
     </div>
 <!-- ================= MODALS ================= -->
-    <!-- KOMMENTAR: Hier beginnen die Popups für die Datenerfassung -->
 
-    <!-- Modal: Split Buchung -->
+    <!-- KOMMENTAR: NEUES MODAL für Verbrauchsdaten (Zähler, Personen, Direktkosten) -->
+    <div id="verbrauchsdatenModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')">
+        <div class="modal-content" style="max-width:900px; height:80vh; display:flex; flex-direction:column;">
+            <h3>📊 Zähler & Verbrauchsdaten</h3>
+            <input type="hidden" id="verbrauchEinheitId">
+            <h4 id="verbrauchTitle" style="color:#2e7d32; margin-bottom:10px;"></h4>
+
+            <!-- Tabs Navigation -->
+            <div class="v-tab-bar">
+                <div class="v-tab active" onclick="switchVerbrauchTab('personen')">👥 Personen</div>
+                <div class="v-tab" onclick="switchVerbrauchTab('zaehler')">💧⚡ Zählerstände</div>
+                <div class="v-tab" onclick="switchVerbrauchTab('direkt')">🔧 Direkte Kosten</div>
+            </div>
+
+            <!-- Panel: Personen -->
+            <div id="vPanel-personen" class="v-panel active" style="flex:1; overflow-y:auto;">
+                <p class="sub-info">Erfassung der bewohnten Personenanzahl für Zeiträume (für Verteilschlüssel "Personen").</p>
+                <!-- Grid Header: Von | Bis | Anzahl | X -->
+                <div class="verbrauchs-header" style="grid-template-columns: 1fr 1fr 1fr 30px;">
+                    <div>Von</div>
+                    <div>Bis (leer = aktuell)</div>
+                    <div>Anzahl Pers.</div>
+                    <div></div>
+                </div>
+                <div id="vList-personen"></div>
+                <button onclick="addPersonenRow()" class="primary-btn" style="margin-top:10px;">+ Zeitraum hinzufügen</button>
+            </div>
+
+            <!-- Panel: Zähler -->
+            <div id="vPanel-zaehler" class="v-panel" style="flex:1; overflow-y:auto;">
+                <p class="sub-info">Erfassung von Zählerständen für Wasser (Warm/Kalt) und Strom.</p>
+                <!-- Grid Header: ZählerNr | Art | Von | Bis | Start | Ende | Verbrauch | X -->
+                <div class="verbrauchs-header" style="grid-template-columns: 1fr 1fr 1fr 1fr 0.8fr 0.8fr 0.8fr 30px;">
+                    <div>Zähler-Nr.</div>
+                    <div>Art</div>
+                    <div>Von</div>
+                    <div>Bis</div>
+                    <div>Start-Stand</div>
+                    <div>End-Stand</div>
+                    <div>Verbrauch</div>
+                    <div></div>
+                </div>
+                <div id="vList-zaehler"></div>
+                <button onclick="addZaehlerRow()" class="primary-btn" style="margin-top:10px;">+ Zählerstand erfassen</button>
+            </div>
+
+            <!-- Panel: Direkte Kosten -->
+            <div id="vPanel-direkt" class="v-panel" style="flex:1; overflow-y:auto;">
+                <p class="sub-info">Kosten, die direkt dieser Einheit zugeordnet sind (z.B. Heizkostenabrechnung Dienstleister).</p>
+                <!-- Grid Header: Art | Von | Bis | Betrag | Lohn | X -->
+                <div class="verbrauchs-header" style="grid-template-columns: 2fr 1fr 1fr 1fr 1fr 30px;">
+                    <div>Kostenart / Text</div>
+                    <div>Von</div>
+                    <div>Bis</div>
+                    <div>Betrag €</div>
+                    <div>Lohnanteil €</div> <!-- NEU -->
+                    <div></div>
+                </div>
+                <div id="vList-direkt"></div>
+                <button onclick="addDirektRow()" class="primary-btn" style="margin-top:10px;">+ Direkte Kosten hinzufügen</button>
+            </div>
+
+            <div class="modal-actions" style="margin-top:auto; padding-top:15px; border-top:1px solid #eee;">
+                <button onclick="document.getElementById('verbrauchsdatenModal').classList.remove('active')">Schließen</button>
+                <button class="primary-btn" onclick="saveVerbrauchsdaten()">Speichern</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- KOMMENTAR: UPDATE Modal Split Buchung (mit Lohnanteil) -->
     <div id="splitModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')">
-        <div class="modal-content" style="max-width:800px;">
+        <div class="modal-content" style="max-width:900px;">
             <h3>✂️ Split-Buchung erfassen</h3>
             <div style="background:#e3f2fd; padding:15px; border-radius:4px; margin-bottom:15px;">
                 <label style="font-weight:bold; font-size:1.1em;">Gesamtsumme Rechnung (Brutto):</label>
@@ -323,10 +411,12 @@
                 <span style="font-size:1.2em; margin-left:5px;">€</span>
             </div>
 
+            <!-- Grid Header Updated (mit Lohnanteil) -->
             <div class="split-header">
                 <div>Betrag €</div>
                 <div>Beschreibung (z.B. Frischwasser)</div>
                 <div>Konto</div>
+                <div>Lohnanteil €</div> <!-- NEU -->
                 <div>VSt-Schlüssel</div>
                 <div>Verteilung</div>
                 <div></div>
@@ -487,7 +577,7 @@
                 <select id="hausSteuerStatus">
                     <option value="opt">Mit USt/Vorsteuer</option>
                     <option value="none">Ohne USt</option>
-                    <option value="mixed">Gemischt (Einstellung je Einheit)</option>
+                    <option value="mixed">Gemischt (Einstellung je Haus/Einheit)</option>
                 </select>
             </div>
 
@@ -575,13 +665,9 @@
                 <div style="flex:1;"><label>Zimmer:</label><input type="number" step="0.5" id="einheitZimmerInput"></div>
                 <div style="flex:1;"><label>MEA Anteil:</label><input type="number" step="0.001" id="einheitMeaInput"></div>
             </div>
-
-            <div class="section-header">Zählerstände / Verbrauchsparameter (m³)</div>
-            <div style="display:flex; gap:10px;">
-                <div style="flex:1;"><label>Warmwasser m³ (Info):</label><input type="number" step="0.001" id="einheitWwInput" placeholder="z.B. Zählerstand"></div>
-                <div style="flex:1;"><label>Kaltwasser m³ (Info):</label><input type="number" step="0.001" id="einheitKwInput" placeholder="z.B. Zählerstand"></div>
-            </div>
             
+            <!-- KOMMENTAR: Zählerstände im neuen Modal, hier nur noch Basis-Info oder ausgeblendet. Wir lassen es vorerst für Kompatibilität leer oder entfernen es später. -->
+
             <div class="section-header">
                 <span>Miet-Konditionen & Vorauszahlungen</span>
                 <button type="button" onclick="addKonditionRow()" style="font-size:0.8em; padding:2px 8px;">+ Position</button>
@@ -592,7 +678,7 @@
                     <div>Bezeichnung</div>
                     <div>Betrag €</div>
                     <div>Konto</div>
-                    <div>Intervall</div> <!-- NEU: Spalte für Intervall -->
+                    <div>Intervall</div> <!-- NEU -->
                     <div>Gültig Ab</div>
                     <div>Gültig Bis</div>
                     <div>St-S</div>
@@ -1110,9 +1196,9 @@
         function getNextObjektID() { let max = 0; dbObjekte.forEach((o, id) => { const num = parseInt(id, 10); if (!isNaN(num) && num > max) max = num; }); return pad(max + 1, 4); }
         function getNextHausID(objektId) { let max = 0; dbHaeuser.forEach((h, id) => { if (id.startsWith(objektId + "/")) { const parts = id.split('/'); const num = parseInt(parts[parts.length - 1], 10); if (!isNaN(num) && num > max) max = num; } }); return objektId + "/" + pad(max + 1, 2); }
         function getNextEinheitID(hausId) { let max = 0; dbEinheiten.forEach((e, id) => { if (id.startsWith(hausId + "/")) { const parts = id.split('/'); const num = parseInt(parts[parts.length - 1], 10); if (!isNaN(num) && num > max) max = num; } }); return hausId + "/" + pad(max + 1, 4); }
-
+// KOMMENTAR: Erweiterte Testdaten (inkl. Zähler & Lohnanteil)
         function createDummyData() {
-            if(!confirm("Musterdaten (Wohnpark + Finanzhistorie + BK) erzeugen?")) return;
+            if(!confirm("Musterdaten (Wohnpark + Zähler + Lohnkosten) erzeugen?")) return;
             const oid = getNextObjektID();
             dbObjekte.set(oid, { nummer: oid, name: "Wohnpark Test", plz: "12345", ort: "Musterstadt", flaeche: 150, mea: 1000, sollHaeuser: 1, steuerStatus: "opt" });
             
@@ -1126,15 +1212,29 @@
             const year = now.getFullYear();
             const month = now.getMonth() + 1;
 
+            // Einheit 1: Mit Zählerhistorie & Personen
             dbEinheiten.set(eid, { 
-                hausId: hid, name: "EG Links", typ: "wohnung", flaeche: 50, zimmer: 2, mea: 333.33, ww_m3: 123.4, kw_m3: 456.7, 
+                hausId: hid, name: "EG Links", typ: "wohnung", flaeche: 50, zimmer: 2, mea: 333.33,
                 konditionen: [
-                    { id: 'k1', label: 'Kaltmiete', betrag: 500, konto: '8000', intervall: 'Monatlich', gueltigAb: '2023-01-01', gueltigBis: '', steuerKey: '2' }, 
-                    { id: 'k2', label: 'BK-Vorausz.', betrag: 100, konto: '8010', intervall: 'Monatlich', gueltigAb: '2023-01-01', gueltigBis: '', steuerKey: '20' } 
+                    { id: 'k1', label: 'Kaltmiete', betrag: 500, konto: '8000', intervall: 'Monatlich', gueltigAb: `${year}-01-01`, steuerKey: '2' }, 
+                    { id: 'k2', label: 'BK-Vorausz.', betrag: 100, konto: '8010', intervall: 'Monatlich', gueltigAb: `${year}-01-01`, steuerKey: '20' } 
                 ], 
-                belegung: [{ mieterId: "dummy_mieter", einzug: "2023-01-01", auszug: "" }] 
+                belegung: [{ mieterId: "dummy_mieter", einzug: `${year}-01-01`, auszug: "" }],
+                // NEU: Verbrauchsdaten Struktur gefüllt
+                verbrauchsdaten: {
+                    personen: [
+                        { von: `${year}-01-01`, bis: `${year}-06-30`, anzahl: 2 },
+                        { von: `${year}-07-01`, bis: "", anzahl: 3 } // Personenwechsel im Jahr
+                    ],
+                    zaehler: [
+                        { nr: "WZ-101", art: "Wasser Kalt", von: `${year}-01-01`, bis: `${year}-12-31`, standStart: 100.5, standEnde: 145.2 },
+                        { nr: "WZ-102", art: "Wasser Warm", von: `${year}-01-01`, bis: `${year}-12-31`, standStart: 50.0, standEnde: 75.8 }
+                    ],
+                    direkt: []
+                }
             });
 
+            // Finanzhistorie für Einheit 1 erzeugen
             for(let i=1; i<=3; i++) {
                 let m = month - i;
                 let y = year;
@@ -1149,23 +1249,31 @@
                 });
             }
 
+            // Einheit 2
             eid = getNextEinheitID(hid);
             dbEinheiten.set(eid, { hausId: hid, name: "EG Rechts", typ: "wohnung", flaeche: 50, zimmer: 2, mea: 333.33, belegung: [] });
 
+            // Einheit 3 (Gewerbe)
             eid = getNextEinheitID(hid);
             dbEinheiten.set(eid, { 
                 hausId: hid, name: "Büro OG", typ: "gewerbe", flaeche: 50, zimmer: 3, mea: 333.34, 
                 konditionen: [
-                    { id: 'k1', label: 'Kaltmiete', betrag: 800, konto: '8000', intervall: 'Monatlich', gueltigAb: '2023-01-01', gueltigBis: '', steuerKey: '3' } 
+                    { id: 'k1', label: 'Kaltmiete', betrag: 800, konto: '8000', intervall: 'Monatlich', gueltigAb: `${year}-01-01`, steuerKey: '3' } 
                 ],
                 belegung: [] 
             });
 
+            // Abrechnung & Kosten mit Lohnanteil
             const abrId = 'abr_' + Date.now();
-            dbAbrechnungen.push({ id: abrId, objektId: oid, name: "Betriebskosten 2023", von: "2023-01-01", bis: "2023-12-31" });
-            dbKosten.push({ id: getNextFinanzId(), abrechnungId: abrId, konto: "4000", text: "Wasser / Abwasser", brutto: 1070, steuerKey: "8", netto: 1000, steuerBetrag: 70, verteilKey: "m2" });
+            dbAbrechnungen.push({ id: abrId, objektId: oid, name: `Betriebskosten ${year}`, von: `${year}-01-01`, bis: `${year}-12-31` });
             
-            saveLocal(); renderLists(); alert("Vollständige Testdaten (2 Whg, 1 Gew) & BK 2023 angelegt!");
+            // Kosten 1: Wasser (Kein Lohn)
+            dbKosten.push({ id: getNextFinanzId(), abrechnungId: abrId, konto: "4000", text: "Wasser / Abwasser", brutto: 1070, lohn: 0, steuerKey: "8", netto: 1000, steuerBetrag: 70, verteilKey: "m2" });
+            
+            // Kosten 2: Hausmeister (Mit Lohnanteil!)
+            dbKosten.push({ id: getNextFinanzId(), abrechnungId: abrId, konto: "4010", text: "Hausmeister Gartenpflege", brutto: 595, lohn: 150, steuerKey: "9", netto: 500, steuerBetrag: 95, verteilKey: "einheiten" });
+            
+            saveLocal(); renderLists(); alert("Testdaten mit Zählerständen und Lohnkosten angelegt!");
         }
 
         // --- LOAD / SAVE ---
@@ -1241,7 +1349,9 @@
         function updateUnitLiveStatus() { document.getElementById('einheitLiveStatus').style.display = "none"; }
         function updateObjektLiveStatus() { }
         function switchTab(id) { document.querySelectorAll('.panel').forEach(p => p.classList.remove('active')); document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); const p = document.getElementById('panel' + id.charAt(0).toUpperCase() + id.slice(1)); if(p) p.classList.add('active'); const btns = document.querySelectorAll('.tab-btn'); if(id==='objekte'&&btns[0])btns[0].classList.add('active'); if(id==='haeuser'&&btns[1])btns[1].classList.add('active'); if(id==='einheiten'&&btns[2])btns[2].classList.add('active'); if(id==='kosten'&&btns[3])btns[3].classList.add('active'); }
-function renderLists() {
+
+        // KOMMENTAR: UPDATE - renderLists inkl. Verbrauchsdaten-Button
+        function renderLists() {
             // Dropdowns füllen
             const oSel = document.getElementById('hausObjektSelect'); 
             const eObjSel = document.getElementById('einheitObjektSelect'); 
@@ -1398,6 +1508,8 @@ function renderLists() {
                 const tBadge = `<span class="tax-badge ${tSt.class}">${tSt.label}</span>`;
 
                 const kontoBtn = `<button class="account-btn" onclick="openKontoModal('${e.id}')">💶 Konto</button>`;
+                // KOMMENTAR: NEUER BUTTON für Verbrauchsdaten
+                const verbrauchBtn = `<button class="finance-btn" onclick="openVerbrauchsdatenModal('${e.id}')">📊 Zähler & Daten</button>`;
                 
                 eDiv.innerHTML += `
                 <div class="liste-item">
@@ -1405,7 +1517,7 @@ function renderLists() {
                     <div class="liste-content">
                         <div style="display:flex; justify-content:space-between;">
                             <h4>${e.name} <small style="font-family:monospace; color:#000;">[ID: ${e.id}]</small> <small>(${e.hName})</small> ${tBadge}</h4>
-                            <div>${kontoBtn} <button onclick="openEinheitMask('${e.id}')">Bearbeiten</button></div>
+                            <div style="display:flex; gap:5px;">${verbrauchBtn} ${kontoBtn} <button onclick="openEinheitMask('${e.id}')">Bearbeiten</button></div>
                         </div>
                         <div class="sub-info"><span style="display:inline-block; padding:2px 6px; background:#e3f2fd; color:#0d47a1; border-radius:4px; font-size:0.9em; margin-right:5px;">${getTypeLabel(e.typ)}</span><b>${formatNum(safeFloat(e.flaeche))} m²</b></div>
                         <div class="mieter-status">${stHtml}</div>
@@ -1413,8 +1525,7 @@ function renderLists() {
                 </div>`;
             });
         }
-
-        // --- CRUD MASKEN ---
+// --- CRUD MASKEN ---
         function openObjektMask(id){ const o=id?dbObjekte.get(id):{}; document.getElementById('objektIdInput').value=id||""; document.getElementById('objektNummerInput').value=id || getNextObjektID(); document.getElementById('objektNameInput').value=o.name||""; document.getElementById('objektPlzInput').value=o.plz||""; document.getElementById('objektOrtInput').value=o.ort||""; document.getElementById('objektFlaecheInput').value=o.flaeche||""; document.getElementById('objektMeaInput').value=o.mea||"1000"; document.getElementById('objektSollHaeuser').value=o.sollHaeuser||"1"; document.getElementById('objektSteuerStatus').value = o.steuerStatus || 'opt'; updateObjektLiveStatus(); document.getElementById('objektModal').classList.add('active'); }
         
         function saveObjekt(){ 
@@ -1454,7 +1565,9 @@ function renderLists() {
         function openEinheitMask(id){ 
             updateKonditionDatalist(); 
             const e=id?dbEinheiten.get(id):{}; document.getElementById('einheitIdInput').value=id||""; const oSel=document.getElementById('einheitObjektSelect'); const hSel=document.getElementById('einheitHausSelect'); oSel.innerHTML=""; if(activeFilterId) { const o=dbObjekte.get(activeFilterId); if(o) oSel.add(new Option(o.name, activeFilterId)); } else { oSel.innerHTML = "<option value=''>-- Objekt wählen --</option>"; dbObjekte.forEach((o,oid)=>oSel.add(new Option(o.name,oid))); }
-            let oid, hid; if(id) { hid = e.hausId; oid = hid ? dbHaeuser.get(hid)?.objektId : ""; } else { if(activeFilterId) { oid = activeFilterId; } else if(oSel.options.length > 0 && !oSel.value) { } hid = ""; } if(oid) oSel.value=oid; filterHaeuserDropdown(); if(hid) hSel.value=hid; else if(hSel.options.length>0) hSel.selectedIndex=0; if(id) document.getElementById('einheitNummerDisplay').value = id; else if(hSel.value) document.getElementById('einheitNummerDisplay').value = getNextEinheitID(hSel.value); document.getElementById('einheitNameInput').value=e.name||""; document.getElementById('einheitTypSelect').innerHTML=""; STANDARD_TYPES.forEach(t=>document.getElementById('einheitTypSelect').add(new Option(t.label,t.id))); document.getElementById('einheitFlaecheInput').value=e.flaeche||""; document.getElementById('einheitHeizflaecheInput').value=e.heizflaeche||""; document.getElementById('einheitZimmerInput').value=e.zimmer||""; document.getElementById('einheitMeaInput').value=e.mea||""; document.getElementById('einheitWwInput').value = e.ww_m3 || ""; document.getElementById('einheitKwInput').value = e.kw_m3 || ""; const c=document.getElementById('belegungListe'); c.innerHTML=""; if(e.belegung&&e.belegung.length) e.belegung.forEach(b=>addBelegungRow(b)); else addBelegungRow(); const hList = document.getElementById('historieListe'); hList.innerHTML=""; if(e.historie && e.historie.length) e.historie.forEach(h=>addHistorieRow(h)); 
+            let oid, hid; if(id) { hid = e.hausId; oid = hid ? dbHaeuser.get(hid)?.objektId : ""; } else { if(activeFilterId) { oid = activeFilterId; } else if(oSel.options.length > 0 && !oSel.value) { } hid = ""; } if(oid) oSel.value=oid; filterHaeuserDropdown(); if(hid) hSel.value=hid; else if(hSel.options.length>0) hSel.selectedIndex=0; if(id) document.getElementById('einheitNummerDisplay').value = id; else if(hSel.value) document.getElementById('einheitNummerDisplay').value = getNextEinheitID(hSel.value); document.getElementById('einheitNameInput').value=e.name||""; document.getElementById('einheitTypSelect').innerHTML=""; STANDARD_TYPES.forEach(t=>document.getElementById('einheitTypSelect').add(new Option(t.label,t.id))); document.getElementById('einheitFlaecheInput').value=e.flaeche||""; document.getElementById('einheitHeizflaecheInput').value=e.heizflaeche||""; document.getElementById('einheitZimmerInput').value=e.zimmer||""; document.getElementById('einheitMeaInput').value=e.mea||""; 
+            
+            const c=document.getElementById('belegungListe'); c.innerHTML=""; if(e.belegung&&e.belegung.length) e.belegung.forEach(b=>addBelegungRow(b)); else addBelegungRow(); const hList = document.getElementById('historieListe'); hList.innerHTML=""; if(e.historie && e.historie.length) e.historie.forEach(h=>addHistorieRow(h)); 
             
             let showTax = false;
             if(hSel.value) {
@@ -1486,10 +1599,8 @@ function renderLists() {
             const intervallSelect = document.createElement('select');
             intervallSelect.className = "kond-intervall";
             intervallSelect.title = "Zahlungsintervall";
-            INTERVALL_OPTS.forEach(opt => {
-                intervallSelect.add(new Option(opt, opt));
-            });
-            intervallSelect.value = d.intervall || 'Monatlich'; // Standard
+            INTERVALL_OPTS.forEach(opt => { intervallSelect.add(new Option(opt, opt)); });
+            intervallSelect.value = d.intervall || 'Monatlich'; 
 
             const dateInput = document.createElement('input'); dateInput.type="date"; dateInput.className="kond-date"; if(d.gueltigAb) dateInput.value = d.gueltigAb; else dateInput.value = new Date().toISOString().split('T')[0]; 
             const dateBisInput = document.createElement('input'); dateBisInput.type="date"; dateBisInput.className="kond-date-bis"; if(d.gueltigBis) dateBisInput.value = d.gueltigBis;
@@ -1535,7 +1646,23 @@ function renderLists() {
                 if(l && b) kond.push({ label:l, betrag:b, konto:k, intervall: inv, gueltigAb:d, gueltigBis:dbis, steuerKey: st }); 
             }); 
             
-            dbEinheiten.set(String(id), { hausId: document.getElementById('einheitHausSelect').value, name: document.getElementById('einheitNameInput').value, typ: document.getElementById('einheitTypSelect').value, flaeche: safeFloat(document.getElementById('einheitFlaecheInput').value), heizflaeche: safeFloat(document.getElementById('einheitHeizflaecheInput').value), zimmer: document.getElementById('einheitZimmerInput').value, mea: safeFloat(document.getElementById('einheitMeaInput').value), ww_m3: safeFloat(document.getElementById('einheitWwInput').value), kw_m3: safeFloat(document.getElementById('einheitKwInput').value), konditionen: kond, belegung: bel, historie: hist }); 
+            const e = dbEinheiten.get(id) || {};
+            // Erhalte Verbrauchsdaten, falls vorhanden
+            const verbrauchsdaten = e.verbrauchsdaten || { personen: [], zaehler: [], direkt: [] };
+
+            dbEinheiten.set(String(id), { 
+                hausId: document.getElementById('einheitHausSelect').value, 
+                name: document.getElementById('einheitNameInput').value, 
+                typ: document.getElementById('einheitTypSelect').value, 
+                flaeche: safeFloat(document.getElementById('einheitFlaecheInput').value), 
+                heizflaeche: safeFloat(document.getElementById('einheitHeizflaecheInput').value), 
+                zimmer: document.getElementById('einheitZimmerInput').value, 
+                mea: safeFloat(document.getElementById('einheitMeaInput').value), 
+                konditionen: kond, 
+                belegung: bel, 
+                historie: hist,
+                verbrauchsdaten: verbrauchsdaten // Behalte existierende Daten
+            }); 
             document.getElementById('einheitModal').classList.remove('active'); saveLocal(); renderLists(); triggerAutoSave(); 
         }
 
@@ -1599,7 +1726,7 @@ function renderLists() {
             // Setze Standardmonat auf nächsten Monat oder aktuellen
             const now = new Date();
             document.getElementById('sollMonatInput').value = now.toISOString().slice(0, 7);
-            // Setze Buchungsdatum auf Heute (kann geändert werden)
+            // Setze Buchungsdatum auf Heute
             document.getElementById('sollBuchungsdatum').value = now.toISOString().split('T')[0];
             document.getElementById('sollstellungModal').classList.add('active');
         }
@@ -1640,12 +1767,8 @@ function renderLists() {
                             if(e.konditionen) e.konditionen.forEach(k => { 
                                 const gueltigAb = new Date(k.gueltigAb); let gueltigBis = k.gueltigBis ? new Date(k.gueltigBis) : new Date('2099-12-31'); 
                                 
-                                // Prüfen ob Kondition im Monat generell gültig ist
                                 if(gueltigAb <= monthEnd && gueltigBis >= monthStart) { 
-                                    
                                     // NEU: Intervall Prüfung
-                                    // Startmonat der Kondition ermitteln (für Rhythmus)
-                                    // JS Monate sind 0-11. Wir nutzen 1-12 für Mathe.
                                     const startMonatIndex = gueltigAb.getMonth() + 1; 
                                     const intervall = k.intervall || 'Monatlich';
                                     let isDue = false;
@@ -1653,9 +1776,6 @@ function renderLists() {
                                     if (intervall === 'Monatlich') {
                                         isDue = true;
                                     } else if (intervall === 'Vierteljährlich') {
-                                        // Prüft: (AktuellerMonat - StartMonat) teilbar durch 3?
-                                        // Bsp: Start Jan (1). Lauf Jan (1) -> 0%3=0 OK. Lauf Apr (4) -> 3%3=0 OK.
-                                        // Bsp: Start Feb (2). Lauf Mai (5) -> 3%3=0 OK.
                                         if ((monat - startMonatIndex) % 3 === 0) isDue = true;
                                     } else if (intervall === 'Halbjährlich') {
                                         if ((monat - startMonatIndex) % 6 === 0) isDue = true;
@@ -1665,13 +1785,6 @@ function renderLists() {
                                     }
 
                                     if (isDue) {
-                                        // Bei Intervallen > Monatlich wird der volle Betrag fällig (kein Faktor für Teiltage, außer bei Einzug mitten im Intervall? 
-                                        // Vereinfachung: Faktor gilt für monatliche Betrachtung. Bei Jährlich etc. ignorieren wir Faktor meistens, 
-                                        // aber wenn jemand am 15.01 einzieht und jährlich zahlt, ist es komplex. 
-                                        // Hier: Faktor nur anwenden wenn Monatlich. Sonst voller Betrag (oder nach User Logik).
-                                        // User Wunsch war: "Jährliche Zahlung startete Jan, wird nur generiert wenn Lauf Jan".
-                                        // Wir lassen Faktor aktiv (korrekt bei Einzug im laufenden Monat), aber meist ist Faktor 1.
-                                        
                                         const betrag = safeFloat(k.betrag) * faktor; 
                                         let stBetrag = 0;
                                         if(k.steuerKey) {
@@ -1679,7 +1792,6 @@ function renderLists() {
                                             if(sObj && sObj.rate > 0) stBetrag = betrag - (betrag / (1 + sObj.rate/100));
                                         }
 
-                                        // Check ob schon existiert
                                         const exists = dbFinanzen.some(f => f.text.startsWith(opCode) && f.kategorie === k.label);
 
                                         if(!exists) {
@@ -1761,13 +1873,19 @@ function renderLists() {
             const abr = dbAbrechnungen.find(a => a.id === abrId); if(!abr) return;
             document.getElementById('currentAbrechnungId').value = abrId; document.getElementById('editorTitle').innerText = abr.name; document.getElementById('kostenPlaceholder').style.display = "none"; document.getElementById('kostenEditor').style.display = "block"; const liste = document.getElementById('kostenListe'); liste.innerHTML = ""; const kosten = dbKosten.filter(k => k.abrechnungId === abrId); if(kosten.length === 0) { addKostenRow(); } else { kosten.forEach(k => addKostenRow(k)); } updateKostenSums();
         }
+        
+        // KOMMENTAR: UPDATE addKostenRow (Jetzt mit Lohnanteil Spalte)
         function addKostenRow(data = {}) {
             const container = document.getElementById('kostenListe');
             const row = document.createElement('div'); row.className = 'kosten-row'; row.dataset.id = data.id || getNextFinanzId(); 
+            
             const inpKonto = document.createElement('input'); inpKonto.placeholder = "Konto"; inpKonto.className = "k-konto"; inpKonto.value = data.konto || "";
             const inpText = document.createElement('input'); inpText.placeholder = "Beschreibung"; inpText.className = "k-text"; inpText.value = data.text || "";
             const inpBrutto = document.createElement('input'); inpBrutto.type = "number"; inpBrutto.step = "0.01"; inpBrutto.placeholder = "0,00"; inpBrutto.className = "k-brutto"; inpBrutto.value = data.brutto || ""; inpBrutto.oninput = () => calculateRow(row);
             
+            // NEU: Lohnanteil Input
+            const inpLohn = document.createElement('input'); inpLohn.type = "number"; inpLohn.step = "0.01"; inpLohn.placeholder = "Lohn"; inpLohn.className = "k-lohn"; inpLohn.value = data.lohn || ""; 
+
             const taxWrapper = document.createElement('div'); taxWrapper.style = "display:flex; align-items:center;";
             const selSteuer = document.createElement('select'); selSteuer.className = "k-tax kosten-tax"; selSteuer.style = "flex:1; min-width:0;"; selSteuer.add(new Option("-", "")); taxKeys.forEach(t => selSteuer.add(new Option(t.label, t.id))); if(data.steuerKey) selSteuer.value = data.steuerKey; selSteuer.onchange = () => calculateRow(row);
             const btnTax = document.createElement('button'); btnTax.innerText = "⚙️"; btnTax.className = "finance-btn"; btnTax.style.padding = "2px 4px"; btnTax.style.marginLeft = "2px"; btnTax.title = "Steuerschlüssel verwalten"; btnTax.onclick = () => openTaxModal(); taxWrapper.append(selSteuer, btnTax);
@@ -1780,8 +1898,11 @@ function renderLists() {
             const btnVerteil = document.createElement('button'); btnVerteil.innerText = "⚙️"; btnVerteil.className = "finance-btn"; btnVerteil.style.padding = "2px 4px"; btnVerteil.style.marginLeft = "2px"; btnVerteil.onclick = () => openVerteilModal(); verteilWrapper.append(selVerteil, btnVerteil);
 
             const btnDel = document.createElement('button'); btnDel.innerText = "X"; btnDel.className = "warn-btn"; btnDel.style.padding = "2px 5px"; btnDel.onclick = () => { row.remove(); updateKostenSums(); };
-            row.append(inpKonto, inpText, inpBrutto, taxWrapper, outNetto, outTaxAmt, verteilWrapper, btnDel); container.appendChild(row);
+            
+            row.append(inpKonto, inpText, inpBrutto, inpLohn, taxWrapper, outNetto, outTaxAmt, verteilWrapper, btnDel); 
+            container.appendChild(row);
         }
+
         function calculateRow(row) {
             const brutto = safeFloat(row.querySelector('.k-brutto').value); const taxKeyId = row.querySelector('.k-tax').value;
             let net = brutto; let taxAmt = 0;
@@ -1793,17 +1914,215 @@ function renderLists() {
             let sumN = 0, sumT = 0, sumB = 0; document.querySelectorAll('.kosten-row').forEach(row => { if(row.dataset.brutto) { sumN += parseFloat(row.dataset.net); sumT += parseFloat(row.dataset.tax); sumB += parseFloat(row.dataset.brutto); } else { const b = safeFloat(row.querySelector('.k-brutto').value); sumB += b; } });
             document.getElementById('sumKostenNetto').innerText = formatCurrency(sumN); document.getElementById('sumKostenSteuer').innerText = formatCurrency(sumT); document.getElementById('sumKostenBrutto').innerText = formatCurrency(sumB);
         }
+
+        // KOMMENTAR: UPDATE saveKostenErfassung (Lohn speichern)
         function saveKostenErfassung() {
             const abrId = document.getElementById('currentAbrechnungId').value; if(!abrId) return;
             dbKosten = dbKosten.filter(k => k.abrechnungId !== abrId);
-            document.querySelectorAll('.kosten-row').forEach(row => { const brutto = safeFloat(row.querySelector('.k-brutto').value); const text = row.querySelector('.k-text').value; if(brutto || text) { const tId = row.querySelector('.k-tax').value; let rate = 0; if(tId) { const k = taxKeys.find(t=>t.id===tId); if(k) rate = k.rate; } const netto = brutto / (1 + rate/100); const taxAmt = brutto - netto; dbKosten.push({ id: row.dataset.id, abrechnungId: abrId, konto: row.querySelector('.k-konto').value, text: text, brutto: brutto, steuerKey: tId, netto: netto, steuerBetrag: taxAmt, verteilKey: row.querySelector('.k-verteil').value }); } });
+            document.querySelectorAll('.kosten-row').forEach(row => { 
+                const brutto = safeFloat(row.querySelector('.k-brutto').value); 
+                const text = row.querySelector('.k-text').value; 
+                if(brutto || text) { 
+                    const tId = row.querySelector('.k-tax').value; 
+                    let rate = 0; if(tId) { const k = taxKeys.find(t=>t.id===tId); if(k) rate = k.rate; } 
+                    const netto = brutto / (1 + rate/100); 
+                    const taxAmt = brutto - netto; 
+                    dbKosten.push({ 
+                        id: row.dataset.id, 
+                        abrechnungId: abrId, 
+                        konto: row.querySelector('.k-konto').value, 
+                        text: text, 
+                        brutto: brutto, 
+                        lohn: safeFloat(row.querySelector('.k-lohn').value), // NEU
+                        steuerKey: tId, 
+                        netto: netto, 
+                        steuerBetrag: taxAmt, 
+                        verteilKey: row.querySelector('.k-verteil').value 
+                    }); 
+                } 
+            });
             saveLocal(); triggerAutoSave(); alert("Kosten gespeichert!");
         }
 
         function openSplitModal() { document.getElementById('splitTotalInput').value = ""; document.getElementById('splitRowsContainer').innerHTML = ""; document.getElementById('splitSummeErfasst').innerText = "0,00 €"; document.getElementById('splitSummeRest').innerText = "0,00 €"; document.getElementById('btnApplySplit').disabled = true; addSplitRow(); document.getElementById('splitModal').classList.add('active'); }
         function calcSplitRest() { const total = safeFloat(document.getElementById('splitTotalInput').value); let sum = 0; document.querySelectorAll('.split-amount').forEach(inp => { sum += safeFloat(inp.value); }); const rest = total - sum; document.getElementById('splitSummeErfasst').innerText = formatCurrency(sum); const restEl = document.getElementById('splitSummeRest'); restEl.innerText = formatCurrency(rest); if(Math.abs(rest) < 0.01 && total > 0) { restEl.style.color = "green"; restEl.innerText = "✅ 0,00 €"; document.getElementById('btnApplySplit').disabled = false; } else { restEl.style.color = "red"; document.getElementById('btnApplySplit').disabled = true; } return rest; }
-        function addSplitRow(initialAmount = null) { const container = document.getElementById('splitRowsContainer'); const rest = calcSplitRest(); const startVal = initialAmount !== null ? initialAmount : (rest > 0 ? rest : ""); const div = document.createElement('div'); div.className = 'split-row'; const inpAmt = document.createElement('input'); inpAmt.type = "number"; inpAmt.step = "0.01"; inpAmt.placeholder = "Betrag"; inpAmt.className = "split-amount"; if(startVal) inpAmt.value = startVal; inpAmt.oninput = calcSplitRest; const inpText = document.createElement('input'); inpText.type = "text"; inpText.placeholder = "Beschreibung"; inpText.className = "split-text"; const inpKonto = document.createElement('input'); inpKonto.type = "text"; inpKonto.placeholder = "Konto"; inpKonto.className = "split-konto"; const selTax = document.createElement('select'); selTax.className = "split-tax"; selTax.add(new Option("-", "")); taxKeys.forEach(t => selTax.add(new Option(t.label, t.id))); const selVerteil = document.createElement('select'); selVerteil.className = "split-verteil"; verteilKeys.forEach(v => selVerteil.add(new Option(v.label, v.id))); const btnDel = document.createElement('button'); btnDel.innerText = "X"; btnDel.className = "warn-btn"; btnDel.style.padding = "2px 5px"; btnDel.onclick = () => { div.remove(); calcSplitRest(); }; div.append(inpAmt, inpText, inpKonto, selTax, selVerteil, btnDel); container.appendChild(div); calcSplitRest(); }
-        function applySplitBuchung() { document.querySelectorAll('#splitRowsContainer .split-row').forEach(row => { const amt = safeFloat(row.querySelector('.split-amount').value); if(amt > 0) { const data = { konto: row.querySelector('.split-konto').value, text: row.querySelector('.split-text').value, brutto: amt, steuerKey: row.querySelector('.split-tax').value, verteilKey: row.querySelector('.split-verteil').value }; addKostenRow(data); } }); document.getElementById('splitModal').classList.remove('active'); updateKostenSums(); }
+        
+        // KOMMENTAR: UPDATE addSplitRow (Lohnanteil hinzufügen)
+        function addSplitRow(initialAmount = null) { 
+            const container = document.getElementById('splitRowsContainer'); 
+            const rest = calcSplitRest(); 
+            const startVal = initialAmount !== null ? initialAmount : (rest > 0 ? rest : ""); 
+            const div = document.createElement('div'); div.className = 'split-row'; 
+            
+            const inpAmt = document.createElement('input'); inpAmt.type = "number"; inpAmt.step = "0.01"; inpAmt.placeholder = "Betrag"; inpAmt.className = "split-amount"; if(startVal) inpAmt.value = startVal; inpAmt.oninput = calcSplitRest; 
+            const inpText = document.createElement('input'); inpText.type = "text"; inpText.placeholder = "Beschreibung"; inpText.className = "split-text"; 
+            const inpKonto = document.createElement('input'); inpKonto.type = "text"; inpKonto.placeholder = "Konto"; inpKonto.className = "split-konto"; 
+            const inpLohn = document.createElement('input'); inpLohn.type = "number"; inpLohn.step="0.01"; inpLohn.placeholder = "Lohn"; inpLohn.className = "split-lohn"; // NEU
+            
+            const selTax = document.createElement('select'); selTax.className = "split-tax"; selTax.add(new Option("-", "")); taxKeys.forEach(t => selTax.add(new Option(t.label, t.id))); 
+            const selVerteil = document.createElement('select'); selVerteil.className = "split-verteil"; verteilKeys.forEach(v => selVerteil.add(new Option(v.label, v.id))); 
+            
+            const btnDel = document.createElement('button'); btnDel.innerText = "X"; btnDel.className = "warn-btn"; btnDel.style.padding = "2px 5px"; btnDel.onclick = () => { div.remove(); calcSplitRest(); }; 
+            
+            div.append(inpAmt, inpText, inpKonto, inpLohn, selTax, selVerteil, btnDel); 
+            container.appendChild(div); calcSplitRest(); 
+        }
+
+        // KOMMENTAR: UPDATE applySplitBuchung (Lohn übergeben)
+        function applySplitBuchung() { 
+            document.querySelectorAll('#splitRowsContainer .split-row').forEach(row => { 
+                const amt = safeFloat(row.querySelector('.split-amount').value); 
+                if(amt > 0) { 
+                    const data = { 
+                        konto: row.querySelector('.split-konto').value, 
+                        text: row.querySelector('.split-text').value, 
+                        brutto: amt, 
+                        lohn: safeFloat(row.querySelector('.split-lohn').value), // NEU
+                        steuerKey: row.querySelector('.split-tax').value, 
+                        verteilKey: row.querySelector('.split-verteil').value 
+                    }; 
+                    addKostenRow(data); 
+                } 
+            }); 
+            document.getElementById('splitModal').classList.remove('active'); updateKostenSums(); 
+        }
+
+        // KOMMENTAR: NEUE FUNKTIONEN FÜR VERBRAUCHSDATEN
+        function openVerbrauchsdatenModal(einheitId) {
+            const e = dbEinheiten.get(einheitId);
+            if(!e) return;
+            document.getElementById('verbrauchEinheitId').value = einheitId;
+            document.getElementById('verbrauchTitle').innerText = `Daten für: ${e.name}`;
+            
+            if(!e.verbrauchsdaten) e.verbrauchsdaten = { personen: [], zaehler: [], direkt: [] };
+
+            renderVerbrauchLists(e.verbrauchsdaten);
+            switchVerbrauchTab('personen');
+            document.getElementById('verbrauchsdatenModal').classList.add('active');
+        }
+
+        function switchVerbrauchTab(tabId) {
+            document.querySelectorAll('.v-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.v-panel').forEach(p => p.classList.remove('active'));
+            
+            const tabs = document.querySelectorAll('.v-tab');
+            if(tabId === 'personen') tabs[0].classList.add('active');
+            if(tabId === 'zaehler') tabs[1].classList.add('active');
+            if(tabId === 'direkt') tabs[2].classList.add('active');
+
+            document.getElementById('vPanel-' + tabId).classList.add('active');
+        }
+
+        function renderVerbrauchLists(data) {
+            document.getElementById('vList-personen').innerHTML = "";
+            document.getElementById('vList-zaehler').innerHTML = "";
+            document.getElementById('vList-direkt').innerHTML = "";
+
+            if(data.personen) data.personen.forEach(p => addPersonenRow(p));
+            if(data.zaehler) data.zaehler.forEach(z => addZaehlerRow(z));
+            if(data.direkt) data.direkt.forEach(d => addDirektRow(d));
+        }
+
+        function addPersonenRow(d={}) {
+            const c = document.getElementById('vList-personen');
+            const row = document.createElement('div'); row.className = 'verbrauchs-row';
+            row.style.gridTemplateColumns = "1fr 1fr 1fr 30px"; 
+            
+            const iVon = document.createElement('input'); iVon.type="date"; iVon.className="v-von"; iVon.value=d.von||"";
+            const iBis = document.createElement('input'); iBis.type="date"; iBis.className="v-bis"; iBis.value=d.bis||"";
+            const iAnz = document.createElement('input'); iAnz.type="number"; iAnz.step="0.5"; iAnz.className="v-anz"; iAnz.placeholder="Anzahl"; iAnz.value=d.anzahl||"";
+            
+            const btn = document.createElement('button'); btn.innerText="X"; btn.className="warn-btn"; btn.style.padding="2px 5px"; btn.onclick=()=>row.remove();
+            
+            row.append(iVon, iBis, iAnz, btn); c.appendChild(row);
+        }
+
+        function addZaehlerRow(d={}) {
+            const c = document.getElementById('vList-zaehler');
+            const row = document.createElement('div'); row.className = 'verbrauchs-row';
+            row.style.gridTemplateColumns = "1fr 1fr 1fr 1fr 0.8fr 0.8fr 0.8fr 30px";
+            
+            const iNr = document.createElement('input'); iNr.type="text"; iNr.className="v-nr"; iNr.placeholder="Nr."; iNr.value=d.nr||"";
+            const iArt = document.createElement('select'); iArt.className="v-art"; 
+            ['Wasser Kalt', 'Wasser Warm', 'Strom', 'Gas', 'Heizung'].forEach(a => iArt.add(new Option(a,a)));
+            if(d.art) iArt.value = d.art;
+            
+            const iVon = document.createElement('input'); iVon.type="date"; iVon.className="v-von"; iVon.value=d.von||"";
+            const iBis = document.createElement('input'); iBis.type="date"; iBis.className="v-bis"; iBis.value=d.bis||"";
+            
+            const iStart = document.createElement('input'); iStart.type="number"; iStart.step="0.001"; iStart.className="v-start"; iStart.placeholder="Start"; iStart.value=d.standStart||"";
+            const iEnd = document.createElement('input'); iEnd.type="number"; iEnd.step="0.001"; iEnd.className="v-end"; iEnd.placeholder="Ende"; iEnd.value=d.standEnde||"";
+            
+            const iVerbr = document.createElement('input'); iVerbr.readOnly=true; iVerbr.style.background="#eee"; iVerbr.className="v-verbr";
+            
+            const calc = () => {
+                const s = safeFloat(iStart.value); const e = safeFloat(iEnd.value);
+                if(e >= s) iVerbr.value = formatNum(e - s); else iVerbr.value = "Err";
+            };
+            iStart.oninput = calc; iEnd.oninput = calc;
+            calc(); 
+            
+            const btn = document.createElement('button'); btn.innerText="X"; btn.className="warn-btn"; btn.style.padding="2px 5px"; btn.onclick=()=>row.remove();
+            
+            row.append(iNr, iArt, iVon, iBis, iStart, iEnd, iVerbr, btn); c.appendChild(row);
+        }
+
+        function addDirektRow(d={}) {
+            const c = document.getElementById('vList-direkt');
+            const row = document.createElement('div'); row.className = 'verbrauchs-row';
+            row.style.gridTemplateColumns = "2fr 1fr 1fr 1fr 1fr 30px";
+            
+            const iText = document.createElement('input'); iText.type="text"; iText.className="v-text"; iText.placeholder="Beschreibung"; iText.value=d.text||"";
+            const iVon = document.createElement('input'); iVon.type="date"; iVon.className="v-von"; iVon.value=d.von||"";
+            const iBis = document.createElement('input'); iBis.type="date"; iBis.className="v-bis"; iBis.value=d.bis||"";
+            const iBetrag = document.createElement('input'); iBetrag.type="number"; iBetrag.step="0.01"; iBetrag.className="v-betrag"; iBetrag.placeholder="€"; iBetrag.value=d.betrag||"";
+            const iLohn = document.createElement('input'); iLohn.type="number"; iLohn.step="0.01"; iLohn.className="v-lohn"; iLohn.placeholder="Lohn €"; iLohn.value=d.lohn||""; // NEU
+            
+            const btn = document.createElement('button'); btn.innerText="X"; btn.className="warn-btn"; btn.style.padding="2px 5px"; btn.onclick=()=>row.remove();
+            
+            row.append(iText, iVon, iBis, iBetrag, iLohn, btn); c.appendChild(row);
+        }
+
+        function saveVerbrauchsdaten() {
+            const eid = document.getElementById('verbrauchEinheitId').value;
+            const e = dbEinheiten.get(eid);
+            if(!e) return;
+
+            const personen = [];
+            document.querySelectorAll('#vList-personen .verbrauchs-row').forEach(row => {
+                const von = row.querySelector('.v-von').value;
+                const bis = row.querySelector('.v-bis').value;
+                const anz = safeFloat(row.querySelector('.v-anz').value);
+                if(von) personen.push({ von, bis, anzahl: anz });
+            });
+
+            const zaehler = [];
+            document.querySelectorAll('#vList-zaehler .verbrauchs-row').forEach(row => {
+                const nr = row.querySelector('.v-nr').value;
+                const art = row.querySelector('.v-art').value;
+                const von = row.querySelector('.v-von').value;
+                const bis = row.querySelector('.v-bis').value;
+                const start = safeFloat(row.querySelector('.v-start').value);
+                const end = safeFloat(row.querySelector('.v-end').value);
+                if(nr) zaehler.push({ nr, art, von, bis, standStart: start, standEnde: end });
+            });
+
+            const direkt = [];
+            document.querySelectorAll('#vList-direkt .verbrauchs-row').forEach(row => {
+                const text = row.querySelector('.v-text').value;
+                const betrag = safeFloat(row.querySelector('.v-betrag').value);
+                const lohn = safeFloat(row.querySelector('.v-lohn').value);
+                const von = row.querySelector('.v-von').value;
+                const bis = row.querySelector('.v-bis').value;
+                if(text || betrag > 0) direkt.push({ text, von, bis, betrag, lohn });
+            });
+
+            e.verbrauchsdaten = { personen, zaehler, direkt };
+            dbEinheiten.set(eid, e);
+            saveLocal(); triggerAutoSave();
+            document.getElementById('verbrauchsdatenModal').classList.remove('active');
+            alert("Verbrauchsdaten gespeichert.");
+        }
 
     </script>
 </body>
