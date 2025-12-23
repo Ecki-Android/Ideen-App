@@ -162,15 +162,21 @@
         #protectedContent { display: block; }
 
         /* NEU: Styles für Kosten-Erfassung */
-        .kosten-row { display: grid; grid-template-columns: 1fr 2fr 1fr 1fr 1fr 1fr 1fr 30px; gap: 5px; margin-bottom: 5px; align-items: center; border-bottom: 1px dashed #ddd; padding-bottom: 5px; }
+        .kosten-row { display: grid; grid-template-columns: 1fr 2fr 1fr 1fr 1fr 1fr 1fr 1fr 30px; gap: 5px; margin-bottom: 5px; align-items: center; border-bottom: 1px dashed #ddd; padding-bottom: 5px; }
         .kosten-row input, .kosten-row select { font-size: 0.85em; padding: 4px; margin: 0; border:1px solid #ccc; border-radius:3px; }
-        .kosten-header { display: grid; grid-template-columns: 1fr 2fr 1fr 1fr 1fr 1fr 1fr 30px; gap: 5px; font-weight: bold; background: #eee; padding: 8px 5px; border-radius: 4px 4px 0 0; font-size: 0.85em; }
+        .kosten-header { display: grid; grid-template-columns: 1fr 2fr 1fr 1fr 1fr 1fr 1fr 1fr 30px; gap: 5px; font-weight: bold; background: #eee; padding: 8px 5px; border-radius: 4px 4px 0 0; font-size: 0.85em; }
         .kosten-footer { display: flex; justify-content: flex-end; gap: 15px; padding: 10px; background: #e0f2f1; font-weight: bold; border-top: 2px solid #00695c; margin-top: 10px; }
         
         /* NEU: Styles für Split-Modal */
         .split-row { display: grid; grid-template-columns: 1fr 2fr 1fr 1fr 1fr 1fr 30px; gap: 5px; margin-bottom: 5px; align-items: center; }
         .split-row input, .split-row select { width: 100%; font-size:0.9em; padding: 5px; margin: 0; border:1px solid #ccc; }
         .split-header { display: grid; grid-template-columns: 1fr 2fr 1fr 1fr 1fr 1fr 30px; gap: 5px; margin-bottom: 10px; font-weight:bold; font-size:0.85em; background:#eee; padding:5px; }
+
+        /* NEU: Styles für Verbrauchsdaten */
+        .verbrauch-group { margin-bottom: 20px; border: 1px solid #ddd; padding: 10px; border-radius: 4px; background: #fff; }
+        .verbrauch-header { font-weight: bold; color: #2e7d32; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 10px; display:flex; justify-content: space-between; align-items: center;}
+        .verbrauch-row { display: flex; gap: 5px; margin-bottom: 5px; align-items: center; border-bottom: 1px dashed #eee; padding-bottom: 2px; }
+        .verbrauch-row input, .verbrauch-row select { flex: 1; padding: 4px; font-size: 0.9em; }
     </style>
 </head>
 <body>
@@ -281,6 +287,7 @@
                                     <div>Netto €</div>
                                     <div>Vorsteuer €</div>
                                     <div>Verteilschlüssel</div>
+                                    <div style="font-size:0.9em; color:#555;">Lohn €</div>
                                     <div></div>
                                 </div>
                                 <div id="kostenListe" style="max-height:400px; overflow-y:auto; border:1px solid #ddd; border-top:none;"></div>
@@ -314,7 +321,7 @@
 
     <!-- Modal: Split Buchung -->
     <div id="splitModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')">
-        <div class="modal-content" style="max-width:800px;">
+        <div class="modal-content" style="max-width:900px;">
             <h3>✂️ Split-Buchung erfassen</h3>
             <div style="background:#e3f2fd; padding:15px; border-radius:4px; margin-bottom:15px;">
                 <label style="font-weight:bold; font-size:1.1em;">Gesamtsumme Rechnung (Brutto):</label>
@@ -328,6 +335,7 @@
                 <div>Konto</div>
                 <div>VSt-Schlüssel</div>
                 <div>Verteilung</div>
+                <div style="font-size:0.9em; color:#555;">Lohn €</div>
                 <div></div>
             </div>
             <div id="splitRowsContainer" style="max-height:300px; overflow-y:auto; border:1px solid #ccc; padding:5px; margin-bottom:10px;">
@@ -427,6 +435,66 @@
                     <input type="text" id="newVerteilLabel" placeholder="Bezeichnung" style="flex:1; margin:0;">
                     <button onclick="addVerteilKey()" class="primary-btn" style="margin:0;">+</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- NEU: Modal Verbrauchsdaten & Zähler (DRAGGABLE) -->
+    <div id="verbrauchsdatenModal" class="modal-draggable" style="max-width:800px; width:95%;">
+        <div class="modal-header-drag" onmousedown="startDrag(event, 'verbrauchsdatenModal')">
+            <span>📊 Zähler & Verbrauchsdaten</span>
+            <button onclick="document.getElementById('verbrauchsdatenModal').classList.remove('active')" style="background:transparent; border:none; color:white; font-weight:bold; cursor:pointer;">X</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="verbrauchsdatenEinheitId">
+            <h4 id="verbrauchsdatenTitle" style="color:#0078d4; margin-top:0;"></h4>
+
+            <!-- PERSONEN -->
+            <div class="verbrauch-group">
+                <div class="verbrauch-header">
+                    <span>👥 Personen-Historie</span>
+                    <button class="primary-btn" style="font-size:0.7em; padding:2px 5px;" onclick="addPersonenRow()">+</button>
+                </div>
+                <div id="personenListe" style="max-height:150px; overflow-y:auto;"></div>
+            </div>
+
+            <!-- ZÄHLER (Wasser, Strom) -->
+            <div class="verbrauch-group">
+                <div class="verbrauch-header">
+                    <span>💧⚡ Zählerstände (Wasser, Strom etc.)</span>
+                    <button class="primary-btn" style="font-size:0.7em; padding:2px 5px;" onclick="addZaehlerRow()">+</button>
+                </div>
+                <div style="display:grid; grid-template-columns: 1.5fr 1fr 1.2fr 1.2fr 1fr 1fr 30px; gap:5px; font-size:0.8em; font-weight:bold; margin-bottom:5px;">
+                    <div>Typ</div>
+                    <div>Zähler-Nr.</div>
+                    <div>Von</div>
+                    <div>Bis</div>
+                    <div>Start</div>
+                    <div>Ende</div>
+                    <div></div>
+                </div>
+                <div id="zaehlerListe" style="max-height:200px; overflow-y:auto;"></div>
+            </div>
+
+            <!-- DIREKTKOSTEN -->
+            <div class="verbrauch-group">
+                <div class="verbrauch-header">
+                    <span>🔥 Direkte Kosten (Fremdfirma: Heizung/Warmwasser)</span>
+                    <button class="primary-btn" style="font-size:0.7em; padding:2px 5px;" onclick="addDirektRow()">+</button>
+                </div>
+                <div style="display:grid; grid-template-columns: 1.5fr 1.2fr 1.2fr 1fr 1fr 30px; gap:5px; font-size:0.8em; font-weight:bold; margin-bottom:5px;">
+                    <div>Art</div>
+                    <div>Von</div>
+                    <div>Bis</div>
+                    <div>Betrag €</div>
+                    <div>Lohn €</div>
+                    <div></div>
+                </div>
+                <div id="direktListe" style="max-height:150px; overflow-y:auto;"></div>
+            </div>
+
+            <div style="text-align:right;">
+                <button class="primary-btn" onclick="saveVerbrauchsdaten()">Speichern</button>
             </div>
         </div>
     </div>
@@ -787,6 +855,21 @@
             { id: '30', label: '30 - Vorsteuer 0%', rate: 0 }
         ];
 
+        // Zähler Typen
+        const ZAEHLER_TYPES = [
+            { id: 'wasser_kalt', label: 'Kaltwasser (m³)' },
+            { id: 'wasser_warm', label: 'Warmwasser (m³)' },
+            { id: 'strom', label: 'Strom (kWh)' },
+            { id: 'gas', label: 'Gas (m³/kWh)' },
+            { id: 'heizung', label: 'Wärmemengenzähler (kWh)' }
+        ];
+
+        const DIREKT_TYPES = [
+            { id: 'heizung_extern', label: 'Heizkosten (Extern)' },
+            { id: 'wasser_extern', label: 'Wasserkosten (Extern)' },
+            { id: 'sonstiges', label: 'Sonstige Direktkosten' }
+        ];
+
         // Helper Map für Steuerstatus Anzeige
         const TAX_STATUS_MAP = {
             'opt': { label: 'USt/VSt', class: 'tax-opt' },
@@ -1131,12 +1214,26 @@
             // Haus übernimmt Objekt Status oder ist explizit gesetzt
             dbHaeuser.set(hid, { objektId: oid, bezeichnung: "Haus A", anteile: 1000, sollMatrix: matrix, steuerStatus: "opt" });
             
-            // Einheit 1: Wohnung Links
+            // Einheit 1: Wohnung Links (MIT VERBRAUCHSDATEN)
             let eid = getNextEinheitID(hid);
             const contractId = `${eid}/01`; 
             const now = new Date();
             const year = now.getFullYear();
             const month = now.getMonth() + 1;
+
+            const dummyVerbrauch = {
+                personen: [
+                    { von: '2023-01-01', bis: '2023-06-30', anzahl: 2 },
+                    { von: '2023-07-01', bis: '2099-12-31', anzahl: 3 } // Baby bekommen
+                ],
+                zaehler: [
+                    { typ: 'wasser_kalt', nummer: 'K-1001', von: '2023-01-01', bis: '2023-12-31', start: 100, ende: 145 },
+                    { typ: 'wasser_warm', nummer: 'W-2002', von: '2023-01-01', bis: '2023-12-31', start: 50, ende: 75 }
+                ],
+                direkt: [
+                    { typ: 'heizung_extern', von: '2023-01-01', bis: '2023-12-31', betrag: 1200, lohn: 150 }
+                ]
+            };
 
             dbEinheiten.set(eid, { 
                 hausId: hid, name: "EG Links", typ: "wohnung", flaeche: 50, zimmer: 2, mea: 333.33, ww_m3: 123.4, kw_m3: 456.7, 
@@ -1144,7 +1241,8 @@
                     { id: 'k1', label: 'Kaltmiete', betrag: 500, konto: '8000', gueltigAb: '2023-01-01', gueltigBis: '', steuerKey: '2' }, // 7%
                     { id: 'k2', label: 'BK-Vorausz.', betrag: 100, konto: '8010', gueltigAb: '2023-01-01', gueltigBis: '', steuerKey: '20' } // 0%
                 ], 
-                belegung: [{ mieterId: "dummy_mieter", einzug: "2023-01-01", auszug: "" }] 
+                belegung: [{ mieterId: "dummy_mieter", einzug: "2023-01-01", auszug: "" }],
+                verbrauchsdaten: dummyVerbrauch
             });
 
             // Finanzhistorie für Einheit 1
@@ -1189,10 +1287,10 @@
             // DUMMY BK ABRECHNUNG
             const abrId = 'abr_' + Date.now();
             dbAbrechnungen.push({ id: abrId, objektId: oid, name: "Betriebskosten 2023", von: "2023-01-01", bis: "2023-12-31" });
-            // Kostenpositionen (Brutto eingabe, Key 8 = 7%, Key 9 = 19%, Key 30 = 0%)
-            dbKosten.push({ id: getNextFinanzId(), abrechnungId: abrId, konto: "4000", text: "Wasser / Abwasser", brutto: 1070, steuerKey: "8", netto: 1000, steuerBetrag: 70, verteilKey: "m2" });
-            dbKosten.push({ id: getNextFinanzId(), abrechnungId: abrId, konto: "4100", text: "Heizung", brutto: 2380, steuerKey: "9", netto: 2000, steuerBetrag: 380, verteilKey: "direkt" });
-            dbKosten.push({ id: getNextFinanzId(), abrechnungId: abrId, konto: "4200", text: "Grundsteuer", brutto: 500, steuerKey: "30", netto: 500, steuerBetrag: 0, verteilKey: "mea" });
+            // Kostenpositionen (MIT LOHNANTEIL)
+            dbKosten.push({ id: getNextFinanzId(), abrechnungId: abrId, konto: "4000", text: "Wasser / Abwasser", brutto: 1070, steuerKey: "8", netto: 1000, steuerBetrag: 70, verteilKey: "m2", lohn: 0 });
+            dbKosten.push({ id: getNextFinanzId(), abrechnungId: abrId, konto: "4100", text: "Heizung", brutto: 2380, steuerKey: "9", netto: 2000, steuerBetrag: 380, verteilKey: "direkt", lohn: 200 }); // 200€ Lohn
+            dbKosten.push({ id: getNextFinanzId(), abrechnungId: abrId, konto: "4200", text: "Grundsteuer", brutto: 500, steuerKey: "30", netto: 500, steuerBetrag: 0, verteilKey: "mea", lohn: 0 });
             
             saveLocal(); renderLists(); alert("Vollständige Testdaten (2 Whg, 1 Gew) & BK 2023 angelegt!");
         }
@@ -1443,6 +1541,7 @@
                 const tBadge = `<span class="tax-badge ${tSt.class}">${tSt.label}</span>`;
 
                 const kontoBtn = `<button class="account-btn" onclick="openKontoModal('${e.id}')">💶 Konto</button>`;
+                const verbrauchBtn = `<button class="finance-btn" style="background:#0288d1; border-color:#0277bd;" onclick="openVerbrauchsdatenModal('${e.id}')">📊 Zähler</button>`; // NEU
                 
                 eDiv.innerHTML += `
                 <div class="liste-item">
@@ -1450,7 +1549,7 @@
                     <div class="liste-content">
                         <div style="display:flex; justify-content:space-between;">
                             <h4>${e.name} <small style="font-family:monospace; color:#000;">[ID: ${e.id}]</small> <small>(${e.hName})</small> ${tBadge}</h4>
-                            <div>${kontoBtn} <button onclick="openEinheitMask('${e.id}')">Bearbeiten</button></div>
+                            <div style="display:flex; gap:5px;">${verbrauchBtn} ${kontoBtn} <button onclick="openEinheitMask('${e.id}')">Bearbeiten</button></div>
                         </div>
                         <div class="sub-info"><span style="display:inline-block; padding:2px 6px; background:#e3f2fd; color:#0d47a1; border-radius:4px; font-size:0.9em; margin-right:5px;">${getTypeLabel(e.typ)}</span><b>${formatNum(safeFloat(e.flaeche))} m²</b></div>
                         <div class="mieter-status">${stHtml}</div>
@@ -1459,7 +1558,376 @@
             });
         }
 
-        // --- CRUD MASKEN ---
+        // ================= VERBRAUCHSDATEN LOGIK =================
+        function openVerbrauchsdatenModal(einheitId) {
+            const e = dbEinheiten.get(einheitId);
+            if(!e) return;
+            document.getElementById('verbrauchsdatenEinheitId').value = einheitId;
+            document.getElementById('verbrauchsdatenTitle').innerText = `Daten für: ${e.name}`;
+            
+            // Clear lists
+            document.getElementById('personenListe').innerHTML = "";
+            document.getElementById('zaehlerListe').innerHTML = "";
+            document.getElementById('direktListe').innerHTML = "";
+
+            const v = e.verbrauchsdaten || { personen: [], zaehler: [], direkt: [] };
+
+            // Populate
+            if(v.personen) v.personen.forEach(p => addPersonenRow(p));
+            if(v.zaehler) {
+                // Sort by date desc (newest first)
+                const sortedZ = [...v.zaehler].sort((a,b) => (b.von || '').localeCompare(a.von || ''));
+                sortedZ.forEach(z => addZaehlerRow(z));
+            }
+            if(v.direkt) v.direkt.forEach(d => addDirektRow(d));
+
+            // Position Modal
+            const m = document.getElementById('verbrauchsdatenModal');
+            m.classList.add('active');
+            m.style.top = "50px";
+            m.style.left = "50%";
+        }
+
+        function addPersonenRow(data = {}) {
+            const container = document.getElementById('personenListe');
+            const row = document.createElement('div');
+            row.className = 'verbrauch-row personen-row';
+            
+            row.innerHTML = `
+                <input type="date" class="p-von" value="${data.von || ''}" placeholder="Von">
+                <input type="date" class="p-bis" value="${data.bis || ''}" placeholder="Bis">
+                <input type="number" class="p-anzahl" value="${data.anzahl || ''}" placeholder="Anzahl" step="0.5">
+                <button class="warn-btn" style="padding:2px 5px;" onclick="this.parentElement.remove()">X</button>
+            `;
+            container.appendChild(row);
+        }
+
+        function addZaehlerRow(data = {}) {
+            const container = document.getElementById('zaehlerListe');
+            const row = document.createElement('div');
+            row.className = 'verbrauch-row zaehler-row';
+            
+            // Build Type Options
+            let typeOpts = "";
+            ZAEHLER_TYPES.forEach(t => {
+                typeOpts += `<option value="${t.id}" ${data.typ === t.id ? 'selected' : ''}>${t.label}</option>`;
+            });
+
+            // Build Zähler-Nr Datalist/Select Logic could be here, for now simple input
+            // Um eindeutige Zählernummern zu merken, müssten wir alle Einheiten scannen. 
+            // Einfache Lösung: Input mit Datalist global
+            
+            row.innerHTML = `
+                <select class="z-typ" style="flex:1.5;">${typeOpts}</select>
+                <input type="text" class="z-nr" value="${data.nummer || ''}" placeholder="Nr." list="zaehlerNrs">
+                <input type="date" class="z-von" value="${data.von || ''}" style="flex:1.2;">
+                <input type="date" class="z-bis" value="${data.bis || ''}" style="flex:1.2;">
+                <input type="number" class="z-start" value="${data.start || ''}" placeholder="Start" step="0.001">
+                <input type="number" class="z-ende" value="${data.ende || ''}" placeholder="Ende" step="0.001">
+                <button class="warn-btn" style="padding:2px 5px;" onclick="this.parentElement.remove()">X</button>
+            `;
+            container.appendChild(row);
+        }
+
+        function addDirektRow(data = {}) {
+            const container = document.getElementById('direktListe');
+            const row = document.createElement('div');
+            row.className = 'verbrauch-row direkt-row';
+            
+            let typeOpts = "";
+            DIREKT_TYPES.forEach(t => {
+                typeOpts += `<option value="${t.id}" ${data.typ === t.id ? 'selected' : ''}>${t.label}</option>`;
+            });
+
+            row.innerHTML = `
+                <select class="d-typ" style="flex:1.5;">${typeOpts}</select>
+                <input type="date" class="d-von" value="${data.von || ''}" style="flex:1.2;">
+                <input type="date" class="d-bis" value="${data.bis || ''}" style="flex:1.2;">
+                <input type="number" class="d-betrag" value="${data.betrag || ''}" placeholder="€" step="0.01">
+                <input type="number" class="d-lohn" value="${data.lohn || ''}" placeholder="Lohn €" step="0.01">
+                <button class="warn-btn" style="padding:2px 5px;" onclick="this.parentElement.remove()">X</button>
+            `;
+            container.appendChild(row);
+        }
+
+        function saveVerbrauchsdaten() {
+            const eid = document.getElementById('verbrauchsdatenEinheitId').value;
+            const e = dbEinheiten.get(eid);
+            if(!e) return;
+
+            const personen = [];
+            document.querySelectorAll('.personen-row').forEach(r => {
+                const von = r.querySelector('.p-von').value;
+                const bis = r.querySelector('.p-bis').value;
+                const anz = r.querySelector('.p-anzahl').value;
+                if(von && anz) personen.push({ von, bis, anzahl: parseFloat(anz) });
+            });
+
+            const zaehler = [];
+            document.querySelectorAll('.zaehler-row').forEach(r => {
+                zaehler.push({
+                    typ: r.querySelector('.z-typ').value,
+                    nummer: r.querySelector('.z-nr').value,
+                    von: r.querySelector('.z-von').value,
+                    bis: r.querySelector('.z-bis').value,
+                    start: safeFloat(r.querySelector('.z-start').value),
+                    ende: safeFloat(r.querySelector('.z-ende').value)
+                });
+            });
+
+            const direkt = [];
+            document.querySelectorAll('.direkt-row').forEach(r => {
+                direkt.push({
+                    typ: r.querySelector('.d-typ').value,
+                    von: r.querySelector('.d-von').value,
+                    bis: r.querySelector('.d-bis').value,
+                    betrag: safeFloat(r.querySelector('.d-betrag').value),
+                    lohn: safeFloat(r.querySelector('.d-lohn').value)
+                });
+            });
+
+            e.verbrauchsdaten = { personen, zaehler, direkt };
+            dbEinheiten.set(eid, e);
+            
+            saveLocal();
+            triggerAutoSave();
+            document.getElementById('verbrauchsdatenModal').classList.remove('active');
+            // Zählernummern sammeln für Autocomplete
+            updateZaehlerDatalist();
+        }
+
+        function updateZaehlerDatalist() {
+            let dl = document.getElementById('zaehlerNrs');
+            if(!dl) {
+                dl = document.createElement('datalist');
+                dl.id = "zaehlerNrs";
+                document.body.appendChild(dl);
+            }
+            dl.innerHTML = "";
+            const nrs = new Set();
+            dbEinheiten.forEach(e => {
+                if(e.verbrauchsdaten && e.verbrauchsdaten.zaehler) {
+                    e.verbrauchsdaten.zaehler.forEach(z => {
+                        if(z.nummer) nrs.add(z.nummer);
+                    });
+                }
+            });
+            nrs.forEach(n => {
+                const op = document.createElement('option');
+                op.value = n;
+                dl.appendChild(op);
+            });
+        }
+
+        // --- UPDATED KOSTEN LOGIK (LOHNANTEIL) ---
+
+        function addKostenRow(data = {}) {
+            const container = document.getElementById('kostenListe');
+            const row = document.createElement('div');
+            row.className = 'kosten-row';
+            row.dataset.id = data.id || getNextFinanzId(); 
+
+            // 1. Konto
+            const inpKonto = document.createElement('input');
+            inpKonto.placeholder = "Konto";
+            inpKonto.className = "k-konto";
+            inpKonto.value = data.konto || "";
+
+            // 2. Text
+            const inpText = document.createElement('input');
+            inpText.placeholder = "Beschreibung";
+            inpText.className = "k-text";
+            inpText.value = data.text || "";
+
+            // 3. Brutto
+            const inpBrutto = document.createElement('input');
+            inpBrutto.type = "number";
+            inpBrutto.step = "0.01";
+            inpBrutto.placeholder = "0,00";
+            inpBrutto.className = "k-brutto";
+            inpBrutto.value = data.brutto || "";
+            inpBrutto.oninput = () => calculateRow(row);
+
+            // 4. Steuerschlüssel (Vorsteuer)
+            const taxWrapper = document.createElement('div');
+            taxWrapper.style = "display:flex; align-items:center;";
+            const selSteuer = document.createElement('select');
+            selSteuer.className = "k-tax kosten-tax";
+            selSteuer.style = "flex:1; min-width:0;";
+            selSteuer.add(new Option("-", ""));
+            taxKeys.forEach(t => selSteuer.add(new Option(t.label, t.id)));
+            if(data.steuerKey) selSteuer.value = data.steuerKey;
+            selSteuer.onchange = () => calculateRow(row);
+            const btnTax = document.createElement('button');
+            btnTax.innerText = "⚙️";
+            btnTax.className = "finance-btn";
+            btnTax.style.padding = "2px 4px";
+            btnTax.style.marginLeft = "2px";
+            btnTax.onclick = () => openTaxModal();
+            taxWrapper.append(selSteuer, btnTax);
+
+            // 5. Netto (Readonly)
+            const outNetto = document.createElement('input');
+            outNetto.readOnly = true;
+            outNetto.className = "k-netto";
+            outNetto.style.background = "#f0f0f0";
+            outNetto.value = data.netto ? formatNum(data.netto) : "";
+
+            // 6. Steuerbetrag (Readonly)
+            const outTaxAmt = document.createElement('input');
+            outTaxAmt.readOnly = true;
+            outTaxAmt.className = "k-tax-amt";
+            outTaxAmt.style.background = "#f0f0f0";
+            outTaxAmt.value = data.steuerBetrag ? formatNum(data.steuerBetrag) : "";
+
+            // 7. Verteilschlüssel
+            const verteilWrapper = document.createElement('div');
+            verteilWrapper.style = "display:flex; align-items:center;";
+            const selVerteil = document.createElement('select');
+            selVerteil.className = "k-verteil";
+            selVerteil.style = "flex:1; min-width:0;";
+            verteilKeys.forEach(v => selVerteil.add(new Option(v.label, v.id)));
+            if(data.verteilKey) selVerteil.value = data.verteilKey;
+            const btnVerteil = document.createElement('button');
+            btnVerteil.innerText = "⚙️";
+            btnVerteil.className = "finance-btn";
+            btnVerteil.style.padding = "2px 4px";
+            btnVerteil.style.marginLeft = "2px";
+            btnVerteil.onclick = () => openVerteilModal();
+            verteilWrapper.append(selVerteil, btnVerteil);
+
+            // 8. Lohnanteil (NEU)
+            const inpLohn = document.createElement('input');
+            inpLohn.type = "number";
+            inpLohn.step = "0.01";
+            inpLohn.placeholder = "Lohn";
+            inpLohn.className = "k-lohn";
+            inpLohn.value = data.lohn || "";
+
+            // Delete Btn
+            const btnDel = document.createElement('button');
+            btnDel.innerText = "X";
+            btnDel.className = "warn-btn";
+            btnDel.style.padding = "2px 5px";
+            btnDel.onclick = () => { row.remove(); updateKostenSums(); };
+
+            row.append(inpKonto, inpText, inpBrutto, taxWrapper, outNetto, outTaxAmt, verteilWrapper, inpLohn, btnDel);
+            container.appendChild(row);
+        }
+
+        // --- SPLIT BUCHUNG MIT LOHNANTEIL ---
+        function addSplitRow(initialAmount = null) {
+            const container = document.getElementById('splitRowsContainer');
+            const rest = calcSplitRest();
+            const startVal = initialAmount !== null ? initialAmount : (rest > 0 ? rest : "");
+
+            const div = document.createElement('div');
+            div.className = 'split-row';
+            
+            // Amount
+            const inpAmt = document.createElement('input');
+            inpAmt.type = "number"; inpAmt.step = "0.01"; inpAmt.placeholder = "Betrag"; 
+            inpAmt.className = "split-amount";
+            if(startVal) inpAmt.value = startVal;
+            inpAmt.oninput = calcSplitRest;
+
+            // Text
+            const inpText = document.createElement('input');
+            inpText.type = "text"; inpText.placeholder = "Beschreibung";
+            inpText.className = "split-text";
+
+            // Konto
+            const inpKonto = document.createElement('input');
+            inpKonto.type = "text"; inpKonto.placeholder = "Konto";
+            inpKonto.className = "split-konto";
+
+            // Tax
+            const selTax = document.createElement('select');
+            selTax.className = "split-tax";
+            selTax.add(new Option("-", ""));
+            taxKeys.forEach(t => selTax.add(new Option(t.label, t.id)));
+
+            // Verteilung
+            const selVerteil = document.createElement('select');
+            selVerteil.className = "split-verteil";
+            verteilKeys.forEach(v => selVerteil.add(new Option(v.label, v.id)));
+
+            // Lohnanteil (NEU)
+            const inpLohn = document.createElement('input');
+            inpLohn.type = "number"; inpLohn.step = "0.01"; inpLohn.placeholder = "Lohn €";
+            inpLohn.className = "split-lohn";
+
+            // Del Button
+            const btnDel = document.createElement('button');
+            btnDel.innerText = "X";
+            btnDel.className = "warn-btn";
+            btnDel.style.padding = "2px 5px";
+            btnDel.onclick = () => { div.remove(); calcSplitRest(); };
+
+            div.append(inpAmt, inpText, inpKonto, selTax, selVerteil, inpLohn, btnDel);
+            container.appendChild(div);
+            
+            calcSplitRest();
+        }
+
+        function applySplitBuchung() {
+            document.querySelectorAll('#splitRowsContainer .split-row').forEach(row => {
+                const amt = safeFloat(row.querySelector('.split-amount').value);
+                if(amt > 0) {
+                    const data = {
+                        konto: row.querySelector('.split-konto').value,
+                        text: row.querySelector('.split-text').value,
+                        brutto: amt,
+                        steuerKey: row.querySelector('.split-tax').value,
+                        verteilKey: row.querySelector('.split-verteil').value,
+                        lohn: safeFloat(row.querySelector('.split-lohn').value) // NEU
+                    };
+                    addKostenRow(data);
+                }
+            });
+            document.getElementById('splitModal').classList.remove('active');
+            updateKostenSums();
+        }
+
+        function saveKostenErfassung() {
+            const abrId = document.getElementById('currentAbrechnungId').value;
+            if(!abrId) return;
+
+            dbKosten = dbKosten.filter(k => k.abrechnungId !== abrId);
+
+            document.querySelectorAll('.kosten-row').forEach(row => {
+                const brutto = safeFloat(row.querySelector('.k-brutto').value);
+                const text = row.querySelector('.k-text').value;
+                
+                if(brutto || text) {
+                    const tId = row.querySelector('.k-tax').value;
+                    let rate = 0;
+                    if(tId) { const k = taxKeys.find(t=>t.id===tId); if(k) rate = k.rate; }
+                    
+                    const netto = brutto / (1 + rate/100);
+                    const taxAmt = brutto - netto;
+
+                    dbKosten.push({
+                        id: row.dataset.id,
+                        abrechnungId: abrId,
+                        konto: row.querySelector('.k-konto').value,
+                        text: text,
+                        brutto: brutto,
+                        steuerKey: tId,
+                        netto: netto,
+                        steuerBetrag: taxAmt,
+                        verteilKey: row.querySelector('.k-verteil').value,
+                        lohn: safeFloat(row.querySelector('.k-lohn').value) // NEU
+                    });
+                }
+            });
+
+            saveLocal();
+            triggerAutoSave();
+            alert("Kosten gespeichert!");
+        }
+
+        // --- CRUD MASKEN (Mit Schutz für Verbrauchsdaten) ---
         function openObjektMask(id){ const o=id?dbObjekte.get(id):{}; document.getElementById('objektIdInput').value=id||""; document.getElementById('objektNummerInput').value=id || getNextObjektID(); document.getElementById('objektNameInput').value=o.name||""; document.getElementById('objektPlzInput').value=o.plz||""; document.getElementById('objektOrtInput').value=o.ort||""; document.getElementById('objektFlaecheInput').value=o.flaeche||""; document.getElementById('objektMeaInput').value=o.mea||"1000"; document.getElementById('objektSollHaeuser').value=o.sollHaeuser||"1"; document.getElementById('objektSteuerStatus').value = o.steuerStatus || 'opt'; updateObjektLiveStatus(); document.getElementById('objektModal').classList.add('active'); }
         
         function saveObjekt(){ 
@@ -1476,23 +1944,19 @@
                 steuerStatus: document.getElementById('objektSteuerStatus').value 
             }); 
             document.getElementById('objektModal').classList.remove('active'); 
-            // KORREKTUR: Filter NICHT zurücksetzen, damit User im Fokus bleibt
-            // activeFilterId=null; toggleFilter(null); 
             saveLocal(); 
             renderLists(); 
             triggerAutoSave(); 
         }
 
-        function deleteObjekt() { /* (wie zuvor) */ const oid = document.getElementById('objektIdInput').value; if (!oid) return; const associatedHouses = Array.from(dbHaeuser.values()).filter(h => h.objektId === oid); const associatedHouseIds = Array.from(dbHaeuser.entries()).filter(([hid, h]) => h.objektId === oid).map(([hid, h]) => hid); const associatedUnits = Array.from(dbEinheiten.values()).filter(e => associatedHouseIds.includes(e.hausId)); const msg = `ACHTUNG: Objekt ${oid} löschen?\n${associatedHouses.length} Häuser\n${associatedUnits.length} Einheiten`; if (confirm(msg)) { const unitIdsToDelete = []; dbEinheiten.forEach((u, uid) => { if (associatedHouseIds.includes(u.hausId)) { unitIdsToDelete.push(uid); } }); unitIdsToDelete.forEach(uid => dbEinheiten.delete(uid)); associatedHouseIds.forEach(hid => dbHaeuser.delete(hid)); dbObjekte.delete(oid); document.getElementById('objektModal').classList.remove('active'); if(activeFilterId === oid) { activeFilterId = null; toggleFilter(null); } saveLocal(); renderLists(); triggerAutoSave(); } }
+        function deleteObjekt() { const oid = document.getElementById('objektIdInput').value; if (!oid) return; const associatedHouses = Array.from(dbHaeuser.values()).filter(h => h.objektId === oid); const associatedHouseIds = Array.from(dbHaeuser.entries()).filter(([hid, h]) => h.objektId === oid).map(([hid, h]) => hid); const associatedUnits = Array.from(dbEinheiten.values()).filter(e => associatedHouseIds.includes(e.hausId)); const msg = `ACHTUNG: Objekt ${oid} löschen?\n${associatedHouses.length} Häuser\n${associatedUnits.length} Einheiten`; if (confirm(msg)) { const unitIdsToDelete = []; dbEinheiten.forEach((u, uid) => { if (associatedHouseIds.includes(u.hausId)) { unitIdsToDelete.push(uid); } }); unitIdsToDelete.forEach(uid => dbEinheiten.delete(uid)); associatedHouseIds.forEach(hid => dbHaeuser.delete(hid)); dbObjekte.delete(oid); document.getElementById('objektModal').classList.remove('active'); if(activeFilterId === oid) { activeFilterId = null; toggleFilter(null); } saveLocal(); renderLists(); triggerAutoSave(); } }
         
         function openHausMask(id){ 
             document.getElementById('hausIdInput').value=id||""; const sel=document.getElementById('hausObjektSelect'); sel.innerHTML=""; if(activeFilterId) { const o=dbObjekte.get(activeFilterId); if(o) sel.add(new Option(o.name,activeFilterId)); } else { dbObjekte.forEach((o,oid)=>sel.add(new Option(o.name,oid))); } const h=id?dbHaeuser.get(id):{}; if(h.objektId) sel.value=h.objektId; if(!id && sel.value) document.getElementById('hausNummerDisplay').value = getNextHausID(sel.value); else document.getElementById('hausNummerDisplay').value = id; document.getElementById('hausBezeichnungInput').value=h.bezeichnung||""; document.getElementById('hausAnteileInput').value=h.anteile||""; renderHausMatrix(h); calcMatrixSum(); 
-            // Steuer-Logik Haus
             const obj = dbObjekte.get(sel.value);
             const box = document.getElementById('hausSteuerBox');
             if(obj && obj.steuerStatus === 'mixed') {
                 box.style.display = 'block';
-                // KORREKTUR: mixed Option erlauben
                 document.getElementById('hausSteuerStatus').value = h.steuerStatus || 'opt';
             } else {
                 box.style.display = 'none';
@@ -1502,25 +1966,19 @@
         function saveHaus(){ let id=document.getElementById('hausNummerDisplay').value; if(!id) { const oid=document.getElementById('hausObjektSelect').value; id=getNextHausID(oid); } let mx={}; document.querySelectorAll('#hausSollMatrixBody tr').forEach(tr => { const tid = tr.dataset.typeId; const lblInput = tr.querySelector('.custom-label-inp'); const lbl = lblInput ? lblInput.value : tr.cells[0].innerText; const cnt = tr.querySelector('.soll-count').value; const area = tr.querySelector('.soll-area').value; if(cnt || area) { mx[tid] = { count: cnt, area: area, label: lbl }; } }); 
             const stStat = document.getElementById('hausSteuerBox').style.display !== 'none' ? document.getElementById('hausSteuerStatus').value : null;
             dbHaeuser.set(String(id), { objektId: document.getElementById('hausObjektSelect').value, bezeichnung: document.getElementById('hausBezeichnungInput').value, anteile: safeFloat(document.getElementById('hausAnteileInput').value), sollMatrix: mx, steuerStatus: stStat }); document.getElementById('hausModal').classList.remove('active'); saveLocal(); renderLists(); triggerAutoSave(); }
-        function deleteHaus() { /* (wie zuvor) */ const hid = document.getElementById('hausIdInput').value; if(!hid) return; const associatedUnits = Array.from(dbEinheiten.values()).filter(e => e.hausId === hid); const msg = `Haus löschen? ${associatedUnits.length} Einheiten!`; if(confirm(msg)) { const unitIdsToDelete = []; dbEinheiten.forEach((u, uid) => { if (u.hausId === hid) unitIdsToDelete.push(uid); }); unitIdsToDelete.forEach(uid => dbEinheiten.delete(uid)); dbHaeuser.delete(hid); document.getElementById('hausModal').classList.remove('active'); saveLocal(); renderLists(); triggerAutoSave(); } }
+        function deleteHaus() { const hid = document.getElementById('hausIdInput').value; if(!hid) return; const associatedUnits = Array.from(dbEinheiten.values()).filter(e => e.hausId === hid); const msg = `Haus löschen? ${associatedUnits.length} Einheiten!`; if(confirm(msg)) { const unitIdsToDelete = []; dbEinheiten.forEach((u, uid) => { if (u.hausId === hid) unitIdsToDelete.push(uid); }); unitIdsToDelete.forEach(uid => dbEinheiten.delete(uid)); dbHaeuser.delete(hid); document.getElementById('hausModal').classList.remove('active'); saveLocal(); renderLists(); triggerAutoSave(); } }
         
         function openEinheitMask(id){ 
             updateKonditionDatalist(); 
             const e=id?dbEinheiten.get(id):{}; document.getElementById('einheitIdInput').value=id||""; const oSel=document.getElementById('einheitObjektSelect'); const hSel=document.getElementById('einheitHausSelect'); oSel.innerHTML=""; if(activeFilterId) { const o=dbObjekte.get(activeFilterId); if(o) oSel.add(new Option(o.name, activeFilterId)); } else { oSel.innerHTML = "<option value=''>-- Objekt wählen --</option>"; dbObjekte.forEach((o,oid)=>oSel.add(new Option(o.name,oid))); }
             let oid, hid; if(id) { hid = e.hausId; oid = hid ? dbHaeuser.get(hid)?.objektId : ""; } else { if(activeFilterId) { oid = activeFilterId; } else if(oSel.options.length > 0 && !oSel.value) { } hid = ""; } if(oid) oSel.value=oid; filterHaeuserDropdown(); if(hid) hSel.value=hid; else if(hSel.options.length>0) hSel.selectedIndex=0; if(id) document.getElementById('einheitNummerDisplay').value = id; else if(hSel.value) document.getElementById('einheitNummerDisplay').value = getNextEinheitID(hSel.value); document.getElementById('einheitNameInput').value=e.name||""; document.getElementById('einheitTypSelect').innerHTML=""; STANDARD_TYPES.forEach(t=>document.getElementById('einheitTypSelect').add(new Option(t.label,t.id))); document.getElementById('einheitFlaecheInput').value=e.flaeche||""; document.getElementById('einheitHeizflaecheInput').value=e.heizflaeche||""; document.getElementById('einheitZimmerInput').value=e.zimmer||""; document.getElementById('einheitMeaInput').value=e.mea||""; document.getElementById('einheitWwInput').value = e.ww_m3 || ""; document.getElementById('einheitKwInput').value = e.kw_m3 || ""; const c=document.getElementById('belegungListe'); c.innerHTML=""; if(e.belegung&&e.belegung.length) e.belegung.forEach(b=>addBelegungRow(b)); else addBelegungRow(); const hList = document.getElementById('historieListe'); hList.innerHTML=""; if(e.historie && e.historie.length) e.historie.forEach(h=>addHistorieRow(h)); 
             
-            // KORREKTUR: Steuer-Ermittlung Weitergabe an Einheiten
             let showTax = false;
             if(hSel.value) {
                 const h = dbHaeuser.get(hSel.value);
                 const o = h ? dbObjekte.get(h.objektId) : null;
                 if(o) {
-                    if(o.steuerStatus === 'opt') {
-                        showTax = true;
-                    } else if(o.steuerStatus === 'mixed') {
-                        if(h && h.steuerStatus === 'opt') showTax = true;
-                        if(h && h.steuerStatus === 'mixed') showTax = true; // Bei Haus-Mixed entscheidet Einheit
-                    }
+                    if(o.steuerStatus === 'opt') { showTax = true; } else if(o.steuerStatus === 'mixed') { if(h && h.steuerStatus === 'opt') showTax = true; if(h && h.steuerStatus === 'mixed') showTax = true; }
                 }
             }
             
@@ -1540,25 +1998,14 @@
             const dateInput = document.createElement('input'); dateInput.type="date"; dateInput.className="kond-date"; if(d.gueltigAb) dateInput.value = d.gueltigAb; else dateInput.value = new Date().toISOString().split('T')[0]; 
             const dateBisInput = document.createElement('input'); dateBisInput.type="date"; dateBisInput.className="kond-date-bis"; if(d.gueltigBis) dateBisInput.value = d.gueltigBis;
             
-            let taxSelect;
-            let taxBtn = null;
+            let taxSelect; let taxBtn = null;
             if(showTax) {
-                const s = document.createElement('select'); s.className="kond-tax"; 
-                s.add(new Option("-", ""));
+                const s = document.createElement('select'); s.className="kond-tax"; s.add(new Option("-", ""));
                 taxKeys.forEach(t => s.add(new Option(t.label, t.id))); 
                 if(d.steuerKey) s.value = d.steuerKey;
                 taxSelect = s;
-
-                // NEU: Button zum Verwalten
-                taxBtn = document.createElement('button');
-                taxBtn.innerText = "⚙️";
-                taxBtn.className = "finance-btn";
-                taxBtn.style.padding = "2px 5px";
-                taxBtn.title = "Steuerschlüssel verwalten";
-                taxBtn.onclick = () => openTaxModal();
-            } else {
-                taxSelect = document.createElement('span'); 
-            }
+                taxBtn = document.createElement('button'); taxBtn.innerText = "⚙️"; taxBtn.className = "finance-btn"; taxBtn.style.padding = "2px 5px"; taxBtn.title = "Steuerschlüssel verwalten"; taxBtn.onclick = () => openTaxModal();
+            } else { taxSelect = document.createElement('span'); }
 
             const copyBtn = document.createElement('button'); copyBtn.innerText="+"; copyBtn.className="primary-btn"; copyBtn.style.padding="2px 5px"; 
             copyBtn.onclick = () => {
@@ -1566,105 +2013,96 @@
                 addKonditionRow(newData, showTax);
                 c.insertBefore(c.lastChild, row.nextSibling);
             };
-
             const delBtn = document.createElement('button'); delBtn.innerText="X"; delBtn.className="warn-btn"; delBtn.style.padding="2px 5px"; delBtn.onclick = () => row.remove(); 
-            
-            row.append(descInput, betragInput, kontoInput, dateInput, dateBisInput, taxSelect);
-            if(taxBtn) row.appendChild(taxBtn);
-            row.append(copyBtn, delBtn); 
-            c.appendChild(row); 
+            row.append(descInput, betragInput, kontoInput, dateInput, dateBisInput, taxSelect); if(taxBtn) row.appendChild(taxBtn); row.append(copyBtn, delBtn); c.appendChild(row); 
         }
 
-        function openKontoModal(einheitId) { 
-            const e = dbEinheiten.get(einheitId); 
-            if(!e) return; 
-            document.getElementById('kontoEinheitId').value = einheitId; 
-            document.getElementById('kontoTitle').innerText = `Konto: ${e.name}`; 
-            document.getElementById('manuelleBuchungForm').style.display = 'none'; 
+        function saveEinheit(){ 
+            let id=document.getElementById('einheitNummerDisplay').value; if(!id) { const hid=document.getElementById('einheitHausSelect').value; id=getNextEinheitID(hid); } 
             
-            // KORREKTUR: Sicherer Zugriff auf Datum, falls Daten fehlerhaft/alt
-            const txs = dbFinanzen.filter(tx => tx.einheitId === einheitId);
-            const years = new Set();
-            txs.forEach(tx => {
-                if(tx.buchungsdatum && tx.buchungsdatum.length >= 4) {
-                    years.add(tx.buchungsdatum.substr(0,4));
-                }
-            });
+            // PRESERVE EXISTING DATA (especially Verbrauchsdaten!)
+            const existing = dbEinheiten.get(String(id)) || {};
+            const verbrauchsdaten = existing.verbrauchsdaten || { personen:[], zaehler:[], direkt:[] };
 
-            const sel = document.getElementById('kontoJahrSelect'); 
-            sel.innerHTML = '<option value="all">Alle Jahre</option>'; 
-            Array.from(years).sort().reverse().forEach(y => sel.add(new Option(y, y))); 
+            const bel=[]; document.querySelectorAll('#belegungListe .belegung-wrapper').forEach(w=>{ const m=w.querySelector('.belegung-mieter').value; if(m) bel.push({mieterId:m, einzug:w.querySelector('.belegung-einzug').value, auszug:w.querySelector('.belegung-auszug').value}); }); 
+            const hist=[]; document.querySelectorAll('#historieListe .historie-row').forEach(r=>{ const d = r.querySelector('.hist-date').value; const t = r.querySelector('.hist-desc').value; if(d || t) hist.push({date:d, text:t}); }); 
+            const kond=[]; document.querySelectorAll('#konditionenListe .kondition-row').forEach(r=>{ const l = r.querySelector('.kond-label').value; const b = safeFloat(r.querySelector('.kond-betrag').value); const k = r.querySelector('.kond-konto').value; const d = r.querySelector('.kond-date').value; const dbis = r.querySelector('.kond-date-bis').value; const st = r.querySelector('.kond-tax') ? r.querySelector('.kond-tax').value : ""; if(l && b) kond.push({ label:l, betrag:b, konto:k, gueltigAb:d, gueltigBis:dbis, steuerKey: st }); }); 
             
-            renderKontoTable(); 
-            document.getElementById('kontoModal').classList.add('active'); 
+            dbEinheiten.set(String(id), { 
+                hausId: document.getElementById('einheitHausSelect').value, 
+                name: document.getElementById('einheitNameInput').value, 
+                typ: document.getElementById('einheitTypSelect').value, 
+                flaeche: safeFloat(document.getElementById('einheitFlaecheInput').value), 
+                heizflaeche: safeFloat(document.getElementById('einheitHeizflaecheInput').value), 
+                zimmer: document.getElementById('einheitZimmerInput').value, 
+                mea: safeFloat(document.getElementById('einheitMeaInput').value), 
+                ww_m3: safeFloat(document.getElementById('einheitWwInput').value), 
+                kw_m3: safeFloat(document.getElementById('einheitKwInput').value), 
+                konditionen: kond, 
+                belegung: bel, 
+                historie: hist,
+                verbrauchsdaten: verbrauchsdaten // Important: Keep existing data
+            }); 
+            document.getElementById('einheitModal').classList.remove('active'); saveLocal(); renderLists(); triggerAutoSave(); 
         }
 
-        function openBuchungDetail(id) {
-            const tx = dbFinanzen.find(t => t.id === id);
-            if(!tx) return;
-            document.getElementById('detailBuchungId').value = id;
-            document.getElementById('detailId').innerText = id;
-            const korrCount = tx.history ? tx.history.length : 0;
-            document.getElementById('detailKorrCount').value = korrCount;
-            document.getElementById('detailKorrNr').innerText = korrCount > 0 ? `Korr. ${korrCount}` : '-';
-            
-            document.getElementById('detailDatumInp').value = tx.buchungsdatum;
-            document.getElementById('detailBetragInp').value = safeFloat(tx.betrag);
-            document.getElementById('detailTextInp').value = tx.text;
-            document.getElementById('detailKontoInp').value = tx.konto || ""; // NEU
-            
-            const sInp = document.getElementById('detailSteuerInp');
-            sInp.innerHTML = '<option value="">--</option>';
-            taxKeys.forEach(t => sInp.add(new Option(t.label, t.id)));
-            sInp.value = tx.steuerschluessel || "";
-
-            document.getElementById('detailDoku').value = tx.doku || "";
-            document.getElementById('buchungDetailModal').classList.add('active');
+        function addBelegungRow(d={}) { 
+            const c = document.getElementById('belegungListe'); 
+            const wrapper = document.createElement('div'); 
+            wrapper.className = 'belegung-wrapper'; 
+            const r = document.createElement('div'); 
+            r.className = 'belegung-row'; 
+            const s = document.createElement('select'); 
+            s.className = 'belegung-mieter'; 
+            s.innerHTML = "<option value=''>-- Mieter --</option>"; 
+            Array.from(dbKontakte.entries()).sort((a,b) => (a[1].fn||"").localeCompare(b[1].fn||"")).forEach(([id,k]) => s.add(new Option(k.fn+(k.org?` (${k.org})`:""), id))); 
+            if(d.mieterId) s.value = d.mieterId; 
+            const inEin = document.createElement('input'); 
+            inEin.type = "date"; 
+            inEin.className = "belegung-einzug"; 
+            if(d.einzug) inEin.value = d.einzug; 
+            const inAus = document.createElement('input'); 
+            inAus.type = "date"; 
+            inAus.className = "belegung-auszug"; 
+            if(d.auszug) inAus.value = d.auszug; 
+            const b = document.createElement('button'); 
+            b.className = "warn-btn"; 
+            b.innerText = "X"; 
+            b.onclick = () => { 
+                const currentEid = document.getElementById('einheitIdInput').value; 
+                const mieterVal = s.value; 
+                if(currentEid && mieterVal) { 
+                    const hasTx = dbFinanzen.some(tx => tx.einheitId === currentEid && tx.mieterId === mieterVal); 
+                    if(hasTx) { alert("Buchungen vorhanden! Bitte Auszugdatum setzen."); return; } 
+                } 
+                wrapper.remove(); 
+            }; 
+            r.append(s, inEin, inAus, b); 
+            wrapper.appendChild(r); 
+            c.appendChild(wrapper); 
         }
 
-        function saveBuchungChanges() {
-            const id = document.getElementById('detailBuchungId').value;
-            const tx = dbFinanzen.find(t => t.id === id);
-            if(!tx) return;
-
-            const newDoku = document.getElementById('detailDoku').value;
-            const newDatum = document.getElementById('detailDatumInp').value;
-            const newBetrag = safeFloat(document.getElementById('detailBetragInp').value);
-            const newText = document.getElementById('detailTextInp').value;
-            const newKonto = document.getElementById('detailKontoInp').value; // NEU
-            const newSteuer = document.getElementById('detailSteuerInp').value;
-
-            if(newDatum !== tx.buchungsdatum || newBetrag !== safeFloat(tx.betrag) || newText !== tx.text || newKonto !== (tx.konto||"") || newSteuer !== (tx.steuerschluessel||"")) {
-                if(!tx.history) tx.history = [];
-                tx.history.push({
-                    datum: new Date().toISOString(),
-                    old_data: { buchungsdatum: tx.buchungsdatum, betrag: tx.betrag, text: tx.text, konto: tx.konto, steuerschluessel: tx.steuerschluessel },
-                    doku_at_time: tx.doku
-                });
-                
-                tx.buchungsdatum = newDatum;
-                tx.betrag = newBetrag;
-                tx.text = newText;
-                tx.konto = newKonto; // NEU
-                tx.steuerschluessel = newSteuer;
-                if(newSteuer) {
-                    const sObj = taxKeys.find(k => k.id === newSteuer);
-                    if(sObj && sObj.rate > 0) tx.steuerbetrag = newBetrag - (newBetrag / (1 + sObj.rate/100));
-                    else tx.steuerbetrag = 0;
-                } else tx.steuerbetrag = 0;
-                
-                const timeStr = new Date().toLocaleString('de-DE');
-                tx.doku = (newDoku ? newDoku + "\n" : "") + `[Änderung am ${timeStr}]`;
-            } else {
-                tx.doku = newDoku;
-            }
-
-            saveLocal(); triggerAutoSave();
-            alert("Änderungen gespeichert.");
-            renderKontoTable(); 
-            document.getElementById('buchungDetailModal').classList.remove('active');
+        function addHistorieRow(d={}) { 
+            const c = document.getElementById('historieListe'); 
+            const r = document.createElement('div'); 
+            r.className = 'historie-row'; 
+            const inDate = document.createElement('input'); 
+            inDate.type = "date"; 
+            inDate.className = "hist-date"; 
+            if(d.date) inDate.value = d.date; 
+            const inText = document.createElement('input'); 
+            inText.type = "text"; 
+            inText.className = "hist-desc"; 
+            if(d.text) inText.value = d.text; 
+            const b = document.createElement('button'); 
+            b.className = "warn-btn"; 
+            b.innerText = "X"; 
+            b.onclick = () => r.remove(); 
+            r.append(inDate, inText, b); 
+            c.appendChild(r); 
         }
 
+        // --- RESTORED SOLLSTELLUNG LOGIC ---
         function runSollstellung() { 
             const monatStr = document.getElementById('sollMonatInput').value; if(!monatStr) return alert("Monat?"); 
             const [jahr, monat] = monatStr.split('-').map(Number); const daysInMonth = new Date(jahr, monat, 0).getDate(); const monthStart = new Date(jahr, monat - 1, 1); const monthEnd = new Date(jahr, monat - 1, daysInMonth); 
@@ -1703,6 +2141,19 @@
             logSoll(`Fertig: ${count} Buchungen.`); saveLocal(); triggerAutoSave(); 
         }
 
+        function logSoll(msg) {
+            const l = document.getElementById('sollLog');
+            l.style.display = 'block';
+            l.innerHTML += `<div>${msg}</div>`;
+            l.scrollTop = l.scrollHeight;
+        }
+
+        function openSollstellungModal() {
+            document.getElementById('sollLog').innerHTML = "";
+            document.getElementById('sollstellungModal').classList.add('active');
+        }
+
+        // --- ACCOUNTING & OTHER HELPERS ---
         function renderKontoTable() { 
             const eid = document.getElementById('kontoEinheitId').value; const yearFilter = document.getElementById('kontoJahrSelect').value; const tbody = document.getElementById('kontoBody'); tbody.innerHTML = ""; 
             let txs = dbFinanzen.filter(tx => tx.einheitId === eid); if(yearFilter !== 'all') txs = txs.filter(tx => tx.buchungsdatum.startsWith(yearFilter)); txs.sort((a,b) => a.buchungsdatum.localeCompare(b.buchungsdatum)); 
@@ -1714,74 +2165,288 @@
                 const korrBadge = (tx.history && tx.history.length > 0) ? `<span style="color:#d32f2f; font-weight:bold; font-size:0.8em; margin-right:5px;">(Korr. ${tx.history.length})</span>` : "";
                 
                 const tr = document.createElement('tr'); tr.onclick = () => openBuchungDetail(tx.id);
-                // NEU: Sachkonto Spalte
                 tr.innerHTML = `<td>${korrBadge}</td><td>${formatDate(tx.buchungsdatum)}</td><td>${tx.text}</td><td>${tx.konto || '-'}</td><td style="text-align:center;">${steuerInfo}</td><td class="text-right betrag-soll">${s > 0 ? formatNum(s) : ''}</td><td class="text-right betrag-haben">${h > 0 ? formatNum(h) : ''}</td><td class="text-right" style="font-weight:bold;">${formatNum(saldo)}</td><td>${delBtn}</td>`; tbody.appendChild(tr); 
             }); 
             document.getElementById('sumSoll').innerText = formatCurrency(sumS); document.getElementById('sumHaben').innerText = formatCurrency(sumH); document.getElementById('sumSaldo').innerText = formatCurrency(saldo); 
         }
+
         function deleteBuchung(id) { const tx = dbFinanzen.find(t => t.id === id); if(tx && tx.locked) { alert("Sollstellung gesperrt!"); return; } if(!confirm("Löschen?")) return; dbFinanzen = dbFinanzen.filter(tx => tx.id !== id); saveLocal(); triggerAutoSave(); renderKontoTable(); }
         function resetKonto() { if(!confirm("Konto leeren?")) return; const eid = document.getElementById('kontoEinheitId').value; dbFinanzen = dbFinanzen.filter(tx => tx.einheitId !== eid); saveLocal(); triggerAutoSave(); renderKontoTable(); }
-        function saveEinheit(){ 
-            let id=document.getElementById('einheitNummerDisplay').value; if(!id) { const hid=document.getElementById('einheitHausSelect').value; id=getNextEinheitID(hid); } 
-            const bel=[]; document.querySelectorAll('#belegungListe .belegung-wrapper').forEach(w=>{ const m=w.querySelector('.belegung-mieter').value; if(m) bel.push({mieterId:m, einzug:w.querySelector('.belegung-einzug').value, auszug:w.querySelector('.belegung-auszug').value}); }); 
-            const hist=[]; document.querySelectorAll('#historieListe .historie-row').forEach(r=>{ const d = r.querySelector('.hist-date').value; const t = r.querySelector('.hist-desc').value; if(d || t) hist.push({date:d, text:t}); }); 
-            const kond=[]; document.querySelectorAll('#konditionenListe .kondition-row').forEach(r=>{ const l = r.querySelector('.kond-label').value; const b = safeFloat(r.querySelector('.kond-betrag').value); const k = r.querySelector('.kond-konto').value; const d = r.querySelector('.kond-date').value; const dbis = r.querySelector('.kond-date-bis').value; const st = r.querySelector('.kond-tax') ? r.querySelector('.kond-tax').value : ""; if(l && b) kond.push({ label:l, betrag:b, konto:k, gueltigAb:d, gueltigBis:dbis, steuerKey: st }); }); 
-            dbEinheiten.set(String(id), { hausId: document.getElementById('einheitHausSelect').value, name: document.getElementById('einheitNameInput').value, typ: document.getElementById('einheitTypSelect').value, flaeche: safeFloat(document.getElementById('einheitFlaecheInput').value), heizflaeche: safeFloat(document.getElementById('einheitHeizflaecheInput').value), zimmer: document.getElementById('einheitZimmerInput').value, mea: safeFloat(document.getElementById('einheitMeaInput').value), ww_m3: safeFloat(document.getElementById('einheitWwInput').value), kw_m3: safeFloat(document.getElementById('einheitKwInput').value), konditionen: kond, belegung: bel, historie: hist }); 
-            document.getElementById('einheitModal').classList.remove('active'); saveLocal(); renderLists(); triggerAutoSave(); 
-        }
-        function openManuelleBuchung() { document.getElementById('manuelleBuchungForm').style.display='block'; document.getElementById('mbDatum').value = new Date().toISOString().split('T')[0]; }
-        function saveManuelleBuchung() { 
-            const eid = document.getElementById('kontoEinheitId').value; const dat = document.getElementById('mbDatum').value; const txt = document.getElementById('mbText').value; const typ = document.getElementById('mbTyp').value; const betrag = safeFloat(document.getElementById('mbBetrag').value); const beleg = document.getElementById('mbBeleg').value; const konto = document.getElementById('mbKonto').value; const steuerId = document.getElementById('mbSteuer').value; let steuerBetrag = 0; if(steuerId) { const sObj = taxKeys.find(k => k.id === steuerId); if(sObj && sObj.rate > 0) { steuerBetrag = betrag - (betrag / (1 + sObj.rate/100)); } } if(!dat || !betrag) return alert("Datum/Betrag?"); let finalTx = txt || "Manuelle Buchung"; if(beleg) finalTx = `${beleg} ${finalTx}`; const tx = { id: getNextFinanzId(), einheitId: eid, mieterId: "manuell", monatRef: dat.substr(0,7), buchungsdatum: dat, typ: typ, kategorie: "Manuell", text: finalTx, betrag: betrag, konto: konto, steuerschluessel: steuerId, steuerbetrag: steuerBetrag, doku: "", locked: false }; dbFinanzen.push(tx); saveLocal(); triggerAutoSave(); renderKontoTable(); document.getElementById('manuelleBuchungForm').style.display='none'; 
-        }
-        function exportKontoPDF() { const eid = document.getElementById('kontoEinheitId').value; const e = dbEinheiten.get(eid); const doc = new jspdf.jsPDF(); doc.setFontSize(14); doc.text(`Mieterkonto: ${e.name}`, 14, 15); doc.setFontSize(10); doc.text(`Stand: ${new Date().toLocaleDateString('de-DE')}`, 14, 22); let txs = dbFinanzen.filter(tx => tx.einheitId === eid); txs.sort((a,b) => a.buchungsdatum.localeCompare(b.buchungsdatum)); let saldo = 0; const rows = txs.map(tx => { const s = tx.typ === 'soll' ? safeFloat(tx.betrag) : 0; const h = tx.typ === 'haben' ? safeFloat(tx.betrag) : 0; saldo += (s - h); return [ formatDate(tx.buchungsdatum), tx.text, tx.kategorie, s > 0 ? formatNum(s) : '', h > 0 ? formatNum(h) : '', formatNum(saldo) ]; }); doc.autoTable({ head: [['Datum', 'Text', 'Kat', 'Soll', 'Haben', 'Saldo']], body: rows, startY: 30, theme: 'striped', columnStyles: { 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right', fontStyle: 'bold' } } }); doc.save(`Konto_${e.name}.pdf`); }
-        function generateObjectReportPDF() { const ids=getSelectedIds('objekteListe'); const arr=ids.length?Array.from(dbObjekte.entries()).filter(([id])=>ids.includes(id)):Array.from(dbObjekte.entries()); const doc=new jspdf.jsPDF('l'); doc.text("Objekt-Statusbericht",14,15); const rows=arr.map(([id,o])=>{ const hArr=Array.from(dbHaeuser.values()).filter(h=>h.objektId===id); let sf=0; hArr.forEach(h=>{if(h.sollMatrix)Object.values(h.sollMatrix).forEach(v=>sf+=safeFloat(v.area));else sf+=(safeFloat(h.wohnflaeche)+safeFloat(h.gewerbeflaeche));}); return [o.nummer,o.name,`${hArr.length}/${o.sollHaeuser||0}`,`${formatNum(safeFloat(o.flaeche))} m²`,`${formatNum(sf)} m²`,Math.abs(sf-safeFloat(o.flaeche))>0.1?formatNum(sf-safeFloat(o.flaeche)):'OK']; }); doc.autoTable({head:[['Nr','Objekt','Häuser','Soll-Fl','Ist-Plan','Diff']],body:rows,startY:20}); doc.save('objekt_bericht.pdf'); }
-        function generateHouseReportPDF() { const ids=getSelectedIds('haeuserListe'); const arr=ids.length?Array.from(dbHaeuser.entries()).filter(([id])=>ids.includes(id)):Array.from(dbHaeuser.entries()); const doc=new jspdf.jsPDF('l'); doc.text("Haus-Statusbericht",14,15); const rows=arr.map(([id,h])=>{ const uArr=Array.from(dbEinheiten.values()).filter(e=>e.hausId===id); let sF=0; if(h.sollMatrix)Object.values(h.sollMatrix).forEach(v=>sF+=safeFloat(v.area)); const iF=uArr.reduce((s,e)=>s+safeFloat(e.flaeche),0); return [h.bezeichnung,uArr.length,`${formatNum(sF)} m²`,`${formatNum(iF)} m²`,Math.abs(iF-sF)>0.1?formatNum(iF-sF):'OK']; }); doc.autoTable({head:[['Haus','Einheiten','Soll-Fl','Ist-Fl','Diff']],body:rows,startY:20}); doc.save('haus_bericht.pdf'); }
-        function generateUnitReportPDF() { const ids=getSelectedIds('einheitenListe'); const arr=ids.length?Array.from(dbEinheiten.entries()).filter(([id])=>ids.includes(id)):Array.from(dbEinheiten.entries()); const doc=new jspdf.jsPDF('l'); doc.text("Vermietungsliste",14,15); const rows=arr.map(([id,e])=>{ const h=dbHaeuser.get(e.hausId); let st="LEERSTAND"; let mi=""; if(e.belegung&&e.belegung.length){ const act=e.belegung.find(b=>(b.einzug||'0000')<=new Date().toISOString().split('T')[0]&&(b.auszug||'9999')>=new Date().toISOString().split('T')[0]); if(act){ const m=dbKontakte.get(act.mieterId); st="Vermietet"; mi=m?m.fn:"?"; } } return [h?h.bezeichnung:'?',e.name,e.typ,`${formatNum(safeFloat(e.flaeche))} m²`,st,mi]; }); doc.autoTable({head:[['Haus','Einheit','Typ','Fläche','Status','Mieter']],body:rows,startY:20,didParseCell:function(d){if(d.column.index===4&&d.cell.raw==='LEERSTAND')d.cell.styles.textColor=[200,0,0];}}); doc.save('vermietung.pdf'); }
-        function getSelectedIds(c){ const l=document.querySelectorAll(`#${c} .item-checkbox:checked`); return l.length?Array.from(l).map(cb=>cb.value):[]; }
-        function toggleAll(c,v){ document.querySelectorAll(`#${c} .item-checkbox`).forEach(cb=>cb.checked=v); }
-        function addBelegungRow(d={}){ const c=document.getElementById('belegungListe'); const wrapper = document.createElement('div'); wrapper.className = 'belegung-wrapper'; const r=document.createElement('div'); r.className='belegung-row'; const s=document.createElement('select'); s.className='belegung-mieter'; s.innerHTML="<option value=''>-- Mieter --</option>"; Array.from(dbKontakte.entries()).sort((a,b)=>(a[1].fn||"").localeCompare(b[1].fn||"")).forEach(([id,k])=>s.add(new Option(k.fn+(k.org?` (${k.org})`:""),id))); if(d.mieterId) s.value=d.mieterId; const inEin=document.createElement('input'); inEin.type="date"; inEin.className="belegung-einzug"; if(d.einzug) inEin.value=d.einzug; const inAus=document.createElement('input'); inAus.type="date"; inAus.className="belegung-auszug"; if(d.auszug) inAus.value=d.auszug; const b=document.createElement('button'); b.className="warn-btn"; b.innerText="X"; b.onclick=()=>{ const currentEid = document.getElementById('einheitIdInput').value; const mieterVal = s.value; if(currentEid && mieterVal) { const hasTx = dbFinanzen.some(tx => tx.einheitId === currentEid && tx.mieterId === mieterVal); if(hasTx) { alert("Buchungen vorhanden! Bitte Auszugdatum setzen."); return; } } wrapper.remove(); }; r.append(s,inEin,inAus,b); wrapper.appendChild(r); c.appendChild(wrapper); }
-        function addHistorieRow(d={}){ const c=document.getElementById('historieListe'); const r=document.createElement('div'); r.className='historie-row'; const inDate = document.createElement('input'); inDate.type="date"; inDate.className="hist-date"; if(d.date) inDate.value=d.date; const inText = document.createElement('input'); inText.type="text"; inText.className="hist-desc"; if(d.text) inText.value=d.text; const b=document.createElement('button'); b.className="warn-btn"; b.innerText="X"; b.onclick=()=>r.remove(); r.append(inDate, inText, b); c.appendChild(r); }
 
-        // ================= NEU: BETRIEBSKOSTEN LOGIK =================
+        function openKontoModal(einheitId) { 
+            const e = dbEinheiten.get(einheitId); 
+            if(!e) return; 
+            document.getElementById('kontoEinheitId').value = einheitId; 
+            document.getElementById('kontoTitle').innerText = `Konto: ${e.name}`; 
+            document.getElementById('manuelleBuchungForm').style.display = 'none'; 
+            
+            const txs = dbFinanzen.filter(tx => tx.einheitId === einheitId);
+            const years = new Set();
+            txs.forEach(tx => { if(tx.buchungsdatum) years.add(tx.buchungsdatum.substring(0,4));
+            });
+            
+            const ySel = document.getElementById('kontoJahrSelect');
+            const oldY = ySel.value;
+            ySel.innerHTML = "<option value='all'>Alle Jahre</option>";
+            Array.from(years).sort().reverse().forEach(y => ySel.add(new Option(y, y)));
+            if(oldY && (oldY === 'all' || years.has(oldY))) ySel.value = oldY;
+            
+            renderKontoTable();
+            document.getElementById('kontoModal').classList.add('active');
+        }
 
+        // --- MANUELLE BUCHUNG ---
+        function openManuelleBuchung() {
+            document.getElementById('mbDatum').value = new Date().toISOString().split('T')[0];
+            document.getElementById('manuelleBuchungForm').style.display = 'block';
+        }
+
+        function saveManuelleBuchung() {
+            const eid = document.getElementById('kontoEinheitId').value;
+            const dat = document.getElementById('mbDatum').value;
+            const typ = document.getElementById('mbTyp').value;
+            const bet = safeFloat(document.getElementById('mbBetrag').value);
+            const txt = document.getElementById('mbText').value;
+            const kto = document.getElementById('mbKonto').value;
+            const bel = document.getElementById('mbBeleg').value;
+            const steuer = document.getElementById('mbSteuer').value; // NEU: Steuerschlüssel
+            
+            if(!dat || !bet || !txt) { alert("Bitte Datum, Betrag und Text angeben."); return; }
+            
+            // Steuer berechnen für Historie
+            let stBetrag = 0;
+            if(steuer) {
+                const sObj = taxKeys.find(t => t.id === steuer);
+                if(sObj && sObj.rate > 0) {
+                    stBetrag = bet - (bet / (1 + sObj.rate/100));
+                }
+            }
+
+            const tx = {
+                id: getNextFinanzId(),
+                einheitId: eid,
+                buchungsdatum: dat,
+                typ: typ,
+                text: txt + (bel ? ` (Beleg: ${bel})` : ""),
+                betrag: bet,
+                konto: kto,
+                steuerschluessel: steuer,
+                steuerbetrag: stBetrag,
+                locked: false,
+                history: []
+            };
+            
+            dbFinanzen.push(tx);
+            saveLocal();
+            triggerAutoSave();
+            
+            document.getElementById('mbBetrag').value = "";
+            document.getElementById('mbText').value = "";
+            document.getElementById('mbBeleg').value = "";
+            document.getElementById('manuelleBuchungForm').style.display = 'none';
+            renderKontoTable();
+        }
+
+        // --- BUCHUNGS DETAIL & EDIT ---
+        function openBuchungDetail(id) {
+            const tx = dbFinanzen.find(t => t.id === id);
+            if(!tx) return;
+            
+            document.getElementById('detailBuchungId').value = id;
+            document.getElementById('detailId').innerText = tx.id;
+            document.getElementById('detailKorrNr').innerText = (tx.history ? tx.history.length : 0);
+            
+            document.getElementById('detailDatumInp').value = tx.buchungsdatum;
+            document.getElementById('detailBetragInp').value = tx.betrag;
+            document.getElementById('detailTextInp').value = tx.text;
+            document.getElementById('detailKontoInp').value = tx.konto || "";
+            
+            // Steuer Select füllen
+            const sSel = document.getElementById('detailSteuerInp');
+            sSel.innerHTML = '<option value="">-</option>';
+            taxKeys.forEach(t => sSel.add(new Option(t.label, t.id)));
+            sSel.value = tx.steuerschluessel || "";
+
+            document.getElementById('detailDoku').value = ""; // Reset Note
+            
+            // Logic: Wenn Locked, inputs readonly? 
+            // Hier erlauben wir Korrekturen, aber loggen sie.
+            if(tx.locked) {
+                document.getElementById('detailDatumInp').disabled = true; 
+                // Datum bei Systembuchungen oft fix, aber Betrag/Konto korrigierbar
+            } else {
+                document.getElementById('detailDatumInp').disabled = false;
+            }
+
+            document.getElementById('buchungDetailModal').classList.add('active');
+        }
+
+        function saveBuchungChanges() {
+            const id = document.getElementById('detailBuchungId').value;
+            const tx = dbFinanzen.find(t => t.id === id);
+            if(!tx) return;
+
+            const newDat = document.getElementById('detailDatumInp').value;
+            const newBet = safeFloat(document.getElementById('detailBetragInp').value);
+            const newTxt = document.getElementById('detailTextInp').value;
+            const newKto = document.getElementById('detailKontoInp').value;
+            const newSteuer = document.getElementById('detailSteuerInp').value;
+            const note = document.getElementById('detailDoku').value;
+
+            if(!note) { alert("Bitte eine Begründung/Notiz für die Änderung eingeben."); return; }
+
+            // Backup old state
+            if(!tx.history) tx.history = [];
+            tx.history.push({
+                date: new Date().toISOString(),
+                oldData: { ...tx, history: null }, // shallow copy without history recursion
+                note: note,
+                user: document.getElementById('loggedInUser').innerText
+            });
+
+            // Update
+            tx.buchungsdatum = newDat;
+            tx.betrag = newBet;
+            tx.text = newTxt;
+            tx.konto = newKto;
+            tx.steuerschluessel = newSteuer;
+            
+            // Recalc Steuerbetrag if needed
+            if(newSteuer) {
+                const sObj = taxKeys.find(t => t.id === newSteuer);
+                if(sObj && sObj.rate > 0) {
+                    tx.steuerbetrag = newBet - (newBet / (1 + sObj.rate/100));
+                } else {
+                    tx.steuerbetrag = 0;
+                }
+            } else {
+                tx.steuerbetrag = 0;
+            }
+
+            saveLocal();
+            triggerAutoSave();
+            document.getElementById('buchungDetailModal').classList.remove('active');
+            renderKontoTable();
+        }
+
+        // --- SPLIT & KOSTEN LOGIK (Missing Functions) ---
+
+        function openSplitModal() {
+            document.getElementById('splitRowsContainer').innerHTML = "";
+            document.getElementById('splitTotalInput').value = "";
+            document.getElementById('splitSummeErfasst').innerText = "0,00 €";
+            document.getElementById('splitSummeRest').innerText = "0,00 €";
+            document.getElementById('btnApplySplit').disabled = true;
+            
+            // Initiale Zeile
+            addSplitRow();
+            
+            document.getElementById('splitModal').classList.add('active');
+        }
+
+        function calcSplitRest() {
+            const total = safeFloat(document.getElementById('splitTotalInput').value);
+            let sum = 0;
+            document.querySelectorAll('#splitRowsContainer .split-amount').forEach(inp => {
+                sum += safeFloat(inp.value);
+            });
+            
+            const rest = total - sum;
+            document.getElementById('splitSummeErfasst').innerText = formatCurrency(sum);
+            
+            const restSpan = document.getElementById('splitSummeRest');
+            restSpan.innerText = formatCurrency(rest);
+            
+            if(Math.abs(rest) < 0.01 && total > 0) {
+                restSpan.style.color = "green";
+                document.getElementById('btnApplySplit').disabled = false;
+            } else {
+                restSpan.style.color = "red";
+                document.getElementById('btnApplySplit').disabled = true;
+            }
+            return rest;
+        }
+
+        function updateKostenSums() {
+            let sumNetto = 0;
+            let sumSteuer = 0;
+            let sumBrutto = 0;
+
+            // Wir lesen die Werte direkt aus dem DOM der Liste, da diese die aktuellsten Rechenwerte enthalten
+            document.querySelectorAll('#kostenListe .kosten-row').forEach(row => {
+                // Brutto ist Input
+                const brutto = safeFloat(row.querySelector('.k-brutto').value);
+                // Steuerbetrag ist Readonly Input
+                const steuerAmt = safeFloat(row.querySelector('.k-tax-amt').value);
+                // Netto ist Readonly Input
+                const netto = safeFloat(row.querySelector('.k-netto').value);
+
+                sumBrutto += brutto;
+                sumSteuer += steuerAmt;
+                sumNetto += netto;
+            });
+
+            document.getElementById('sumKostenNetto').innerText = formatCurrency(sumNetto);
+            document.getElementById('sumKostenSteuer').innerText = formatCurrency(sumSteuer);
+            document.getElementById('sumKostenBrutto').innerText = formatCurrency(sumBrutto);
+        }
+
+        function calculateRow(row) {
+            const brutto = safeFloat(row.querySelector('.k-brutto').value);
+            const tId = row.querySelector('.k-tax').value;
+            let rate = 0;
+            if(tId) { 
+                const k = taxKeys.find(t=>t.id===tId); 
+                if(k) rate = k.rate; 
+            }
+            
+            const netto = brutto / (1 + rate/100);
+            const taxAmt = brutto - netto;
+
+            row.querySelector('.k-netto').value = formatNum(netto);
+            row.querySelector('.k-tax-amt').value = formatNum(taxAmt);
+
+            updateKostenSums();
+        }
+
+
+        // --- ABRECHNUNGS VERWALTUNG (CRUD) ---
         function renderAbrechnungsListe() {
             const oid = document.getElementById('kostenObjektSelect').value;
-            const container = document.getElementById('abrechnungenListe');
-            const wrapper = document.getElementById('abrechnungWrapper');
+            const list = document.getElementById('abrechnungenListe');
             const editor = document.getElementById('kostenEditor');
             const placeholder = document.getElementById('kostenPlaceholder');
             
-            container.innerHTML = "";
+            list.innerHTML = "";
             editor.style.display = "none";
             placeholder.style.display = "block";
+            document.getElementById('currentAbrechnungId').value = "";
 
-            if(!oid) {
-                wrapper.style.display = "none";
-                return;
-            }
-            
-            wrapper.style.display = "flex";
-            const items = dbAbrechnungen.filter(a => a.objektId === oid);
-            
-            if(items.length === 0) {
-                container.innerHTML = "<div style='color:#777; font-style:italic;'>Keine Zeiträume.</div>";
-            } else {
-                items.forEach(a => {
-                    const div = document.createElement('div');
-                    div.style = "padding:5px; border-bottom:1px solid #ddd; cursor:pointer; background:white; margin-bottom:2px;";
-                    div.innerHTML = `<b>${a.name}</b><br><small>${formatDate(a.von)} - ${formatDate(a.bis)}</small>`;
-                    div.onclick = () => loadKostenEditor(a.id);
-                    container.appendChild(div);
-                });
-            }
+            if(!oid) return;
+
+            const abrs = dbAbrechnungen.filter(a => a.objektId === oid);
+            // Sort by Date DESC
+            abrs.sort((a,b) => b.von.localeCompare(a.von));
+
+            abrs.forEach(a => {
+                const div = document.createElement('div');
+                div.style.padding = "8px";
+                div.style.borderBottom = "1px solid #eee";
+                div.style.cursor = "pointer";
+                div.style.background = "#fff";
+                div.innerHTML = `
+                    <div style="font-weight:bold;">${a.name}</div>
+                    <div style="font-size:0.8em; color:#666;">${formatDate(a.von)} - ${formatDate(a.bis)}</div>
+                    <button class="warn-btn" style="font-size:0.7em; padding:1px 4px; margin-top:2px;" onclick="event.stopPropagation(); deleteAbrechnung('${a.id}')">Löschen</button>
+                `;
+                div.onclick = () => loadAbrechnung(a.id);
+                list.appendChild(div);
+            });
         }
 
         function openNeueAbrechnung() {
             const oid = document.getElementById('kostenObjektSelect').value;
-            if(!oid) return alert("Bitte erst ein Objekt auswählen!");
-            document.getElementById('newAbrName').value = "";
-            document.getElementById('newAbrVon').value = "";
-            document.getElementById('newAbrBis').value = "";
+            if(!oid) { alert("Bitte erst ein Objekt wählen."); return; }
             document.getElementById('abrechnungModal').classList.add('active');
         }
 
@@ -1790,319 +2455,245 @@
             const name = document.getElementById('newAbrName').value;
             const von = document.getElementById('newAbrVon').value;
             const bis = document.getElementById('newAbrBis').value;
-            if(!name || !von || !bis) return alert("Alle Felder füllen!");
-            
-            const id = 'abr_' + Date.now();
-            dbAbrechnungen.push({ id, objektId: oid, name, von, bis });
+
+            if(!name || !von || !bis) { alert("Bitte alle Felder füllen"); return; }
+
+            const newId = 'abr_' + Date.now();
+            dbAbrechnungen.push({
+                id: newId,
+                objektId: oid,
+                name: name,
+                von: von,
+                bis: bis,
+                status: 'open'
+            });
+
             saveLocal();
-            renderAbrechnungsListe();
             document.getElementById('abrechnungModal').classList.remove('active');
-            loadKostenEditor(id); // Direkt öffnen
+            renderAbrechnungsListe();
+            loadAbrechnung(newId); // Direkt öffnen
         }
 
-        function loadKostenEditor(abrId) {
-            const abr = dbAbrechnungen.find(a => a.id === abrId);
-            if(!abr) return;
-            
-            document.getElementById('currentAbrechnungId').value = abrId;
-            document.getElementById('editorTitle').innerText = abr.name;
-            document.getElementById('kostenPlaceholder').style.display = "none";
-            document.getElementById('kostenEditor').style.display = "block";
-            
-            const liste = document.getElementById('kostenListe');
-            liste.innerHTML = "";
-            
-            const kosten = dbKosten.filter(k => k.abrechnungId === abrId);
-            if(kosten.length === 0) {
-                // Leere Zeile hinzufügen
-                addKostenRow();
-            } else {
-                kosten.forEach(k => addKostenRow(k));
-            }
-            updateKostenSums();
-        }
-
-        function addKostenRow(data = {}) {
-            const container = document.getElementById('kostenListe');
-            const row = document.createElement('div');
-            row.className = 'kosten-row';
-            row.dataset.id = data.id || getNextFinanzId(); // ID merken oder neu
-
-            // 1. Konto
-            const inpKonto = document.createElement('input');
-            inpKonto.placeholder = "Konto";
-            inpKonto.className = "k-konto";
-            inpKonto.value = data.konto || "";
-
-            // 2. Text
-            const inpText = document.createElement('input');
-            inpText.placeholder = "Beschreibung";
-            inpText.className = "k-text";
-            inpText.value = data.text || "";
-
-            // 3. Brutto
-            const inpBrutto = document.createElement('input');
-            inpBrutto.type = "number";
-            inpBrutto.step = "0.01";
-            inpBrutto.placeholder = "0,00";
-            inpBrutto.className = "k-brutto";
-            inpBrutto.value = data.brutto || "";
-            inpBrutto.oninput = () => calculateRow(row);
-
-            // 4. Steuerschlüssel (Vorsteuer)
-            const taxWrapper = document.createElement('div');
-            taxWrapper.style = "display:flex; align-items:center;";
-            
-            const selSteuer = document.createElement('select');
-            selSteuer.className = "k-tax kosten-tax";
-            selSteuer.style = "flex:1; min-width:0;";
-            selSteuer.add(new Option("-", ""));
-            taxKeys.forEach(t => selSteuer.add(new Option(t.label, t.id)));
-            if(data.steuerKey) selSteuer.value = data.steuerKey;
-            selSteuer.onchange = () => calculateRow(row);
-
-            const btnTax = document.createElement('button');
-            btnTax.innerText = "⚙️";
-            btnTax.className = "finance-btn";
-            btnTax.style.padding = "2px 4px";
-            btnTax.style.marginLeft = "2px";
-            btnTax.title = "Steuerschlüssel verwalten";
-            btnTax.onclick = () => openTaxModal();
-            
-            taxWrapper.append(selSteuer, btnTax);
-
-            // 5. Netto (Readonly)
-            const outNetto = document.createElement('input');
-            outNetto.readOnly = true;
-            outNetto.className = "k-netto";
-            outNetto.style.background = "#f0f0f0";
-            outNetto.value = data.netto ? formatNum(data.netto) : "";
-
-            // 6. Steuerbetrag (Readonly)
-            const outTaxAmt = document.createElement('input');
-            outTaxAmt.readOnly = true;
-            outTaxAmt.className = "k-tax-amt";
-            outTaxAmt.style.background = "#f0f0f0";
-            outTaxAmt.value = data.steuerBetrag ? formatNum(data.steuerBetrag) : "";
-
-            // 7. Verteilschlüssel (MIT ZAHNRAD)
-            const verteilWrapper = document.createElement('div');
-            verteilWrapper.style = "display:flex; align-items:center;";
-
-            const selVerteil = document.createElement('select');
-            selVerteil.className = "k-verteil";
-            selVerteil.style = "flex:1; min-width:0;";
-            verteilKeys.forEach(v => selVerteil.add(new Option(v.label, v.id)));
-            if(data.verteilKey) selVerteil.value = data.verteilKey;
-
-            const btnVerteil = document.createElement('button');
-            btnVerteil.innerText = "⚙️";
-            btnVerteil.className = "finance-btn";
-            btnVerteil.style.padding = "2px 4px";
-            btnVerteil.style.marginLeft = "2px";
-            btnVerteil.title = "Verteilschlüssel verwalten";
-            btnVerteil.onclick = () => openVerteilModal();
-
-            verteilWrapper.append(selVerteil, btnVerteil);
-
-            // Delete Btn
-            const btnDel = document.createElement('button');
-            btnDel.innerText = "X";
-            btnDel.className = "warn-btn";
-            btnDel.style.padding = "2px 5px";
-            btnDel.onclick = () => { row.remove(); updateKostenSums(); };
-
-            row.append(inpKonto, inpText, inpBrutto, taxWrapper, outNetto, outTaxAmt, verteilWrapper, btnDel);
-            container.appendChild(row);
-        }
-
-        function calculateRow(row) {
-            const brutto = safeFloat(row.querySelector('.k-brutto').value);
-            const taxKeyId = row.querySelector('.k-tax').value;
-            let net = brutto;
-            let taxAmt = 0;
-
-            if(taxKeyId) {
-                const k = taxKeys.find(t => t.id === taxKeyId);
-                if(k && k.rate > 0) {
-                    net = brutto / (1 + k.rate/100);
-                    taxAmt = brutto - net;
-                }
-            }
-
-            row.querySelector('.k-netto').value = formatNum(net);
-            row.querySelector('.k-tax-amt').value = formatNum(taxAmt);
-            
-            // Speichere Rohwerte im Dataset für Summenberechnung
-            row.dataset.net = net;
-            row.dataset.tax = taxAmt;
-            row.dataset.brutto = brutto;
-
-            updateKostenSums();
-        }
-
-        function updateKostenSums() {
-            let sumN = 0, sumT = 0, sumB = 0;
-            document.querySelectorAll('.kosten-row').forEach(row => {
-                // Wenn Dataset gefüllt (durch Berechnung)
-                if(row.dataset.brutto) {
-                    sumN += parseFloat(row.dataset.net);
-                    sumT += parseFloat(row.dataset.tax);
-                    sumB += parseFloat(row.dataset.brutto);
-                } else {
-                    // Fallback beim Laden
-                    const b = safeFloat(row.querySelector('.k-brutto').value);
-                    sumB += b; 
-                    // (Netto/Steuer müsste man neu rechnen wenn nicht im dataset, aber calculateRow wird beim Editieren gefeuert)
-                }
-            });
-            document.getElementById('sumKostenNetto').innerText = formatCurrency(sumN);
-            document.getElementById('sumKostenSteuer').innerText = formatCurrency(sumT);
-            document.getElementById('sumKostenBrutto').innerText = formatCurrency(sumB);
-        }
-
-        function saveKostenErfassung() {
-            const abrId = document.getElementById('currentAbrechnungId').value;
-            if(!abrId) return;
-
-            // Alte Einträge löschen (einfachste Art des Updates)
-            dbKosten = dbKosten.filter(k => k.abrechnungId !== abrId);
-
-            document.querySelectorAll('.kosten-row').forEach(row => {
-                const brutto = safeFloat(row.querySelector('.k-brutto').value);
-                const text = row.querySelector('.k-text').value;
-                
-                if(brutto || text) {
-                    const tId = row.querySelector('.k-tax').value;
-                    let rate = 0;
-                    if(tId) { const k = taxKeys.find(t=>t.id===tId); if(k) rate = k.rate; }
-                    
-                    const netto = brutto / (1 + rate/100);
-                    const taxAmt = brutto - netto;
-
-                    dbKosten.push({
-                        id: row.dataset.id,
-                        abrechnungId: abrId,
-                        konto: row.querySelector('.k-konto').value,
-                        text: text,
-                        brutto: brutto,
-                        steuerKey: tId,
-                        netto: netto,
-                        steuerBetrag: taxAmt,
-                        verteilKey: row.querySelector('.k-verteil').value
-                    });
-                }
-            });
-
+        function deleteAbrechnung(id) {
+            if(!confirm("Abrechnungszeitraum und ALLE zugehörigen Kostenpositionen löschen?")) return;
+            dbAbrechnungen = dbAbrechnungen.filter(a => a.id !== id);
+            dbKosten = dbKosten.filter(k => k.abrechnungId !== id);
             saveLocal();
             triggerAutoSave();
-            alert("Kosten gespeichert!");
+            renderAbrechnungsListe();
         }
 
-        // ================= SPLIT BUCHUNG LOGIC =================
-        function openSplitModal() {
-            document.getElementById('splitTotalInput').value = "";
-            document.getElementById('splitRowsContainer').innerHTML = "";
-            document.getElementById('splitSummeErfasst').innerText = "0,00 €";
-            document.getElementById('splitSummeRest').innerText = "0,00 €";
-            document.getElementById('btnApplySplit').disabled = true;
-            addSplitRow(); // Start with one row
-            document.getElementById('splitModal').classList.add('active');
+        function loadAbrechnung(id) {
+            const abr = dbAbrechnungen.find(a => a.id === id);
+            if(!abr) return;
+
+            document.getElementById('currentAbrechnungId').value = id;
+            document.getElementById('editorTitle').innerText = abr.name;
+            
+            document.getElementById('kostenPlaceholder').style.display = "none";
+            document.getElementById('kostenEditor').style.display = "block";
+
+            // Highlight active item in list
+            // (Simple implementation skipped for brevity)
+
+            // Load Costs
+            const kList = document.getElementById('kostenListe');
+            kList.innerHTML = "";
+            
+            const kosten = dbKosten.filter(k => k.abrechnungId === id);
+            kosten.forEach(k => addKostenRow(k));
+            
+            updateKostenSums();
         }
 
-        function calcSplitRest() {
-            const total = safeFloat(document.getElementById('splitTotalInput').value);
-            let sum = 0;
-            document.querySelectorAll('.split-amount').forEach(inp => {
-                sum += safeFloat(inp.value);
+
+        // --- PDF REPORTS (jsPDF + autoTable) ---
+
+        async function generateObjectReportPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            doc.setFontSize(18);
+            doc.text("Objekt-Status Bericht", 14, 20);
+            doc.setFontSize(10);
+            doc.text(`Erstellt am: ${new Date().toLocaleDateString()}`, 14, 28);
+            
+            const headers = [["Nr", "Objekt", "Ort", "Häuser", "Einheiten", "Steuer-Status"]];
+            const rows = [];
+            
+            dbObjekte.forEach((o, id) => {
+                const hCount = Array.from(dbHaeuser.values()).filter(h => h.objektId === id).length;
+                // Count units recursively
+                const hIds = Array.from(dbHaeuser.entries()).filter(([hid, h]) => h.objektId === id).map(x => x[0]);
+                const uCount = Array.from(dbEinheiten.values()).filter(e => hIds.includes(e.hausId)).length;
+                
+                rows.push([
+                    o.nummer, 
+                    o.name, 
+                    o.ort, 
+                    hCount, 
+                    uCount,
+                    TAX_STATUS_MAP[o.steuerStatus||'opt'].label
+                ]);
             });
-            const rest = total - sum;
+
+            doc.autoTable({
+                startY: 35,
+                head: headers,
+                body: rows,
+            });
             
-            document.getElementById('splitSummeErfasst').innerText = formatCurrency(sum);
-            const restEl = document.getElementById('splitSummeRest');
-            restEl.innerText = formatCurrency(rest);
-            
-            if(Math.abs(rest) < 0.01 && total > 0) {
-                restEl.style.color = "green";
-                restEl.innerText = "✅ 0,00 €";
-                document.getElementById('btnApplySplit').disabled = false;
-            } else {
-                restEl.style.color = "red";
-                document.getElementById('btnApplySplit').disabled = true;
-            }
-            return rest;
+            doc.save("Objekt_Bericht.pdf");
         }
 
-        function addSplitRow(initialAmount = null) {
-            const container = document.getElementById('splitRowsContainer');
-            const rest = calcSplitRest();
+        async function generateHouseReportPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.text("Häuser & Flächen Übersicht", 14, 20);
             
-            // Wenn kein Wert übergeben wurde, nimm den Rest (wenn > 0)
-            const startVal = initialAmount !== null ? initialAmount : (rest > 0 ? rest : "");
-
-            const div = document.createElement('div');
-            div.className = 'split-row';
+            const headers = [["Objekt", "Haus", "Typen", "Fläche (Ist)", "Status"]];
+            const rows = [];
             
-            // Amount
-            const inpAmt = document.createElement('input');
-            inpAmt.type = "number"; inpAmt.step = "0.01"; inpAmt.placeholder = "Betrag"; 
-            inpAmt.className = "split-amount";
-            if(startVal) inpAmt.value = startVal;
-            inpAmt.oninput = calcSplitRest;
+            dbHaeuser.forEach((h, hid) => {
+                const o = dbObjekte.get(h.objektId);
+                const einheiten = Array.from(dbEinheiten.values()).filter(e => e.hausId === hid);
+                const totalArea = einheiten.reduce((s,e) => s + safeFloat(e.flaeche), 0);
+                const types = [...new Set(einheiten.map(e => getTypeLabel(e.typ)))].join(", ");
+                
+                rows.push([
+                    o ? o.name : '?',
+                    h.bezeichnung,
+                    types,
+                    formatNum(totalArea) + " m²",
+                    (h.steuerStatus || 'opt').toUpperCase()
+                ]);
+            });
 
-            // Text
-            const inpText = document.createElement('input');
-            inpText.type = "text"; inpText.placeholder = "Beschreibung";
-            inpText.className = "split-text";
-
-            // Konto
-            const inpKonto = document.createElement('input');
-            inpKonto.type = "text"; inpKonto.placeholder = "Konto";
-            inpKonto.className = "split-konto";
-
-            // Tax
-            const selTax = document.createElement('select');
-            selTax.className = "split-tax";
-            selTax.add(new Option("-", ""));
-            taxKeys.forEach(t => selTax.add(new Option(t.label, t.id)));
-
-            // Verteilung
-            const selVerteil = document.createElement('select');
-            selVerteil.className = "split-verteil";
-            verteilKeys.forEach(v => selVerteil.add(new Option(v.label, v.id)));
-
-            // Del Button
-            const btnDel = document.createElement('button');
-            btnDel.innerText = "X";
-            btnDel.className = "warn-btn";
-            btnDel.style.padding = "2px 5px";
-            btnDel.onclick = () => { div.remove(); calcSplitRest(); };
-
-            div.append(inpAmt, inpText, inpKonto, selTax, selVerteil, btnDel);
-            container.appendChild(div);
-            
-            // Recalc immediately to show updated rest/green status
-            calcSplitRest();
+            doc.autoTable({ startY: 30, head: headers, body: rows });
+            doc.save("Haus_Status.pdf");
         }
 
-        function applySplitBuchung() {
-            // Generiere Datenobjekte für jede Zeile
-            document.querySelectorAll('#splitRowsContainer .split-row').forEach(row => {
-                const amt = safeFloat(row.querySelector('.split-amount').value);
-                if(amt > 0) {
-                    const data = {
-                        konto: row.querySelector('.split-konto').value,
-                        text: row.querySelector('.split-text').value,
-                        brutto: amt,
-                        steuerKey: row.querySelector('.split-tax').value,
-                        verteilKey: row.querySelector('.split-verteil').value
-                    };
-                    addKostenRow(data); // Füge zur Hauptliste hinzu
+        async function generateUnitReportPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('l'); // Landscape
+            doc.text("Vermietungsliste / Einheiten", 14, 20);
+            
+            const headers = [["Objekt/Haus", "Einheit", "Mieter", "Seit", "Miete (Netto)", "BK", "Status"]];
+            const rows = [];
+            
+            // Sortierung
+            const sortedUnits = Array.from(dbEinheiten.values()).sort((a,b) => a.name.localeCompare(b.name));
+            
+            sortedUnits.forEach(e => {
+                const h = dbHaeuser.get(e.hausId);
+                const o = h ? dbObjekte.get(h.objektId) : null;
+                const location = (o?o.name:'') + " / " + (h?h.bezeichnung:'');
+                
+                let mieterTxt = "Leerstand";
+                let seitTxt = "-";
+                let status = "Leer";
+                
+                // Check Active Belegung
+                const now = new Date().toISOString().split('T')[0];
+                const act = e.belegung ? e.belegung.find(b => (b.einzug||'0000') <= now && (b.auszug||'9999') >= now) : null;
+                
+                if(act) {
+                    const m = dbKontakte.get(act.mieterId);
+                    mieterTxt = m ? m.fn : "Unbekannt";
+                    seitTxt = formatDate(act.einzug);
+                    status = "Vermietet";
+                }
+                
+                // Miete ermitteln (Kaltmiete)
+                let km = 0; let bk = 0;
+                if(e.konditionen) {
+                    e.konditionen.forEach(k => {
+                        // Prüfen ob gültig
+                        if(k.gueltigAb <= now && (!k.gueltigBis || k.gueltigBis >= now)) {
+                            if(k.label.includes("Kalt")) km += safeFloat(k.betrag);
+                            if(k.label.includes("BK") || k.label.includes("Vorausz")) bk += safeFloat(k.betrag);
+                        }
+                    });
+                }
+                
+                rows.push([
+                    location,
+                    e.name,
+                    mieterTxt,
+                    seitTxt,
+                    formatNum(km) + " €",
+                    formatNum(bk) + " €",
+                    status
+                ]);
+            });
+
+            doc.autoTable({ startY: 30, head: headers, body: rows });
+            doc.save("Vermietungsliste.pdf");
+        }
+
+        async function exportKontoPDF() {
+            const eid = document.getElementById('kontoEinheitId').value;
+            const e = dbEinheiten.get(eid);
+            if(!e) return;
+            const h = dbHaeuser.get(e.hausId);
+            const o = h ? dbObjekte.get(h.objektId) : null;
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            doc.setFontSize(14);
+            doc.text(`Mieterkonto Auszug`, 14, 20);
+            doc.setFontSize(10);
+            doc.text(`Objekt: ${o?o.name:''} | Einheit: ${e.name}`, 14, 28);
+            doc.text(`Datum: ${new Date().toLocaleDateString()}`, 14, 34);
+            
+            const headers = [["Datum", "Vorgang", "Soll", "Haben", "Saldo"]];
+            const rows = [];
+            
+            let txs = dbFinanzen.filter(tx => tx.einheitId === eid);
+            // Optional: Filter beachten
+            const yearFilter = document.getElementById('kontoJahrSelect').value;
+            if(yearFilter !== 'all') txs = txs.filter(tx => tx.buchungsdatum.startsWith(yearFilter));
+            
+            txs.sort((a,b) => a.buchungsdatum.localeCompare(b.buchungsdatum));
+            
+            let saldo = 0;
+            txs.forEach(tx => {
+                const s = tx.typ === 'soll' ? safeFloat(tx.betrag) : 0;
+                const hVal = tx.typ === 'haben' ? safeFloat(tx.betrag) : 0;
+                saldo += (s - hVal);
+                
+                rows.push([
+                    formatDate(tx.buchungsdatum),
+                    tx.text,
+                    s > 0 ? formatNum(s) : "",
+                    hVal > 0 ? formatNum(hVal) : "",
+                    formatNum(saldo)
+                ]);
+            });
+            
+            // Add Sum Row
+            rows.push(["", "Endstand", "", "", formatNum(saldo) + " €"]);
+
+            doc.autoTable({
+                startY: 40,
+                head: headers,
+                body: rows,
+                columnStyles: {
+                    2: { halign: 'right' },
+                    3: { halign: 'right' },
+                    4: { halign: 'right', fontStyle: 'bold' }
                 }
             });
-            document.getElementById('splitModal').classList.remove('active');
-            updateKostenSums(); // Update Hauptsummen
+            
+            doc.save(`Konto_${e.name.replace(/\s/g,'_')}.pdf`);
         }
+
+        // --- GLOBAL ERROR HANDLER ---
+        window.onerror = function(msg, url, line) {
+            console.error("Global Error:", msg, line);
+            // alert("Fehler im Script: " + msg); // Optional für Debugging
+        };
 
     </script>
 </body>
