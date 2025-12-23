@@ -378,20 +378,21 @@
                 <button onclick="addZaehlerRow()" class="primary-btn" style="margin-top:10px;">+ Zählerstand erfassen</button>
             </div>
 
-            <!-- Panel: Direkte Kosten -->
+            <!-- Panel: Direkte Kosten (UPDATE: Mit Typ-Auswahl für Fremdabrechner) -->
             <div id="vPanel-direkt" class="v-panel" style="flex:1; overflow-y:auto;">
-                <p class="sub-info">Kosten, die direkt dieser Einheit zugeordnet sind (z.B. Heizkostenabrechnung Dienstleister).</p>
-                <!-- Grid Header: Art | Von | Bis | Betrag | Lohn | X -->
-                <div class="verbrauchs-header" style="grid-template-columns: 2fr 1fr 1fr 1fr 1fr 30px;">
-                    <div>Kostenart / Text</div>
+                <p class="sub-info">Erfassung der Kosten laut Einzelabrechnung (Fremdabrechner Heizung/Wasser).</p>
+                <!-- Grid Header: Art | Text | Von | Bis | Betrag | Lohn | X -->
+                <div class="verbrauchs-header" style="grid-template-columns: 1.2fr 1.5fr 0.9fr 0.9fr 0.8fr 0.8fr 30px;">
+                    <div>Art der Kosten</div>
+                    <div>Beschreibung / Notiz</div>
                     <div>Von</div>
                     <div>Bis</div>
-                    <div>Betrag €</div>
-                    <div>Lohnanteil €</div> <!-- NEU -->
+                    <div>Kostenanteil €</div>
+                    <div>Lohnanteil €</div>
                     <div></div>
                 </div>
                 <div id="vList-direkt"></div>
-                <button onclick="addDirektRow()" class="primary-btn" style="margin-top:10px;">+ Direkte Kosten hinzufügen</button>
+                <button onclick="addDirektRow()" class="primary-btn" style="margin-top:10px;">+ Kostenposition hinzufügen</button>
             </div>
 
             <div class="modal-actions" style="margin-top:auto; padding-top:15px; border-top:1px solid #eee;">
@@ -624,8 +625,7 @@
             </div>
         </div>
     </div>
-
-    <!-- Modal 3: Einheit -->
+<!-- Modal 3: Einheit -->
     <div id="einheitModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')">
         <div class="modal-content">
             <h3>Einheit bearbeiten</h3>
@@ -1349,8 +1349,7 @@
         function updateUnitLiveStatus() { document.getElementById('einheitLiveStatus').style.display = "none"; }
         function updateObjektLiveStatus() { }
         function switchTab(id) { document.querySelectorAll('.panel').forEach(p => p.classList.remove('active')); document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); const p = document.getElementById('panel' + id.charAt(0).toUpperCase() + id.slice(1)); if(p) p.classList.add('active'); const btns = document.querySelectorAll('.tab-btn'); if(id==='objekte'&&btns[0])btns[0].classList.add('active'); if(id==='haeuser'&&btns[1])btns[1].classList.add('active'); if(id==='einheiten'&&btns[2])btns[2].classList.add('active'); if(id==='kosten'&&btns[3])btns[3].classList.add('active'); }
-
-        // KOMMENTAR: UPDATE - renderLists inkl. Verbrauchsdaten-Button
+// KOMMENTAR: UPDATE - renderLists inkl. Verbrauchsdaten-Button
         function renderLists() {
             // Dropdowns füllen
             const oSel = document.getElementById('hausObjektSelect'); 
@@ -2069,18 +2068,67 @@
 
         function addDirektRow(d={}) {
             const c = document.getElementById('vList-direkt');
-            const row = document.createElement('div'); row.className = 'verbrauchs-row';
-            row.style.gridTemplateColumns = "2fr 1fr 1fr 1fr 1fr 30px";
+            const row = document.createElement('div'); 
+            row.className = 'verbrauchs-row';
+            // Grid Spalten passend zum Header definieren
+            row.style.gridTemplateColumns = "1.2fr 1.5fr 0.9fr 0.9fr 0.8fr 0.8fr 30px";
             
-            const iText = document.createElement('input'); iText.type="text"; iText.className="v-text"; iText.placeholder="Beschreibung"; iText.value=d.text||"";
-            const iVon = document.createElement('input'); iVon.type="date"; iVon.className="v-von"; iVon.value=d.von||"";
-            const iBis = document.createElement('input'); iBis.type="date"; iBis.className="v-bis"; iBis.value=d.bis||"";
-            const iBetrag = document.createElement('input'); iBetrag.type="number"; iBetrag.step="0.01"; iBetrag.className="v-betrag"; iBetrag.placeholder="€"; iBetrag.value=d.betrag||"";
-            const iLohn = document.createElement('input'); iLohn.type="number"; iLohn.step="0.01"; iLohn.className="v-lohn"; iLohn.placeholder="Lohn €"; iLohn.value=d.lohn||""; // NEU
+            // 1. Neuer Typ-Selektor (Heizung, Wasser, Sonstiges)
+            const iTyp = document.createElement('select'); 
+            iTyp.className = "v-typ";
+            iTyp.style.fontWeight = "bold";
+            // Optionen hinzufügen
+            const opts = ['Sonstige Direktkosten', 'Heizkosten (Fremd)', 'Wasser (Fremd)', 'Warmwasser (Fremd)'];
+            opts.forEach(opt => iTyp.add(new Option(opt, opt)));
+            if(d.typ) iTyp.value = d.typ; // Wert setzen falls vorhanden
+            else if(d.text && d.text.toLowerCase().includes('heiz')) iTyp.value = 'Heizkosten (Fremd)'; // Auto-Erkennung bei Legacy Daten
+
+            // 2. Beschreibung (Optionaler Text)
+            const iText = document.createElement('input'); 
+            iText.type = "text"; 
+            iText.className = "v-text"; 
+            iText.placeholder = "z.B. Abrechnung Techem"; 
+            iText.value = d.text || "";
+
+            // 3. Zeitraum Von
+            const iVon = document.createElement('input'); 
+            iVon.type = "date"; 
+            iVon.className = "v-von"; 
+            iVon.value = d.von || "";
+
+            // 4. Zeitraum Bis
+            const iBis = document.createElement('input'); 
+            iBis.type = "date"; 
+            iBis.className = "v-bis"; 
+            iBis.value = d.bis || "";
+
+            // 5. Betrag (Kostenanteil)
+            const iBetrag = document.createElement('input'); 
+            iBetrag.type = "number"; 
+            iBetrag.step = "0.01"; 
+            iBetrag.className = "v-betrag"; 
+            iBetrag.placeholder = "€"; 
+            iBetrag.style.fontWeight = "bold";
+            iBetrag.value = d.betrag || "";
+
+            // 6. Lohnanteil
+            const iLohn = document.createElement('input'); 
+            iLohn.type = "number"; 
+            iLohn.step = "0.01"; 
+            iLohn.className = "v-lohn"; 
+            iLohn.placeholder = "Lohn €"; 
+            iLohn.value = d.lohn || "";
+
+            // 7. Löschen Button
+            const btn = document.createElement('button'); 
+            btn.innerText = "X"; 
+            btn.className = "warn-btn"; 
+            btn.style.padding = "2px 5px"; 
+            btn.onclick = () => row.remove();
             
-            const btn = document.createElement('button'); btn.innerText="X"; btn.className="warn-btn"; btn.style.padding="2px 5px"; btn.onclick=()=>row.remove();
-            
-            row.append(iText, iVon, iBis, iBetrag, iLohn, btn); c.appendChild(row);
+            // Alles zusammenfügen
+            row.append(iTyp, iText, iVon, iBis, iBetrag, iLohn, btn); 
+            c.appendChild(row);
         }
 
         function saveVerbrauchsdaten() {
@@ -2088,6 +2136,7 @@
             const e = dbEinheiten.get(eid);
             if(!e) return;
 
+            // Personen speichern (unverändert)
             const personen = [];
             document.querySelectorAll('#vList-personen .verbrauchs-row').forEach(row => {
                 const von = row.querySelector('.v-von').value;
@@ -2096,6 +2145,7 @@
                 if(von) personen.push({ von, bis, anzahl: anz });
             });
 
+            // Zähler speichern (unverändert)
             const zaehler = [];
             document.querySelectorAll('#vList-zaehler .verbrauchs-row').forEach(row => {
                 const nr = row.querySelector('.v-nr').value;
@@ -2107,21 +2157,29 @@
                 if(nr) zaehler.push({ nr, art, von, bis, standStart: start, standEnde: end });
             });
 
+            // UPDATE: Direktkosten speichern (jetzt mit TYP)
             const direkt = [];
             document.querySelectorAll('#vList-direkt .verbrauchs-row').forEach(row => {
+                const typ = row.querySelector('.v-typ').value; // NEU
                 const text = row.querySelector('.v-text').value;
                 const betrag = safeFloat(row.querySelector('.v-betrag').value);
                 const lohn = safeFloat(row.querySelector('.v-lohn').value);
                 const von = row.querySelector('.v-von').value;
                 const bis = row.querySelector('.v-bis').value;
-                if(text || betrag > 0) direkt.push({ text, von, bis, betrag, lohn });
+                
+                // Speichern wenn Betrag > 0 oder Text vorhanden
+                if(betrag > 0 || text) {
+                    direkt.push({ typ, text, von, bis, betrag, lohn });
+                }
             });
 
             e.verbrauchsdaten = { personen, zaehler, direkt };
             dbEinheiten.set(eid, e);
-            saveLocal(); triggerAutoSave();
+            saveLocal(); 
+            triggerAutoSave();
+            
             document.getElementById('verbrauchsdatenModal').classList.remove('active');
-            alert("Verbrauchsdaten gespeichert.");
+            alert("Verbrauchsdaten (inkl. Fremdabrechnung) gespeichert.");
         }
 
     </script>
