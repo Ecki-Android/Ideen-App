@@ -190,6 +190,14 @@
         .verbrauchs-row input, .verbrauchs-row select { width: 100%; box-sizing: border-box; font-size: 0.9em; padding: 4px; border: 1px solid #ccc; border-radius: 3px; }
         
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        /* Result Table in Modal */
+        .result-table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+        .result-table th, .result-table td { border: 1px solid #ddd; padding: 6px; text-align: left; }
+        .result-table th { background: #f5f5f5; font-weight: bold; }
+        .res-num { text-align: right; font-family: monospace; }
+        .res-good { color: #2e7d32; font-weight: bold; }
+        .res-bad { color: #c62828; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -201,7 +209,9 @@
             <button onclick="openTaxModal()" class="finance-btn" title="Steuerschlüssel verwalten">🛠️ Steuerschlüssel</button>
             <button onclick="openSollstellungModal()" class="finance-btn" title="Monatliche Mieten berechnen">💰 Sollstellung</button>
             <span style="border-left: 1px solid #ccc; height: 20px; margin: 0 5px;"></span>
-            <button onclick="createDummyData()" class="test-btn" title="Erstellt Musterobjekt mit Finanz-Historie">🧪 Testdaten</button>
+            
+            <button onclick="createAbrechnungDummy()" class="test-btn" title="Erstellt komplexe Abrechnungs-Daten">🧪 Abrechnungs-Dummy</button>
+            
             <button id="msLoginBtn" onclick="handleMicrosoftLogin()" class="onedrive-btn">🔑 Login</button>
             <button id="msLogoutBtn" onclick="handleLogout()" class="warn-btn" style="display:none;">🔒 Logout</button>
             <span style="border-left: 1px solid #ccc; height: 20px; margin: 0 5px;"></span>
@@ -275,6 +285,7 @@
                                 <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #2e7d32; padding-bottom:5px; margin-bottom:10px;">
                                     <h3 style="margin:0; color:#2e7d32;">Erfassung: <span id="editorTitle"></span></h3>
                                     <div style="display:flex; gap:5px;">
+                                        <button onclick="simulateAbrechnung()" class="test-btn">🧮 Abrechnung simulieren</button>
                                         <span id="abrStatusBadge" style="padding:5px 10px; border-radius:4px; font-weight:bold; margin-right:10px;"></span>
                                         <button id="btnLockAbr" onclick="toggleAbrechnungStatus(true)" class="finance-btn">🔒 Abschließen</button>
                                         <button id="btnUnlockAbr" onclick="toggleAbrechnungStatus(false)" class="warn-btn" style="display:none;">🔓 Öffnen (Korrektur)</button>
@@ -310,6 +321,17 @@
     </div>
 
     <!-- MODALS -->
+    <div id="resultModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')">
+        <div class="modal-content" style="max-width:900px;">
+            <h3>📊 Abrechnungs-Ergebnis (Vorschau)</h3>
+            <div id="resultContent" style="max-height:60vh; overflow-y:auto;"></div>
+            <div class="modal-actions">
+                <button onclick="document.getElementById('resultModal').classList.remove('active')">Schließen</button>
+                <button class="primary-btn" onclick="alert('PDF Funktion folgt im nächsten Schritt!')">Als PDF drucken</button>
+            </div>
+        </div>
+    </div>
+
     <div id="verbrauchsdatenModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')">
         <div class="modal-content" style="max-width:1100px; height:85vh; display:flex; flex-direction:column;">
             <h3>📊 Zähler & Verbrauchsdaten</h3>
@@ -785,7 +807,7 @@
         function addHistorieRow(d={}){ const c=document.getElementById('historieListe'); const r=document.createElement('div'); r.className='historie-row'; r.innerHTML=`<input type="date" class="hist-date" value="${d.date||''}"><input type="text" class="hist-desc" value="${d.text||''}"><button class="warn-btn" onclick="this.parentElement.remove()">X</button>`; c.appendChild(r); }
         function getTypeLabel(id) { const t=STANDARD_TYPES.find(x=>x.id===id); return t?t.label:id; }
 
-        // --- KOSTEN ---
+        // --- KOSTEN EDITOR ---
         function renderAbrechnungsListe() { const oid=document.getElementById('kostenObjektSelect').value; const c=document.getElementById('abrechnungenListe'); document.getElementById('abrechnungWrapper').style.display=oid?"flex":"none"; c.innerHTML=""; dbAbrechnungen.filter(a=>a.objektId===oid).forEach(a=>{const div=document.createElement('div'); div.style="padding:8px; border-bottom:1px solid #ddd; cursor:pointer; background:white; margin-bottom:2px;"; if(a.status==='closed')div.style.backgroundColor="#f0f0f0"; div.innerHTML=`<b>${a.status==='closed'?'🔒':'📝'} ${a.name}</b><br><small>${formatDate(a.von)}-${formatDate(a.bis)}</small>`; div.onclick=()=>loadKostenEditor(a.id); c.appendChild(div);}); }
         function openNeueAbrechnung() { document.getElementById('abrechnungModal').classList.add('active'); }
         function createAbrechnung() { const id='abr_'+Date.now(); dbAbrechnungen.push({id, objektId:document.getElementById('kostenObjektSelect').value, name:document.getElementById('newAbrName').value, von:document.getElementById('newAbrVon').value, bis:document.getElementById('newAbrBis').value, status:'open'}); saveLocal(); renderAbrechnungsListe(); document.getElementById('abrechnungModal').classList.remove('active'); loadKostenEditor(id); }
@@ -844,13 +866,11 @@
             const oid = getNextObjektID();
             const oData = { nummer: oid, name: "Wohnpark Test", plz: "12345", ort: "Musterstadt", flaeche: 150, mea: 1000, sollHaeuser: 1, steuerStatus: "opt" };
             dbObjekte.set(oid, oData);
-            console.log("Objekt erstellt:", oData);
             
             const hid = getNextHausID(oid);
             const matrix = {}; matrix['wohnung'] = { count: 2, area: 100, label: "Wohnung" }; matrix['gewerbe'] = { count: 1, area: 50, label: "Gewerbe" };
             const hData = { objektId: oid, bezeichnung: "Haus A", anteile: 1000, sollMatrix: matrix, steuerStatus: "opt" };
             dbHaeuser.set(hid, hData);
-            console.log("Haus erstellt:", hData);
             
             let eid = getNextEinheitID(hid);
             const now = new Date(); const year = now.getFullYear();
@@ -868,12 +888,10 @@
                 }
             };
             dbEinheiten.set(eid, u1Data);
-            console.log("Einheit 1 erstellt:", u1Data);
 
             eid = getNextEinheitID(hid);
             const u2Data = { hausId: hid, name: "EG Rechts", typ: "wohnung", flaeche: 50, zimmer: 2, mea: 333.33, belegung: [] };
             dbEinheiten.set(eid, u2Data);
-            console.log("Einheit 2 erstellt:", u2Data);
 
             eid = getNextEinheitID(hid);
             const u3Data = { 
@@ -882,18 +900,145 @@
                 belegung: [] 
             };
             dbEinheiten.set(eid, u3Data);
-            console.log("Einheit 3 erstellt:", u3Data);
 
             const abrId = 'abr_' + Date.now();
             const aData = { id: abrId, objektId: oid, name: `Betriebskosten ${year}`, von: `${year}-01-01`, bis: `${year}-12-31`, status: 'open' };
             dbAbrechnungen.push(aData);
             const kData = { id: getNextFinanzId(), abrechnungId: abrId, konto: "4010", text: "Hausmeister Gartenpflege", brutto: 595, lohn: 150, lohnArt: 'hdl', steuerKey: "9", netto: 500, steuerBetrag: 95, verteilKey: "einheiten" };
             dbKosten.push(kData);
-            console.log("Abrechnung & Kosten erstellt:", aData, kData);
             console.groupEnd();
 
             saveLocal(); renderLists(); 
             alert(`Testdaten Protokoll:\nObjekt: ${oData.name} (${oid})\nHaus: ${hData.bezeichnung} (${hid})\nEinheiten: 3 Stück angelegt.\nAbrechnung: ${aData.name} mit 1 Kostenposition.`);
+        }
+
+        // --- NEW: ABRECHNUNG DUMMY ---
+        function createAbrechnungDummy() {
+            if(!confirm("Komplexes Abrechnungs-Szenario erzeugen?\n(Sonnenhof, 3 Einheiten, div. Schlüssel)")) return;
+            
+            // 1. Objekt
+            const oid = getNextObjektID();
+            dbObjekte.set(oid, { nummer: oid, name: "Sonnenhof Muster", plz: "99999", ort: "Musterstadt", flaeche: 300, mea: 1000, sollHaeuser: 1, steuerStatus: "none" });
+            
+            // 2. Haus
+            const hid = getNextHausID(oid);
+            const matrix = {'wohnung':{count:3, area:200}};
+            dbHaeuser.set(hid, { objektId: oid, bezeichnung: "Haupthaus", anteile: 1000, sollMatrix: matrix });
+
+            // 3. Einheiten (E1: Voll, E2: Wechsel, E3: Leer)
+            const y = 2024;
+            // E1: 100m², ganzes Jahr
+            let eid = getNextEinheitID(hid);
+            dbEinheiten.set(eid, { hausId: hid, objektId: oid, name: "Wohnung 1 (Voll)", typ: "wohnung", flaeche: 100, zimmer: 4, mea: 333, 
+                konditionen: [{label:'BK-Vorausz.', betrag: 200, intervall:'Monatlich', gueltigAb: `${y}-01-01`, steuerKey: '20'}],
+                belegung: [{mieterId: 'dummy_m1', einzug: `${y}-01-01`, auszug: `${y}-12-31`}]
+            });
+            // E2: 100m², nur 2. Halbjahr
+            eid = getNextEinheitID(hid);
+            dbEinheiten.set(eid, { hausId: hid, objektId: oid, name: "Wohnung 2 (Wechsel)", typ: "wohnung", flaeche: 100, zimmer: 4, mea: 333,
+                konditionen: [{label:'BK-Vorausz.', betrag: 200, intervall:'Monatlich', gueltigAb: `${y}-07-01`, steuerKey: '20'}],
+                belegung: [{mieterId: 'dummy_m2', einzug: `${y}-07-01`, auszug: `${y}-12-31`}]
+            });
+            // E3: 100m², Leerstand
+            eid = getNextEinheitID(hid);
+            dbEinheiten.set(eid, { hausId: hid, objektId: oid, name: "Wohnung 3 (Leer)", typ: "wohnung", flaeche: 100, zimmer: 4, mea: 334, belegung: [] });
+
+            // 4. Abrechnung & Kosten
+            const aid = 'abr_' + Date.now();
+            dbAbrechnungen.push({ id: aid, objektId: oid, name: `Abrechnung ${y}`, von: `${y}-01-01`, bis: `${y}-12-31`, status: 'open' });
+            
+            // Kosten:
+            // - Grundsteuer (nach Fläche m2)
+            dbKosten.push({ id: getNextFinanzId(), abrechnungId: aid, text: "Grundsteuer", brutto: 3000, netto: 3000, verteilKey: "m2" });
+            // - Müll (nach Einheiten)
+            dbKosten.push({ id: getNextFinanzId(), abrechnungId: aid, text: "Müllabfuhr", brutto: 900, netto: 900, verteilKey: "einheiten" });
+            // - Garten (nach Fläche, §35a)
+            dbKosten.push({ id: getNextFinanzId(), abrechnungId: aid, text: "Gartenpflege", brutto: 600, netto: 600, lohn: 300, lohnArt: 'hdl', verteilKey: "m2" });
+
+            // 5. Vorauszahlungen (Finanzen) simulieren
+            // E1 hat 12x 200 = 2400 gezahlt
+            dbFinanzen.push({ id: getNextFinanzId(), einheitId: Array.from(dbEinheiten.keys())[0], typ: 'haben', kategorie: 'BK-Vorausz.', betrag: 2400, buchungsdatum: `${y}-12-31`, text: "Summe VZ Jahr" });
+            // E2 hat 6x 200 = 1200 gezahlt
+            dbFinanzen.push({ id: getNextFinanzId(), einheitId: Array.from(dbEinheiten.keys())[1], typ: 'haben', kategorie: 'BK-Vorausz.', betrag: 1200, buchungsdatum: `${y}-12-31`, text: "Summe VZ Jahr" });
+
+            saveLocal(); renderLists(); alert("Szenario 'Sonnenhof' erstellt!\nGehe jetzt auf 'BK-Abrechnung' und wähle das Objekt.");
+        }
+
+        // --- SIMULATION ENGINE ---
+        function simulateAbrechnung() {
+            const aid = document.getElementById('currentAbrechnungId').value;
+            if(!aid) return;
+            const abr = dbAbrechnungen.find(a => a.id === aid);
+            const costs = dbKosten.filter(k => k.abrechnungId === aid);
+            const units = Array.from(dbEinheiten.values()).filter(u => u.objektId === abr.objektId);
+            const start = new Date(abr.von);
+            const end = new Date(abr.bis);
+            const totalDays = (end - start) / (1000 * 60 * 60 * 24) + 1;
+
+            let resultHTML = `<table class="result-table"><thead><tr><th>Einheit</th><th>Verteiler-Anteile</th><th>Kosten-Anteil</th><th>Vorausz.</th><th>Saldo</th></tr></thead><tbody>`;
+
+            units.forEach(u => {
+                let unitCostShare = 0;
+                let unitDetails = [];
+
+                costs.forEach(cost => {
+                    // 1. Verteiler Summen ermitteln (Gesamt im Objekt)
+                    let totalKeyVal = 0;
+                    let unitKeyVal = 0;
+                    
+                    if(cost.verteilKey === 'm2') {
+                        units.forEach(un => totalKeyVal += safeFloat(un.flaeche));
+                        unitKeyVal = safeFloat(u.flaeche);
+                    } else if(cost.verteilKey === 'einheiten') {
+                        totalKeyVal = units.length;
+                        unitKeyVal = 1;
+                    } else if(cost.verteilKey === 'mea') {
+                        units.forEach(un => totalKeyVal += safeFloat(un.mea));
+                        unitKeyVal = safeFloat(u.mea);
+                    }
+
+                    if(totalKeyVal > 0) {
+                        // 2. Kostenanteil der Einheit (Vollkosten)
+                        const rawShare = (safeFloat(cost.netto) / totalKeyVal) * unitKeyVal;
+                        
+                        // 3. Zeitfaktor (Leerstand vs. Mieter)
+                        // Vereinfacht: Wir prüfen nur, ob überhaupt vermietet im Zeitraum
+                        // Für echte Abrechnung muss hier Taggenaue Split-Logik rein
+                        // Hier nehmen wir an: Einheit trägt Kosten immer (Eigentümer-Sicht)
+                        unitCostShare += rawShare;
+                    }
+                });
+
+                // 4. Vorauszahlungen suchen
+                // Wir suchen in dbFinanzen nach Einträgen für diese Einheit im Zeitraum
+                // Vereinfachung: Wir nehmen ALLE 'haben' Buchungen der Kategorie BK
+                const uid = getUnitIdByObj(u); // Helper needed
+                let prepay = 0;
+                dbFinanzen.filter(f => f.einheitId === uid && f.typ === 'haben' && (f.kategorie.includes('BK') || f.kategorie.includes('Nebenk'))).forEach(f => prepay += safeFloat(f.betrag));
+
+                const saldo = unitCostShare - prepay;
+                const color = saldo > 0 ? 'res-bad' : 'res-good'; // Positiv = Nachzahlung (Bad for tenant)
+
+                resultHTML += `<tr>
+                    <td>${u.name}</td>
+                    <td><small>${u.flaeche}m²</small></td>
+                    <td class="res-num">${formatNum(unitCostShare)} €</td>
+                    <td class="res-num">${formatNum(prepay)} €</td>
+                    <td class="res-num ${color}">${formatNum(saldo)} €</td>
+                </tr>`;
+            });
+
+            resultHTML += `</tbody></table>`;
+            document.getElementById('resultContent').innerHTML = resultHTML;
+            document.getElementById('resultModal').classList.add('active');
+        }
+
+        // Helper to find ID by object value (reverse lookup in Map is slow, but ok here)
+        function getUnitIdByObj(uObj) {
+            for (let [key, val] of dbEinheiten.entries()) {
+                if (val === uObj) return key;
+            }
+            return null;
         }
 
         // --- INIT UI ---
