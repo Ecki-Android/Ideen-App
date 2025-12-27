@@ -12,18 +12,21 @@
     <!-- MS Auth (OneDrive) -->
     <script src="https://alcdn.msauth.net/browser/2.24.0/js/msal-browser.min.js"></script>
     
-    <!-- Tailwind CSS (für Utility Classes, falls benötigt) -->
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- FontAwesome (für Icons) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; padding: 15px; background-color: #f4f7f6; margin: 0; padding-bottom: 50px; }
         
-        /* Custom Styles that override or complement Tailwind */
+        /* Layout & Header */
         .app-header { background: white; padding: 15px; border-bottom: 1px solid #ddd; margin: -15px -15px 20px -15px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .app-title { font-size: 1.2em; font-weight: bold; color: #166534; margin: 0; display:flex; align-items:center; gap:10px; }
         .cloud-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
         
-        button { padding: 8px 12px; font-size: 0.9em; border-radius: 4px; border: 1px solid #bbb; background: #eee; cursor: pointer; transition: all 0.2s; }
+        button { padding: 8px 12px; font-size: 0.9em; border-radius: 4px; border: 1px solid #bbb; background: #eee; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 5px; }
         button:hover { filter: brightness(0.95); }
         button:disabled { opacity: 0.6; cursor: not-allowed; }
 
@@ -36,13 +39,18 @@
         .finance-btn { background: #7c3aed; color: white; border-color: #6d28d9; } 
         .account-btn { background: #e879f9; color: #701a75; border-color: #d946ef; font-weight:bold; }
         
-        /* Status */
+        /* Cockpit Styles */
+        .cockpit-box { background: #fffbeb; border: 1px solid #fcd34d; padding: 15px; margin-bottom: 15px; border-radius: 6px; }
+        .check-item { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; padding: 8px; background: #fff; border: 1px solid #e5e7eb; border-radius: 4px; }
+        .check-item.ok { border-left: 4px solid #166534; }
+        .check-item.warn { border-left: 4px solid #ca8a04; }
+        .check-item.error { border-left: 4px solid #dc2626; }
+
+        /* Status & Notifications */
         .onedrive-status { display: none; align-items: center; padding: 6px 12px; font-size: 0.9em; font-weight: 500; border-radius: 4px; margin-left: 10px; }
         .onedrive-status.saving { background-color: #e0f2fe; color: #0c4a6e; border: 1px solid #bae6fd; display: inline-flex; }
         .onedrive-status.success { background-color: #dcfce7; color: #14532d; border: 1px solid #bbf7d0; display: inline-flex; }
         .onedrive-status.error { background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; display: inline-flex; }
-        .onedrive-status.info { background-color: #fffbeb; color: #92400e; border: 1px solid #fde68a; display: inline-flex; }
-        
         #sessionExpiredWarning { margin: 0 0 15px 0; font-weight: bold; padding: 10px; border-radius: 4px; display: none; background-color: #fffbe6; border: 1px solid #ffc107; color: #ff8f00; text-align: center; width: 100%; box-sizing: border-box; }
 
         /* Navigation */
@@ -51,59 +59,41 @@
         .tab-btn.active { border-bottom: 3px solid #166534; font-weight: bold; background: white; color: #166534; }
         .report-actions { margin-left: auto; display: flex; gap: 5px; }
 
-        /* Filter */
+        /* Panels & Lists */
         #filterBanner { display: none; background-color: #e0f2fe; border: 1px solid #7dd3fc; color: #0369a1; padding: 10px; margin-bottom: 15px; border-radius: 4px; align-items: center; justify-content: space-between; }
-        
         .panel { display: none; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
         .panel.active { display: block; }
-        
         .liste-item { border: 1px solid #e5e7eb; padding: 15px; margin-bottom: 10px; background: #fff; border-radius: 6px; display: flex; gap: 15px; align-items: flex-start; transition: box-shadow 0.2s; }
         .liste-item:hover { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
         .liste-content { flex: 1; }
         .item-checkbox { margin-top: 5px; transform: scale(1.2); cursor: pointer; }
-
         .objekt-stats { font-size: 0.85em; background: #f8fafc; padding: 10px; border-radius: 4px; margin-top: 8px; border: 1px solid #e2e8f0; }
         .validation-row { display: flex; justify-content: space-between; border-bottom: 1px solid #e2e8f0; padding: 4px 0; }
         .stat-ok { color: #166534; font-weight: bold; }
         .stat-err { color: #dc2626; font-weight: bold; }
-        
         .detail-box { margin-top: 8px; border-top: 1px solid #e5e7eb; padding-top: 5px; font-size: 0.85em; color: #64748b; }
         
-        /* Matrix */
-        .matrix-wrapper { max-height: 300px; overflow-y: auto; border: 1px solid #ccc; margin-bottom: 10px; background: #fff; }
-        .soll-matrix { width: 100%; border-collapse: collapse; font-size: 0.85em; }
-        .soll-matrix th { text-align: center; background: #f1f5f9; padding: 8px; border: 1px solid #cbd5e1; position: sticky; top: 0; z-index: 2; }
-        .soll-matrix td { border: 1px solid #cbd5e1; padding: 6px; text-align: center; }
-        .soll-matrix input { width: 100%; text-align: center; border: 1px solid transparent; background: #ecfccb; font-weight: bold; }
-        .soll-matrix input:focus { background: #fff; border: 1px solid #166534; outline: none; }
-        
-        /* Modal */
+        /* Modals */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; backdrop-filter: blur(2px); }
         .modal-overlay.active { display: flex; }
-        .modal-content { background: white; padding: 25px; border-radius: 8px; width: 95%; max-width: 900px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto; position: relative; }
+        .modal-content { background: white; padding: 25px; border-radius: 8px; width: 95%; max-width: 1100px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto; position: relative; }
         .modal-content h3 { margin-top: 0; color: #1e293b; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 20px; }
         .modal-content input, .modal-content select, .modal-content textarea { width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 15px; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.95em; }
         .modal-actions { text-align: right; margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px; }
         
-        /* Draggable */
-        .modal-draggable { position: fixed; top: 100px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 500px; background: white; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); z-index: 2000; display: none; border: 1px solid #94a3b8; }
+        /* Draggable Modal */
+        .modal-draggable { position: fixed; top: 100px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 500px; background: white; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.4); z-index: 2000; display: none; border: 1px solid #94a3b8; }
         .modal-draggable.active { display: block; }
         .modal-header-drag { background: #334155; color: white; padding: 10px 15px; border-radius: 8px 8px 0 0; cursor: move; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
         .modal-body { padding: 15px; max-height: 70vh; overflow-y: auto; }
 
-        /* Helpers */
-        .sub-list-container { border: 1px solid #e2e8f0; padding: 10px; background: #f8fafc; border-radius: 4px; margin-bottom: 15px; max-height: 350px; overflow-y: auto; }
-        .belegung-wrapper { border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 10px; background: #fff; padding: 10px; border-radius: 4px; border: 1px solid #f1f5f9; }
-        
-        /* Type Badges */
-        .type-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.75em; border: 1px solid #ccc; background: #fff; color: #555; cursor: pointer; display: inline-block; margin: 2px; }
-        .type-badge.open { border-color: #3b82f6; background: #eff6ff; color: #1e40af; font-weight: bold; }
-        .type-badge.full { border-color: #22c55e; background: #f0fdf4; color: #15803d; }
-        .type-badge.over { border-color: #ef4444; background: #fef2f2; color: #991b1b; }
-        .type-badge.selected { box-shadow: 0 0 0 2px #333; }
+        /* Tables & Grids */
+        .soll-matrix { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+        .soll-matrix th { text-align: center; background: #f1f5f9; padding: 8px; border: 1px solid #cbd5e1; position: sticky; top: 0; z-index: 2; }
+        .soll-matrix td { border: 1px solid #cbd5e1; padding: 6px; text-align: center; }
+        .soll-matrix input { width: 100%; text-align: center; border: 1px solid transparent; background: #ecfccb; font-weight: bold; }
 
-        /* Grids for Finance */
-        .kondition-row { display: grid; grid-template-columns: 2fr 0.8fr 0.8fr 1fr 0.9fr 0.9fr 0.6fr 30px 30px 30px; gap: 5px; margin-bottom: 5px; align-items: center; border-bottom:1px dashed #e2e8f0; padding-bottom:5px;}
+        .kondition-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1.2fr 1fr 1fr 0.8fr 35px 35px 35px; gap: 5px; margin-bottom: 5px; align-items: center; border-bottom: 1px dashed #e2e8f0; padding-bottom: 5px; }
         .kosten-row { display: grid; grid-template-columns: 0.8fr 1.8fr 1fr 0.8fr 1fr 0.6fr 1fr 0.8fr 1fr 30px; gap: 5px; margin-bottom: 5px; align-items: center; border-bottom: 1px dashed #e2e8f0; padding-bottom: 5px; }
         .kosten-header { display: grid; grid-template-columns: 0.8fr 1.8fr 1fr 0.8fr 1fr 0.6fr 1fr 0.8fr 1fr 30px; gap: 5px; font-weight: bold; background: #f1f5f9; padding: 8px 5px; border-radius: 4px 4px 0 0; font-size: 0.75em; color: #475569; text-transform: uppercase; }
         .kosten-footer { display: flex; justify-content: flex-end; gap: 15px; padding: 10px; background: #ccfbf1; font-weight: bold; border-top: 2px solid #0f766e; margin-top: 10px; color: #0f766e; }
@@ -111,17 +101,12 @@
         .split-row { display: grid; grid-template-columns: 1fr 2fr 1fr 0.8fr 1fr 0.8fr 1fr 30px; gap: 5px; margin-bottom: 5px; align-items: center; }
         .split-header { display: grid; grid-template-columns: 1fr 2fr 1fr 0.8fr 1fr 0.8fr 1fr 30px; gap: 5px; margin-bottom: 10px; font-weight:bold; font-size:0.85em; background:#f1f5f9; padding:5px; }
         
-        .verbrauchs-header { display: grid; gap: 5px; font-weight: bold; background: #ccfbf1; padding: 8px; border-radius: 4px; font-size: 0.85em; margin-bottom: 10px; border: 1px solid #99f6e4; }
-        .verbrauchs-row { display: grid; gap: 5px; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 5px; }
-
-        /* Tables */
         .tax-table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
         .tax-table th, .tax-table td { border: 1px solid #ccc; padding: 4px; text-align: left; }
         
         .konto-tabelle { width: 100%; border-collapse: collapse; font-size: 0.9em; }
         .konto-tabelle th, .konto-tabelle td { border: 1px solid #e2e8f0; padding: 8px; text-align: left; }
         .konto-tabelle th { background: #f8fafc; font-weight: 600; }
-        .konto-tabelle tr:hover { background: #f1f5f9; cursor: pointer; }
         .text-right { text-align: right; }
         .betrag-soll { color: #dc2626; font-family: monospace; }
         .betrag-haben { color: #166534; font-family: monospace; }
@@ -134,42 +119,44 @@
         .res-bad { color: #dc2626; font-weight: bold; }
         .pdf-btn { background: #475569; color: white; padding: 2px 8px; font-size: 0.8em; margin-left: 5px; border-radius: 3px; border: 1px solid #334155; }
 
-        /* Tab Bar Styles for Modals */
-        .v-tab-bar { display: flex; border-bottom: 1px solid #ccc; margin-bottom: 15px; background: #f1f1f1; border-radius: 4px 4px 0 0; }
-        .v-tab { flex: 1; text-align: center; padding: 10px; cursor: pointer; border-bottom: 3px solid transparent; color: #555; font-weight: 500; }
-        .v-tab:hover { background: #e9e9e9; }
-        .v-tab.active { background: #fff; border-bottom: 3px solid #166534; color: #166534; font-weight: bold; border-radius: 4px 4px 0 0; }
-        .v-panel { display: none; }
-        .v-panel.active { display: block; }
-        
-        /* Badges */
+        /* Plausi Check Styles */
+        .plausi-container { font-family: monospace; font-size: 0.9em; border:1px solid #ccc; padding:10px; margin-bottom:20px; background:#fafafa; }
+        .plausi-row { display: flex; justify-content: space-between; border-bottom: 1px dashed #ccc; padding: 4px 0; }
+        .plausi-level-0 { font-weight: bold; background: #e0f2fe; padding: 8px; margin-top: 10px; font-size:1.1em; border:1px solid #bae6fd; }
+        .plausi-level-1 { padding-left: 20px; color: #0369a1; font-weight: bold; margin-top:5px; background:#f0f9ff; }
+        .plausi-level-2 { padding-left: 40px; color: #334155; font-size:0.9em; }
+        .plausi-diff { font-weight: bold; color: #dc2626; background:#fee2e2; padding:0 4px; border-radius:2px; }
+        .plausi-ok { color: #166534; font-weight: bold; background:#dcfce7; padding:0 4px; border-radius:2px; }
+
         .tax-badge { font-size: 0.7em; padding: 2px 4px; border-radius: 3px; margin-left: 5px; vertical-align: middle; }
         .tax-opt { background: #dcfce7; color: #14532d; border: 1px solid #bbf7d0; }
         .tax-none { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
         .tax-mixed { background: #ffedd5; color: #9a3412; border: 1px solid #fed7aa; }
-
-        .status-leerstand { color: #dc2626; font-weight: bold; background: #fee2e2; padding: 2px 6px; border-radius: 3px; display:inline-block; font-size: 0.85em; }
-        .status-vermietet { color: #166534; font-weight: bold; font-size: 0.85em; }
-
-        /* Login */
-        #loginMessage { text-align: center; padding: 50px 20px; background: white; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-top: 20px; display: none; }
-        #protectedContent { display: block; }
+        
+        .type-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.75em; border: 1px solid #ccc; background: #fff; color: #555; cursor: pointer; display: inline-block; margin: 2px; }
+        .type-badge.full { border-color: #22c55e; background: #f0fdf4; color: #15803d; }
+        .type-badge.open { border-color: #3b82f6; background: #eff6ff; color: #1e40af; font-weight: bold; }
+        
+        .verbrauchs-header { display: grid; gap: 5px; font-weight: bold; background: #ccfbf1; padding: 8px; border-radius: 4px; font-size: 0.85em; margin-bottom: 10px; border: 1px solid #99f6e4; }
+        .verbrauchs-row { display: grid; gap: 5px; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 5px; }
+        .v-tab-bar { display: flex; border-bottom: 1px solid #ccc; margin-bottom: 15px; background: #f1f1f1; border-radius: 4px 4px 0 0; }
+        .v-tab { flex: 1; text-align: center; padding: 10px; cursor: pointer; border-bottom: 3px solid transparent; color: #555; font-weight: 500; }
+        .v-tab.active { background: #fff; border-bottom: 3px solid #166534; color: #166534; font-weight: bold; border-radius: 4px 4px 0 0; }
+        .v-panel { display: none; }
+        .v-panel.active { display: block; }
     </style>
 </head>
 <body>
-    <!-- HEADER -->
     <div id="sessionExpiredWarning">Ihre Sitzung ist abgelaufen.</div>
     <div class="app-header">
-        <div class="app-title">
-            <span>🏢</span> Objektverwaltung Pro <span id="loggedInUser" style="font-size:0.6em; font-weight:normal; color:#555;"></span>
-        </div>
+        <div class="app-title"><span>🏢</span> Objektverwaltung Pro <span id="loggedInUser" style="font-size:0.6em; font-weight:normal; color:#555;"></span></div>
         <div class="cloud-actions">
-            <button onclick="openTaxModal()" class="finance-btn">🛠️ Steuerschlüssel</button>
-            <button onclick="openSollstellungModal()" class="finance-btn">💰 Sollstellung</button>
+            <button onclick="openTaxModal()" class="finance-btn"><i class="fas fa-percent"></i> Steuerschlüssel</button>
+            <button onclick="openSollstellungModal()" class="finance-btn"><i class="fas fa-coins"></i> Sollstellung</button>
             <span style="border-left: 1px solid #ccc; height: 20px; margin: 0 5px;"></span>
-            <button onclick="createAbrechnungDummy()" class="test-btn">🧪 Test-Daten</button>
-            <button id="msLoginBtn" onclick="handleMicrosoftLogin()" class="onedrive-btn">🔑 Login</button>
-            <button id="msLogoutBtn" onclick="handleLogout()" class="warn-btn" style="display:none;">🔒 Logout</button>
+            <button onclick="createAbrechnungDummy()" class="test-btn"><i class="fas fa-flask"></i> Test-Daten</button>
+            <button id="msLoginBtn" onclick="handleMicrosoftLogin()" class="onedrive-btn"><i class="fab fa-microsoft"></i> Login</button>
+            <button id="msLogoutBtn" onclick="handleLogout()" class="warn-btn" style="display:none;"><i class="fas fa-lock"></i> Logout</button>
             <span style="border-left: 1px solid #ccc; height: 20px; margin: 0 5px;"></span>
             <button id="cloudSaveBtn" onclick="saveToOneDrive(true)" disabled>💾 Cloud</button>
             <button onclick="speichereDateiLokal()" class="local-btn">📂 Sichern</button>
@@ -178,14 +165,11 @@
         </div>
     </div>
 
+    <!-- MAIN CONTENT -->
     <div style="max-width: 1400px; margin: 0 auto;">
-        <div id="loginMessage"><h2>🔒 Zugriff geschützt</h2><p>Bitte anmelden oder Datei laden.</p></div>
         
         <div id="protectedContent">
-            <div id="filterBanner">
-                <span id="filterText">Filter aktiv</span>
-                <button onclick="toggleFilter(null)">Filter aufheben</button>
-            </div>
+            <div id="filterBanner"><span id="filterText">Filter aktiv</span><button onclick="toggleFilter(null)">Filter aufheben</button></div>
 
             <div class="tab-bar">
                 <button class="tab-btn active" onclick="switchTab('objekte')">🏠 Objekte</button>
@@ -234,11 +218,20 @@
                             <div id="abrechnungenListe" style="margin-top:5px;"></div>
                         </div>
                         <div style="flex:4; border:1px solid #e2e8f0; border-radius:4px; padding:10px; background:white; display:flex; flex-direction:column;">
+                            
+                            <div id="kostenCockpit" style="display:none; padding:10px; background:#fffbeb; border-bottom:1px solid #fcd34d; margin-bottom:10px;">
+                                <h4 style="margin:0 0 10px 0; color:#b45309;">⚙️ Abrechnungs-Cockpit & Prüfung</h4>
+                                <div id="checkListContainer"></div>
+                                <div style="text-align:right; margin-top:10px;">
+                                    <button onclick="generateProtocolPDF()" class="report-btn">🧾 Prüfprotokoll erstellen</button>
+                                </div>
+                            </div>
+
                             <div id="kostenEditor" style="display:none; flex:1; flex-direction:column;">
                                 <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #166534; padding-bottom:5px; margin-bottom:10px;">
                                     <h3 style="margin:0; color:#166534;">Erfassung: <span id="editorTitle"></span></h3>
                                     <div style="display:flex; gap:5px;">
-                                        <button onclick="simulateAbrechnung()" class="test-btn">🧮 Abrechnung simulieren</button>
+                                        <button id="btnSimulate" onclick="simulateAbrechnung()" class="test-btn" disabled title="Erst Checkliste abarbeiten!">🧮 Abrechnung & Plausibilität</button>
                                         <span id="abrStatusBadge" style="padding:5px 10px; border-radius:4px; font-weight:bold; margin-right:10px;"></span>
                                         <button id="btnLockAbr" onclick="toggleAbrechnungStatus(true)" class="finance-btn">🔒 Abschließen</button>
                                         <button id="btnUnlockAbr" onclick="toggleAbrechnungStatus(false)" class="warn-btn" style="display:none;">🔓 Öffnen</button>
@@ -246,9 +239,7 @@
                                     </div>
                                 </div>
                                 <input type="hidden" id="currentAbrechnungId">
-                                <div class="kosten-header">
-                                    <div>Konto</div><div>Beschreibung</div><div>Brutto €</div><div>Lohn €</div><div>Lohn-Art</div><div>VSt-Key</div><div>Netto €</div><div>Vorsteuer €</div><div>Verteiler</div><div></div>
-                                </div>
+                                <div class="kosten-header"><div>Konto</div><div>Beschreibung</div><div>Brutto €</div><div>Lohn €</div><div>Lohn-Art</div><div>VSt-Key</div><div>Netto €</div><div>Vorsteuer €</div><div>Verteiler</div><div></div></div>
                                 <div id="kostenListe" style="flex:1; overflow-y:auto; border:1px solid #e2e8f0; border-top:none; background:#f9f9f9;"></div>
                                 <div id="kostenActions" style="margin-top:10px; display:flex; gap:10px;">
                                     <button class="primary-btn" onclick="addKostenRow()">+ Kostenposition</button>
@@ -259,13 +250,9 @@
                                     <div>Summe Vorsteuer: <span id="sumKostenSteuer">0,00 €</span></div>
                                     <div>Summe Brutto: <span id="sumKostenBrutto" style="color:#0f766e;">0,00 €</span></div>
                                 </div>
-                                <div style="text-align:right; margin-top:10px;">
-                                    <button id="btnSaveKosten" class="primary-btn" onclick="saveKostenErfassung()">💾 Speichern</button>
-                                </div>
+                                <div style="text-align:right; margin-top:10px;"><button id="btnSaveKosten" class="primary-btn" onclick="saveKostenErfassung()">💾 Speichern</button></div>
                             </div>
-                            <div id="kostenPlaceholder" style="text-align:center; padding:50px; color:#94a3b8;">
-                                ⬅️ Bitte links einen Zeitraum wählen.
-                            </div>
+                            <div id="kostenPlaceholder" style="text-align:center; padding:50px; color:#94a3b8;">⬅️ Bitte links einen Zeitraum wählen.</div>
                         </div>
                     </div>
                 </div>
@@ -274,18 +261,15 @@
     </div>
 
     <!-- MODALS -->
-    <!-- Abrechnung Result Modal -->
     <div id="resultModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')">
-        <div class="modal-content" style="max-width:900px;">
-            <h3>📊 Abrechnungs-Ergebnis (Vorschau)</h3>
-            <div id="resultContent" style="max-height:60vh; overflow-y:auto;"></div>
-            <div class="modal-actions">
-                <button onclick="document.getElementById('resultModal').classList.remove('active')">Schließen</button>
-            </div>
+        <div class="modal-content" style="max-width:1100px;">
+            <h3>📊 Abrechnungs-Plausibilität & Ergebnisse</h3>
+            <div id="plausiView" class="plausi-container"></div>
+            <div id="resultContent" style="max-height:40vh; overflow-y:auto;"></div>
+            <div class="modal-actions"><button onclick="document.getElementById('resultModal').classList.remove('active')">Schließen</button></div>
         </div>
     </div>
 
-    <!-- Verbrauchsdaten Modal -->
     <div id="verbrauchsdatenModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')">
         <div class="modal-content" style="max-width:1100px; height:85vh; display:flex; flex-direction:column;">
             <h3>📊 Zähler & Verbrauchsdaten</h3>
@@ -321,7 +305,6 @@
         </div>
     </div>
 
-    <!-- Split Modal -->
     <div id="splitModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')">
         <div class="modal-content" style="max-width:1000px;">
             <h3>✂️ Split-Buchung erfassen</h3>
@@ -343,7 +326,6 @@
         </div>
     </div>
 
-    <!-- Andere Modals -->
     <div id="abrechnungModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')">
         <div class="modal-content" style="max-width:400px;">
             <h3>Neuer Veranlagungszeitraum</h3>
@@ -357,7 +339,7 @@
     <div id="taxModal" class="modal-draggable">
         <div class="modal-header-drag" onmousedown="startDrag(event, 'taxModal')"><span>Steuerschlüssel (DATEV)</span><button onclick="document.getElementById('taxModal').classList.remove('active')" style="background:transparent; border:none; color:white; font-weight:bold; cursor:pointer;">X</button></div>
         <div class="modal-body">
-            <div style="max-height:300px; overflow-y:auto; margin-bottom:15px; border:1px solid #ccc;"><table class="tax-table"><thead><tr><th>Nr.</th><th>Bezeichnung</th><th>% Satz</th><th></th></tr></thead><tbody id="taxTableBody"></tbody></table></div>
+            <div style="max-height:300px; overflow-y:auto; margin-bottom:15px; border:1px solid #ccc;"><table class="tax-table"><thead><tr><th>Nr.</th><th>Bezeichnung (Vor-/Umsatzsteuer)</th><th>% Satz</th><th></th></tr></thead><tbody id="taxTableBody"></tbody></table></div>
             <div style="background:#f1f5f9; padding:10px; border-radius:4px;"><b>Neu:</b><div style="display:flex; gap:5px; margin-top:5px;"><input type="text" id="newTaxId" placeholder="Nr" style="width:60px;"><input type="text" id="newTaxLabel" placeholder="Bezeichnung" style="flex:1;"><input type="number" id="newTaxRate" placeholder="%" style="width:60px;"><button onclick="addTaxKey()" class="primary-btn">+</button></div></div>
         </div>
     </div>
@@ -370,49 +352,29 @@
         </div>
     </div>
 
-    <div id="objektModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')">
-        <div class="modal-content">
-            <h3>Objekt bearbeiten</h3>
-            <input type="hidden" id="objektIdInput">
-            <div style="display:flex; gap:10px;"><div style="flex:1"><label>Objekt-Nr.*:</label><input type="text" id="objektNummerInput" readonly style="background:#f1f5f9;"></div><div style="flex:2"><label>Bez./Adresse*:</label><input type="text" id="objektNameInput"></div></div>
-            <div style="display:flex; gap:10px;"><div style="flex:1"><label>Soll Häuser:</label><input type="number" id="objektSollHaeuser"></div><div style="flex:1"><label>Gesamtfläche:</label><input type="number" step="0.01" id="objektFlaecheInput"></div><div style="flex:1"><label>Gesamt MEA:</label><input type="number" step="0.001" id="objektMeaInput"></div></div>
-            <div style="margin-top:10px;"><label>Steuer-Status:</label><select id="objektSteuerStatus"><option value="opt">Mit USt/Vorsteuer (Optiert)</option><option value="none">Ohne USt</option><option value="mixed">Gemischt</option></select></div>
-            <div class="modal-actions"><button class="warn-btn" onclick="deleteObjekt()" style="margin-right:auto;">Löschen</button><button onclick="document.getElementById('objektModal').classList.remove('active')">Abbrechen</button><button class="primary-btn" onclick="saveObjekt()">Speichern</button></div>
-        </div>
-    </div>
-
+    <!-- Objekt / Haus / Einheit Modals -->
+    <div id="objektModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')"><div class="modal-content"><h3>Objekt bearbeiten</h3><input type="hidden" id="objektIdInput"><div style="display:flex; gap:10px;"><div style="flex:1"><label>Objekt-Nr.*:</label><input type="text" id="objektNummerInput" readonly style="background:#f1f5f9;"></div><div style="flex:2"><label>Bez./Adresse*:</label><input type="text" id="objektNameInput"></div></div><div style="display:flex; gap:10px;"><div style="flex:1"><label>Soll Häuser:</label><input type="number" id="objektSollHaeuser"></div><div style="flex:1"><label>Gesamtfläche:</label><input type="number" step="0.01" id="objektFlaecheInput"></div><div style="flex:1"><label>Gesamt MEA:</label><input type="number" step="0.001" id="objektMeaInput"></div></div><div style="margin-top:10px;"><label>Steuer-Status:</label><select id="objektSteuerStatus"><option value="opt">Mit USt/Vorsteuer (Optiert)</option><option value="none">Ohne USt</option><option value="mixed">Gemischt</option></select></div><div class="modal-actions"><button class="warn-btn" onclick="deleteObjekt()" style="margin-right:auto;">Löschen</button><button onclick="document.getElementById('objektModal').classList.remove('active')">Abbrechen</button><button class="primary-btn" onclick="saveObjekt()">Speichern</button></div></div></div>
+    
     <div id="hausModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')">
         <div class="modal-content">
             <h3>Haus bearbeiten</h3>
             <input type="hidden" id="hausIdInput">
             <div style="display:flex; gap:10px;"><div style="flex:1;"><label>Objekt*:</label><select id="hausObjektSelect"></select></div><div style="flex:1;"><label>ID:</label><input type="text" id="hausNummerDisplay" readonly style="background:#f1f5f9;"></div><div style="flex:2;"><label>Bez.*:</label><input type="text" id="hausBezeichnungInput"></div></div>
+            <div style="margin-top:10px;"><label>Steuer-Status (Haus-Ebene):</label><select id="hausSteuerStatus"><option value="">-- Wie Objekt --</option><option value="opt">Mit USt/Vorsteuer (Optiert)</option><option value="none">Ohne USt</option></select></div>
             <h4 style="margin-top:15px; margin-bottom:5px;">Validierungs-Matrix</h4>
             <div class="matrix-wrapper"><table class="soll-matrix"><thead><tr><th>Typ</th><th>Soll Anz.</th><th>Ist</th><th>Diff</th><th>Soll Fläche</th><th>Ist</th><th>Diff</th></tr></thead><tbody id="hausSollMatrixBody"></tbody></table></div>
+            <div style="margin-top:10px; background:#f0f9ff; padding:8px; border:1px solid #bae6fd; border-radius:4px; display:flex; gap:10px; align-items:center;">
+                <label style="font-weight:bold; color:#0369a1;">+ Neuer Typ:</label><input type="text" id="newCustomType" placeholder="z.B. Penthaus" style="margin:0; padding:4px;"><button class="primary-btn" onclick="addNewCustomType()" style="padding:4px 8px;">Hinzufügen</button>
+            </div>
             <div style="display:flex; gap:10px; margin-top:10px;"><div style="flex:1;"><label>Gesamt MEA (Soll):</label><input type="number" step="0.001" id="hausAnteileInput"></div></div>
             <div class="modal-actions"><button class="warn-btn" onclick="deleteHaus()" style="margin-right:auto;">Löschen</button><button onclick="document.getElementById('hausModal').classList.remove('active')">Abbrechen</button><button class="primary-btn" onclick="saveHaus()">Speichern</button></div>
         </div>
     </div>
 
-    <div id="einheitModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')">
-        <div class="modal-content">
-            <h3>Einheit bearbeiten</h3>
-            <input type="hidden" id="einheitIdInput">
-            <div style="display:flex; gap:10px;"><div style="flex:1;"><label>Objekt*:</label><select id="einheitObjektSelect" onchange="filterHaeuserDropdown(true)"></select></div><div style="flex:1;"><label>Haus*:</label><select id="einheitHausSelect" onchange="updateHausAvailability(this.value)"></select></div><div style="flex:1;"><label>ID:</label><input type="text" id="einheitNummerDisplay" readonly style="background:#f1f5f9;"></div></div>
-            
-            <label style="margin-top:10px; display:block; font-size:0.9em; font-weight:bold;">Verfügbarkeit im Haus:</label>
-            <div id="hausTypeOverview" class="type-overview-container">
-                <span style="color:#666; font-style:italic;">Bitte erst ein Haus auswählen...</span>
-            </div>
-
-            <div style="display:flex; gap:10px;"><div style="flex:2;"><label>Lage/Bez.*:</label><input type="text" id="einheitNameInput"></div><div style="flex:1;"><label>Typ:</label><select id="einheitTypSelect"></select></div></div>
-            <div style="display:flex; gap:10px;"><div style="flex:1;"><label>Fläche (m²):</label><input type="number" step="0.01" id="einheitFlaecheInput"></div><div style="flex:1;"><label>Zimmer:</label><input type="number" step="0.5" id="einheitZimmerInput"></div><div style="flex:1;"><label>MEA:</label><input type="number" step="0.001" id="einheitMeaInput"></div></div>
-            <div class="section-header"><span>Miet-Konditionen</span><button type="button" onclick="addKonditionRow()" style="font-size:0.8em;">+ Position</button></div>
-            <div style="background:#f9f9f9; padding:5px; border:1px solid #eee; margin-bottom:10px; max-height:250px; overflow-y:auto;"><div id="konditionenListe"></div></div>
-            <div class="section-header">Belegung</div><div id="belegungListe" class="sub-list-container"></div><button type="button" onclick="addBelegungRow()" style="margin-top:5px;">+ Mieterwechsel</button>
-            <div class="section-header">Historie</div><div id="historieListe" class="sub-list-container"></div><button type="button" onclick="addHistorieRow()" style="margin-top:5px;">+ Eintrag</button>
-            <div class="modal-actions"><button class="warn-btn" onclick="deleteEinheit()" style="margin-right:auto;">Löschen</button><button onclick="document.getElementById('einheitModal').classList.remove('active')">Abbrechen</button><button class="primary-btn" onclick="saveEinheit()">Speichern</button></div>
-        </div>
-    </div>
+    <div id="einheitModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')"><div class="modal-content"><h3>Einheit bearbeiten</h3><input type="hidden" id="einheitIdInput"><div style="display:flex; gap:10px;"><div style="flex:1;"><label>Objekt*:</label><select id="einheitObjektSelect" onchange="filterHaeuserDropdown(true)"></select></div><div style="flex:1;"><label>Haus*:</label><select id="einheitHausSelect" onchange="updateHausAvailability(this.value)"></select></div><div style="flex:1;"><label>ID:</label><input type="text" id="einheitNummerDisplay" readonly style="background:#f1f5f9;"></div></div><label style="margin-top:10px; display:block; font-size:0.9em; font-weight:bold;">Verfügbarkeit im Haus:</label><div id="hausTypeOverview" class="type-overview-container"><span style="color:#666; font-style:italic;">Bitte erst ein Haus auswählen...</span></div><div style="display:flex; gap:10px;"><div style="flex:2;"><label>Lage/Bez.*:</label><input type="text" id="einheitNameInput"></div><div style="flex:1;"><label>Typ:</label><select id="einheitTypSelect"></select></div></div>
+    <div style="display:flex; gap:10px;"><div style="flex:1;"><label>Fläche (m²):</label><input type="number" step="0.01" id="einheitFlaecheInput"></div><div style="flex:1;"><label>Zimmer:</label><input type="number" step="0.5" id="einheitZimmerInput"></div><div style="flex:1;"><label>MEA:</label><input type="number" step="0.001" id="einheitMeaInput"></div></div>
+    <div style="margin-top:10px;"><label>Steuer-Status (Einheit):</label><select id="einheitSteuerStatus"><option value="">-- Wie Objekt/Haus --</option><option value="opt">Mit USt/Vorsteuer (Optiert)</option><option value="none">Ohne USt</option></select></div>
+    <div class="section-header"><span>Miet-Konditionen</span><button type="button" onclick="addKonditionRow()" style="font-size:0.8em;">+ Position</button></div><div style="background:#f9f9f9; padding:5px; border:1px solid #eee; margin-bottom:10px; max-height:250px; overflow-y:auto;"><div id="konditionenListe"></div></div><div class="section-header">Belegung</div><div id="belegungListe" class="sub-list-container"></div><button type="button" onclick="addBelegungRow()" style="margin-top:5px;">+ Mieterwechsel</button><div class="section-header">Historie</div><div id="historieListe" class="sub-list-container"></div><button type="button" onclick="addHistorieRow()" style="margin-top:5px;">+ Eintrag</button><div class="modal-actions"><button class="warn-btn" onclick="deleteEinheit()" style="margin-right:auto;">Löschen</button><button onclick="document.getElementById('einheitModal').classList.remove('active')">Abbrechen</button><button class="primary-btn" onclick="saveEinheit()">Speichern</button></div></div></div>
 
     <div id="sollstellungModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')">
         <div class="modal-content" style="max-width:500px;">
@@ -420,7 +382,11 @@
             <label>Abrechnungs-Monat:</label><input type="month" id="sollMonatInput">
             <label style="margin-top:10px; display:block;">Buchungsdatum:</label><input type="date" id="sollBuchungsdatum">
             <div id="sollLog" style="background:#333; color:#0f0; padding:10px; height:150px; overflow-y:auto; margin-top:10px; font-size:0.8em; display:none;"></div>
-            <div class="modal-actions"><button onclick="document.getElementById('sollstellungModal').classList.remove('active')">Schließen</button><button class="finance-btn" onclick="runSollstellung()">Starten</button></div>
+            <div class="modal-actions">
+                <button onclick="exportSollstellungPDF()" class="account-btn" style="float:left;">📄 PDF Vorschau</button>
+                <button onclick="document.getElementById('sollstellungModal').classList.remove('active')">Schließen</button>
+                <button class="finance-btn" onclick="runSollstellung()">Starten</button>
+            </div>
         </div>
     </div>
 
@@ -439,10 +405,7 @@
         <div class="modal-content" style="max-width:600px;">
             <h3>Buchungs-Detail</h3>
             <input type="hidden" id="detailBuchungId"><input type="hidden" id="detailKorrCount">
-            <div style="background:#f9f9f9; padding:10px; border-radius:4px; margin-bottom:15px; font-size:0.9em;"><div class="detail-row"><span>ID:</span><span id="detailId"></span></div><div class="detail-row"><span>Korrektur:</span><span id="detailKorrNr" style="font-weight:bold; color:#dc2626;"></span></div>
-            <div style="margin-top:10px; border-top:1px solid #ddd; padding-top:10px;"><label>Datum:</label><input type="date" id="detailDatumInp"><label>Betrag:</label><input type="number" step="0.01" id="detailBetragInp"><label>Text:</label><input type="text" id="detailTextInp"><label>Sachkonto:</label><input type="text" id="detailKontoInp"><label>Steuer:</label><select id="detailSteuerInp"></select></div></div>
-            <label>Notiz:</label><textarea id="detailDoku" rows="4"></textarea>
-            <div class="modal-actions"><button class="primary-btn" onclick="saveBuchungChanges()">Speichern</button><button onclick="document.getElementById('buchungDetailModal').classList.remove('active')">Schließen</button></div>
+            <div style="background:#f9f9f9; padding:10px; border-radius:4px; margin-bottom:15px; font-size:0.9em;"><div class="detail-row"><span>ID:</span><span id="detailId"></span></div><div class="detail-row"><span>Korrektur:</span><span id="detailKorrNr" style="font-weight:bold; color:#dc2626;"></span></div><div style="margin-top:10px; border-top:1px solid #ddd; padding-top:10px;"><label>Datum:</label><input type="date" id="detailDatumInp"><label>Betrag:</label><input type="number" step="0.01" id="detailBetragInp"><label>Text:</label><input type="text" id="detailTextInp"><label>Sachkonto:</label><input type="text" id="detailKontoInp"><label>Steuer:</label><select id="detailSteuerInp"></select></div></div><label>Notiz:</label><textarea id="detailDoku" rows="4"></textarea><div class="modal-actions"><button class="primary-btn" onclick="saveBuchungChanges()">Speichern</button><button onclick="document.getElementById('buchungDetailModal').classList.remove('active')">Schließen</button></div>
         </div>
     </div>
 
@@ -453,6 +416,8 @@
             {id:'geschaeft',label:'Geschäft'},{id:'garage',label:'Garage'},{id:'parkplatz',label:'Parkplatz'},
             {id:'keller',label:'Keller'},{id:'garten',label:'Garten'},{id:'sonstige',label:'Sonstige'}
         ];
+        let customTypes = [];
+
         const KONDITION_TYPES = ["Kaltmiete","BK-Vorausz.","HK-Vorausz.","Stellplatz","Garage","Küchenzuschlag","Mietminderung","Sonstiges"];
         const INTERVALL_OPTS = ['Monatlich','Vierteljährlich','Halbjährlich','Jährlich'];
         const LOHN_ARTEN = [{id:'none',label:'-'},{id:'hdl',label:'Haushaltsnahe DL'},{id:'hwl',label:'Handwerkerleistung'}];
@@ -463,20 +428,21 @@
             {id:'person_days',label:'Personentage'},{id:'consumption',label:'Verbrauch'},{id:'nutzeinheit',label:'Nutzeinheiten'}
         ];
         
+        // VSt (Input) and USt (Output)
         let taxKeys = [
-            {id:'2',label:'2 - USt 7%',rate:7},{id:'3',label:'3 - USt 19%',rate:19},{id:'20',label:'20 - USt 0%',rate:0},
-            {id:'8',label:'8 - VSt 7%',rate:7},{id:'9',label:'9 - VSt 19%',rate:19},{id:'30',label:'30 - VSt 0%',rate:0}
+            {id:'2',label:'2 - USt 7% (Ausgang)',rate:7}, {id:'3',label:'3 - USt 19% (Ausgang)',rate:19}, {id:'20',label:'20 - USt 0%',rate:0},
+            {id:'8',label:'8 - VSt 7% (Eingang)',rate:7}, {id:'9',label:'9 - VSt 19% (Eingang)',rate:19}, {id:'30',label:'30 - VSt 0%',rate:0}
         ];
         
-        const TAX_STATUS_MAP = {'opt':{label:'USt/VSt',class:'tax-opt'},'none':{label:'USt-Frei',class:'tax-none'},'mixed':{label:'Gemischt',class:'tax-mixed'}};
+        const TAX_STATUS_MAP = {'opt':{label:'USt-Pflichtig',class:'tax-opt'},'none':{label:'USt-Frei',class:'tax-none'},'mixed':{label:'Gemischt',class:'tax-mixed'}};
         
         const msalConfig = { auth: { clientId: "c3cd3be4-3540-46dd-a24c-82eb6ed5542d", authority: "https://login.microsoftonline.com/common", redirectUri: window.location.origin + window.location.pathname } };
-        
         let msalInstance = null, accessToken = null, userEmail = null;
         let dbObjekte = new Map(), dbHaeuser = new Map(), dbEinheiten = new Map(), dbKontakte = new Map(); 
         let dbFinanzen = [], dbAbrechnungen = [], dbKosten = []; 
         let activeFilterId = null, autoSaveTimer = null;
         let simulationResults = []; 
+        let currentCockpitStatus = { invoices: false, directCosts: false, prepayments: false };
 
         // --- HELPER FUNCTIONS ---
         function safeFloat(val) { if(typeof val==='number') return val; if(!val) return 0; return parseFloat(val.toString().replace(/\./g,'').replace(',','.')) || 0; }
@@ -484,35 +450,21 @@
         function formatNum(n) { return n.toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2}); }
         function pad(n,w) { n=n+''; return n.length>=w?n:new Array(w-n.length+1).join('0')+n; }
         function formatCurrency(n) { return n.toLocaleString('de-DE',{style:'currency',currency:'EUR'}); }
-        
-        function validateVal(soll, ist, unit='', tol=0.01) {
-            soll=safeFloat(soll); ist=safeFloat(ist); const diff=Math.round((ist-soll)*1000)/1000;
-            if(Math.abs(diff)<=tol) return `<div class="validation-row"><span class="stat-ok">✅ ${formatNum(ist)} ${unit} (Soll: ${formatNum(soll)})</span></div>`;
-            return `<div class="validation-row"><span class="stat-err">⚠️ ${formatNum(ist)} ${unit} (Soll: ${formatNum(soll)}) <small>Diff: ${diff>0?'+':''}${formatNum(diff)}</small></span></div>`;
-        }
-        
+        function validateVal(soll, ist, unit='', tol=0.01) { soll=safeFloat(soll); ist=safeFloat(ist); const diff=Math.round((ist-soll)*1000)/1000; if(Math.abs(diff)<=tol) return `<div class="validation-row"><span class="stat-ok">✅ ${formatNum(ist)} ${unit} (Soll: ${formatNum(soll)})</span></div>`; return `<div class="validation-row"><span class="stat-err">⚠️ ${formatNum(ist)} ${unit} (Soll: ${formatNum(soll)}) <small>Diff: ${diff>0?'+':''}${formatNum(diff)}</small></span></div>`; }
         function getNextObjektID() { let max=0; dbObjekte.forEach((o,id)=>{const n=parseInt(id); if(!isNaN(n)&&n>max)max=n;}); return pad(max+1,4); }
         function getNextHausID(oid) { let max=0; dbHaeuser.forEach((h,id)=>{if(id.startsWith(oid+"/")){const n=parseInt(id.split('/').pop()); if(!isNaN(n)&&n>max)max=n;}}); return oid+"/"+pad(max+1,2); }
         function getNextEinheitID(hid) { let max=0; dbEinheiten.forEach((e,id)=>{if(id.startsWith(hid+"/")){const n=parseInt(id.split('/').pop()); if(!isNaN(n)&&n>max)max=n;}}); return hid+"/"+pad(max+1,4); }
         function getNextFinanzId() { return 'tx_'+Date.now()+'_'+Math.random().toString(36).substr(2,5); }
         function getUnitIdByObj(uObj) { for (let [key, val] of dbEinheiten.entries()) { if (val === uObj) return key; } return null; }
-        function getTypeLabel(id) { const t=STANDARD_TYPES.find(x=>x.id===id); return t?t.label:id; }
-        
-        function filterList(listId, text) {
-            const list = document.getElementById(listId);
-            const items = list.getElementsByClassName('liste-item');
-            const term = text.toLowerCase();
-            for(let i=0; i<items.length; i++) {
-                const txt = items[i].innerText.toLowerCase();
-                items[i].style.display = txt.includes(term) ? 'flex' : 'none';
-            }
-        }
+        function getAllTypes() { return [...STANDARD_TYPES, ...customTypes]; }
+        function getTypeLabel(id) { const t=getAllTypes().find(x=>x.id===id); return t?t.label:id; }
+        function filterList(listId, text) { const list = document.getElementById(listId); const items = list.getElementsByClassName('liste-item'); const term = text.toLowerCase(); for(let i=0; i<items.length; i++) { const txt = items[i].innerText.toLowerCase(); items[i].style.display = txt.includes(term) ? 'flex' : 'none'; } }
+        function getHausIdFromMap(hVal) { for (let [key, val] of dbHaeuser.entries()) { if (val === hVal) return key; } return null; }
 
-        // --- UI FUNCTIONS ---
+        // --- UI & RENDER ---
         function switchTab(id) { document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active')); document.querySelector(`.tab-btn[onclick*='${id}']`).classList.add('active'); document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active')); document.getElementById('panel'+id.charAt(0).toUpperCase()+id.slice(1)).classList.add('active'); }
         function toggleFilter(id) { activeFilterId = id; const b=document.getElementById('filterBanner'); if(id){b.style.display='flex'; document.getElementById('filterText').innerHTML=`<b>Fokus:</b> ${dbObjekte.get(id).name}`;}else{b.style.display='none';} renderLists(); }
         
-        // --- RENDER ---
         function renderLists() {
             const oSel = document.getElementById('hausObjektSelect'); const eObjSel = document.getElementById('einheitObjektSelect'); const kObjSel = document.getElementById('kostenObjektSelect');
             if(oSel) { 
@@ -520,302 +472,272 @@
                 dbObjekte.forEach((o,id)=>{ oSel.add(new Option(o.name,id)); eObjSel.add(new Option(o.name,id)); kObjSel.add(new Option(o.name,id)); }); 
             }
             
-            // OBJEKTE
             const objDiv = document.getElementById('objekteListe'); objDiv.innerHTML = "";
             dbObjekte.forEach((o, id) => {
                 if(activeFilterId && activeFilterId !== id) return;
-                
                 const hEntries = Array.from(dbHaeuser.entries()).filter(([hid, h]) => h.objektId === id);
-                let istFl=0, istMea=0;
-                let typeSummary = {}; 
-
+                let istFl=0, istMea=0; let typeSummary = {}; 
                 hEntries.forEach(([hid, h]) => {
-                    let hArea = 0;
-                    if(h.sollMatrix) {
-                        Object.entries(h.sollMatrix).forEach(([tid, d]) => {
-                            hArea += safeFloat(d.area);
-                            if(!typeSummary[tid]) typeSummary[tid] = {soll:0, ist:0};
-                            typeSummary[tid].soll += (parseInt(d.count)||0);
-                        });
-                    }
-                    if(hArea === 0) {
-                        const uArr = Array.from(dbEinheiten.values()).filter(e => e.hausId === hid);
-                        hArea = uArr.reduce((s,e) => s + safeFloat(e.flaeche), 0);
-                    }
-                    istFl += hArea;
-                    istMea += safeFloat(h.anteile);
-
+                    let hArea = 0; if(h.sollMatrix) { Object.entries(h.sollMatrix).forEach(([tid, d]) => { hArea += safeFloat(d.area); if(!typeSummary[tid]) typeSummary[tid] = {soll:0, ist:0}; typeSummary[tid].soll += (parseInt(d.count)||0); }); }
+                    if(hArea === 0) { const uArr = Array.from(dbEinheiten.values()).filter(e => e.hausId === hid); hArea = uArr.reduce((s,e) => s + safeFloat(e.flaeche), 0); }
+                    istFl += hArea; istMea += safeFloat(h.anteile);
                     const uArr = Array.from(dbEinheiten.values()).filter(e => e.hausId === hid);
-                    uArr.forEach(u => {
-                        if(!typeSummary[u.typ]) typeSummary[u.typ] = {soll:0, ist:0};
-                        typeSummary[u.typ].ist++;
-                    });
+                    uArr.forEach(u => { if(!typeSummary[u.typ]) typeSummary[u.typ] = {soll:0, ist:0}; typeSummary[u.typ].ist++; });
                 });
-
                 let typeBadges = '<div style="margin-top:5px; display:flex; gap:5px; flex-wrap:wrap;">';
-                Object.entries(typeSummary).forEach(([tid, d]) => {
-                    if(d.soll > 0 || d.ist > 0) {
-                        const lbl = getTypeLabel(tid);
-                        const cls = d.ist === d.soll ? 'full' : (d.ist > d.soll ? 'over' : 'open');
-                        typeBadges += `<span class="type-badge ${cls}">${lbl}: ${d.ist}/${d.soll}</span>`;
-                    }
-                });
-                typeBadges += '</div>';
-
-                const stats = `
-                    <div class="objekt-stats">
-                        ${validateVal(o.sollHaeuser, hEntries.length, 'Häuser')}
-                        ${validateVal(o.flaeche, istFl, 'm²')}
-                        ${validateVal(o.mea, istMea, 'MEA')}
-                    </div>`;
-                
+                Object.entries(typeSummary).forEach(([tid, d]) => { if(d.soll > 0 || d.ist > 0) { const cls = d.ist === d.soll ? 'full' : (d.ist > d.soll ? 'over' : 'open'); typeBadges += `<span class="type-badge ${cls}">${getTypeLabel(tid)}: ${d.ist}/${d.soll}</span>`; } }); typeBadges += '</div>';
                 const tSt = TAX_STATUS_MAP[o.steuerStatus || 'opt'];
-                objDiv.innerHTML += `
-                <div class="liste-item">
-                    <input type="checkbox" class="item-checkbox" value="${id}">
-                    <div class="liste-content">
-                        <h4>${o.name} <small>(${o.nummer})</small> <span class="tax-badge ${tSt.class}">${tSt.label}</span></h4>
-                        ${stats}
-                        ${typeBadges}
-                        <div style="margin-top:5px;">
-                            <button onclick="openObjektMask('${id}')">Bearbeiten</button>
-                            <button class="filter-btn" onclick="toggleFilter('${id}')">Fokus</button>
-                        </div>
-                    </div>
-                </div>`;
+                objDiv.innerHTML += `<div class="liste-item"><input type="checkbox" class="item-checkbox" value="${id}"><div class="liste-content"><h4>${o.name} <small>(${o.nummer})</small> <span class="tax-badge ${tSt.class}">${tSt.label}</span></h4><div class="objekt-stats">${validateVal(o.sollHaeuser, hEntries.length, 'Häuser')}${validateVal(o.flaeche, istFl, 'm²')}${validateVal(o.mea, istMea, 'MEA')}</div>${typeBadges}<div style="margin-top:5px;"><button onclick="openObjektMask('${id}')">Bearbeiten</button><button class="filter-btn" onclick="toggleFilter('${id}')">Fokus</button></div></div></div>`;
             });
 
-            // HÄUSER
             const hDiv = document.getElementById('haeuserListe'); hDiv.innerHTML = "";
             dbHaeuser.forEach((h, id) => {
                 if(activeFilterId && h.objektId !== activeFilterId) return;
-                const o = dbObjekte.get(h.objektId);
-                const uArr = Array.from(dbEinheiten.values()).filter(e => e.hausId === id);
-                
-                let matrixInfo = "";
-                let typeBadges = '<div style="margin-top:5px; display:flex; gap:5px; flex-wrap:wrap;">';
-                let sumSollArea=0, sumIstArea=0;
-                
-                if(h.sollMatrix) {
-                    Object.entries(h.sollMatrix).forEach(([typId, data]) => {
-                        const unitsOfType = uArr.filter(e => e.typ === typId).length;
-                        const areaOfUnits = uArr.filter(e => e.typ === typId).reduce((s,e)=>s+safeFloat(e.flaeche),0);
-                        const sollCnt = parseInt(data.count)||0;
-                        
-                        sumSollArea += safeFloat(data.area);
-                        sumIstArea += areaOfUnits;
-                        
-                        const cls = unitsOfType === sollCnt ? 'full' : (unitsOfType > sollCnt ? 'over' : 'open');
-                        typeBadges += `<span class="type-badge ${cls}">${getTypeLabel(typId)}: ${unitsOfType}/${sollCnt}</span>`;
-                    });
-                    matrixInfo = `<div class="objekt-stats">${validateVal(sumSollArea, sumIstArea, 'm² (Soll vs Ist)')}</div>`;
-                }
-                typeBadges += '</div>';
-                
-                hDiv.innerHTML += `
-                <div class="liste-item">
-                    <input type="checkbox" class="item-checkbox" value="${id}">
-                    <div class="liste-content">
-                        <h4>${h.bezeichnung} <small>(${o ? o.name : '?'})</small></h4>
-                        ${matrixInfo}
-                        ${typeBadges}
-                        <div class="detail-box">Einheiten: ${uArr.length} | Ist-Fläche: ${formatNum(sumIstArea)} m²</div>
-                        <button onclick="openHausMask('${id}')" style="margin-top:5px;">Bearbeiten</button>
-                    </div>
-                </div>`;
+                const o = dbObjekte.get(h.objektId); const uArr = Array.from(dbEinheiten.values()).filter(e => e.hausId === id);
+                let matrixInfo = ""; let typeBadges = '<div style="margin-top:5px; display:flex; gap:5px; flex-wrap:wrap;">'; let sumSollArea=0, sumIstArea=0;
+                if(h.sollMatrix) { Object.entries(h.sollMatrix).forEach(([typId, data]) => { const unitsOfType = uArr.filter(e => e.typ === typId).length; const areaOfUnits = uArr.filter(e => e.typ === typId).reduce((s,e)=>s+safeFloat(e.flaeche),0); const sollCnt = parseInt(data.count)||0; sumSollArea += safeFloat(data.area); sumIstArea += areaOfUnits; const cls = unitsOfType === sollCnt ? 'full' : (unitsOfType > sollCnt ? 'over' : 'open'); typeBadges += `<span class="type-badge ${cls}">${getTypeLabel(typId)}: ${unitsOfType}/${sollCnt}</span>`; }); matrixInfo = `<div class="objekt-stats">${validateVal(sumSollArea, sumIstArea, 'm² (Soll vs Ist)')}</div>`; } typeBadges += '</div>';
+                hDiv.innerHTML += `<div class="liste-item"><input type="checkbox" class="item-checkbox" value="${id}"><div class="liste-content"><h4>${h.bezeichnung} <small>(${o ? o.name : '?'})</small></h4>${matrixInfo}${typeBadges}<div class="detail-box">Einheiten: ${uArr.length} | Ist-Fläche: ${formatNum(sumIstArea)} m²</div><button onclick="openHausMask('${id}')" style="margin-top:5px;">Bearbeiten</button></div></div>`;
             });
 
-            // EINHEITEN
             const eDiv = document.getElementById('einheitenListe'); eDiv.innerHTML = "";
             dbEinheiten.forEach((e, id) => {
-                const h = dbHaeuser.get(e.hausId);
-                if(activeFilterId && (!h || h.objektId !== activeFilterId)) return;
-                
+                const h = dbHaeuser.get(e.hausId); if(activeFilterId && (!h || h.objektId !== activeFilterId)) return;
                 let status = '<span class="status-leerstand">LEERSTAND</span>';
-                if(e.belegung && e.belegung.length) {
-                    const today = new Date().toISOString().split('T')[0];
-                    const current = e.belegung.find(b => (b.einzug <= today) && (!b.auszug || b.auszug >= today));
-                    if(current) {
-                        const m = dbKontakte.get(current.mieterId);
-                        const contactInfo = m ? `${m.fn} <small style="color:#666;">${m.email||''} ${m.phone||''}</small>` : '?';
-                        status = `<span class="status-vermietet">Vermietet: ${contactInfo}</span>`;
-                    }
-                }
-
-                eDiv.innerHTML += `
-                <div class="liste-item">
-                    <input type="checkbox" class="item-checkbox" value="${id}">
-                    <div class="liste-content">
-                        <div style="display:flex; justify-content:space-between;">
-                            <h4>${e.name} <small>(${h ? h.bezeichnung : ''})</small></h4>
-                            <div>
-                                <button class="finance-btn" onclick="openVerbrauchsdatenModal('${id}')">📊 Zähler & Daten</button>
-                                <button class="account-btn" onclick="openKontoModal('${id}')">💶 Konto</button>
-                                <button onclick="openEinheitMask('${id}')">Bearbeiten</button>
-                            </div>
-                        </div>
-                        <div class="detail-box">
-                            ${getTypeLabel(e.typ)} | ${formatNum(e.flaeche)} m² | ${e.zimmer} Zi | ${status}
-                        </div>
-                    </div>
-                </div>`;
+                if(e.belegung && e.belegung.length) { const today = new Date().toISOString().split('T')[0]; const current = e.belegung.find(b => (b.einzug <= today) && (!b.auszug || b.auszug >= today)); if(current) { const m = dbKontakte.get(current.mieterId); const contactInfo = m ? `${m.fn} <small style="color:#666;">${m.email||''} ${m.phone||''}</small>` : '?'; status = `<span class="status-vermietet">Vermietet: ${contactInfo}</span>`; } }
+                eDiv.innerHTML += `<div class="liste-item"><input type="checkbox" class="item-checkbox" value="${id}"><div class="liste-content"><div style="display:flex; justify-content:space-between;"><h4>${e.name} <small>(${h ? h.bezeichnung : ''})</small></h4><div><button class="finance-btn" onclick="openVerbrauchsdatenModal('${id}')">📊 Zähler & Daten</button><button class="account-btn" onclick="openKontoModal('${id}')">💶 Konto</button><button onclick="openEinheitMask('${id}')">Bearbeiten</button></div></div><div class="detail-box">${getTypeLabel(e.typ)} | ${formatNum(e.flaeche)} m² | ${e.zimmer} Zi | ${status}</div></div></div>`;
             });
-            
-            const tSel = document.getElementById('einheitTypSelect');
-            if(tSel && tSel.options.length === 0) STANDARD_TYPES.forEach(t => tSel.add(new Option(t.label, t.id)));
+            const tSel = document.getElementById('einheitTypSelect'); 
+            tSel.innerHTML = ""; // Reset
+            getAllTypes().forEach(t => tSel.add(new Option(t.label, t.id)));
         }
 
-        // --- CORE FUNCTIONS (MODALS & LOGIC) ---
-        function openTaxModal(){ document.getElementById('taxModal').classList.add('active'); }
+        // --- CORE LOGIC (TAX, VERTEIL, ETC) ---
+        function openTaxModal(){ document.getElementById('taxModal').classList.add('active'); renderTaxTable(); }
         function renderTaxTable(){ const b=document.getElementById('taxTableBody'); b.innerHTML=""; taxKeys.forEach(t=>b.innerHTML+=`<tr><td>${t.id}</td><td>${t.label}</td><td>${t.rate}%</td><td><button class="warn-btn" onclick="deleteTaxKey('${t.id}')">x</button></td></tr>`); }
         function addTaxKey(){ const i=document.getElementById('newTaxId').value,l=document.getElementById('newTaxLabel').value,r=parseFloat(document.getElementById('newTaxRate').value); if(i&&l&&!isNaN(r)){taxKeys.push({id:i,label:l,rate:r}); saveLocal(); initTaxSelect(); renderTaxTable();} }
         function deleteTaxKey(id){ if(confirm("Löschen?")){taxKeys=taxKeys.filter(t=>t.id!==id); saveLocal(); initTaxSelect(); renderTaxTable();} }
         function initTaxSelect(){ 
-            const s=['mbSteuer','detailSteuerInp']; 
-            s.forEach(i=>{const e=document.getElementById(i); if(e){const old=e.value; e.innerHTML='<option value="">--</option>'; taxKeys.forEach(t=>e.add(new Option(t.label,t.id))); e.value=old;}}); 
+            const s=['mbSteuer','detailSteuerInp']; s.forEach(i=>{const e=document.getElementById(i); if(e){const old=e.value; e.innerHTML='<option value="">--</option>'; taxKeys.forEach(t=>e.add(new Option(t.label,t.id))); e.value=old;}}); 
             document.querySelectorAll('.k-tax, .v-tax, .kond-tax, .split-tax').forEach(e=>{const old=e.value; e.innerHTML='<option value="">-</option>'; taxKeys.forEach(t=>e.add(new Option(t.label,t.id))); e.value=old;}); 
         }
-        
         function openVerteilModal(){ document.getElementById('verteilModal').classList.add('active'); renderVerteilTable(); }
         function renderVerteilTable(){ const b=document.getElementById('verteilTableBody'); b.innerHTML=""; verteilKeys.forEach(v=>b.innerHTML+=`<tr><td>${v.id}</td><td>${v.label}</td><td><button class="warn-btn" onclick="deleteVerteilKey('${v.id}')">x</button></td></tr>`); }
         function addVerteilKey(){ const i=document.getElementById('newVerteilId').value,l=document.getElementById('newVerteilLabel').value; if(i&&l){verteilKeys.push({id:i,label:l}); saveLocal(); renderVerteilTable();} }
         function deleteVerteilKey(id){ if(confirm("Löschen?")){verteilKeys=verteilKeys.filter(v=>v.id!==id); saveLocal(); renderVerteilTable();} }
-        
         function startDrag(e,i){ e.preventDefault(); const m=document.getElementById(i); let x=e.clientX,y=e.clientY,l=m.offsetLeft,t=m.offsetTop; function d(ev){m.style.left=(l+ev.clientX-x)+'px';m.style.top=(t+ev.clientY-y)+'px';} function s(){document.removeEventListener('mousemove',d);document.removeEventListener('mouseup',s);} document.addEventListener('mousemove',d); document.addEventListener('mouseup',s); }
 
         function updateHausAvailability(hausId) {
             const container = document.getElementById('hausTypeOverview');
             if(!hausId) { container.innerHTML = '<span style="color:#666; font-style:italic;">Bitte erst ein Haus auswählen...</span>'; return; }
-            const h = dbHaeuser.get(hausId);
-            if(!h || !h.sollMatrix) { container.innerHTML = '<span style="color:#666;">Keine Matrix für dieses Haus definiert.</span>'; return; }
-            const uArr = Array.from(dbEinheiten.values()).filter(e => e.hausId === hausId);
-            container.innerHTML = "";
+            const h = dbHaeuser.get(hausId); if(!h || !h.sollMatrix) { container.innerHTML = '<span style="color:#666;">Keine Matrix für dieses Haus definiert.</span>'; return; }
+            const uArr = Array.from(dbEinheiten.values()).filter(e => e.hausId === hausId); container.innerHTML = "";
             Object.entries(h.sollMatrix).forEach(([typId, data]) => {
-                const existing = uArr.filter(e => e.typ === typId).length;
-                const total = parseInt(data.count) || 0;
+                const existing = uArr.filter(e => e.typ === typId).length; const total = parseInt(data.count) || 0;
                 let cls = 'open'; if(existing === total) cls = 'full'; if(existing > total) cls = 'over';
-                const badge = document.createElement('span');
-                badge.className = `type-badge ${cls}`;
-                badge.innerText = `${getTypeLabel(typId)}: ${existing} / ${total}`;
-                badge.onclick = () => {
-                    document.getElementById('einheitTypSelect').value = typId;
-                    document.querySelectorAll('.type-badge').forEach(b => b.classList.remove('selected'));
-                    badge.classList.add('selected');
-                    const areaInp = document.getElementById('einheitFlaecheInput');
-                    if(safeFloat(areaInp.value) === 0 && data.area && total > 0) areaInp.value = (safeFloat(data.area) / total).toFixed(2);
-                };
-                container.appendChild(badge);
+                const badge = document.createElement('span'); badge.className = `type-badge ${cls}`; badge.innerText = `${getTypeLabel(typId)}: ${existing} / ${total}`;
+                badge.onclick = () => { document.getElementById('einheitTypSelect').value = typId; document.querySelectorAll('.type-badge').forEach(b => b.classList.remove('selected')); badge.classList.add('selected'); const areaInp = document.getElementById('einheitFlaecheInput'); if(safeFloat(areaInp.value) === 0 && data.area && total > 0) areaInp.value = (safeFloat(data.area) / total).toFixed(2); }; container.appendChild(badge);
             });
         }
 
-        // --- MASKEN & CRUD ---
+        // --- CRUD MASKEN ---
         function openObjektMask(id){ const o=id?dbObjekte.get(id):{}; document.getElementById('objektIdInput').value=id||""; document.getElementById('objektNummerInput').value=id||getNextObjektID(); document.getElementById('objektNameInput').value=o.name||""; document.getElementById('objektSteuerStatus').value=o.steuerStatus||'opt'; document.getElementById('objektSollHaeuser').value=o.sollHaeuser||""; document.getElementById('objektFlaecheInput').value=o.flaeche||""; document.getElementById('objektMeaInput').value=o.mea||""; document.getElementById('objektModal').classList.add('active'); }
         function saveObjekt(){ const id=document.getElementById('objektNummerInput').value; dbObjekte.set(id, { nummer:id, name:document.getElementById('objektNameInput').value, steuerStatus:document.getElementById('objektSteuerStatus').value, sollHaeuser:safeFloat(document.getElementById('objektSollHaeuser').value), flaeche:safeFloat(document.getElementById('objektFlaecheInput').value), mea:safeFloat(document.getElementById('objektMeaInput').value) }); document.getElementById('objektModal').classList.remove('active'); saveLocal(); renderLists(); }
         function deleteObjekt() { const id = document.getElementById('objektIdInput').value; if(!id) return; const hArr = Array.from(dbHaeuser.entries()).filter(([hid, h]) => h.objektId === id); let uCount = 0; hArr.forEach(([hid]) => { uCount += Array.from(dbEinheiten.values()).filter(e => e.hausId === hid).length; }); if(!confirm(`WARNUNG: Objekt löschen?\n\nEs werden mitgelöscht:\n- ${hArr.length} Häuser\n- ${uCount} Einheiten`)) return; hArr.forEach(([hid]) => { const uArr = Array.from(dbEinheiten.entries()).filter(([eid, e]) => e.hausId === hid); uArr.forEach(([eid]) => dbEinheiten.delete(eid)); dbHaeuser.delete(hid); }); dbObjekte.delete(id); saveLocal(); renderLists(); document.getElementById('objektModal').classList.remove('active'); }
-
-        function openHausMask(id){ document.getElementById('hausIdInput').value=id||""; const h=id?dbHaeuser.get(id):{}; document.getElementById('hausBezeichnungInput').value=h.bezeichnung||""; const sel = document.getElementById('hausObjektSelect'); sel.value=h.objektId||(activeFilterId || ""); sel.disabled = !!activeFilterId && !id; document.getElementById('hausNummerDisplay').value=id||""; document.getElementById('hausAnteileInput').value=h.anteile||""; renderHausMatrix(h); document.getElementById('hausModal').classList.add('active'); }
-        function saveHaus(){ let id=document.getElementById('hausNummerDisplay').value; if(!id) id=getNextHausID(document.getElementById('hausObjektSelect').value); const mx={}; document.querySelectorAll('#hausSollMatrixBody tr').forEach(tr=>{ mx[tr.dataset.typeId]={count:tr.querySelector('.soll-count').value,area:tr.querySelector('.soll-area').value}; }); dbHaeuser.set(id, {objektId:document.getElementById('hausObjektSelect').value, bezeichnung:document.getElementById('hausBezeichnungInput').value, sollMatrix:mx, anteile:safeFloat(document.getElementById('hausAnteileInput').value)}); document.getElementById('hausModal').classList.remove('active'); saveLocal(); renderLists(); }
-        function renderHausMatrix(h){ const b=document.getElementById('hausSollMatrixBody'); b.innerHTML=""; STANDARD_TYPES.forEach(t=>{ b.innerHTML+=`<tr data-type-id="${t.id}"><td>${t.label}</td><td><input type="number" class="soll-count" value="${h&&h.sollMatrix&&h.sollMatrix[t.id]?h.sollMatrix[t.id].count:''}"></td><td class="readonly-val">-</td><td class="diff-val"></td><td><input type="number" step="0.01" class="soll-area" value="${h&&h.sollMatrix&&h.sollMatrix[t.id]?h.sollMatrix[t.id].area:''}"></td><td class="readonly-val">-</td><td class="diff-val"></td></tr>`; }); }
-        function deleteHaus() { const id = document.getElementById('hausIdInput').value; if(!id) return; const uArr = Array.from(dbEinheiten.entries()).filter(([eid, e]) => e.hausId === id); if(!confirm(`WARNUNG: Haus löschen?\nEs werden ${uArr.length} Einheiten mitgelöscht.`)) return; uArr.forEach(([eid]) => dbEinheiten.delete(eid)); dbHaeuser.delete(id); saveLocal(); renderLists(); document.getElementById('hausModal').classList.remove('active'); }
-
-        function updateKonditionDatalist() { const l=document.getElementById('konditionTypes')||document.createElement('datalist'); l.id="konditionTypes"; l.innerHTML=""; KONDITION_TYPES.forEach(t=>l.appendChild(new Option(t))); if(!l.parentNode) document.body.appendChild(l); }
-        function filterHaeuserDropdown(keep){ const oid=document.getElementById('einheitObjektSelect').value; const h=document.getElementById('einheitHausSelect'); const old=h.value; h.innerHTML=""; Array.from(dbHaeuser.entries()).filter(([hid,x])=>x.objektId===oid).forEach(([hid,x])=>h.add(new Option(x.bezeichnung,hid))); if(keep&&old)h.value=old; updateHausAvailability(h.value); }
-        function openEinheitMask(id){ updateKonditionDatalist(); const e=id?dbEinheiten.get(id):{}; document.getElementById('einheitIdInput').value=id||""; document.getElementById('einheitNameInput').value=e.name||""; document.getElementById('einheitNummerDisplay').value=id||""; document.getElementById('einheitTypSelect').value=e.typ||"wohnung"; document.getElementById('einheitFlaecheInput').value=e.flaeche||""; document.getElementById('einheitZimmerInput').value=e.zimmer||""; document.getElementById('einheitMeaInput').value=e.mea||""; const oSel = document.getElementById('einheitObjektSelect'); oSel.value = e.objektId || (activeFilterId || ""); oSel.disabled = !!activeFilterId && !id; filterHaeuserDropdown(true); if(e.hausId) { document.getElementById('einheitHausSelect').value=e.hausId; updateHausAvailability(e.hausId); } else { updateHausAvailability(document.getElementById('einheitHausSelect').value); } const kl=document.getElementById('konditionenListe'); kl.innerHTML=""; if(e.konditionen)e.konditionen.forEach(k=>addKonditionRow(k)); else addKonditionRow(); const bl=document.getElementById('belegungListe'); bl.innerHTML=""; if(e.belegung)e.belegung.forEach(b=>addBelegungRow(b)); const hl=document.getElementById('historieListe'); hl.innerHTML=""; if(e.historie)e.historie.forEach(h=>addHistorieRow(h)); document.getElementById('einheitModal').classList.add('active'); }
-        function saveEinheit(){ const id=document.getElementById('einheitNummerDisplay').value||getNextEinheitID(document.getElementById('einheitHausSelect').value); const k=[]; document.querySelectorAll('.kondition-row').forEach(r=>{const l=r.querySelector('.kond-label').value,b=safeFloat(r.querySelector('.kond-betrag').value); if(l&&b)k.push({label:l,betrag:b,konto:r.querySelector('.kond-konto').value,intervall:r.querySelector('.kond-intervall').value,gueltigAb:r.querySelector('.kond-date').value,gueltigBis:r.querySelector('.kond-date-bis').value,steuerKey:r.querySelector('.kond-tax').value});}); const bel=[]; document.querySelectorAll('.belegung-wrapper').forEach(w=>{bel.push({mieterId:w.querySelector('.belegung-mieter').value,einzug:w.querySelector('.belegung-einzug').value,auszug:w.querySelector('.belegung-auszug').value});}); const his=[]; document.querySelectorAll('.historie-row').forEach(r=>{his.push({date:r.querySelector('.hist-date').value,text:r.querySelector('.hist-desc').value});}); dbEinheiten.set(id, {hausId:document.getElementById('einheitHausSelect').value,objektId:document.getElementById('einheitObjektSelect').value,name:document.getElementById('einheitNameInput').value,typ:document.getElementById('einheitTypSelect').value,flaeche:safeFloat(document.getElementById('einheitFlaecheInput').value),zimmer:safeFloat(document.getElementById('einheitZimmerInput').value),mea:safeFloat(document.getElementById('einheitMeaInput').value),konditionen:k,belegung:bel,historie:his}); document.getElementById('einheitModal').classList.remove('active'); saveLocal(); renderLists(); }
-        function deleteEinheit() { const id = document.getElementById('einheitIdInput').value; if(!id) return; if(!confirm("Einheit wirklich löschen?")) return; dbEinheiten.delete(id); saveLocal(); renderLists(); document.getElementById('einheitModal').classList.remove('active'); }
-
-        function addKonditionRow(d={}) { const c=document.getElementById('konditionenListe'); const r=document.createElement('div'); r.className='kondition-row'; r.innerHTML=`<input class="kond-label" list="konditionTypes" value="${d.label||''}"><input type="number" class="kond-betrag" value="${d.betrag||''}"><input class="kond-konto" value="${d.konto||''}"><select class="kond-intervall">${INTERVALL_OPTS.map(o=>`<option value="${o}" ${d.intervall===o?'selected':''}>${o}</option>`).join('')}</select><input type="date" class="kond-date" value="${d.gueltigAb||''}"><input type="date" class="kond-date-bis" value="${d.gueltigBis||''}"><select class="kond-tax"><option value="">-</option>${taxKeys.map(t=>`<option value="${t.id}" ${d.steuerKey===t.id?'selected':''}>${t.label}</option>`).join('')}</select><button class="finance-btn" onclick="openTaxModal()">⚙️</button><button class="primary-btn" onclick="addKonditionRow({label:this.parentElement.querySelector('.kond-label').value})">+</button><button class="warn-btn" onclick="this.parentElement.remove()">X</button>`; c.appendChild(r); }
-        function addBelegungRow(d={}){ const c=document.getElementById('belegungListe'); const w=document.createElement('div'); w.className='belegung-wrapper'; w.innerHTML=`<div class="belegung-row"><select class="belegung-mieter"><option value="">-- Mieter --</option></select><input type="date" class="belegung-einzug" value="${d.einzug||''}"><input type="date" class="belegung-auszug" value="${d.auszug||''}"><button class="warn-btn" onclick="this.parentElement.parentElement.remove()">X</button></div>`; const s=w.querySelector('select'); Array.from(dbKontakte.entries()).sort((a,b)=>(a[1].fn||"").localeCompare(b[1].fn||"")).forEach(([id,k])=>s.add(new Option(k.fn+(k.org?` (${k.org})`:""),id))); if(d.mieterId) s.value=d.mieterId; c.appendChild(w); }
-        function addHistorieRow(d={}){ const c=document.getElementById('historieListe'); const r=document.createElement('div'); r.className='historie-row'; r.innerHTML=`<input type="date" class="hist-date" value="${d.date||''}"><input type="text" class="hist-desc" value="${d.text||''}"><button class="warn-btn" onclick="this.parentElement.remove()">X</button>`; c.appendChild(r); }
-
-        // --- KOSTEN & ABRECHNUNG ---
-        function createAbrechnungDummy() {
-            const housesCount = parseInt(prompt("Anzahl Häuser im Objekt?", "1")) || 1;
-            const unitsPerHouse = parseInt(prompt("Einheiten pro Haus?", "4")) || 4;
-            const rentedCount = parseInt(prompt("Davon vermietet (Anzahl Mieter)?", "3")) || 0;
-            const now = new Date(); const year = now.getFullYear();
-            console.log("Erstelle Testdaten...");
-            const oid = getNextObjektID();
-            const oData = { nummer: oid, name: "Muster-Park " + year, plz: "12345", ort: "Musterstadt", flaeche: 0, mea: 1000, sollHaeuser: housesCount, steuerStatus: "opt" };
-            dbObjekte.set(oid, oData);
-            
-            let totalArea = 0;
-            let currentTenant = 0;
-            for(let h=1; h<=housesCount; h++) {
-                const hid = getNextHausID(oid);
-                const hName = `Haus ${h}`;
-                const matrix = {'wohnung':{count: unitsPerHouse, area: 75 * unitsPerHouse}}; 
-                dbHaeuser.set(hid, { objektId: oid, bezeichnung: hName, anteile: 1000/housesCount, sollMatrix: matrix });
-                for(let u=1; u<=unitsPerHouse; u++) {
-                    const eid = getNextEinheitID(hid);
-                    const isRented = currentTenant < rentedCount;
-                    const uName = `Whg ${u} (H${h})`;
-                    const area = 75.00; 
-                    totalArea += area;
-                    const unitData = { hausId: hid, objektId: oid, name: uName, typ: "wohnung", flaeche: area, zimmer: 3, mea: (1000/(housesCount*unitsPerHouse)), konditionen: [], belegung: [] };
-                    if(isRented) {
-                        currentTenant++;
-                        unitData.konditionen.push({label:'Kaltmiete', betrag: 600, intervall:'Monatlich', gueltigAb: `${year}-01-01`, steuerKey: '2'});
-                        unitData.konditionen.push({label:'BK-Vorausz.', betrag: 150, intervall:'Monatlich', gueltigAb: `${year}-01-01`, steuerKey: '20'});
-                        unitData.belegung.push({mieterId: 'dummy_m' + currentTenant, einzug: `${year}-01-01`});
-                        dbFinanzen.push({ id: getNextFinanzId(), einheitId: eid, typ: 'haben', kategorie: 'BK-Vorausz.', betrag: 1800, buchungsdatum: `${year}-12-31`, text: "Summe VZ Jahr" });
-                    }
-                    dbEinheiten.set(eid, unitData);
-                }
-            }
-            oData.flaeche = totalArea;
-            dbObjekte.set(oid, oData);
-            const aid = 'abr_' + Date.now();
-            dbAbrechnungen.push({ id: aid, objektId: oid, name: `Betriebskosten ${year}`, von: `${year}-01-01`, bis: `${year}-12-31`, status: 'open' });
-            dbKosten.push({ id: getNextFinanzId(), abrechnungId: aid, text: "Grundsteuer", brutto: 2000, netto: 2000, verteilKey: "m2" });
-            dbKosten.push({ id: getNextFinanzId(), abrechnungId: aid, text: "Müllabfuhr", brutto: 1200, netto: 1200, verteilKey: "einheiten" });
-            dbKosten.push({ id: getNextFinanzId(), abrechnungId: aid, text: "Hausstrom", brutto: 450, netto: 378, steuerKey: "3", verteilKey: "einheiten" });
-            saveLocal(); renderLists(); 
-            alert(`Szenario erstellt:\nObjekt: ${oData.name}\n${housesCount} Häuser, ${housesCount*unitsPerHouse} Einheiten\nGesamtfläche: ${totalArea} m²\n${rentedCount} vermietet.`);
+        
+        function openHausMask(id){ 
+            document.getElementById('hausIdInput').value=id||""; 
+            const h=id?dbHaeuser.get(id):{}; 
+            document.getElementById('hausBezeichnungInput').value=h.bezeichnung||""; 
+            const sel = document.getElementById('hausObjektSelect'); sel.value=h.objektId||(activeFilterId || ""); sel.disabled = !!activeFilterId && !id; 
+            document.getElementById('hausNummerDisplay').value=id||""; 
+            document.getElementById('hausAnteileInput').value=h.anteile||""; 
+            document.getElementById('hausSteuerStatus').value=h.steuerStatus||"";
+            renderHausMatrix(h, id); 
+            document.getElementById('hausModal').classList.add('active'); 
+        }
+        function saveHaus(){ let id=document.getElementById('hausNummerDisplay').value; if(!id) id=getNextHausID(document.getElementById('hausObjektSelect').value); const mx={}; document.querySelectorAll('#hausSollMatrixBody tr').forEach(tr=>{ mx[tr.dataset.typeId]={count:tr.querySelector('.soll-count').value,area:tr.querySelector('.soll-area').value}; }); 
+            dbHaeuser.set(id, {objektId:document.getElementById('hausObjektSelect').value, bezeichnung:document.getElementById('hausBezeichnungInput').value, sollMatrix:mx, anteile:safeFloat(document.getElementById('hausAnteileInput').value), steuerStatus:document.getElementById('hausSteuerStatus').value}); 
+            document.getElementById('hausModal').classList.remove('active'); saveLocal(); renderLists(); }
+        
+        function renderHausMatrix(h, hausId){
+            const b=document.getElementById('hausSollMatrixBody');
+            b.innerHTML="";
+            const units = Array.from(dbEinheiten.values()).filter(u => u.hausId === hausId);
+            getAllTypes().forEach(t=>{
+                const sollCnt = h && h.sollMatrix && h.sollMatrix[t.id] ? parseInt(h.sollMatrix[t.id].count)||0 : 0;
+                const sollArea = h && h.sollMatrix && h.sollMatrix[t.id] ? safeFloat(h.sollMatrix[t.id].area) : 0;
+                const istCnt = units.filter(u => u.typ === t.id).length;
+                const istArea = units.filter(u => u.typ === t.id).reduce((sum, u) => sum + safeFloat(u.flaeche), 0);
+                const diffCnt = istCnt - sollCnt;
+                const diffArea = istArea - sollArea;
+                const cCnt = diffCnt === 0 ? 'text-green-600' : (diffCnt > 0 ? 'text-red-600' : 'text-blue-600');
+                const cArea = Math.abs(diffArea) < 0.1 ? 'text-green-600' : 'text-red-600';
+                b.innerHTML+=`<tr data-type-id="${t.id}"><td>${t.label}</td><td><input type="number" class="soll-count" value="${sollCnt || ''}"></td><td class="readonly-val font-bold text-center">${istCnt}</td><td class="diff-val ${cCnt} text-center">${diffCnt > 0 ? '+'+diffCnt : diffCnt}</td><td><input type="number" step="0.01" class="soll-area" value="${sollArea ? sollArea : ''}"></td><td class="readonly-val text-center">${formatNum(istArea)}</td><td class="diff-val ${cArea} text-center">${diffArea > 0 ? '+' : ''}${formatNum(diffArea)}</td></tr>`;
+            });
         }
 
-        function renderAbrechnungsListe() { const oid=document.getElementById('kostenObjektSelect').value; const c=document.getElementById('abrechnungenListe'); document.getElementById('abrechnungWrapper').style.display=oid?"flex":"none"; c.innerHTML=""; dbAbrechnungen.filter(a=>a.objektId===oid).forEach(a=>{const div=document.createElement('div'); div.style="padding:8px; border-bottom:1px solid #ddd; cursor:pointer; background:white; margin-bottom:2px;"; if(a.status==='closed')div.style.backgroundColor="#f0f0f0"; div.innerHTML=`<b>${a.status==='closed'?'🔒':'📝'} ${a.name}</b><br><small>${formatDate(a.von)}-${formatDate(a.bis)}</small>`; div.onclick=()=>loadKostenEditor(a.id); c.appendChild(div);}); }
-        function openNeueAbrechnung() { document.getElementById('abrechnungModal').classList.add('active'); }
-        function createAbrechnung() { const id='abr_'+Date.now(); dbAbrechnungen.push({id, objektId:document.getElementById('kostenObjektSelect').value, name:document.getElementById('newAbrName').value, von:document.getElementById('newAbrVon').value, bis:document.getElementById('newAbrBis').value, status:'open'}); saveLocal(); renderAbrechnungsListe(); document.getElementById('abrechnungModal').classList.remove('active'); loadKostenEditor(id); }
-        function loadKostenEditor(abrId) { const abr=dbAbrechnungen.find(a=>a.id===abrId); document.getElementById('currentAbrechnungId').value=abrId; document.getElementById('editorTitle').innerText=abr.name; document.getElementById('kostenPlaceholder').style.display="none"; document.getElementById('kostenEditor').style.display="flex"; const isClosed=abr.status==='closed'; document.getElementById('btnLockAbr').style.display=isClosed?'none':'inline-block'; document.getElementById('btnUnlockAbr').style.display=isClosed?'inline-block':'none'; document.getElementById('btnSaveKosten').disabled=isClosed; document.getElementById('kostenActions').style.display=isClosed?'none':'flex'; const l=document.getElementById('kostenListe'); l.innerHTML=""; const k=dbKosten.filter(x=>x.abrechnungId===abrId); if(k.length===0&&!isClosed)addKostenRow(); else k.forEach(x=>addKostenRow(x,isClosed)); updateKostenSums(); }
-        function addKostenRow(d={},lock=false) { const c=document.getElementById('kostenListe'); const r=document.createElement('div'); r.className='kosten-row'; r.dataset.id=d.id||getNextFinanzId(); r.innerHTML=`<input class="k-konto" value="${d.konto||''}" ${lock?'disabled':''}><input class="k-text" value="${d.text||''}" ${lock?'disabled':''}><input type="number" step="0.01" class="k-brutto" value="${d.brutto||''}" oninput="calculateRow(this.parentElement)" ${lock?'disabled':''}><input type="number" step="0.01" class="k-lohn" value="${d.lohn||''}" ${lock?'disabled':''}><select class="k-lohn-art" ${lock?'disabled':''}>${LOHN_ARTEN.map(l=>`<option value="${l.id}" ${d.lohnArt===l.id?'selected':''}>${l.label}</option>`).join('')}</select><div style="display:flex;"><select class="k-tax" onchange="calculateRow(this.parentElement)" ${lock?'disabled':''}><option value="">-</option>${taxKeys.map(t=>`<option value="${t.id}" ${d.steuerKey===t.id?'selected':''}>${t.label}</option>`).join('')}</select></div><input class="k-netto" readonly value="${d.netto?formatNum(d.netto):''}"><input class="k-tax-amt" readonly value="${d.steuerBetrag?formatNum(d.steuerBetrag):''}"><div style="display:flex;"><select class="k-verteil" ${lock?'disabled':''}>${verteilKeys.map(v=>`<option value="${v.id}" ${d.verteilKey===v.id?'selected':''}>${v.label}</option>`).join('')}</select></div>${!lock?'<button class="warn-btn" onclick="this.parentElement.remove();updateKostenSums()">X</button>':''}`; c.appendChild(r); }
-        function calculateRow(r) { const b=safeFloat(r.querySelector('.k-brutto').value); const tid=r.querySelector('.k-tax').value; let n=b,t=0; if(tid){const k=taxKeys.find(x=>x.id===tid); if(k&&k.rate>0){n=b/(1+k.rate/100); t=b-n;}} r.querySelector('.k-netto').value=formatNum(n); r.querySelector('.k-tax-amt').value=formatNum(t); r.dataset.net=n; r.dataset.tax=t; updateKostenSums(); }
-        function updateKostenSums() { let sn=0,st=0,sb=0; document.querySelectorAll('.kosten-row').forEach(r=>{const b=safeFloat(r.querySelector('.k-brutto').value); sb+=b; if(r.dataset.net){sn+=parseFloat(r.dataset.net); st+=parseFloat(r.dataset.tax);}else{calculateRow(r); sn+=parseFloat(r.dataset.net); st+=parseFloat(r.dataset.tax);}}); document.getElementById('sumKostenNetto').innerText=formatCurrency(sn); document.getElementById('sumKostenSteuer').innerText=formatCurrency(st); document.getElementById('sumKostenBrutto').innerText=formatCurrency(sb); }
-        function saveKostenErfassung() { const aid=document.getElementById('currentAbrechnungId').value; dbKosten=dbKosten.filter(k=>k.abrechnungId!==aid); document.querySelectorAll('.kosten-row').forEach(r=>{const b=safeFloat(r.querySelector('.k-brutto').value),txt=r.querySelector('.k-text').value; if(b||txt){const tid=r.querySelector('.k-tax').value; let rate=0; if(tid){const k=taxKeys.find(x=>x.id===tid); if(k)rate=k.rate;} const n=b/(1+rate/100); dbKosten.push({id:r.dataset.id,abrechnungId:aid,konto:r.querySelector('.k-konto').value,text:txt,brutto:b,lohn:safeFloat(r.querySelector('.k-lohn').value),lohnArt:r.querySelector('.k-lohn-art').value,steuerKey:tid,netto:n,steuerBetrag:b-n,verteilKey:r.querySelector('.k-verteil').value});}}); saveLocal(); triggerAutoSave(); alert("Gespeichert!"); }
+        function addNewCustomType() { const name = document.getElementById('newCustomType').value.trim(); if(!name) return; const id = name.toLowerCase().replace(/[^a-z0-9]/g, '_'); if(getAllTypes().some(t => t.id === id)) { alert("Typ existiert bereits."); return; } customTypes.push({id: id, label: name}); saveLocal(); document.getElementById('newCustomType').value = ""; const idInput = document.getElementById('hausIdInput').value; const h = idInput ? dbHaeuser.get(idInput) : {}; renderHausMatrix(h, idInput); }
+        function deleteHaus() { const id = document.getElementById('hausIdInput').value; if(!id) return; const uArr = Array.from(dbEinheiten.entries()).filter(([eid, e]) => e.hausId === id); if(!confirm(`WARNUNG: Haus löschen?\nEs werden ${uArr.length} Einheiten mitgelöscht.`)) return; uArr.forEach(([eid]) => dbEinheiten.delete(eid)); dbHaeuser.delete(id); saveLocal(); renderLists(); document.getElementById('hausModal').classList.remove('active'); }
+        function filterHaeuserDropdown(keep){ const oid=document.getElementById('einheitObjektSelect').value; const h=document.getElementById('einheitHausSelect'); const old=h.value; h.innerHTML=""; Array.from(dbHaeuser.entries()).filter(([hid,x])=>x.objektId===oid).forEach(([hid,x])=>h.add(new Option(x.bezeichnung,hid))); if(keep&&old)h.value=old; updateHausAvailability(h.value); }
+        function updateKonditionDatalist() { const l=document.getElementById('konditionTypes')||document.createElement('datalist'); l.id="konditionTypes"; l.innerHTML=""; KONDITION_TYPES.forEach(t=>l.appendChild(new Option(t))); if(!l.parentNode) document.body.appendChild(l); }
+        function openEinheitMask(id){ updateKonditionDatalist(); const e=id?dbEinheiten.get(id):{}; document.getElementById('einheitIdInput').value=id||""; document.getElementById('einheitNameInput').value=e.name||""; document.getElementById('einheitNummerDisplay').value=id||""; document.getElementById('einheitTypSelect').value=e.typ||"wohnung"; document.getElementById('einheitFlaecheInput').value=e.flaeche||""; document.getElementById('einheitZimmerInput').value=e.zimmer||""; document.getElementById('einheitMeaInput').value=e.mea||""; 
+            document.getElementById('einheitSteuerStatus').value=e.steuerStatus||"";
+            const oSel = document.getElementById('einheitObjektSelect'); oSel.value = e.objektId || (activeFilterId || ""); oSel.disabled = !!activeFilterId && !id; filterHaeuserDropdown(true); if(e.hausId) { document.getElementById('einheitHausSelect').value=e.hausId; updateHausAvailability(e.hausId); } else { updateHausAvailability(document.getElementById('einheitHausSelect').value); } const kl=document.getElementById('konditionenListe'); kl.innerHTML=""; if(e.konditionen)e.konditionen.forEach(k=>addKonditionRow(k)); else addKonditionRow(); const bl=document.getElementById('belegungListe'); bl.innerHTML=""; if(e.belegung)e.belegung.forEach(b=>addBelegungRow(b)); const hl=document.getElementById('historieListe'); hl.innerHTML=""; if(e.historie)e.historie.forEach(h=>addHistorieRow(h)); document.getElementById('einheitModal').classList.add('active'); }
+        function saveEinheit(){ const id=document.getElementById('einheitNummerDisplay').value||getNextEinheitID(document.getElementById('einheitHausSelect').value); const k=[]; document.querySelectorAll('.kondition-row').forEach(r=>{const l=r.querySelector('.kond-label').value,b=safeFloat(r.querySelector('.kond-betrag').value); if(l&&b)k.push({label:l,betrag:b,konto:r.querySelector('.kond-konto').value,intervall:r.querySelector('.kond-intervall').value,gueltigAb:r.querySelector('.kond-date').value,gueltigBis:r.querySelector('.kond-date-bis').value,steuerKey:r.querySelector('.kond-tax').value});}); const bel=[]; document.querySelectorAll('.belegung-wrapper').forEach(w=>{bel.push({mieterId:w.querySelector('.belegung-mieter').value,einzug:w.querySelector('.belegung-einzug').value,auszug:w.querySelector('.belegung-auszug').value});}); const his=[]; document.querySelectorAll('.historie-row').forEach(r=>{his.push({date:r.querySelector('.hist-date').value,text:r.querySelector('.hist-desc').value});}); 
+            dbEinheiten.set(id, {hausId:document.getElementById('einheitHausSelect').value,objektId:document.getElementById('einheitObjektSelect').value,name:document.getElementById('einheitNameInput').value,typ:document.getElementById('einheitTypSelect').value,flaeche:safeFloat(document.getElementById('einheitFlaecheInput').value),zimmer:safeFloat(document.getElementById('einheitZimmerInput').value),mea:safeFloat(document.getElementById('einheitMeaInput').value), steuerStatus:document.getElementById('einheitSteuerStatus').value, konditionen:k,belegung:bel,historie:his}); 
+            document.getElementById('einheitModal').classList.remove('active'); saveLocal(); renderLists(); }
+        function deleteEinheit() { const id = document.getElementById('einheitIdInput').value; if(!id) return; if(!confirm("Einheit wirklich löschen?")) return; dbEinheiten.delete(id); saveLocal(); renderLists(); document.getElementById('einheitModal').classList.remove('active'); }
+        function addKonditionRow(d={}) { const c=document.getElementById('konditionenListe'); const r=document.createElement('div'); r.className='kondition-row'; const intervalOpts = INTERVALL_OPTS.map(o => { const isSelected = d.intervall && d.intervall === o ? 'selected' : ''; return `<option value="${o}" ${isSelected}>${o}</option>`; }).join(''); const taxOpts = ['<option value="">-</option>', ...taxKeys.map(t => { const isSelected = d.steuerKey === t.id ? 'selected' : ''; return `<option value="${t.id}" ${isSelected}>${t.label}</option>`; })].join(''); r.innerHTML=`<input class="kond-label" list="konditionTypes" value="${d.label||''}" placeholder="Art"><input type="number" class="kond-betrag" value="${d.betrag||''}" placeholder="€"><input class="kond-konto" value="${d.konto||''}" placeholder="Konto"><select class="kond-intervall">${intervalOpts}</select><input type="date" class="kond-date" value="${d.gueltigAb||''}" title="Start"><input type="date" class="kond-date-bis" value="${d.gueltigBis||''}" title="Ende (Optional)"><select class="kond-tax">${taxOpts}</select><button class="finance-btn" onclick="openTaxModal()" title="Steuerschlüssel">⚙️</button><button class="primary-btn" onclick="addKonditionRow({label:this.parentElement.querySelector('.kond-label').value})">+</button><button class="warn-btn" onclick="this.parentElement.remove()">X</button>`; c.appendChild(r); }
+        function addBelegungRow(d={}){ const c=document.getElementById('belegungListe'); const w=document.createElement('div'); w.className='belegung-wrapper'; w.innerHTML=`<div class="belegung-row"><select class="belegung-mieter"><option value="">-- Mieter --</option></select><input type="date" class="belegung-einzug" value="${d.einzug||''}"><input type="date" class="belegung-auszug" value="${d.auszug||''}"><button class="warn-btn" onclick="this.parentElement.parentElement.remove()">X</button></div>`; const s=w.querySelector('select'); Array.from(dbKontakte.entries()).sort((a,b)=>(a[1].fn||"").localeCompare(b[1].fn||"")).forEach(([id,k])=>s.add(new Option(k.fn+(k.org?` (${k.org})`:""),id))); if(d.mieterId) s.value=d.mieterId; c.appendChild(w); }
+        function addHistorieRow(d={}){ const c=document.getElementById('historieListe'); const r=document.createElement('div'); r.className='historie-row'; r.innerHTML=`<input type="date" class="hist-date" value="${d.date||''}"><input type="text" class="hist-desc" value="${d.text||''}"><button class="warn-btn" onclick="this.parentElement.remove()">X</button>`; c.appendChild(r); }
         
+        function openVerbrauchsdatenModal(id) { 
+            const e = dbEinheiten.get(id);
+            if(!e) { alert("Einheit nicht gefunden"); return; }
+            document.getElementById('verbrauchEinheitId').value=id; 
+            document.getElementById('verbrauchTitle').innerText=e.name; 
+            if(!e.verbrauchsdaten) e.verbrauchsdaten = { personen: [], zaehler: [], direkt: [] };
+            renderVerbrauchLists(e.verbrauchsdaten); 
+            switchVerbrauchTab('personen'); 
+            document.getElementById('verbrauchsdatenModal').classList.add('active'); 
+        }
+        function switchVerbrauchTab(t) { document.querySelectorAll('.v-tab').forEach(x=>x.classList.remove('active')); document.querySelectorAll('.v-panel').forEach(x=>x.classList.remove('active')); document.querySelector(`.v-tab[onclick*='${t}']`).classList.add('active'); document.getElementById('vPanel-'+t).classList.add('active'); }
+        function renderVerbrauchLists(d) { 
+            document.getElementById('vList-personen').innerHTML="";if(d.personen)d.personen.forEach(x=>addPersonenRow(x)); 
+            document.getElementById('vList-zaehler').innerHTML="";if(d.zaehler)d.zaehler.forEach(x=>addZaehlerRow(x)); 
+            document.getElementById('vList-direkt').innerHTML="";if(d.direkt)d.direkt.forEach(x=>addDirektRow(x)); 
+        }
+        function addPersonenRow(d={}){ const r=document.createElement('div'); r.className='verbrauchs-row'; r.style.gridTemplateColumns="1fr 1fr 1fr 30px"; r.innerHTML=`<input type="date" class="v-von" value="${d.von||''}"><input type="date" class="v-bis" value="${d.bis||''}"><input type="number" class="v-anz" value="${d.anzahl||''}"><button class="warn-btn" onclick="this.parentElement.remove()">X</button>`; document.getElementById('vList-personen').appendChild(r); }
+        function addZaehlerRow(d={}){ const r=document.createElement('div'); r.className='verbrauchs-row'; r.style.gridTemplateColumns="1fr 1fr 1fr 1fr 0.8fr 0.8fr 0.8fr 30px"; r.innerHTML=`<input class="v-nr" value="${d.nr||''}"><select class="v-art"><option>Wasser Kalt</option><option>Wasser Warm</option><option>Strom</option><option>Heizung</option></select><input type="date" class="v-von" value="${d.von||''}"><input type="date" class="v-bis" value="${d.bis||''}"><input type="number" class="v-start" value="${d.standStart||''}"><input type="number" class="v-end" value="${d.standEnde||''}"><input class="v-verbr" readonly style="background:#eee;"><button class="warn-btn" onclick="this.parentElement.remove()">X</button>`; if(d.art)r.querySelector('.v-art').value=d.art; const calc=()=>{const s=safeFloat(r.querySelector('.v-start').value),e=safeFloat(r.querySelector('.v-end').value);r.querySelector('.v-verbr').value=(e>=s)?formatNum(e-s):"Err";}; r.querySelectorAll('input').forEach(i=>i.oninput=calc); calc(); document.getElementById('vList-zaehler').appendChild(r); }
+        function addDirektRow(d={}){ const c=document.getElementById('vList-direkt'); const r=document.createElement('div'); r.className='verbrauchs-row'; r.style.gridTemplateColumns="1.2fr 1.5fr 0.8fr 0.8fr 0.8fr 0.6fr 0.8fr 0.7fr 0.8fr 0.8fr 30px"; r.innerHTML=`<select class="v-typ" style="font-weight:bold;"><option>Sonstige Direktkosten</option><option>Heizkosten (Fremd)</option><option>Wasser (Fremd)</option></select><input class="v-text" value="${d.text||''}"><input type="date" class="v-von" value="${d.von||''}"><input type="date" class="v-bis" value="${d.bis||''}"><input type="number" step="0.01" class="v-betrag" value="${d.betrag||''}" oninput="calcDirektRow(this.parentElement)"><select class="v-tax" onchange="calcDirektRow(this.parentElement)"><option value="">-</option>${taxKeys.map(t=>`<option value="${t.id}" ${d.steuerKey===t.id?'selected':''}>${t.label}</option>`).join('')}</select><input class="v-netto" readonly style="background:#f0f0f0;" value="${d.netto?formatNum(d.netto):''}"><input type="number" step="0.01" class="v-lohn" value="${d.lohn||''}"><select class="v-lohn-art">${LOHN_ARTEN.map(l=>`<option value="${l.id}" ${d.lohnArt===l.id?'selected':''}>${l.label}</option>`).join('')}</select><input class="v-vorsteuer" readonly style="background:#f0f0f0;" value="${d.vorsteuer?formatNum(d.vorsteuer):''}"><button class="warn-btn" onclick="this.parentElement.remove()">X</button>`; if(d.typ)r.querySelector('.v-typ').value=d.typ; c.appendChild(r); }
+        function calcDirektRow(r){ const b=safeFloat(r.querySelector('.v-betrag').value),tid=r.querySelector('.v-tax').value; let n=b,t=0; if(tid){const k=taxKeys.find(x=>x.id===tid); if(k&&k.rate>0){n=b/(1+k.rate/100); t=b-n;}} r.querySelector('.v-netto').value=formatNum(n); r.querySelector('.v-vorsteuer').value=formatNum(t); }
+        function saveKostenErfassung() { const aid=document.getElementById('currentAbrechnungId').value; dbKosten=dbKosten.filter(k=>k.abrechnungId!==aid); document.querySelectorAll('.kosten-row').forEach(r=>{const b=safeFloat(r.querySelector('.k-brutto').value),txt=r.querySelector('.k-text').value; if(b||txt){const tid=r.querySelector('.k-tax').value; let rate=0; if(tid){const k=taxKeys.find(x=>x.id===tid); if(k)rate=k.rate;} const n=b/(1+rate/100); dbKosten.push({id:r.dataset.id,abrechnungId:aid,konto:r.querySelector('.k-konto').value,text:txt,brutto:b,lohn:safeFloat(r.querySelector('.k-lohn').value),lohnArt:r.querySelector('.k-lohn-art').value,steuerKey:tid,netto:n,steuerBetrag:b-n,verteilKey:r.querySelector('.k-verteil').value});}}); saveLocal(); triggerAutoSave(); alert("Gespeichert!"); checkAbrechnungReadiness(aid); }
         function openSplitModal() { document.getElementById('splitTotalInput').value=""; document.getElementById('splitRowsContainer').innerHTML=""; addSplitRow(); document.getElementById('splitModal').classList.add('active'); }
         function calcSplitRest() { const t=safeFloat(document.getElementById('splitTotalInput').value); let s=0; document.querySelectorAll('.split-amount').forEach(i=>s+=safeFloat(i.value)); document.getElementById('splitSummeRest').innerText=formatCurrency(t-s); document.getElementById('splitSummeErfasst').innerText=formatCurrency(s); document.getElementById('btnApplySplit').disabled=Math.abs(t-s)>0.01; }
         function addSplitRow() { const d=document.createElement('div'); d.className='split-row'; d.innerHTML=`<input type="number" step="0.01" class="split-amount" oninput="calcSplitRest()"><input class="split-text"><input class="split-konto"><input type="number" step="0.01" class="split-lohn"><select class="split-lohn-art">${LOHN_ARTEN.map(l=>`<option value="${l.id}">${l.label}</option>`).join('')}</select><select class="split-tax"><option value="">-</option>${taxKeys.map(t=>`<option value="${t.id}">${t.label}</option>`).join('')}</select><select class="split-verteil">${verteilKeys.map(v=>`<option value="${v.id}">${v.label}</option>`).join('')}</select><button class="warn-btn" onclick="this.parentElement.remove();calcSplitRest()">X</button>`; document.getElementById('splitRowsContainer').appendChild(d); }
         function applySplitBuchung() { document.querySelectorAll('.split-row').forEach(r=>{const a=safeFloat(r.querySelector('.split-amount').value); if(a>0) addKostenRow({brutto:a,text:r.querySelector('.split-text').value,konto:r.querySelector('.split-konto').value,lohn:safeFloat(r.querySelector('.split-lohn').value),lohnArt:r.querySelector('.split-lohn-art').value,steuerKey:r.querySelector('.split-tax').value,verteilKey:r.querySelector('.split-verteil').value});}); document.getElementById('splitModal').classList.remove('active'); updateKostenSums(); }
-
-        // --- SIMULATION ---
+        
+        function openSollstellungModal(){ document.getElementById('sollstellungModal').classList.add('active'); document.getElementById('sollMonatInput').value=new Date().toISOString().slice(0,7); document.getElementById('sollBuchungsdatum').value=new Date().toISOString().slice(0,10); }
+        function runSollstellung() { const m=document.getElementById('sollMonatInput').value,bd=document.getElementById('sollBuchungsdatum').value; if(!m||!bd)return; const [yr,mo]=m.split('-').map(Number); const dM=new Date(yr,mo,0).getDate(),ms=new Date(yr,mo-1,1),me=new Date(yr,mo-1,dM); let cnt=0; const isQ=(mo-1)%3===0,isH=(mo-1)%6===0,isY=mo===1; dbEinheiten.forEach((e,eid)=>{if(e.belegung)e.belegung.forEach(b=>{const ei=new Date(b.einzug),au=b.auszug?new Date(b.auszug):new Date('2099-12-31'); if(ei<=me&&au>=ms){ const s=ei>ms?ei:ms,en=au<me?au:me,days=Math.ceil(Math.abs(en-s)/864e5)+1; if(days>0){ const f=days/dM,op=`${eid}-${mo}${yr}`; if(e.konditionen)e.konditionen.forEach(k=>{ const ga=new Date(k.gueltigAb),gb=k.gueltigBis?new Date(k.gueltigBis):new Date('2099-12-31'); if(ga<=me&&gb>=ms){ const iv=k.intervall||'Monatlich'; let due=(iv==='Monatlich')||(iv==='Vierteljährlich'&&isQ)||(iv==='Halbjährlich'&&isH)||(iv==='Jährlich'&&isY); if(due){ const bet=safeFloat(k.betrag)*f; let stb=0; if(k.steuerKey){const tk=taxKeys.find(t=>t.id===k.steuerKey);if(tk)stb=bet-(bet/(1+tk.rate/100));} if(!dbFinanzen.some(x=>x.text.includes(op)&&x.kategorie===k.label)){ dbFinanzen.push({id:getNextFinanzId(),einheitId:eid,mieterId:b.mieterId,monatRef:m,buchungsdatum:bd,typ:'soll',kategorie:k.label,text:`${op} (${k.label})`,betrag:bet,konto:k.konto,steuerschluessel:k.steuerKey,steuerbetrag:stb,locked:true}); cnt++; } } } }); } } }); }); saveLocal(); triggerAutoSave(); alert(cnt+" Buchungen erstellt."); document.getElementById('sollstellungModal').classList.remove('active'); }
+        function exportSollstellungPDF(){const m=document.getElementById('sollMonatInput').value;if(!m){alert("Monat?");return;}const [yr,mo]=m.split('-').map(Number);const doc=new jspdf.jsPDF();doc.setFontSize(16);doc.text(`Sollstellung: ${m}`,14,20);const rows=[];const dM=new Date(yr,mo,0).getDate(),ms=new Date(yr,mo-1,1),me=new Date(yr,mo-1,dM);const isQ=(mo-1)%3===0,isH=(mo-1)%6===0,isY=mo===1;dbEinheiten.forEach((e,eid)=>{if(e.belegung)e.belegung.forEach(b=>{const ei=new Date(b.einzug),au=b.auszug?new Date(b.auszug):new Date('2099-12-31');if(ei<=me&&au>=ms){const s=ei>ms?ei:ms,en=au<me?au:me,days=Math.ceil(Math.abs(en-s)/864e5)+1;if(days>0){const f=days/dM;if(e.konditionen)e.konditionen.forEach(k=>{const ga=new Date(k.gueltigAb),gb=k.gueltigBis?new Date(k.gueltigBis):new Date('2099-12-31');if(ga<=me&&gb>=ms){const iv=k.intervall||'Monatlich';let due=(iv==='Monatlich')||(iv==='Vierteljährlich'&&isQ)||(iv==='Halbjährlich'&&isH)||(iv==='Jährlich'&&isY);if(due){const bet=safeFloat(k.betrag)*f;let tax="0%";if(k.steuerKey){const tk=taxKeys.find(t=>t.id===k.steuerKey);if(tk)tax=tk.rate+"%";}let netto=bet;if(k.steuerKey){const tk=taxKeys.find(t=>t.id===k.steuerKey);if(tk)netto=bet/(1+tk.rate/100);}rows.push([e.name,k.label,formatNum(netto),tax,formatNum(bet)]);}}});}}});});doc.autoTable({head:[['Einheit','Art','Netto','Steuer','Brutto']],body:rows,startY:30});doc.save(`Soll_${m}.pdf`);}
+        
+        function openKontoModal(id){ const e=dbEinheiten.get(id); document.getElementById('kontoEinheitId').value=id; document.getElementById('kontoTitle').innerText=`Konto: ${e.name}`; document.getElementById('manuelleBuchungForm').style.display='none'; const t=dbFinanzen.filter(x=>x.einheitId===id), s=document.getElementById('kontoJahrSelect'), y=new Set(); t.forEach(x=>{if(x.buchungsdatum)y.add(x.buchungsdatum.substr(0,4));}); s.innerHTML='<option value="all">Alle Jahre</option>'; Array.from(y).sort().reverse().forEach(v=>s.add(new Option(v,v))); renderKontoTable(); document.getElementById('kontoModal').classList.add('active'); }
+        function renderKontoTable(){ const eid=document.getElementById('kontoEinheitId').value, y=document.getElementById('kontoJahrSelect').value, b=document.getElementById('kontoBody'); b.innerHTML=""; let t=dbFinanzen.filter(x=>x.einheitId===eid); if(y!=='all')t=t.filter(x=>x.buchungsdatum.startsWith(y)); t.sort((m,n)=>m.buchungsdatum.localeCompare(n.buchungsdatum)); let ss=0,sh=0,bal=0; t.forEach(x=>{const s=x.typ==='soll'?safeFloat(x.betrag):0, h=x.typ==='haben'?safeFloat(x.betrag):0; ss+=s; sh+=h; bal+=(s-h); b.innerHTML+=`<tr onclick="openBuchungDetail('${x.id}')"><td>${x.history&&x.history.length?'(Korr)':''}</td><td>${formatDate(x.buchungsdatum)}</td><td>${x.text}</td><td>${x.konto||''}</td><td>${x.steuerschluessel||'-'}</td><td class="text-right betrag-soll">${s?formatNum(s):''}</td><td class="text-right betrag-haben">${h?formatNum(h):''}</td><td class="text-right"><b>${formatNum(bal)}</b></td><td>${x.locked?'🔒':'<button class="warn-btn" onclick="event.stopPropagation();deleteBuchung(\''+x.id+'\')">x</button>'}</td></tr>`;}); document.getElementById('sumSoll').innerText=formatCurrency(ss); document.getElementById('sumHaben').innerText=formatCurrency(sh); document.getElementById('sumSaldo').innerText=formatCurrency(bal); }
+        function deleteBuchung(id){ if(confirm("Löschen?")){dbFinanzen=dbFinanzen.filter(x=>x.id!==id); saveLocal(); triggerAutoSave(); renderKontoTable();} }
+        function saveManuelleBuchung(){ const eid=document.getElementById('kontoEinheitId').value, d=document.getElementById('mbDatum').value, b=safeFloat(document.getElementById('mbBetrag').value); if(!d||!b)return; const tid=document.getElementById('mbSteuer').value; let sb=0; if(tid){const k=taxKeys.find(x=>x.id===tid); if(k)sb=b-(b/(1+k.rate/100));} dbFinanzen.push({id:getNextFinanzId(),einheitId:eid,buchungsdatum:d,typ:document.getElementById('mbTyp').value,betrag:b,text:document.getElementById('mbText').value,konto:document.getElementById('mbKonto').value,steuerschluessel:tid,steuerbetrag:sb,kategorie:"Manuell",locked:false}); saveLocal(); triggerAutoSave(); renderKontoTable(); document.getElementById('manuelleBuchungForm').style.display='none'; }
+        function resetKonto(){ if(confirm("Alles leeren?")){const eid=document.getElementById('kontoEinheitId').value; dbFinanzen=dbFinanzen.filter(x=>x.einheitId!==eid); saveLocal(); triggerAutoSave(); renderKontoTable();} }
+        function openManuelleBuchung(){ document.getElementById('manuelleBuchungForm').style.display='block'; }
+        function openBuchungDetail(id){ const t=dbFinanzen.find(x=>x.id===id); if(!t)return; document.getElementById('detailBuchungId').value=id; document.getElementById('detailId').innerText=id; document.getElementById('detailDatumInp').value=t.buchungsdatum; document.getElementById('detailBetragInp').value=safeFloat(t.betrag); document.getElementById('detailTextInp').value=t.text; document.getElementById('detailKontoInp').value=t.konto||""; document.getElementById('detailSteuerInp').value=t.steuerschluessel||""; document.getElementById('detailDoku').value=t.doku||""; document.getElementById('buchungDetailModal').classList.add('active'); }
+        function saveBuchungChanges(){ const id=document.getElementById('detailBuchungId').value, t=dbFinanzen.find(x=>x.id===id); if(!t)return; const nd=document.getElementById('detailDatumInp').value, nb=safeFloat(document.getElementById('detailBetragInp').value), nt=document.getElementById('detailTextInp').value, nk=document.getElementById('detailKontoInp').value, nst=document.getElementById('detailSteuerInp').value; if(nd!==t.buchungsdatum||nb!==safeFloat(t.betrag)||nt!==t.text||nk!==(t.konto||"")||nst!==(t.steuerschluessel||"")){ if(!t.history)t.history=[]; t.history.push({datum:new Date().toISOString(),old:JSON.parse(JSON.stringify(t))}); t.buchungsdatum=nd; t.betrag=nb; t.text=nt; t.konto=nk; t.steuerschluessel=nst; if(nst){const k=taxKeys.find(x=>x.id===nst); if(k)t.steuerbetrag=nb-(nb/(1+k.rate/100));} t.doku=(document.getElementById('detailDoku').value)+`\n[Edit ${new Date().toLocaleDateString()}]`; saveLocal(); triggerAutoSave(); renderKontoTable(); document.getElementById('buchungDetailModal').classList.remove('active'); alert("Gespeichert"); } }
+        function createAbrechnungDummy() { const housesCount = parseInt(prompt("Anzahl Häuser im Objekt?", "1")) || 1; const unitsPerHouse = parseInt(prompt("Einheiten pro Haus?", "4")) || 4; const rentedCount = parseInt(prompt("Davon vermietet (Anzahl Mieter)?", "3")) || 0; const now = new Date(); const year = now.getFullYear(); console.log("Erstelle Testdaten..."); const oid = getNextObjektID(); const oData = { nummer: oid, name: "Muster-Park " + year, plz: "12345", ort: "Musterstadt", flaeche: 0, mea: 1000, sollHaeuser: housesCount, steuerStatus: "opt" }; dbObjekte.set(oid, oData); let totalArea = 0; let currentTenant = 0; for(let h=1; h<=housesCount; h++) { const hid = getNextHausID(oid); const hName = `Haus ${h}`; const matrix = {'wohnung':{count: unitsPerHouse, area: 75 * unitsPerHouse}}; dbHaeuser.set(hid, { objektId: oid, bezeichnung: hName, anteile: 1000/housesCount, sollMatrix: matrix }); for(let u=1; u<=unitsPerHouse; u++) { const eid = getNextEinheitID(hid); const isRented = currentTenant < rentedCount; const uName = `Whg ${u} (H${h})`; const area = 75.00; totalArea += area; const unitData = { hausId: hid, objektId: oid, name: uName, typ: "wohnung", flaeche: area, zimmer: 3, mea: (1000/(housesCount*unitsPerHouse)), konditionen: [], belegung: [] }; if(isRented) { currentTenant++; unitData.konditionen.push({label:'Kaltmiete', betrag: 600, intervall:'Monatlich', gueltigAb: `${year}-01-01`, steuerKey: '2'}); unitData.konditionen.push({label:'BK-Vorausz.', betrag: 150, intervall:'Monatlich', gueltigAb: `${year}-01-01`, steuerKey: '20'}); unitData.belegung.push({mieterId: 'dummy_m' + currentTenant, einzug: `${year}-01-01`}); dbFinanzen.push({ id: getNextFinanzId(), einheitId: eid, typ: 'haben', kategorie: 'BK-Vorausz.', betrag: 1800, buchungsdatum: `${year}-12-31`, text: "Summe VZ Jahr" }); } dbEinheiten.set(eid, unitData); } } oData.flaeche = totalArea; dbObjekte.set(oid, oData); const aid = 'abr_' + Date.now(); dbAbrechnungen.push({ id: aid, objektId: oid, name: `Betriebskosten ${year}`, von: `${year}-01-01`, bis: `${year}-12-31`, status: 'open' }); dbKosten.push({ id: getNextFinanzId(), abrechnungId: aid, text: "Grundsteuer", brutto: 2000, netto: 2000, verteilKey: "m2" }); dbKosten.push({ id: getNextFinanzId(), abrechnungId: aid, text: "Müllabfuhr", brutto: 1200, netto: 1200, verteilKey: "einheiten" }); dbKosten.push({ id: getNextFinanzId(), abrechnungId: aid, text: "Hausstrom", brutto: 450, netto: 378, steuerKey: "3", verteilKey: "einheiten" }); saveLocal(); renderLists(); alert(`Szenario erstellt:\nObjekt: ${oData.name}\n${housesCount} Häuser, ${housesCount*unitsPerHouse} Einheiten\nGesamtfläche: ${totalArea} m²\n${rentedCount} vermietet.`); }
+        async function speichereDateiLokal(){ const d={objekte:Array.from(dbObjekte.entries()),haeuser:Array.from(dbHaeuser.entries()),einheiten:Array.from(dbEinheiten.entries()),finanzen:dbFinanzen,taxKeys:taxKeys,verteilKeys:verteilKeys,abrechnungen:dbAbrechnungen,kosten:dbKosten,customTypes:customTypes}; const b=new Blob([JSON.stringify(d,null,2)],{type:"application/json"}); if(window.showSaveFilePicker){try{const h=await window.showSaveFilePicker({suggestedName:"objekte_backup.json"});const w=await h.createWritable();await w.write(b);await w.close();zeigeStatus("Gesichert","success");}catch(e){}}else{const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="objekte_backup.json";a.click();} }
+        async function ladeDateiLokal(){ try{let t;if(window.showOpenFilePicker){const [h]=await window.showOpenFilePicker();const f=await h.getFile();t=await f.text();}else{const i=document.createElement("input");i.type="file";i.click();await new Promise(r=>i.onchange=e=>{const fr=new FileReader();fr.onload=ev=>r(t=ev.target.result);fr.readAsText(e.target.files[0]);});}if(t){const d=JSON.parse(t);if(d.objekte)dbObjekte=new Map(d.objekte);if(d.haeuser)dbHaeuser=new Map(d.haeuser);if(d.einheiten)dbEinheiten=new Map(d.einheiten);if(d.finanzen)dbFinanzen=d.finanzen;if(d.taxKeys)taxKeys=d.taxKeys;if(d.verteilKeys)verteilKeys=d.verteilKeys;if(d.abrechnungen)dbAbrechnungen=d.abrechnungen;if(d.kosten)dbKosten=d.kosten;if(d.customTypes)customTypes=d.customTypes;saveLocal();renderLists();alert("Geladen!");}}catch(e){alert("Fehler");} }
+        function loadLocal(){ try{const o=localStorage.getItem("immo_objekte");if(o)dbObjekte=new Map(JSON.parse(o));const h=localStorage.getItem("immo_haeuser");if(h)dbHaeuser=new Map(JSON.parse(h));const e=localStorage.getItem("immo_einheiten");if(e)dbEinheiten=new Map(JSON.parse(e)); const f=localStorage.getItem("immo_finanzen");if(f){const p=JSON.parse(f);dbFinanzen=p.finanzen||p;if(p.taxKeys)taxKeys=p.taxKeys;if(p.verteilKeys)verteilKeys=p.verteilKeys;if(p.abrechnungen)dbAbrechnungen=p.abrechnungen;if(p.kosten)dbKosten=p.kosten;if(p.customTypes)customTypes=p.customTypes||[];} const k=localStorage.getItem("kontakte_personen");if(k)dbKontakte=new Map(JSON.parse(k));}catch(e){} }
+        function saveLocal(){ localStorage.setItem("immo_objekte",JSON.stringify(Array.from(dbObjekte.entries())));localStorage.setItem("immo_haeuser",JSON.stringify(Array.from(dbHaeuser.entries())));localStorage.setItem("immo_einheiten",JSON.stringify(Array.from(dbEinheiten.entries())));localStorage.setItem("immo_finanzen",JSON.stringify({finanzen:dbFinanzen,taxKeys:taxKeys,verteilKeys:verteilKeys,abrechnungen:dbAbrechnungen,kosten:dbKosten,customTypes:customTypes})); }
+        function toggleAbrechnungStatus(l){ const aid=document.getElementById('currentAbrechnungId').value,a=dbAbrechnungen.find(x=>x.id===aid); if(!a)return; if(l){if(!confirm("Abschließen?"))return;a.status='closed';}else{if(!confirm("Öffnen?"))return;a.status='open';} saveLocal(); triggerAutoSave(); renderAbrechnungsListe(); loadKostenEditor(aid); }
+        function deleteAbrechnungComplete(){ const aid=document.getElementById('currentAbrechnungId').value; if(!aid||!confirm("Alles löschen?"))return; dbKosten=dbKosten.filter(k=>k.abrechnungId!==aid); dbAbrechnungen=dbAbrechnungen.filter(a=>a.id!==aid); saveLocal(); triggerAutoSave(); document.getElementById('abrechnungWrapper').style.display="none"; document.getElementById('kostenEditor').style.display="none"; renderAbrechnungsListe(); alert("Gelöscht."); }
+        function triggerAutoSave(){ if(!accessToken)return; zeigeStatus("...","info"); clearTimeout(autoSaveTimer); autoSaveTimer=setTimeout(()=>saveToOneDrive(false),2000); }
+        async function getValidToken(i=false){ if(!msalInstance)return null; const a=msalInstance.getActiveAccount(); if(!a)return null; try{const r=await msalInstance.acquireTokenSilent({scopes:["Files.ReadWrite"],account:a});accessToken=r.accessToken;return r.accessToken;}catch(e){if(i){try{const r=await msalInstance.acquireTokenPopup({scopes:["Files.ReadWrite"],account:a});accessToken=r.accessToken;return r.accessToken;}catch(e){return null;}}return null;} }
+        async function versucheSitzungWiederherzustellen(){ if(sessionStorage.getItem('loginType')==='microsoft'){ const a=await msalInstance.getAccountByHomeId(sessionStorage.getItem('msalAccountIdentifier')); if(a){ msalInstance.setActiveAccount(a); if(await getValidToken(false)){ userEmail=a.username; document.getElementById('loggedInUser').innerText=`(${userEmail})`; document.getElementById('msLoginBtn').style.display='none'; document.getElementById('msLogoutBtn').style.display='inline-block'; document.getElementById('cloudSaveBtn').disabled=false; loadFromOneDrive(); }}}}
+        async function handleMicrosoftLogin(){ try{const r=await msalInstance.loginPopup({scopes:["Files.ReadWrite","User.Read"]}); msalInstance.setActiveAccount(r.account); sessionStorage.setItem('loginType','microsoft'); sessionStorage.setItem('msalAccountIdentifier',r.account.homeAccountId); versucheSitzungWiederherzustellen(); }catch(e){} }
+        function handleLogout(){ msalInstance.logoutPopup(); sessionStorage.clear(); location.reload(); }
+        function zeigeStatus(m,c){ const s=document.getElementById('onedriveStatus'); s.innerText=m; s.className='onedrive-status '+c; s.style.display='inline-flex'; setTimeout(()=>s.style.display='none',3000); }
+        function exportKontoPDF() { const eid=document.getElementById('kontoEinheitId').value, e=dbEinheiten.get(eid), doc=new jspdf.jsPDF(); doc.text(`Mieterkonto: ${e.name}`,14,15); const r=[]; let bal=0; dbFinanzen.filter(x=>x.einheitId===eid).sort((a,b)=>a.buchungsdatum.localeCompare(b.buchungsdatum)).forEach(x=>{ const s=x.typ==='soll'?safeFloat(x.betrag):0, h=x.typ==='haben'?safeFloat(x.betrag):0; bal+=(s-h); r.push([formatDate(x.buchungsdatum),x.text,s?formatNum(s):'',h?formatNum(h):'',formatNum(bal)]); }); doc.autoTable({head:[['Datum','Text','Soll','Haben','Saldo']],body:r,startY:20}); doc.save(`Konto_${e.name}.pdf`); }
+        function generateObjectReportPDF() { const doc=new jspdf.jsPDF('l'), r=[]; dbObjekte.forEach((o,id)=>{const h=Array.from(dbHaeuser.values()).filter(x=>x.objektId===id); let fl=0; h.forEach(x=>{if(x.sollMatrix)Object.values(x.sollMatrix).forEach(v=>fl+=safeFloat(v.area));}); r.push([o.name,`${h.length}/${o.sollHaeuser}`,`${formatNum(safeFloat(o.flaeche))} m²`,`${formatNum(fl)} m²`]);}); doc.autoTable({head:[['Objekt','Häuser','Soll-Fl','Ist-Fl']],body:r}); doc.save('objekte.pdf'); }
+        function generateHouseReportPDF() { const doc=new jspdf.jsPDF('l'), r=[]; dbHaeuser.forEach((h,id)=>{const u=Array.from(dbEinheiten.values()).filter(x=>x.hausId===id); let sf=0; if(h.sollMatrix)Object.values(h.sollMatrix).forEach(v=>sf+=safeFloat(v.area)); const ifl=u.reduce((s,e)=>s+safeFloat(e.flaeche),0); r.push([h.bezeichnung,u.length,`${formatNum(sf)} m²`,`${formatNum(ifl)} m²`]);}); doc.autoTable({head:[['Haus','Einheiten','Soll-Fl','Ist-Fl']],body:r}); doc.save('haeuser.pdf'); }
+        function generateUnitReportPDF() { const doc=new jspdf.jsPDF('l'), r=[]; dbEinheiten.forEach((e,id)=>{const h=dbHaeuser.get(e.hausId); let st="LEERSTAND"; if(e.belegung&&e.belegung.length){const cur=e.belegung.find(b=>(b.einzug<=new Date().toISOString().split('T')[0])&&(!b.auszug||b.auszug>=new Date().toISOString().split('T')[0])); if(cur){const m=dbKontakte.get(cur.mieterId); st=m?m.fn:"Vermietet";}} r.push([h?h.bezeichnung:'?',e.name,e.typ,`${formatNum(e.flaeche)} m²`,st]);}); doc.autoTable({head:[['Haus','Einheit','Typ','Fläche','Status']],body:r}); doc.save('einheiten.pdf'); }
+        function generateProtocolPDF() { const aid = document.getElementById('currentAbrechnungId').value; const abr = dbAbrechnungen.find(a => a.id === aid); const costs = dbKosten.filter(k => k.abrechnungId === aid); const doc = new jspdf.jsPDF(); doc.setFontSize(16); doc.text(`Prüfprotokoll: ${abr.name}`, 14, 20); doc.setFontSize(10); doc.text(`Zeitraum: ${formatDate(abr.von)} - ${formatDate(abr.bis)}`, 14, 28); doc.text(`Erstellt am: ${new Date().toLocaleDateString()}`, 14, 34); let y = 45; doc.setFont(undefined, 'bold'); doc.text("1. Gesamtkosten (Klasse 4)", 14, y); y += 6; doc.setFont(undefined, 'normal'); let totalNet = 0; const costRows = costs.map(c => { totalNet += safeFloat(c.netto); return [c.text, c.verteilKey, formatNum(safeFloat(c.netto)) + " €"]; }); doc.autoTable({ head: [['Position', 'Schlüssel', 'Betrag (Netto)']], body: costRows, startY: y, }); y = doc.lastAutoTable.finalY + 10; doc.text(`Gesamtsumme Kosten (Netto): ${formatNum(totalNet)} €`, 14, y); y+=10; doc.setFont(undefined, 'bold'); doc.text("2. Status Direktkosten & Zähler", 14, y); y += 6; const units = Array.from(dbEinheiten.values()).filter(u => u.objektId === abr.objektId); const unitRows = units.map(u => { const hasZ = u.verbrauchsdaten && u.verbrauchsdaten.zaehler.length > 0 ? "Ja" : "Nein"; const hasD = u.verbrauchsdaten && u.verbrauchsdaten.direkt.length > 0 ? "Ja" : "Nein"; return [u.name, hasZ, hasD]; }); doc.autoTable({ head: [['Einheit', 'Zählerstände', 'Direktkosten']], body: unitRows, startY: y }); y = doc.lastAutoTable.finalY + 15; doc.setFontSize(8); doc.text("Dieses Protokoll dient der internen Dokumentation und Freigabe.", 14, y); doc.save(`Protokoll_${abr.name}.pdf`); }
+        function checkHierarchicalPlausibility(costs, units, allHouses) {
+            let totalCost = costs.reduce((s,c) => s + safeFloat(c.netto), 0);
+            let log = `<div class="plausi-level-0">Gesamtkosten (Netto): ${formatNum(totalCost)} €</div>`;
+            let sumHouses = 0;
+            allHouses.forEach(h => {
+                let hId = getHausIdFromMap(h);
+                let houseShare = 0;
+                costs.forEach(c => {
+                    let totalKey = 0; let houseKey = 0;
+                    units.forEach(u => {
+                        let val = 0;
+                        if(c.verteilKey === 'm2') val = safeFloat(u.flaeche);
+                        else if(c.verteilKey === 'einheiten') val = 1;
+                        else if(c.verteilKey === 'mea') val = safeFloat(u.mea);
+                        totalKey += val;
+                        if(u.hausId === hId) houseKey += val;
+                    });
+                    if(totalKey > 0) houseShare += (houseKey / totalKey) * safeFloat(c.netto);
+                });
+                log += `<div class="plausi-level-1">Haus: ${h.bezeichnung} -> ${formatNum(houseShare)} €</div>`;
+                sumHouses += houseShare;
+                let sumUnits = 0;
+                let hUnits = units.filter(u => u.hausId === hId);
+                hUnits.forEach(u => {
+                    let uShare = 0;
+                    costs.forEach(c => {
+                        let totalKey = 0; let unitKey = 0;
+                        units.forEach(un => {
+                            let val = 0;
+                            if(c.verteilKey === 'm2') val = safeFloat(un.flaeche);
+                            else if(c.verteilKey === 'einheiten') val = 1;
+                            else if(c.verteilKey === 'mea') val = safeFloat(un.mea);
+                            totalKey += val;
+                        });
+                        if(c.verteilKey === 'm2') unitKey = safeFloat(u.flaeche);
+                        else if(c.verteilKey === 'einheiten') unitKey = 1;
+                        else if(c.verteilKey === 'mea') unitKey = safeFloat(u.mea);
+                        if(totalKey > 0) uShare += (unitKey / totalKey) * safeFloat(c.netto);
+                    });
+                    sumUnits += uShare;
+                });
+                let diffH = houseShare - sumUnits;
+                let clsH = Math.abs(diffH) < 0.02 ? 'plausi-ok' : 'plausi-diff';
+                log += `<div style="margin-left:20px; font-size:0.85em; border-bottom:1px solid #ddd;">Summe Einheiten: ${formatNum(sumUnits)} € <span class="${clsH}">(Diff: ${formatNum(diffH)})</span></div>`;
+            });
+            let diffObj = totalCost - sumHouses;
+            let clsO = Math.abs(diffObj) < 0.02 ? 'plausi-ok' : 'plausi-diff';
+            log += `<div class="plausi-level-0" style="text-align:right;">Check Summe Häuser: ${formatNum(sumHouses)} € <span class="${clsO}">(Diff: ${formatNum(diffObj)})</span></div>`;
+            return log;
+        }
         function simulateAbrechnung() {
             const aid = document.getElementById('currentAbrechnungId').value;
             if(!aid) return;
             const abr = dbAbrechnungen.find(a => a.id === aid);
+            const obj = dbObjekte.get(abr.objektId);
+            const isOpt = obj.steuerStatus === 'opt'; 
             const costs = dbKosten.filter(k => k.abrechnungId === aid);
             const units = Array.from(dbEinheiten.values()).filter(u => u.objektId === abr.objektId);
+            const houses = Array.from(dbHaeuser.values()).filter(h => h.objektId === abr.objektId);
+            const plausiHTML = checkHierarchicalPlausibility(costs, units, houses);
+            document.getElementById('plausiView').innerHTML = plausiHTML;
             simulationResults = []; 
-            let resultHTML = `<table class="result-table"><thead><tr><th>Einheit</th><th>Mieter</th><th>Kosten</th><th>Vorausz.</th><th>Saldo</th><th>Aktion</th></tr></thead><tbody>`;
+            let resultHTML = `<div style="margin-bottom:10px; font-size:0.9em; background:#f0f9ff; padding:10px;"><b>Abrechnungs-Parameter:</b><br>Objekt-Status: ${isOpt ? "Optiert (USt-Pflichtig)" : "USt-Frei"}<br>Konto Vorauszahlungen: 8000 (Erlösschmälerung)<br>${isOpt ? "Berechnung: (Anteil Netto - Vorausz. Netto) * 1,19 = Nachzahlung Brutto" : "Berechnung: Anteil - Vorausz. = Saldo"}</div><table class="result-table"><thead><tr><th>Einheit</th><th>Anteil Netto</th><th>./. VZ Netto</th><th>= Saldo Netto</th><th>${isOpt ? '+ USt 19%' : ''}</th><th>= Erg. Brutto</th><th>Aktion</th></tr></thead><tbody>`;
             units.forEach(u => {
-                let unitCostShare = 0;
-                let costDetails = []; 
+                let shareNettoTotal = 0; let shareLohnHDL = 0; let shareLohnHandwerk = 0; let costDetails = []; 
                 costs.forEach(cost => {
                     let totalKeyVal = 0; let unitKeyVal = 0;
                     if(cost.verteilKey === 'm2') { units.forEach(un => totalKeyVal += safeFloat(un.flaeche)); unitKeyVal = safeFloat(u.flaeche); } 
                     else if(cost.verteilKey === 'einheiten') { totalKeyVal = units.length; unitKeyVal = 1; } 
                     else if(cost.verteilKey === 'mea') { units.forEach(un => totalKeyVal += safeFloat(un.mea)); unitKeyVal = safeFloat(u.mea); }
                     if(totalKeyVal > 0) {
-                        const rawShare = (safeFloat(cost.netto) / totalKeyVal) * unitKeyVal;
-                        unitCostShare += rawShare;
-                        costDetails.push({ text: cost.text, total: safeFloat(cost.netto), key: cost.verteilKey, totalUnits: totalKeyVal, yourUnits: unitKeyVal, share: rawShare });
+                        const factor = unitKeyVal / totalKeyVal;
+                        const shareNetto = safeFloat(cost.netto) * factor;
+                        const shareLohn = safeFloat(cost.lohn) * factor;
+                        shareNettoTotal += shareNetto;
+                        if(cost.lohnArt === 'hdl') shareLohnHDL += shareLohn;
+                        if(cost.lohnArt === 'hwl') shareLohnHandwerk += shareLohn;
+                        costDetails.push({text: cost.text, totalNetto: safeFloat(cost.netto), key: cost.verteilKey, totalUnits: totalKeyVal, yourUnits: unitKeyVal, shareNetto: shareNetto});
                     }
                 });
-                const uid = getUnitIdByObj(u); 
-                let prepay = 0;
-                dbFinanzen.filter(f => f.einheitId === uid && f.typ === 'haben' && (f.kategorie.includes('BK') || f.kategorie.includes('Nebenk') || f.kategorie.includes('Vorausz'))).forEach(f => prepay += safeFloat(f.betrag));
-                const saldo = unitCostShare - prepay;
-                const color = saldo > 0 ? 'res-bad' : 'res-good';
+                const uid = getUnitIdByObj(u); let prepayNetto = 0;
+                dbFinanzen.filter(f => f.einheitId === uid && f.typ === 'haben' && (f.kategorie.includes('BK') || f.kategorie.includes('Nebenk') || f.kategorie.includes('Vorausz'))).forEach(f => {
+                    let amt = safeFloat(f.betrag);
+                    if(isOpt && f.steuerbetrag) { amt = amt - safeFloat(f.steuerbetrag); } else if (isOpt) { amt = amt / 1.19; }
+                    prepayNetto += amt;
+                });
+                const saldoNetto = shareNettoTotal - prepayNetto;
+                let taxOnSaldo = 0;
+                if(isOpt) taxOnSaldo = saldoNetto * 0.19; 
+                const finalBrutto = saldoNetto + taxOnSaldo;
+                const color = finalBrutto > 0 ? 'res-bad' : 'res-good';
                 let tenantName = "Leerstand";
                 if(u.belegung && u.belegung.length) {
                     const last = u.belegung[u.belegung.length-1];
@@ -823,9 +745,9 @@
                     if(c) tenantName = c.fn + (c.org ? ` (${c.org})` : "");
                     else if(last.mieterId.startsWith('dummy')) tenantName = "Test Mieter";
                 }
-                simulationResults.push({ unitName: u.name, tenantName: tenantName, costDetails: costDetails, totalCost: unitCostShare, prepay: prepay, saldo: saldo, period: `${formatDate(abr.von)} - ${formatDate(abr.bis)}` });
+                simulationResults.push({unitName: u.name, tenantName: tenantName, costDetails: costDetails, shareNettoTotal: shareNettoTotal, prepayNetto: prepayNetto, saldoNetto: saldoNetto, taxOnSaldo: taxOnSaldo, finalBrutto: finalBrutto, isOpt: isOpt, lohnHDL: shareLohnHDL, lohnHandwerk: shareLohnHandwerk, period: `${formatDate(abr.von)} - ${formatDate(abr.bis)}`});
                 const idx = simulationResults.length - 1;
-                resultHTML += `<tr><td>${u.name} <small>(${u.flaeche}m²)</small></td><td>${tenantName}</td><td class="res-num">${formatNum(unitCostShare)} €</td><td class="res-num">${formatNum(prepay)} €</td><td class="res-num ${color}">${formatNum(saldo)} €</td><td><button class="pdf-btn" onclick="printTenantLetter(${idx})">📄 Anschreiben</button></td></tr>`;
+                resultHTML += `<tr><td>${u.name}<br><small>${tenantName}</small></td><td class="res-num">${formatNum(shareNettoTotal)} €</td><td class="res-num">${formatNum(prepayNetto)} €</td><td class="res-num" style="font-weight:bold;">${formatNum(saldoNetto)} €</td><td class="res-num">${isOpt ? formatNum(taxOnSaldo) + ' €' : '-'}</td><td class="res-num ${color}" style="font-weight:bold; font-size:1.1em;">${formatNum(finalBrutto)} €</td><td><button class="pdf-btn" onclick="printTenantLetter(${idx})">📄 Anschreiben</button></td></tr>`;
             });
             resultHTML += `</tbody></table>`;
             document.getElementById('resultContent').innerHTML = resultHTML;
@@ -835,102 +757,228 @@
         function printTenantLetter(idx) {
             const data = simulationResults[idx];
             if(!data) return;
-            // Use window.jspdf.jsPDF
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-            doc.setFontSize(18); doc.setTextColor(46, 125, 50); doc.text("Betriebskostenabrechnung", 14, 20);
+            const doc = new jspdf.jsPDF();
+            doc.setFontSize(18); doc.setTextColor(22, 101, 52); doc.text("Betriebskostenabrechnung", 14, 20);
             doc.setFontSize(10); doc.setTextColor(0, 0, 0); doc.text(`Abrechnungszeitraum: ${data.period}`, 14, 28);
-            doc.setFontSize(11); doc.text("An:", 14, 40); doc.text(data.tenantName || "Leerstand", 14, 46); doc.text(`Objekt: ${data.unitName}`, 14, 52);
+            doc.setFontSize(11);
+            doc.text("An:", 14, 40); doc.text(data.tenantName, 14, 46); doc.text(`Objekt: ${data.unitName}`, 14, 52);
             doc.text("Vermieter / Verwaltung", 140, 40); doc.text("Musterstraße 1", 140, 46); doc.text("12345 Musterstadt", 140, 52);
-            doc.text("Sehr geehrte Damen und Herren,", 14, 70); doc.text("anbei erhalten Sie die Abrechnung der Betriebskosten für oben genannten Zeitraum.", 14, 76);
-            const rows = data.costDetails.map(c => [ c.text, formatNum(c.total) + " €", c.key, formatNum(c.totalUnits), formatNum(c.yourUnits), formatNum(c.share) + " €" ]);
-            doc.autoTable({ head: [['Kostenart', 'Gesamt', 'Schlüssel', 'Gesamt-Einh.', 'Ihre Einh.', 'Ihr Anteil']], body: rows, startY: 85, theme: 'striped', headStyles: { fillColor: [46, 125, 50] }, columnStyles: { 1: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right', fontStyle: 'bold' } } });
+            doc.text("Sehr geehrte Damen und Herren,", 14, 70);
+            doc.text("anbei erhalten Sie die Abrechnung der Betriebskosten für oben genannten Zeitraum.", 14, 76);
+            const rows = data.costDetails.map(c => [ c.text, formatNum(c.totalNetto) + " €", c.key, formatNum(c.totalUnits), formatNum(c.yourUnits), formatNum(c.shareNetto) + " €" ]);
+            doc.autoTable({head: [['Kostenart (Netto)', 'Gesamt (Netto)', 'Schlüssel', 'Gesamt-Einh.', 'Ihre Einh.', 'Ihr Anteil (Netto)']], body: rows, startY: 85, theme: 'striped', headStyles: { fillColor: [22, 101, 52] }, columnStyles: { 1: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' } }});
             const finalY = doc.lastAutoTable.finalY + 10;
-            doc.setFontSize(11); doc.text(`Summe Ihrer Anteile:`, 120, finalY); doc.text(`${formatNum(data.totalCost)} €`, 195, finalY, { align: 'right' });
-            doc.text(`Abzüglich Vorauszahlungen:`, 120, finalY + 6); doc.text(`- ${formatNum(data.prepay)} €`, 195, finalY + 6, { align: 'right' });
+            doc.setFontSize(11);
+            doc.text(`Ihre Anteile (Netto):`, 120, finalY); doc.text(`${formatNum(data.shareNettoTotal)} €`, 195, finalY, { align: 'right' });
+            doc.text(`./. Vorauszahlungen (Netto):`, 120, finalY + 6); doc.text(`- ${formatNum(data.prepayNetto)} €`, 195, finalY + 6, { align: 'right' });
             doc.setLineWidth(0.5); doc.line(120, finalY + 8, 195, finalY + 8);
-            const label = data.saldo > 0 ? "Nachzahlung bitte überweisen:" : "Guthaben (wird erstattet):";
-            doc.setFont(undefined, 'bold'); if(data.saldo > 0) doc.setTextColor(198, 40, 40); else doc.setTextColor(46, 125, 50);
-            doc.text(label, 120, finalY + 14); doc.text(`${formatNum(Math.abs(data.saldo))} €`, 195, finalY + 14, { align: 'right' });
-            doc.setTextColor(0,0,0); doc.setFont(undefined, 'normal'); doc.text("Mit freundlichen Grüßen,", 14, finalY + 30); doc.text("Ihre Hausverwaltung", 14, finalY + 36);
+            doc.text(`= Saldo (Netto):`, 120, finalY + 14); doc.text(`${formatNum(data.saldoNetto)} €`, 195, finalY + 14, { align: 'right' });
+            let yOffset = 20;
+            if(data.isOpt) {
+                doc.text(`+ 19% Umsatzsteuer auf Saldo:`, 120, finalY + yOffset); doc.text(`${formatNum(data.taxOnSaldo)} €`, 195, finalY + yOffset, { align: 'right' });
+                yOffset += 6; doc.setLineWidth(0.5); doc.line(120, finalY + yOffset, 195, finalY + yOffset); yOffset += 6;
+            }
+            const label = data.finalBrutto > 0 ? "Bitte überweisen Sie:" : "Guthaben:";
+            doc.setFont(undefined, 'bold');
+            if(data.finalBrutto > 0) doc.setTextColor(185, 28, 28); else doc.setTextColor(22, 101, 52);
+            doc.text(label, 120, finalY + yOffset); doc.text(`${formatNum(Math.abs(data.finalBrutto))} €`, 195, finalY + yOffset, { align: 'right' });
+            if(data.lohnHDL > 0 || data.lohnHandwerk > 0) {
+                doc.setTextColor(0,0,0); doc.setFont(undefined, 'bold');
+                doc.text("Bescheinigung nach §35a EStG (Haushaltsnahe Dienstleistungen)", 14, finalY + yOffset + 20);
+                doc.setFont(undefined, 'normal'); doc.setFontSize(10);
+                doc.text("Folgende Lohnanteile sind in Ihrer Abrechnung enthalten (Taggenau berechnet):", 14, finalY + yOffset + 26);
+                let lY = finalY + yOffset + 32;
+                if(data.lohnHDL > 0) { doc.text(`- Haushaltsnahe Dienstleistungen: ${formatNum(data.lohnHDL)} €`, 14, lY); lY+=6; }
+                if(data.lohnHandwerk > 0) { doc.text(`- Handwerkerleistungen: ${formatNum(data.lohnHandwerk)} €`, 14, lY); }
+            }
             const fileName = (data.tenantName || "Leerstand").replace(/[^a-z0-9]/gi, '_');
             doc.save(`Abrechnung_${fileName}.pdf`);
         }
 
-        // --- VERBRAUCH (Zusatz) ---
-        function openVerbrauchsdatenModal(id) { const e=dbEinheiten.get(id); document.getElementById('verbrauchEinheitId').value=id; document.getElementById('verbrauchTitle').innerText=e.name; if(!e.verbrauchsdaten)e.verbrauchsdaten={personen:[],zaehler:[],direkt:[]}; renderVerbrauchLists(e.verbrauchsdaten); switchVerbrauchTab('personen'); document.getElementById('verbrauchsdatenModal').classList.add('active'); }
-        function switchVerbrauchTab(t) { document.querySelectorAll('.v-tab').forEach(x=>x.classList.remove('active')); document.querySelectorAll('.v-panel').forEach(x=>x.classList.remove('active')); document.querySelector(`.v-tab[onclick*='${t}']`).classList.add('active'); document.getElementById('vPanel-'+t).classList.add('active'); }
-        function renderVerbrauchLists(d) { document.getElementById('vList-personen').innerHTML="";if(d.personen)d.personen.forEach(x=>addPersonenRow(x)); document.getElementById('vList-zaehler').innerHTML="";if(d.zaehler)d.zaehler.forEach(x=>addZaehlerRow(x)); document.getElementById('vList-direkt').innerHTML="";if(d.direkt)d.direkt.forEach(x=>addDirektRow(x)); }
-        function addPersonenRow(d={}){ const r=document.createElement('div'); r.className='verbrauchs-row'; r.style.gridTemplateColumns="1fr 1fr 1fr 30px"; r.innerHTML=`<input type="date" class="v-von" value="${d.von||''}"><input type="date" class="v-bis" value="${d.bis||''}"><input type="number" class="v-anz" value="${d.anzahl||''}"><button class="warn-btn" onclick="this.parentElement.remove()">X</button>`; document.getElementById('vList-personen').appendChild(r); }
-        function addZaehlerRow(d={}){ const r=document.createElement('div'); r.className='verbrauchs-row'; r.style.gridTemplateColumns="1fr 1fr 1fr 1fr 0.8fr 0.8fr 0.8fr 30px"; r.innerHTML=`<input class="v-nr" value="${d.nr||''}"><select class="v-art"><option>Wasser Kalt</option><option>Wasser Warm</option><option>Strom</option><option>Heizung</option></select><input type="date" class="v-von" value="${d.von||''}"><input type="date" class="v-bis" value="${d.bis||''}"><input type="number" class="v-start" value="${d.standStart||''}"><input type="number" class="v-end" value="${d.standEnde||''}"><input class="v-verbr" readonly style="background:#eee;"><button class="warn-btn" onclick="this.parentElement.remove()">X</button>`; if(d.art)r.querySelector('.v-art').value=d.art; const calc=()=>{const s=safeFloat(r.querySelector('.v-start').value),e=safeFloat(r.querySelector('.v-end').value);r.querySelector('.v-verbr').value=(e>=s)?formatNum(e-s):"Err";}; r.querySelectorAll('input').forEach(i=>i.oninput=calc); calc(); document.getElementById('vList-zaehler').appendChild(r); }
-        function addDirektRow(d={}){ const c=document.getElementById('vList-direkt'); const r=document.createElement('div'); r.className='verbrauchs-row'; r.style.gridTemplateColumns="1.2fr 1.5fr 0.8fr 0.8fr 0.8fr 0.6fr 0.8fr 0.7fr 0.8fr 0.8fr 30px"; r.innerHTML=`<select class="v-typ" style="font-weight:bold;"><option>Sonstige Direktkosten</option><option>Heizkosten (Fremd)</option><option>Wasser (Fremd)</option></select><input class="v-text" value="${d.text||''}"><input type="date" class="v-von" value="${d.von||''}"><input type="date" class="v-bis" value="${d.bis||''}"><input type="number" step="0.01" class="v-betrag" value="${d.betrag||''}" oninput="calcDirektRow(this.parentElement)"><select class="v-tax" onchange="calcDirektRow(this.parentElement)"><option value="">-</option>${taxKeys.map(t=>`<option value="${t.id}" ${d.steuerKey===t.id?'selected':''}>${t.label}</option>`).join('')}</select><input class="v-netto" readonly style="background:#f0f0f0;" value="${d.netto?formatNum(d.netto):''}"><input type="number" step="0.01" class="v-lohn" value="${d.lohn||''}"><select class="v-lohn-art">${LOHN_ARTEN.map(l=>`<option value="${l.id}" ${d.lohnArt===l.id?'selected':''}>${l.label}</option>`).join('')}</select><input class="v-vorsteuer" readonly style="background:#f0f0f0;" value="${d.vorsteuer?formatNum(d.vorsteuer):''}"><button class="warn-btn" onclick="this.parentElement.remove()">X</button>`; if(d.typ)r.querySelector('.v-typ').value=d.typ; c.appendChild(r); }
-        function calcDirektRow(r){ const b=safeFloat(r.querySelector('.v-betrag').value),tid=r.querySelector('.v-tax').value; let n=b,t=0; if(tid){const k=taxKeys.find(x=>x.id===tid); if(k&&k.rate>0){n=b/(1+k.rate/100); t=b-n;}} r.querySelector('.v-netto').value=formatNum(n); r.querySelector('.v-vorsteuer').value=formatNum(t); }
-        function saveVerbrauchsdaten(){ const eid=document.getElementById('verbrauchEinheitId').value, e=dbEinheiten.get(eid), p=[], z=[], d=[]; 
-        document.querySelectorAll('#vList-personen .verbrauchs-row').forEach(r=>p.push({von:r.querySelector('.v-von').value,bis:r.querySelector('.v-bis').value,anzahl:safeFloat(r.querySelector('.v-anz').value)}));
-        document.querySelectorAll('#vList-zaehler .verbrauchs-row').forEach(r=>z.push({nr:r.querySelector('.v-nr').value,art:r.querySelector('.v-art').value,von:r.querySelector('.v-von').value,bis:r.querySelector('.v-bis').value,standStart:safeFloat(r.querySelector('.v-start').value),standEnde:safeFloat(r.querySelector('.v-end').value)}));
-        document.querySelectorAll('#vList-direkt .verbrauchs-row').forEach(r=>{const b=safeFloat(r.querySelector('.v-betrag').value),tid=r.querySelector('.v-tax').value; let n=b,t=0; if(tid){const k=taxKeys.find(x=>x.id===tid); if(k&&k.rate>0){n=b/(1+k.rate/100); t=b-n;}} d.push({typ:r.querySelector('.v-typ').value,text:r.querySelector('.v-text').value,von:r.querySelector('.v-von').value,bis:r.querySelector('.v-bis').value,betrag:b,steuerKey:tid,netto:n,vorsteuer:t,lohn:safeFloat(r.querySelector('.v-lohn').value),lohnArt:r.querySelector('.v-lohn-art').value});});
-        e.verbrauchsdaten={personen:p,zaehler:z,direkt:d}; dbEinheiten.set(eid,e); saveLocal(); triggerAutoSave(); document.getElementById('verbrauchsdatenModal').classList.remove('active'); alert("Gespeichert!"); }
+        // Additional functions to ensure stability
+        function openNeueAbrechnung() {
+            document.getElementById('abrechnungModal').classList.add('active');
+            document.getElementById('newAbrVon').value = new Date().getFullYear() + "-01-01";
+            document.getElementById('newAbrBis').value = new Date().getFullYear() + "-12-31";
+        }
 
-        // --- ACCOUNTING & OTHER ---
-        function openKontoModal(id){ const e=dbEinheiten.get(id); document.getElementById('kontoEinheitId').value=id; document.getElementById('kontoTitle').innerText=`Konto: ${e.name}`; document.getElementById('manuelleBuchungForm').style.display='none'; const t=dbFinanzen.filter(x=>x.einheitId===id), s=document.getElementById('kontoJahrSelect'), y=new Set(); t.forEach(x=>{if(x.buchungsdatum)y.add(x.buchungsdatum.substr(0,4));}); s.innerHTML='<option value="all">Alle Jahre</option>'; Array.from(y).sort().reverse().forEach(v=>s.add(new Option(v,v))); renderKontoTable(); document.getElementById('kontoModal').classList.add('active'); }
-        function renderKontoTable(){ const eid=document.getElementById('kontoEinheitId').value, y=document.getElementById('kontoJahrSelect').value, b=document.getElementById('kontoBody'); b.innerHTML=""; let t=dbFinanzen.filter(x=>x.einheitId===eid); if(y!=='all')t=t.filter(x=>x.buchungsdatum.startsWith(y)); t.sort((m,n)=>m.buchungsdatum.localeCompare(n.buchungsdatum)); let ss=0,sh=0,bal=0; t.forEach(x=>{const s=x.typ==='soll'?safeFloat(x.betrag):0, h=x.typ==='haben'?safeFloat(x.betrag):0; ss+=s; sh+=h; bal+=(s-h); b.innerHTML+=`<tr onclick="openBuchungDetail('${x.id}')"><td>${x.history&&x.history.length?'(Korr)':''}</td><td>${formatDate(x.buchungsdatum)}</td><td>${x.text}</td><td>${x.konto||''}</td><td>${x.steuerschluessel||'-'}</td><td class="text-right betrag-soll">${s?formatNum(s):''}</td><td class="text-right betrag-haben">${h?formatNum(h):''}</td><td class="text-right"><b>${formatNum(bal)}</b></td><td>${x.locked?'🔒':'<button class="warn-btn" onclick="event.stopPropagation();deleteBuchung(\''+x.id+'\')">x</button>'}</td></tr>`;}); document.getElementById('sumSoll').innerText=formatCurrency(ss); document.getElementById('sumHaben').innerText=formatCurrency(sh); document.getElementById('sumSaldo').innerText=formatCurrency(bal); }
-        function deleteBuchung(id){ if(confirm("Löschen?")){dbFinanzen=dbFinanzen.filter(x=>x.id!==id); saveLocal(); triggerAutoSave(); renderKontoTable();} }
-        function saveManuelleBuchung(){ const eid=document.getElementById('kontoEinheitId').value, d=document.getElementById('mbDatum').value, b=safeFloat(document.getElementById('mbBetrag').value); if(!d||!b)return; const tid=document.getElementById('mbSteuer').value; let sb=0; if(tid){const k=taxKeys.find(x=>x.id===tid); if(k)sb=b-(b/(1+k.rate/100));} dbFinanzen.push({id:getNextFinanzId(),einheitId:eid,buchungsdatum:d,typ:document.getElementById('mbTyp').value,betrag:b,text:document.getElementById('mbText').value,konto:document.getElementById('mbKonto').value,steuerschluessel:tid,steuerbetrag:sb,kategorie:"Manuell",locked:false}); saveLocal(); triggerAutoSave(); renderKontoTable(); document.getElementById('manuelleBuchungForm').style.display='none'; }
-        function resetKonto(){ if(confirm("Alles leeren?")){const eid=document.getElementById('kontoEinheitId').value; dbFinanzen=dbFinanzen.filter(x=>x.einheitId!==eid); saveLocal(); triggerAutoSave(); renderKontoTable();} }
-        function openManuelleBuchung(){ document.getElementById('manuelleBuchungForm').style.display='block'; }
-        function openSollstellungModal(){ document.getElementById('sollstellungModal').classList.add('active'); document.getElementById('sollMonatInput').value=new Date().toISOString().slice(0,7); document.getElementById('sollBuchungsdatum').value=new Date().toISOString().slice(0,10); }
-        function runSollstellung(){ const m=document.getElementById('sollMonatInput').value, bd=document.getElementById('sollBuchungsdatum').value; if(!m||!bd)return; const [yr,mo]=m.split('-').map(Number), dM=new Date(yr,mo,0).getDate(), ms=new Date(yr,mo-1,1), me=new Date(yr,mo-1,dM); let cnt=0; dbEinheiten.forEach((e,eid)=>{if(e.belegung)e.belegung.forEach(b=>{const ei=new Date(b.einzug), au=b.auszug?new Date(b.auszug):new Date('2099-12-31'); if(ei<=me&&au>=ms){ const s=ei>ms?ei:ms, en=au<me?au:me, days=Math.ceil(Math.abs(en-s)/(864e5))+1; if(days>0){ const f=days/dM, op=`${eid}-${mo}${yr}`; if(e.konditionen)e.konditionen.forEach(k=>{ const ga=new Date(k.gueltigAb), gb=k.gueltigBis?new Date(k.gueltigBis):new Date('2099-12-31'); if(ga<=me&&gb>=ms){ const si=ga.getMonth()+1, iv=k.intervall||'Monatlich'; let due=false; if(iv==='Monatlich')due=true; else if(iv==='Vierteljährlich'&&(mo-si)%3===0)due=true; else if(iv==='Halbjährlich'&&(mo-si)%6===0)due=true; else if(iv==='Jährlich'&&mo===si)due=true; if(due){ const bet=safeFloat(k.betrag)*f; let stb=0; if(k.steuerKey){const tk=taxKeys.find(t=>t.id===k.steuerKey);if(tk)stb=bet-(bet/(1+tk.rate/100));} if(!dbFinanzen.some(x=>x.text.includes(op)&&x.kategorie===k.label)){ dbFinanzen.push({id:getNextFinanzId(),einheitId:eid,mieterId:b.mieterId,monatRef:m,buchungsdatum:bd,typ:'soll',kategorie:k.label,text:`${op} (${k.label})`,betrag:bet,konto:k.konto,steuerschluessel:k.steuerKey,steuerbetrag:stb,locked:true}); cnt++; } } } }); } } }); }); saveLocal(); triggerAutoSave(); alert(cnt+" Buchungen erstellt."); document.getElementById('sollstellungModal').classList.remove('active'); }
-        function openBuchungDetail(id){ const t=dbFinanzen.find(x=>x.id===id); if(!t)return; document.getElementById('detailBuchungId').value=id; document.getElementById('detailId').innerText=id; document.getElementById('detailDatumInp').value=t.buchungsdatum; document.getElementById('detailBetragInp').value=safeFloat(t.betrag); document.getElementById('detailTextInp').value=t.text; document.getElementById('detailKontoInp').value=t.konto||""; document.getElementById('detailSteuerInp').value=t.steuerschluessel||""; document.getElementById('detailDoku').value=t.doku||""; document.getElementById('buchungDetailModal').classList.add('active'); }
-        function saveBuchungChanges(){ const id=document.getElementById('detailBuchungId').value, t=dbFinanzen.find(x=>x.id===id); if(!t)return; const nd=document.getElementById('detailDatumInp').value, nb=safeFloat(document.getElementById('detailBetragInp').value), nt=document.getElementById('detailTextInp').value, nk=document.getElementById('detailKontoInp').value, nst=document.getElementById('detailSteuerInp').value; if(nd!==t.buchungsdatum||nb!==safeFloat(t.betrag)||nt!==t.text||nk!==(t.konto||"")||nst!==(t.steuerschluessel||"")){ if(!t.history)t.history=[]; t.history.push({datum:new Date().toISOString(),old:JSON.parse(JSON.stringify(t))}); t.buchungsdatum=nd; t.betrag=nb; t.text=nt; t.konto=nk; t.steuerschluessel=nst; if(nst){const k=taxKeys.find(x=>x.id===nst); if(k)t.steuerbetrag=nb-(nb/(1+k.rate/100));} t.doku=(document.getElementById('detailDoku').value)+`\n[Edit ${new Date().toLocaleDateString()}]`; saveLocal(); triggerAutoSave(); renderKontoTable(); document.getElementById('buchungDetailModal').classList.remove('active'); alert("Gespeichert"); } }
+        function createAbrechnung() {
+            const name = document.getElementById('newAbrName').value;
+            const von = document.getElementById('newAbrVon').value;
+            const bis = document.getElementById('newAbrBis').value;
+            const objId = document.getElementById('kostenObjektSelect').value;
 
-        // --- DATA MGMT ---
-        function toggleAbrechnungStatus(l){ const aid=document.getElementById('currentAbrechnungId').value,a=dbAbrechnungen.find(x=>x.id===aid); if(!a)return; if(l){if(!confirm("Abschließen?"))return;a.status='closed';}else{if(!confirm("Öffnen?"))return;a.status='open';} saveLocal(); triggerAutoSave(); renderAbrechnungsListe(); loadKostenEditor(aid); }
-        function deleteAbrechnungComplete(){ const aid=document.getElementById('currentAbrechnungId').value; if(!aid||!confirm("Alles löschen?"))return; dbKosten=dbKosten.filter(k=>k.abrechnungId!==aid); dbAbrechnungen=dbAbrechnungen.filter(a=>a.id!==aid); saveLocal(); triggerAutoSave(); document.getElementById('abrechnungWrapper').style.display="none"; document.getElementById('kostenEditor').style.display="none"; renderAbrechnungsListe(); alert("Gelöscht."); }
-        async function loadFromOneDrive(){ if(!(await getValidToken(true)))return; zeigeStatus("Lade...","saving"); try{const rC=await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/ideenapp/stammdaten.json:/content",{headers:{"Authorization":`Bearer ${accessToken}`}});if(rC.ok){const d=await rC.json();if(d.kontakte)dbKontakte=new Map(d.kontakte);} 
-        const rF=await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/ideenapp/finanzen.json:/content",{headers:{"Authorization":`Bearer ${accessToken}`}});if(rF.ok){const d=await rF.json();if(d.finanzen)dbFinanzen=d.finanzen;if(d.taxKeys)taxKeys=d.taxKeys;if(d.verteilKeys)verteilKeys=d.verteilKeys;if(d.abrechnungen)dbAbrechnungen=d.abrechnungen;if(d.kosten)dbKosten=d.kosten;}
-        const rI=await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/ideenapp/immobilien.json:/content",{headers:{"Authorization":`Bearer ${accessToken}`}});if(rI.ok){const d=await rI.json();if(d.objekte)dbObjekte=new Map(d.objekte);if(d.haeuser)dbHaeuser=new Map(d.haeuser);if(d.einheiten)dbEinheiten=new Map(d.einheiten);saveLocal();renderLists();zeigeStatus("Geladen","success");} }catch(e){zeigeStatus(e.message,"error");} }
-        async function saveToOneDrive(m=true){ if(!(await getValidToken(m)))return; zeigeStatus("Speichere...","saving"); 
-        const dI={objekte:Array.from(dbObjekte.entries()),haeuser:Array.from(dbHaeuser.entries()),einheiten:Array.from(dbEinheiten.entries())}, dF={finanzen:dbFinanzen,taxKeys:taxKeys,verteilKeys:verteilKeys,abrechnungen:dbAbrechnungen,kosten:dbKosten};
-        await Promise.all([fetch("https://graph.microsoft.com/v1.0/me/drive/root:/ideenapp/immobilien.json:/content",{method:"PUT",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":"application/json"},body:JSON.stringify(dI)}),
-        fetch("https://graph.microsoft.com/v1.0/me/drive/root:/ideenapp/finanzen.json:/content",{method:"PUT",headers:{"Authorization":`Bearer ${accessToken}`,"Content-Type":"application/json"},body:JSON.stringify(dF)})]); zeigeStatus("Gespeichert","success"); }
-        function loadLocal(){ try{const o=localStorage.getItem("immo_objekte");if(o)dbObjekte=new Map(JSON.parse(o));const h=localStorage.getItem("immo_haeuser");if(h)dbHaeuser=new Map(JSON.parse(h));const e=localStorage.getItem("immo_einheiten");if(e)dbEinheiten=new Map(JSON.parse(e));
-        const f=localStorage.getItem("immo_finanzen");if(f){const p=JSON.parse(f);dbFinanzen=p.finanzen||p;if(p.taxKeys)taxKeys=p.taxKeys;if(p.verteilKeys)verteilKeys=p.verteilKeys;if(p.abrechnungen)dbAbrechnungen=p.abrechnungen;if(p.kosten)dbKosten=p.kosten;}
-        const k=localStorage.getItem("kontakte_personen");if(k)dbKontakte=new Map(JSON.parse(k));}catch(e){} }
-        function saveLocal(){ localStorage.setItem("immo_objekte",JSON.stringify(Array.from(dbObjekte.entries())));localStorage.setItem("immo_haeuser",JSON.stringify(Array.from(dbHaeuser.entries())));localStorage.setItem("immo_einheiten",JSON.stringify(Array.from(dbEinheiten.entries())));localStorage.setItem("immo_finanzen",JSON.stringify({finanzen:dbFinanzen,taxKeys:taxKeys,verteilKeys:verteilKeys,abrechnungen:dbAbrechnungen,kosten:dbKosten})); }
-        function triggerAutoSave(){ if(!accessToken)return; zeigeStatus("...","info"); clearTimeout(autoSaveTimer); autoSaveTimer=setTimeout(()=>saveToOneDrive(false),2000); }
-        async function getValidToken(i=false){ if(!msalInstance)return null; const a=msalInstance.getActiveAccount(); if(!a)return null; try{const r=await msalInstance.acquireTokenSilent({scopes:["Files.ReadWrite"],account:a});accessToken=r.accessToken;return r.accessToken;}catch(e){if(i){try{const r=await msalInstance.acquireTokenPopup({scopes:["Files.ReadWrite"],account:a});accessToken=r.accessToken;return r.accessToken;}catch(e){return null;}}return null;} }
-        async function versucheSitzungWiederherzustellen(){ if(sessionStorage.getItem('loginType')==='microsoft'){ const a=await msalInstance.getAccountByHomeId(sessionStorage.getItem('msalAccountIdentifier')); if(a){ msalInstance.setActiveAccount(a); if(await getValidToken(false)){ userEmail=a.username; document.getElementById('loggedInUser').innerText=`(${userEmail})`; document.getElementById('msLoginBtn').style.display='none'; document.getElementById('msLogoutBtn').style.display='inline-block'; document.getElementById('cloudSaveBtn').disabled=false; loadFromOneDrive(); }}}}
-        async function handleMicrosoftLogin(){ try{const r=await msalInstance.loginPopup({scopes:["Files.ReadWrite","User.Read"]}); msalInstance.setActiveAccount(r.account); sessionStorage.setItem('loginType','microsoft'); sessionStorage.setItem('msalAccountIdentifier',r.account.homeAccountId); versucheSitzungWiederherzustellen(); }catch(e){} }
-        function handleLogout(){ msalInstance.logoutPopup(); sessionStorage.clear(); location.reload(); }
-        function zeigeStatus(m,c){ const s=document.getElementById('onedriveStatus'); s.innerText=m; s.className='onedrive-status '+c; s.style.display='inline-flex'; setTimeout(()=>s.style.display='none',3000); }
+            if(!name || !von || !bis || !objId) { alert("Bitte alle Felder füllen."); return; }
 
-        // --- FILE IO ---
-        async function speichereDateiLokal(){ const d={objekte:Array.from(dbObjekte.entries()),haeuser:Array.from(dbHaeuser.entries()),einheiten:Array.from(dbEinheiten.entries()),finanzen:dbFinanzen,taxKeys:taxKeys,verteilKeys:verteilKeys,abrechnungen:dbAbrechnungen,kosten:dbKosten}; const b=new Blob([JSON.stringify(d,null,2)],{type:"application/json"}); if(window.showSaveFilePicker){try{const h=await window.showSaveFilePicker({suggestedName:"objekte_backup.json"});const w=await h.createWritable();await w.write(b);await w.close();zeigeStatus("Gesichert","success");}catch(e){}}else{const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="objekte_backup.json";a.click();} }
-        async function ladeDateiLokal(){ try{let t;if(window.showOpenFilePicker){const [h]=await window.showOpenFilePicker();const f=await h.getFile();t=await f.text();}else{const i=document.createElement("input");i.type="file";i.click();await new Promise(r=>i.onchange=e=>{const fr=new FileReader();fr.onload=ev=>r(t=ev.target.result);fr.readAsText(e.target.files[0]);});}if(t){const d=JSON.parse(t);if(d.objekte)dbObjekte=new Map(d.objekte);if(d.haeuser)dbHaeuser=new Map(d.haeuser);if(d.einheiten)dbEinheiten=new Map(d.einheiten);if(d.finanzen)dbFinanzen=d.finanzen;if(d.taxKeys)taxKeys=d.taxKeys;if(d.verteilKeys)verteilKeys=d.verteilKeys;if(d.abrechnungen)dbAbrechnungen=d.abrechnungen;if(d.kosten)dbKosten=d.kosten;saveLocal();renderLists();alert("Geladen!");}}catch(e){alert("Fehler");} }
-        function createDummyData(){ if(!confirm("Musterdaten?"))return; const oid=getNextObjektID(); dbObjekte.set(oid,{nummer:oid,name:"Wohnpark Test",plz:"12345",ort:"Musterstadt",flaeche:150,mea:1000,sollHaeuser:1,steuerStatus:"opt"}); const hid=getNextHausID(oid); dbHaeuser.set(hid,{objektId:oid,bezeichnung:"Haus A",anteile:1000,sollMatrix:{'wohnung':{count:2,area:100}},steuerStatus:"opt"}); let eid=getNextEinheitID(hid); dbEinheiten.set(eid,{hausId:hid,name:"EG Links",typ:"wohnung",flaeche:50,zimmer:2,mea:333.33,konditionen:[],belegung:[]}); eid=getNextEinheitID(hid); dbEinheiten.set(eid,{hausId:hid,name:"Büro",typ:"gewerbe",flaeche:50,zimmer:2,mea:333.33,konditionen:[],belegung:[]}); saveLocal(); renderLists(); }
+            const newId = 'abr_' + Date.now();
+            dbAbrechnungen.push({
+                id: newId,
+                objektId: objId,
+                name: name,
+                von: von,
+                bis: bis,
+                status: 'open'
+            });
 
-        // PDF Functions
-        function exportKontoPDF() { const eid=document.getElementById('kontoEinheitId').value, e=dbEinheiten.get(eid), doc=new jspdf.jsPDF(); doc.text(`Mieterkonto: ${e.name}`,14,15); const r=[]; let bal=0; dbFinanzen.filter(x=>x.einheitId===eid).sort((a,b)=>a.buchungsdatum.localeCompare(b.buchungsdatum)).forEach(x=>{ const s=x.typ==='soll'?safeFloat(x.betrag):0, h=x.typ==='haben'?safeFloat(x.betrag):0; bal+=(s-h); r.push([formatDate(x.buchungsdatum),x.text,s?formatNum(s):'',h?formatNum(h):'',formatNum(bal)]); }); doc.autoTable({head:[['Datum','Text','Soll','Haben','Saldo']],body:r,startY:20}); doc.save(`Konto_${e.name}.pdf`); }
-        function generateObjectReportPDF() { const doc=new jspdf.jsPDF('l'), r=[]; dbObjekte.forEach((o,id)=>{const h=Array.from(dbHaeuser.values()).filter(x=>x.objektId===id); let fl=0; h.forEach(x=>{if(x.sollMatrix)Object.values(x.sollMatrix).forEach(v=>fl+=safeFloat(v.area));}); r.push([o.name,`${h.length}/${o.sollHaeuser}`,`${formatNum(safeFloat(o.flaeche))} m²`,`${formatNum(fl)} m²`]);}); doc.autoTable({head:[['Objekt','Häuser','Soll-Fl','Ist-Fl']],body:r}); doc.save('objekte.pdf'); }
-        function generateHouseReportPDF() { const doc=new jspdf.jsPDF('l'), r=[]; dbHaeuser.forEach((h,id)=>{const u=Array.from(dbEinheiten.values()).filter(x=>x.hausId===id); let sf=0; if(h.sollMatrix)Object.values(h.sollMatrix).forEach(v=>sf+=safeFloat(v.area)); const ifl=u.reduce((s,e)=>s+safeFloat(e.flaeche),0); r.push([h.bezeichnung,u.length,`${formatNum(sf)} m²`,`${formatNum(ifl)} m²`]);}); doc.autoTable({head:[['Haus','Einheiten','Soll-Fl','Ist-Fl']],body:r}); doc.save('haeuser.pdf'); }
-        function generateUnitReportPDF() { const doc=new jspdf.jsPDF('l'), r=[]; dbEinheiten.forEach((e,id)=>{const h=dbHaeuser.get(e.hausId); let st="LEERSTAND"; if(e.belegung&&e.belegung.length){const cur=e.belegung.find(b=>(b.einzug<=new Date().toISOString().split('T')[0])&&(!b.auszug||b.auszug>=new Date().toISOString().split('T')[0])); if(cur){const m=dbKontakte.get(cur.mieterId); st=m?m.fn:"Vermietet";}} r.push([h?h.bezeichnung:'?',e.name,e.typ,`${formatNum(e.flaeche)} m²`,st]);}); doc.autoTable({head:[['Haus','Einheit','Typ','Fläche','Status']],body:r}); doc.save('einheiten.pdf'); }
+            saveLocal();
+            document.getElementById('abrechnungModal').classList.remove('active');
+            renderAbrechnungsListe();
+        }
+
+        function renderAbrechnungsListe() {
+            const objId = document.getElementById('kostenObjektSelect').value;
+            const list = document.getElementById('abrechnungenListe');
+            list.innerHTML = "";
+            
+            if(!objId) return;
+
+            const relevant = dbAbrechnungen.filter(a => a.objektId === objId);
+            
+            relevant.forEach(a => {
+                const div = document.createElement('div');
+                div.className = "liste-item";
+                div.style.cursor = "pointer";
+                div.innerHTML = `<div><b>${a.name}</b><br><small>${formatDate(a.von)} - ${formatDate(a.bis)}</small></div>`;
+                div.onclick = () => loadKostenEditor(a.id);
+                list.appendChild(div);
+            });
+            
+            document.getElementById('abrechnungWrapper').style.display = "block";
+            document.getElementById('kostenEditor').style.display = "none";
+            document.getElementById('kostenPlaceholder').style.display = "block";
+        }
+
+        function loadKostenEditor(id) {
+            const abr = dbAbrechnungen.find(a => a.id === id);
+            if(!abr) return;
+
+            document.getElementById('currentAbrechnungId').value = id;
+            document.getElementById('editorTitle').innerText = abr.name;
+            document.getElementById('kostenPlaceholder').style.display = "none";
+            document.getElementById('kostenEditor').style.display = "flex";
+            document.getElementById('kostenCockpit').style.display = "block";
+
+            // Status management
+            const isClosed = abr.status === 'closed';
+            document.getElementById('btnLockAbr').style.display = isClosed ? 'none' : 'inline-block';
+            document.getElementById('btnUnlockAbr').style.display = isClosed ? 'inline-block' : 'none';
+            document.getElementById('btnSaveKosten').disabled = isClosed;
+            document.getElementById('btnSimulate').disabled = false; // Allow simulation
+
+            const badge = document.getElementById('abrStatusBadge');
+            badge.innerText = isClosed ? "GESCHLOSSEN" : "OFFEN";
+            badge.style.backgroundColor = isClosed ? "#fee2e2" : "#dcfce7";
+            badge.style.color = isClosed ? "#991b1b" : "#166534";
+
+            renderKostenRows(id);
+            checkAbrechnungReadiness(id);
+        }
+
+        function addKostenRow(d={}) {
+            const container = document.getElementById('kostenListe');
+            const row = document.createElement('div');
+            row.className = "kosten-row";
+            row.dataset.id = d.id || getNextFinanzId();
+            
+            const taxOpts = ['<option value="">-</option>', ...taxKeys.map(t => `<option value="${t.id}" ${d.steuerKey===t.id?'selected':''}>${t.label}</option>`)].join('');
+            const verteilOpts = verteilKeys.map(v => `<option value="${v.id}" ${d.verteilKey===v.id?'selected':''}>${v.label}</option>`).join('');
+            const lohnOpts = LOHN_ARTEN.map(l => `<option value="${l.id}" ${d.lohnArt===l.id?'selected':''}>${l.label}</option>`).join('');
+
+            row.innerHTML = `
+                <input class="k-konto" value="${d.konto||''}" placeholder="Kto">
+                <input class="k-text" value="${d.text||''}" placeholder="Beschreibung">
+                <input type="number" step="0.01" class="k-brutto" value="${d.brutto||''}" placeholder="0,00" oninput="calcKostenRow(this.parentElement)">
+                <input type="number" step="0.01" class="k-lohn" value="${d.lohn||''}" placeholder="Lohn">
+                <select class="k-lohn-art">${lohnOpts}</select>
+                <select class="k-tax" onchange="calcKostenRow(this.parentElement)">${taxOpts}</select>
+                <input class="k-netto" readonly style="background:#f1f5f9; color:#555;" value="${d.netto?formatNum(d.netto):''}">
+                <input class="k-steuer" readonly style="background:#f1f5f9; color:#555;" value="${d.steuerBetrag?formatNum(d.steuerBetrag):''}">
+                <select class="k-verteil">${verteilOpts}</select>
+                <button class="warn-btn" onclick="this.parentElement.remove(); updateKostenSums();">x</button>
+            `;
+            container.appendChild(row);
+        }
+
+        function renderKostenRows(abrId) {
+            const list = document.getElementById('kostenListe');
+            list.innerHTML = "";
+            const costs = dbKosten.filter(k => k.abrechnungId === abrId);
+            costs.forEach(c => addKostenRow(c));
+            updateKostenSums();
+        }
+
+        function calcKostenRow(row) {
+            const brutto = safeFloat(row.querySelector('.k-brutto').value);
+            const taxId = row.querySelector('.k-tax').value;
+            let net = brutto;
+            let taxAmt = 0;
+
+            if(taxId) {
+                const k = taxKeys.find(x => x.id === taxId);
+                if(k) {
+                    net = brutto / (1 + k.rate/100);
+                    taxAmt = brutto - net;
+                }
+            }
+            row.querySelector('.k-netto').value = formatNum(net);
+            row.querySelector('.k-steuer').value = formatNum(taxAmt);
+            updateKostenSums();
+        }
+
+        function updateKostenSums() {
+            let sumNet = 0, sumTax = 0, sumGross = 0;
+            document.querySelectorAll('.kosten-row').forEach(r => {
+                sumGross += safeFloat(r.querySelector('.k-brutto').value);
+                sumNet += safeFloat(r.querySelector('.k-netto').value);
+                sumTax += safeFloat(r.querySelector('.k-steuer').value);
+            });
+            document.getElementById('sumKostenNetto').innerText = formatNum(sumNet) + " €";
+            document.getElementById('sumKostenSteuer').innerText = formatNum(sumTax) + " €";
+            document.getElementById('sumKostenBrutto').innerText = formatNum(sumGross) + " €";
+        }
+
+        function checkAbrechnungReadiness(id) {
+             const costs = dbKosten.filter(k => k.abrechnungId === id);
+             const abr = dbAbrechnungen.find(a => a.id === id);
+             const container = document.getElementById('checkListContainer');
+             
+             let html = "";
+             // 1. Check Costs
+             if(costs.length > 0) html += `<div class="check-item ok">✅ ${costs.length} Kostenpositionen erfasst.</div>`;
+             else html += `<div class="check-item warn">⚠️ Keine Kostenpositionen erfasst.</div>`;
+
+             // 2. Check Units
+             const units = Array.from(dbEinheiten.values()).filter(u => u.objektId === abr.objektId);
+             if(units.length > 0) html += `<div class="check-item ok">✅ ${units.length} Einheiten im Objekt.</div>`;
+             else html += `<div class="check-item error">⛔ Keine Einheiten gefunden!</div>`;
+
+             container.innerHTML = html;
+        }
+
 
         // --- INIT ---
         window.onload = function() {
-            // Load MSAL
-            msalInstance = new msal.PublicClientApplication(msalConfig);
-            
-            // Check for return from redirect
-            const loginType = sessionStorage.getItem('loginType');
-            if(loginType === 'microsoft') {
-                 versucheSitzungWiederherzustellen();
+            // MSAL Init
+            try {
+                msalInstance = new msal.PublicClientApplication(msalConfig);
+                const loginType = sessionStorage.getItem('loginType');
+                if(loginType === 'microsoft') { versucheSitzungWiederherzustellen(); }
+            } catch (e) {
+                console.warn("MSAL Init Error (wahrscheinlich Localhost/Config):", e);
+                document.getElementById('onedriveStatus').innerText = "Cloud inaktiv (Config)";
+                document.getElementById('onedriveStatus').style.display = "inline-flex";
             }
-
-            // Init Local Data
-            loadLocal();
             
-            // Init UI
-            initTaxSelect();
+            loadLocal(); 
+            
+            if(!taxKeys || taxKeys.length === 0) {
+                taxKeys = [
+                    {id:'2',label:'2 - USt 7% (Ausgang)',rate:7}, {id:'3',label:'3 - USt 19% (Ausgang)',rate:19}, {id:'20',label:'20 - USt 0%',rate:0},
+                    {id:'8',label:'8 - VSt 7% (Eingang)',rate:7}, {id:'9',label:'9 - VSt 19% (Eingang)',rate:19}, {id:'30',label:'30 - VSt 0%',rate:0}
+                ];
+            }
+            
+            initTaxSelect(); 
             renderLists();
         };
     </script>
