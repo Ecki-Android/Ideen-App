@@ -94,8 +94,10 @@
         .soll-matrix input { width: 100%; text-align: center; border: 1px solid transparent; background: #ecfccb; font-weight: bold; }
 
         .kondition-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1.2fr 1fr 1fr 0.8fr 35px 35px 35px; gap: 5px; margin-bottom: 5px; align-items: center; border-bottom: 1px dashed #e2e8f0; padding-bottom: 5px; }
-        .kosten-row { display: grid; grid-template-columns: 0.8fr 1.8fr 1fr 0.8fr 1fr 0.6fr 1fr 0.8fr 1fr 30px; gap: 5px; margin-bottom: 5px; align-items: center; border-bottom: 1px dashed #e2e8f0; padding-bottom: 5px; }
-        .kosten-header { display: grid; grid-template-columns: 0.8fr 1.8fr 1fr 0.8fr 1fr 0.6fr 1fr 0.8fr 1fr 30px; gap: 5px; font-weight: bold; background: #f1f5f9; padding: 8px 5px; border-radius: 4px 4px 0 0; font-size: 0.75em; color: #475569; text-transform: uppercase; }
+        /* Update Kosten Row Grid for RAP Dates */
+        .kosten-row { display: grid; grid-template-columns: 0.6fr 1.5fr 0.8fr 0.8fr 0.8fr 0.6fr 0.8fr 0.5fr 0.6fr 0.8fr 30px; gap: 5px; margin-bottom: 5px; align-items: center; border-bottom: 1px dashed #e2e8f0; padding-bottom: 5px; }
+        .kosten-header { display: grid; grid-template-columns: 0.6fr 1.5fr 0.8fr 0.8fr 0.8fr 0.6fr 0.8fr 0.5fr 0.6fr 0.8fr 30px; gap: 5px; font-weight: bold; background: #f1f5f9; padding: 8px 5px; border-radius: 4px 4px 0 0; font-size: 0.75em; color: #475569; text-transform: uppercase; }
+        
         .kosten-footer { display: flex; justify-content: flex-end; gap: 15px; padding: 10px; background: #ccfbf1; font-weight: bold; border-top: 2px solid #0f766e; margin-top: 10px; color: #0f766e; }
         
         .split-row { display: grid; grid-template-columns: 1fr 2fr 1fr 0.8fr 1fr 0.8fr 1fr 30px; gap: 5px; margin-bottom: 5px; align-items: center; }
@@ -144,6 +146,8 @@
         .v-tab.active { background: #fff; border-bottom: 3px solid #166534; color: #166534; font-weight: bold; border-radius: 4px 4px 0 0; }
         .v-panel { display: none; }
         .v-panel.active { display: block; }
+
+        .mieter-info-row { font-size: 0.85em; color: #4b5563; margin-top: 4px; background: #f8fafc; padding: 4px; border-radius: 4px; display: inline-block;}
     </style>
 </head>
 <body>
@@ -222,7 +226,8 @@
                             <div id="kostenCockpit" style="display:none; padding:10px; background:#fffbeb; border-bottom:1px solid #fcd34d; margin-bottom:10px;">
                                 <h4 style="margin:0 0 10px 0; color:#b45309;">⚙️ Abrechnungs-Cockpit & Prüfung</h4>
                                 <div id="checkListContainer"></div>
-                                <div style="text-align:right; margin-top:10px;">
+                                <div style="text-align:right; margin-top:10px; display:flex; gap:10px; justify-content:flex-end;">
+                                    <button onclick="calculateRAP()" class="finance-btn" title="Rechnungsabgrenzungsposten berechnen">📅 RAP Analyse</button>
                                     <button onclick="generateProtocolPDF()" class="report-btn">🧾 Prüfprotokoll erstellen</button>
                                 </div>
                             </div>
@@ -239,7 +244,7 @@
                                     </div>
                                 </div>
                                 <input type="hidden" id="currentAbrechnungId">
-                                <div class="kosten-header"><div>Konto</div><div>Beschreibung</div><div>Brutto €</div><div>Lohn €</div><div>Lohn-Art</div><div>VSt-Key</div><div>Netto €</div><div>Vorsteuer €</div><div>Verteiler</div><div></div></div>
+                                <div class="kosten-header"><div>Konto</div><div>Beschreibung</div><div>Brutto €</div><div>Zeitraum</div><div>Lohn €</div><div>Lohn-Art</div><div>VSt-Key</div><div>Netto €</div><div>Vorsteuer €</div><div>Verteiler</div><div></div></div>
                                 <div id="kostenListe" style="flex:1; overflow-y:auto; border:1px solid #e2e8f0; border-top:none; background:#f9f9f9;"></div>
                                 <div id="kostenActions" style="margin-top:10px; display:flex; gap:10px;">
                                     <button class="primary-btn" onclick="addKostenRow()">+ Kostenposition</button>
@@ -261,6 +266,19 @@
     </div>
 
     <!-- MODALS -->
+    
+    <!-- RAP Result Modal -->
+    <div id="rapModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')">
+        <div class="modal-content" style="max-width:800px;">
+            <h3>📅 Rechnungsabgrenzung (pRAP)</h3>
+            <p style="margin-bottom:15px; font-size:0.9em;">Folgende Positionen ragen über den Abrechnungszeitraum hinaus. Die Anteile für das Folgejahr wurden berechnet.</p>
+            <div id="rapResultContent" style="max-height:50vh; overflow-y:auto; margin-bottom:15px;"></div>
+            <div class="modal-actions">
+                <button onclick="document.getElementById('rapModal').classList.remove('active')">Schließen</button>
+            </div>
+        </div>
+    </div>
+
     <div id="resultModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')">
         <div class="modal-content" style="max-width:1100px;">
             <h3>📊 Abrechnungs-Plausibilität & Ergebnisse</h3>
@@ -434,7 +452,7 @@
             {id:'8',label:'8 - VSt 7% (Eingang)',rate:7}, {id:'9',label:'9 - VSt 19% (Eingang)',rate:19}, {id:'30',label:'30 - VSt 0%',rate:0}
         ];
         
-        const TAX_STATUS_MAP = {'opt':{label:'USt-Pflichtig',class:'tax-opt'},'none':{label:'USt-Frei',class:'tax-none'},'mixed':{label:'Gemischt',class:'tax-mixed'}};
+        const TAX_STATUS_MAP = {'opt':{label:'Optiert',class:'tax-opt'},'none':{label:'Ohne USt',class:'tax-none'},'mixed':{label:'Gemischt',class:'tax-mixed'}};
         
         const msalConfig = { auth: { clientId: "c3cd3be4-3540-46dd-a24c-82eb6ed5542d", authority: "https://login.microsoftonline.com/common", redirectUri: window.location.origin + window.location.pathname } };
         let msalInstance = null, accessToken = null, userEmail = null;
@@ -496,15 +514,44 @@
                 const o = dbObjekte.get(h.objektId); const uArr = Array.from(dbEinheiten.values()).filter(e => e.hausId === id);
                 let matrixInfo = ""; let typeBadges = '<div style="margin-top:5px; display:flex; gap:5px; flex-wrap:wrap;">'; let sumSollArea=0, sumIstArea=0;
                 if(h.sollMatrix) { Object.entries(h.sollMatrix).forEach(([typId, data]) => { const unitsOfType = uArr.filter(e => e.typ === typId).length; const areaOfUnits = uArr.filter(e => e.typ === typId).reduce((s,e)=>s+safeFloat(e.flaeche),0); const sollCnt = parseInt(data.count)||0; sumSollArea += safeFloat(data.area); sumIstArea += areaOfUnits; const cls = unitsOfType === sollCnt ? 'full' : (unitsOfType > sollCnt ? 'over' : 'open'); typeBadges += `<span class="type-badge ${cls}">${getTypeLabel(typId)}: ${unitsOfType}/${sollCnt}</span>`; }); matrixInfo = `<div class="objekt-stats">${validateVal(sumSollArea, sumIstArea, 'm² (Soll vs Ist)')}</div>`; } typeBadges += '</div>';
-                hDiv.innerHTML += `<div class="liste-item"><input type="checkbox" class="item-checkbox" value="${id}"><div class="liste-content"><h4>${h.bezeichnung} <small>(${o ? o.name : '?'})</small></h4>${matrixInfo}${typeBadges}<div class="detail-box">Einheiten: ${uArr.length} | Ist-Fläche: ${formatNum(sumIstArea)} m²</div><button onclick="openHausMask('${id}')" style="margin-top:5px;">Bearbeiten</button></div></div>`;
+                
+                // Steuer Status für Haus
+                const tSt = TAX_STATUS_MAP[h.steuerStatus || (o && o.steuerStatus ? o.steuerStatus : 'opt')];
+                const houseTaxBadge = h.steuerStatus ? `<span class="tax-badge ${tSt.class}">${tSt.label}</span>` : '';
+
+                hDiv.innerHTML += `<div class="liste-item"><input type="checkbox" class="item-checkbox" value="${id}"><div class="liste-content"><h4>${h.bezeichnung} <small>(${o ? o.nummer : '?'}/${id.split('/').pop()})</small> ${houseTaxBadge}</h4>${matrixInfo}${typeBadges}<div class="detail-box">Einheiten: ${uArr.length} | Ist-Fläche: ${formatNum(sumIstArea)} m²</div><button onclick="openHausMask('${id}')" style="margin-top:5px;">Bearbeiten</button></div></div>`;
             });
 
             const eDiv = document.getElementById('einheitenListe'); eDiv.innerHTML = "";
             dbEinheiten.forEach((e, id) => {
                 const h = dbHaeuser.get(e.hausId); if(activeFilterId && (!h || h.objektId !== activeFilterId)) return;
+                const o = h ? dbObjekte.get(h.objektId) : null;
                 let status = '<span class="status-leerstand">LEERSTAND</span>';
-                if(e.belegung && e.belegung.length) { const today = new Date().toISOString().split('T')[0]; const current = e.belegung.find(b => (b.einzug <= today) && (!b.auszug || b.auszug >= today)); if(current) { const m = dbKontakte.get(current.mieterId); const contactInfo = m ? `${m.fn} <small style="color:#666;">${m.email||''} ${m.phone||''}</small>` : '?'; status = `<span class="status-vermietet">Vermietet: ${contactInfo}</span>`; } }
-                eDiv.innerHTML += `<div class="liste-item"><input type="checkbox" class="item-checkbox" value="${id}"><div class="liste-content"><div style="display:flex; justify-content:space-between;"><h4>${e.name} <small>(${h ? h.bezeichnung : ''})</small></h4><div><button class="finance-btn" onclick="openVerbrauchsdatenModal('${id}')">📊 Zähler & Daten</button><button class="account-btn" onclick="openKontoModal('${id}')">💶 Konto</button><button onclick="openEinheitMask('${id}')">Bearbeiten</button></div></div><div class="detail-box">${getTypeLabel(e.typ)} | ${formatNum(e.flaeche)} m² | ${e.zimmer} Zi | ${status}</div></div></div>`;
+                
+                // Status Logic: Finde aktuellen Mieter (HEUTE)
+                let tenantDetails = "";
+                if(e.belegung && e.belegung.length) { 
+                    const today = new Date().toISOString().split('T')[0]; 
+                    const current = e.belegung.find(b => (b.einzug <= today) && (!b.auszug || b.auszug >= today)); 
+                    if(current) { 
+                        const m = dbKontakte.get(current.mieterId); 
+                        const contactInfo = m ? `${m.fn} <small style="color:#666;">${m.email||''} ${m.phone||''}</small>` : '?'; 
+                        status = `<span class="status-vermietet">Vermietet: ${contactInfo}</span>`; 
+                        if(m) {
+                            tenantDetails = `<div class="mieter-info-row">Debitor: <b>${m.kundennummer || 'n/a'}</b> | Tel: ${m.phone || '-'} | Mail: ${m.email || '-'}</div>`;
+                        }
+                    } 
+                }
+
+                // Tax Badge
+                const taxVal = e.steuerStatus || (h && h.steuerStatus ? h.steuerStatus : (o ? o.steuerStatus : 'opt'));
+                const tSt = TAX_STATUS_MAP[taxVal] || TAX_STATUS_MAP['opt'];
+
+                // Full ID Construct: Objekt/Haus/Einheit
+                // Annahme: ID Struktur ist bereits Objekt/Haus/Unit durch Erstellung. Falls nicht, bauen wir visuell
+                const displayId = id; // Da IDs hierarchisch erstellt werden (1090/01/0101) passt das meist.
+
+                eDiv.innerHTML += `<div class="liste-item"><input type="checkbox" class="item-checkbox" value="${id}"><div class="liste-content"><div style="display:flex; justify-content:space-between;"><h4>${e.name} <small>(${displayId})</small> <span class="tax-badge ${tSt.class}">${tSt.label}</span></h4><div><button class="finance-btn" onclick="openVerbrauchsdatenModal('${id}')">📊 Zähler & Daten</button><button class="account-btn" onclick="openKontoModal('${id}')">💶 Konto</button><button onclick="openEinheitMask('${id}')">Bearbeiten</button></div></div><div class="detail-box">${getTypeLabel(e.typ)} | ${formatNum(e.flaeche)} m² | ${e.zimmer} Zi | ${status}</div>${tenantDetails}</div></div>`;
             });
             const tSel = document.getElementById('einheitTypSelect'); 
             tSel.innerHTML = ""; // Reset
@@ -611,14 +658,103 @@
         function addZaehlerRow(d={}){ const r=document.createElement('div'); r.className='verbrauchs-row'; r.style.gridTemplateColumns="1fr 1fr 1fr 1fr 0.8fr 0.8fr 0.8fr 30px"; r.innerHTML=`<input class="v-nr" value="${d.nr||''}"><select class="v-art"><option>Wasser Kalt</option><option>Wasser Warm</option><option>Strom</option><option>Heizung</option></select><input type="date" class="v-von" value="${d.von||''}"><input type="date" class="v-bis" value="${d.bis||''}"><input type="number" class="v-start" value="${d.standStart||''}"><input type="number" class="v-end" value="${d.standEnde||''}"><input class="v-verbr" readonly style="background:#eee;"><button class="warn-btn" onclick="this.parentElement.remove()">X</button>`; if(d.art)r.querySelector('.v-art').value=d.art; const calc=()=>{const s=safeFloat(r.querySelector('.v-start').value),e=safeFloat(r.querySelector('.v-end').value);r.querySelector('.v-verbr').value=(e>=s)?formatNum(e-s):"Err";}; r.querySelectorAll('input').forEach(i=>i.oninput=calc); calc(); document.getElementById('vList-zaehler').appendChild(r); }
         function addDirektRow(d={}){ const c=document.getElementById('vList-direkt'); const r=document.createElement('div'); r.className='verbrauchs-row'; r.style.gridTemplateColumns="1.2fr 1.5fr 0.8fr 0.8fr 0.8fr 0.6fr 0.8fr 0.7fr 0.8fr 0.8fr 30px"; r.innerHTML=`<select class="v-typ" style="font-weight:bold;"><option>Sonstige Direktkosten</option><option>Heizkosten (Fremd)</option><option>Wasser (Fremd)</option></select><input class="v-text" value="${d.text||''}"><input type="date" class="v-von" value="${d.von||''}"><input type="date" class="v-bis" value="${d.bis||''}"><input type="number" step="0.01" class="v-betrag" value="${d.betrag||''}" oninput="calcDirektRow(this.parentElement)"><select class="v-tax" onchange="calcDirektRow(this.parentElement)"><option value="">-</option>${taxKeys.map(t=>`<option value="${t.id}" ${d.steuerKey===t.id?'selected':''}>${t.label}</option>`).join('')}</select><input class="v-netto" readonly style="background:#f0f0f0;" value="${d.netto?formatNum(d.netto):''}"><input type="number" step="0.01" class="v-lohn" value="${d.lohn||''}"><select class="v-lohn-art">${LOHN_ARTEN.map(l=>`<option value="${l.id}" ${d.lohnArt===l.id?'selected':''}>${l.label}</option>`).join('')}</select><input class="v-vorsteuer" readonly style="background:#f0f0f0;" value="${d.vorsteuer?formatNum(d.vorsteuer):''}"><button class="warn-btn" onclick="this.parentElement.remove()">X</button>`; if(d.typ)r.querySelector('.v-typ').value=d.typ; c.appendChild(r); }
         function calcDirektRow(r){ const b=safeFloat(r.querySelector('.v-betrag').value),tid=r.querySelector('.v-tax').value; let n=b,t=0; if(tid){const k=taxKeys.find(x=>x.id===tid); if(k&&k.rate>0){n=b/(1+k.rate/100); t=b-n;}} r.querySelector('.v-netto').value=formatNum(n); r.querySelector('.v-vorsteuer').value=formatNum(t); }
-        function saveKostenErfassung() { const aid=document.getElementById('currentAbrechnungId').value; dbKosten=dbKosten.filter(k=>k.abrechnungId!==aid); document.querySelectorAll('.kosten-row').forEach(r=>{const b=safeFloat(r.querySelector('.k-brutto').value),txt=r.querySelector('.k-text').value; if(b||txt){const tid=r.querySelector('.k-tax').value; let rate=0; if(tid){const k=taxKeys.find(x=>x.id===tid); if(k)rate=k.rate;} const n=b/(1+rate/100); dbKosten.push({id:r.dataset.id,abrechnungId:aid,konto:r.querySelector('.k-konto').value,text:txt,brutto:b,lohn:safeFloat(r.querySelector('.k-lohn').value),lohnArt:r.querySelector('.k-lohn-art').value,steuerKey:tid,netto:n,steuerBetrag:b-n,verteilKey:r.querySelector('.k-verteil').value});}}); saveLocal(); triggerAutoSave(); alert("Gespeichert!"); checkAbrechnungReadiness(aid); }
+        function saveKostenErfassung() { 
+            const aid=document.getElementById('currentAbrechnungId').value; 
+            dbKosten=dbKosten.filter(k=>k.abrechnungId!==aid); 
+            document.querySelectorAll('.kosten-row').forEach(r=>{
+                const b=safeFloat(r.querySelector('.k-brutto').value),txt=r.querySelector('.k-text').value; 
+                if(b||txt){
+                    const tid=r.querySelector('.k-tax').value; let rate=0; if(tid){const k=taxKeys.find(x=>x.id===tid); if(k)rate=k.rate;} 
+                    const n=b/(1+rate/100); 
+                    dbKosten.push({
+                        id:r.dataset.id,
+                        abrechnungId:aid,
+                        konto:r.querySelector('.k-konto').value,
+                        text:txt,
+                        brutto:b,
+                        lohn:safeFloat(r.querySelector('.k-lohn').value),
+                        lohnArt:r.querySelector('.k-lohn-art').value,
+                        steuerKey:tid,
+                        netto:n,
+                        steuerBetrag:b-n,
+                        verteilKey:r.querySelector('.k-verteil').value,
+                        von: r.querySelector('.k-von').value, // NEW: Period Start
+                        bis: r.querySelector('.k-bis').value  // NEW: Period End
+                    });
+                }
+            }); 
+            saveLocal(); triggerAutoSave(); alert("Gespeichert!"); checkAbrechnungReadiness(aid); 
+        }
         function openSplitModal() { document.getElementById('splitTotalInput').value=""; document.getElementById('splitRowsContainer').innerHTML=""; addSplitRow(); document.getElementById('splitModal').classList.add('active'); }
         function calcSplitRest() { const t=safeFloat(document.getElementById('splitTotalInput').value); let s=0; document.querySelectorAll('.split-amount').forEach(i=>s+=safeFloat(i.value)); document.getElementById('splitSummeRest').innerText=formatCurrency(t-s); document.getElementById('splitSummeErfasst').innerText=formatCurrency(s); document.getElementById('btnApplySplit').disabled=Math.abs(t-s)>0.01; }
         function addSplitRow() { const d=document.createElement('div'); d.className='split-row'; d.innerHTML=`<input type="number" step="0.01" class="split-amount" oninput="calcSplitRest()"><input class="split-text"><input class="split-konto"><input type="number" step="0.01" class="split-lohn"><select class="split-lohn-art">${LOHN_ARTEN.map(l=>`<option value="${l.id}">${l.label}</option>`).join('')}</select><select class="split-tax"><option value="">-</option>${taxKeys.map(t=>`<option value="${t.id}">${t.label}</option>`).join('')}</select><select class="split-verteil">${verteilKeys.map(v=>`<option value="${v.id}">${v.label}</option>`).join('')}</select><button class="warn-btn" onclick="this.parentElement.remove();calcSplitRest()">X</button>`; document.getElementById('splitRowsContainer').appendChild(d); }
         function applySplitBuchung() { document.querySelectorAll('.split-row').forEach(r=>{const a=safeFloat(r.querySelector('.split-amount').value); if(a>0) addKostenRow({brutto:a,text:r.querySelector('.split-text').value,konto:r.querySelector('.split-konto').value,lohn:safeFloat(r.querySelector('.split-lohn').value),lohnArt:r.querySelector('.split-lohn-art').value,steuerKey:r.querySelector('.split-tax').value,verteilKey:r.querySelector('.split-verteil').value});}); document.getElementById('splitModal').classList.remove('active'); updateKostenSums(); }
         
         function openSollstellungModal(){ document.getElementById('sollstellungModal').classList.add('active'); document.getElementById('sollMonatInput').value=new Date().toISOString().slice(0,7); document.getElementById('sollBuchungsdatum').value=new Date().toISOString().slice(0,10); }
-        function runSollstellung() { const m=document.getElementById('sollMonatInput').value,bd=document.getElementById('sollBuchungsdatum').value; if(!m||!bd)return; const [yr,mo]=m.split('-').map(Number); const dM=new Date(yr,mo,0).getDate(),ms=new Date(yr,mo-1,1),me=new Date(yr,mo-1,dM); let cnt=0; const isQ=(mo-1)%3===0,isH=(mo-1)%6===0,isY=mo===1; dbEinheiten.forEach((e,eid)=>{if(e.belegung)e.belegung.forEach(b=>{const ei=new Date(b.einzug),au=b.auszug?new Date(b.auszug):new Date('2099-12-31'); if(ei<=me&&au>=ms){ const s=ei>ms?ei:ms,en=au<me?au:me,days=Math.ceil(Math.abs(en-s)/864e5)+1; if(days>0){ const f=days/dM,op=`${eid}-${mo}${yr}`; if(e.konditionen)e.konditionen.forEach(k=>{ const ga=new Date(k.gueltigAb),gb=k.gueltigBis?new Date(k.gueltigBis):new Date('2099-12-31'); if(ga<=me&&gb>=ms){ const iv=k.intervall||'Monatlich'; let due=(iv==='Monatlich')||(iv==='Vierteljährlich'&&isQ)||(iv==='Halbjährlich'&&isH)||(iv==='Jährlich'&&isY); if(due){ const bet=safeFloat(k.betrag)*f; let stb=0; if(k.steuerKey){const tk=taxKeys.find(t=>t.id===k.steuerKey);if(tk)stb=bet-(bet/(1+tk.rate/100));} if(!dbFinanzen.some(x=>x.text.includes(op)&&x.kategorie===k.label)){ dbFinanzen.push({id:getNextFinanzId(),einheitId:eid,mieterId:b.mieterId,monatRef:m,buchungsdatum:bd,typ:'soll',kategorie:k.label,text:`${op} (${k.label})`,betrag:bet,konto:k.konto,steuerschluessel:k.steuerKey,steuerbetrag:stb,locked:true}); cnt++; } } } }); } } }); }); saveLocal(); triggerAutoSave(); alert(cnt+" Buchungen erstellt."); document.getElementById('sollstellungModal').classList.remove('active'); }
+        function runSollstellung() { 
+            const m=document.getElementById('sollMonatInput').value,bd=document.getElementById('sollBuchungsdatum').value; 
+            if(!m||!bd)return; 
+            const [yr,mo]=m.split('-').map(Number); 
+            const dM=new Date(yr,mo,0).getDate(),ms=new Date(yr,mo-1,1),me=new Date(yr,mo-1,dM); 
+            let cnt=0; 
+            const isQ=(mo-1)%3===0,isH=(mo-1)%6===0,isY=mo===1; 
+            
+            dbEinheiten.forEach((e,eid)=>{
+                if(e.belegung) e.belegung.forEach(b => {
+                    const ei=new Date(b.einzug),au=b.auszug?new Date(b.auszug):new Date('2099-12-31'); 
+                    if(ei<=me&&au>=ms){ 
+                        const s=ei>ms?ei:ms,en=au<me?au:me,days=Math.ceil(Math.abs(en-s)/864e5)+1; 
+                        if(days>0){ 
+                            const f=days/dM;
+                            // NEW: Extended OP Number Logic: Objekt/Haus/Unit/MieterID Date
+                            // Assuming eid is already structured e.g. 1090/01/0100
+                            const opNummer = `${eid}/${b.mieterId} ${yr}`; 
+                            
+                            // Get Tenant Details for Text
+                            const tenant = dbKontakte.get(b.mieterId);
+                            const debtorTxt = tenant && tenant.kundennummer ? `Deb. ${tenant.kundennummer}` : b.mieterId;
+                            const nameTxt = tenant ? tenant.fn : "";
+
+                            if(e.konditionen) e.konditionen.forEach(k => { 
+                                const ga=new Date(k.gueltigAb),gb=k.gueltigBis?new Date(k.gueltigBis):new Date('2099-12-31'); 
+                                if(ga<=me&&gb>=ms){ 
+                                    const iv=k.intervall||'Monatlich'; 
+                                    let due=(iv==='Monatlich')||(iv==='Vierteljährlich'&&isQ)||(iv==='Halbjährlich'&&isH)||(iv==='Jährlich'&&isY); 
+                                    if(due){ 
+                                        const bet=safeFloat(k.betrag)*f; 
+                                        let stb=0; 
+                                        if(k.steuerKey){const tk=taxKeys.find(t=>t.id===k.steuerKey);if(tk)stb=bet-(bet/(1+tk.rate/100));} 
+                                        
+                                        // Extended Text: [OP] [Art] [Debitor] [Name]
+                                        const fullText = `${opNummer} | ${k.label} | ${debtorTxt} ${nameTxt}`;
+                                        
+                                        if(!dbFinanzen.some(x=>x.text.includes(opNummer) && x.kategorie===k.label)){ 
+                                            dbFinanzen.push({
+                                                id:getNextFinanzId(),
+                                                einheitId:eid,
+                                                mieterId:b.mieterId,
+                                                monatRef:m,
+                                                buchungsdatum:bd,
+                                                typ:'soll',
+                                                kategorie:k.label,
+                                                text: fullText, // Updated Text
+                                                betrag:bet,
+                                                konto:k.konto,
+                                                steuerschluessel:k.steuerKey,
+                                                steuerbetrag:stb,
+                                                locked:true
+                                            }); 
+                                            cnt++; 
+                                        } 
+                                    } 
+                                } 
+                            }); 
+                        } 
+                    } 
+                }); 
+            }); 
+            saveLocal(); triggerAutoSave(); alert(cnt+" Buchungen erstellt."); document.getElementById('sollstellungModal').classList.remove('active'); 
+        }
         function exportSollstellungPDF(){const m=document.getElementById('sollMonatInput').value;if(!m){alert("Monat?");return;}const [yr,mo]=m.split('-').map(Number);const doc=new jspdf.jsPDF();doc.setFontSize(16);doc.text(`Sollstellung: ${m}`,14,20);const rows=[];const dM=new Date(yr,mo,0).getDate(),ms=new Date(yr,mo-1,1),me=new Date(yr,mo-1,dM);const isQ=(mo-1)%3===0,isH=(mo-1)%6===0,isY=mo===1;dbEinheiten.forEach((e,eid)=>{if(e.belegung)e.belegung.forEach(b=>{const ei=new Date(b.einzug),au=b.auszug?new Date(b.auszug):new Date('2099-12-31');if(ei<=me&&au>=ms){const s=ei>ms?ei:ms,en=au<me?au:me,days=Math.ceil(Math.abs(en-s)/864e5)+1;if(days>0){const f=days/dM;if(e.konditionen)e.konditionen.forEach(k=>{const ga=new Date(k.gueltigAb),gb=k.gueltigBis?new Date(k.gueltigBis):new Date('2099-12-31');if(ga<=me&&gb>=ms){const iv=k.intervall||'Monatlich';let due=(iv==='Monatlich')||(iv==='Vierteljährlich'&&isQ)||(iv==='Halbjährlich'&&isH)||(iv==='Jährlich'&&isY);if(due){const bet=safeFloat(k.betrag)*f;let tax="0%";if(k.steuerKey){const tk=taxKeys.find(t=>t.id===k.steuerKey);if(tk)tax=tk.rate+"%";}let netto=bet;if(k.steuerKey){const tk=taxKeys.find(t=>t.id===k.steuerKey);if(tk)netto=bet/(1+tk.rate/100);}rows.push([e.name,k.label,formatNum(netto),tax,formatNum(bet)]);}}});}}});});doc.autoTable({head:[['Einheit','Art','Netto','Steuer','Brutto']],body:rows,startY:30});doc.save(`Soll_${m}.pdf`);}
         
         function openKontoModal(id){ const e=dbEinheiten.get(id); document.getElementById('kontoEinheitId').value=id; document.getElementById('kontoTitle').innerText=`Konto: ${e.name}`; document.getElementById('manuelleBuchungForm').style.display='none'; const t=dbFinanzen.filter(x=>x.einheitId===id), s=document.getElementById('kontoJahrSelect'), y=new Set(); t.forEach(x=>{if(x.buchungsdatum)y.add(x.buchungsdatum.substr(0,4));}); s.innerHTML='<option value="all">Alle Jahre</option>'; Array.from(y).sort().reverse().forEach(v=>s.add(new Option(v,v))); renderKontoTable(); document.getElementById('kontoModal').classList.add('active'); }
@@ -629,11 +765,45 @@
         function openManuelleBuchung(){ document.getElementById('manuelleBuchungForm').style.display='block'; }
         function openBuchungDetail(id){ const t=dbFinanzen.find(x=>x.id===id); if(!t)return; document.getElementById('detailBuchungId').value=id; document.getElementById('detailId').innerText=id; document.getElementById('detailDatumInp').value=t.buchungsdatum; document.getElementById('detailBetragInp').value=safeFloat(t.betrag); document.getElementById('detailTextInp').value=t.text; document.getElementById('detailKontoInp').value=t.konto||""; document.getElementById('detailSteuerInp').value=t.steuerschluessel||""; document.getElementById('detailDoku').value=t.doku||""; document.getElementById('buchungDetailModal').classList.add('active'); }
         function saveBuchungChanges(){ const id=document.getElementById('detailBuchungId').value, t=dbFinanzen.find(x=>x.id===id); if(!t)return; const nd=document.getElementById('detailDatumInp').value, nb=safeFloat(document.getElementById('detailBetragInp').value), nt=document.getElementById('detailTextInp').value, nk=document.getElementById('detailKontoInp').value, nst=document.getElementById('detailSteuerInp').value; if(nd!==t.buchungsdatum||nb!==safeFloat(t.betrag)||nt!==t.text||nk!==(t.konto||"")||nst!==(t.steuerschluessel||"")){ if(!t.history)t.history=[]; t.history.push({datum:new Date().toISOString(),old:JSON.parse(JSON.stringify(t))}); t.buchungsdatum=nd; t.betrag=nb; t.text=nt; t.konto=nk; t.steuerschluessel=nst; if(nst){const k=taxKeys.find(x=>x.id===nst); if(k)t.steuerbetrag=nb-(nb/(1+k.rate/100));} t.doku=(document.getElementById('detailDoku').value)+`\n[Edit ${new Date().toLocaleDateString()}]`; saveLocal(); triggerAutoSave(); renderKontoTable(); document.getElementById('buchungDetailModal').classList.remove('active'); alert("Gespeichert"); } }
-        function createAbrechnungDummy() { const housesCount = parseInt(prompt("Anzahl Häuser im Objekt?", "1")) || 1; const unitsPerHouse = parseInt(prompt("Einheiten pro Haus?", "4")) || 4; const rentedCount = parseInt(prompt("Davon vermietet (Anzahl Mieter)?", "3")) || 0; const now = new Date(); const year = now.getFullYear(); console.log("Erstelle Testdaten..."); const oid = getNextObjektID(); const oData = { nummer: oid, name: "Muster-Park " + year, plz: "12345", ort: "Musterstadt", flaeche: 0, mea: 1000, sollHaeuser: housesCount, steuerStatus: "opt" }; dbObjekte.set(oid, oData); let totalArea = 0; let currentTenant = 0; for(let h=1; h<=housesCount; h++) { const hid = getNextHausID(oid); const hName = `Haus ${h}`; const matrix = {'wohnung':{count: unitsPerHouse, area: 75 * unitsPerHouse}}; dbHaeuser.set(hid, { objektId: oid, bezeichnung: hName, anteile: 1000/housesCount, sollMatrix: matrix }); for(let u=1; u<=unitsPerHouse; u++) { const eid = getNextEinheitID(hid); const isRented = currentTenant < rentedCount; const uName = `Whg ${u} (H${h})`; const area = 75.00; totalArea += area; const unitData = { hausId: hid, objektId: oid, name: uName, typ: "wohnung", flaeche: area, zimmer: 3, mea: (1000/(housesCount*unitsPerHouse)), konditionen: [], belegung: [] }; if(isRented) { currentTenant++; unitData.konditionen.push({label:'Kaltmiete', betrag: 600, intervall:'Monatlich', gueltigAb: `${year}-01-01`, steuerKey: '2'}); unitData.konditionen.push({label:'BK-Vorausz.', betrag: 150, intervall:'Monatlich', gueltigAb: `${year}-01-01`, steuerKey: '20'}); unitData.belegung.push({mieterId: 'dummy_m' + currentTenant, einzug: `${year}-01-01`}); dbFinanzen.push({ id: getNextFinanzId(), einheitId: eid, typ: 'haben', kategorie: 'BK-Vorausz.', betrag: 1800, buchungsdatum: `${year}-12-31`, text: "Summe VZ Jahr" }); } dbEinheiten.set(eid, unitData); } } oData.flaeche = totalArea; dbObjekte.set(oid, oData); const aid = 'abr_' + Date.now(); dbAbrechnungen.push({ id: aid, objektId: oid, name: `Betriebskosten ${year}`, von: `${year}-01-01`, bis: `${year}-12-31`, status: 'open' }); dbKosten.push({ id: getNextFinanzId(), abrechnungId: aid, text: "Grundsteuer", brutto: 2000, netto: 2000, verteilKey: "m2" }); dbKosten.push({ id: getNextFinanzId(), abrechnungId: aid, text: "Müllabfuhr", brutto: 1200, netto: 1200, verteilKey: "einheiten" }); dbKosten.push({ id: getNextFinanzId(), abrechnungId: aid, text: "Hausstrom", brutto: 450, netto: 378, steuerKey: "3", verteilKey: "einheiten" }); saveLocal(); renderLists(); alert(`Szenario erstellt:\nObjekt: ${oData.name}\n${housesCount} Häuser, ${housesCount*unitsPerHouse} Einheiten\nGesamtfläche: ${totalArea} m²\n${rentedCount} vermietet.`); }
-        async function speichereDateiLokal(){ const d={objekte:Array.from(dbObjekte.entries()),haeuser:Array.from(dbHaeuser.entries()),einheiten:Array.from(dbEinheiten.entries()),finanzen:dbFinanzen,taxKeys:taxKeys,verteilKeys:verteilKeys,abrechnungen:dbAbrechnungen,kosten:dbKosten,customTypes:customTypes}; const b=new Blob([JSON.stringify(d,null,2)],{type:"application/json"}); if(window.showSaveFilePicker){try{const h=await window.showSaveFilePicker({suggestedName:"objekte_backup.json"});const w=await h.createWritable();await w.write(b);await w.close();zeigeStatus("Gesichert","success");}catch(e){}}else{const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="objekte_backup.json";a.click();} }
-        async function ladeDateiLokal(){ try{let t;if(window.showOpenFilePicker){const [h]=await window.showOpenFilePicker();const f=await h.getFile();t=await f.text();}else{const i=document.createElement("input");i.type="file";i.click();await new Promise(r=>i.onchange=e=>{const fr=new FileReader();fr.onload=ev=>r(t=ev.target.result);fr.readAsText(e.target.files[0]);});}if(t){const d=JSON.parse(t);if(d.objekte)dbObjekte=new Map(d.objekte);if(d.haeuser)dbHaeuser=new Map(d.haeuser);if(d.einheiten)dbEinheiten=new Map(d.einheiten);if(d.finanzen)dbFinanzen=d.finanzen;if(d.taxKeys)taxKeys=d.taxKeys;if(d.verteilKeys)verteilKeys=d.verteilKeys;if(d.abrechnungen)dbAbrechnungen=d.abrechnungen;if(d.kosten)dbKosten=d.kosten;if(d.customTypes)customTypes=d.customTypes;saveLocal();renderLists();alert("Geladen!");}}catch(e){alert("Fehler");} }
+        
+        function createAbrechnungDummy() { const housesCount = parseInt(prompt("Anzahl Häuser im Objekt?", "1")) || 1; const unitsPerHouse = parseInt(prompt("Einheiten pro Haus?", "4")) || 4; const rentedCount = parseInt(prompt("Davon vermietet (Anzahl Mieter)?", "3")) || 0; const now = new Date(); const year = now.getFullYear(); console.log("Erstelle Testdaten..."); const oid = getNextObjektID(); const oData = { nummer: oid, name: "Muster-Park " + year, plz: "12345", ort: "Musterstadt", flaeche: 0, mea: 1000, sollHaeuser: housesCount, steuerStatus: "opt" }; dbObjekte.set(oid, oData); let totalArea = 0; let currentTenant = 0; for(let h=1; h<=housesCount; h++) { const hid = getNextHausID(oid); const hName = `Haus ${h}`; const matrix = {'wohnung':{count: unitsPerHouse, area: 75 * unitsPerHouse}}; dbHaeuser.set(hid, { objektId: oid, bezeichnung: hName, anteile: 1000/housesCount, sollMatrix: matrix }); for(let u=1; u<=unitsPerHouse; u++) { const eid = getNextEinheitID(hid); const isRented = currentTenant < rentedCount; const uName = `Whg ${u} (H${h})`; const area = 75.00; totalArea += area; const unitData = { hausId: hid, objektId: oid, name: uName, typ: "wohnung", flaeche: area, zimmer: 3, mea: (1000/(housesCount*unitsPerHouse)), konditionen: [], belegung: [] }; if(isRented) { currentTenant++; 
+            const mID = 'dummy_m' + currentTenant;
+            unitData.konditionen.push({label:'Kaltmiete', betrag: 600, intervall:'Monatlich', gueltigAb: `${year}-01-01`, steuerKey: '2'}); unitData.konditionen.push({label:'BK-Vorausz.', betrag: 150, intervall:'Monatlich', gueltigAb: `${year}-01-01`, steuerKey: '20'}); unitData.belegung.push({mieterId: mID, einzug: `${year}-01-01`}); 
+            // Dummy Mieter anlegen
+            dbKontakte.set(mID, {id: mID, fn: `Max Mieter ${currentTenant}`, kundennummer: `100${currentTenant}`, email: `m${currentTenant}@test.de`, phone: `0123-456${currentTenant}`});
+            dbFinanzen.push({ id: getNextFinanzId(), einheitId: eid, typ: 'haben', kategorie: 'BK-Vorausz.', betrag: 1800, buchungsdatum: `${year}-12-31`, text: `Summe VZ Jahr (Dummy ${mID})` }); } dbEinheiten.set(eid, unitData); } } oData.flaeche = totalArea; dbObjekte.set(oid, oData); const aid = 'abr_' + Date.now(); dbAbrechnungen.push({ id: aid, objektId: oid, name: `Betriebskosten ${year}`, von: `${year}-01-01`, bis: `${year}-12-31`, status: 'open' }); dbKosten.push({ id: getNextFinanzId(), abrechnungId: aid, text: "Grundsteuer", brutto: 2000, netto: 2000, verteilKey: "m2" }); dbKosten.push({ id: getNextFinanzId(), abrechnungId: aid, text: "Müllabfuhr", brutto: 1200, netto: 1200, verteilKey: "einheiten" }); dbKosten.push({ id: getNextFinanzId(), abrechnungId: aid, text: "Hausstrom", brutto: 450, netto: 378, steuerKey: "3", verteilKey: "einheiten" }); saveLocal(); renderLists(); alert(`Szenario erstellt:\nObjekt: ${oData.name}\n${housesCount} Häuser, ${housesCount*unitsPerHouse} Einheiten\nGesamtfläche: ${totalArea} m²\n${rentedCount} vermietet.\nDummy-Kontakte angelegt.`); }
+        
+        // --- PERSISTENZ FIX ---
+        async function speichereDateiLokal(){ 
+            const d={
+                objekte:Array.from(dbObjekte.entries()),
+                haeuser:Array.from(dbHaeuser.entries()),
+                einheiten:Array.from(dbEinheiten.entries()),
+                finanzen:dbFinanzen,
+                taxKeys:taxKeys,
+                verteilKeys:verteilKeys,
+                abrechnungen:dbAbrechnungen,
+                kosten:dbKosten,
+                customTypes:customTypes,
+                kontakte: Array.from(dbKontakte.entries()) // BUGFIX: Kontakte speichern
+            }; 
+            const b=new Blob([JSON.stringify(d,null,2)],{type:"application/json"}); if(window.showSaveFilePicker){try{const h=await window.showSaveFilePicker({suggestedName:"objekte_backup.json"});const w=await h.createWritable();await w.write(b);await w.close();zeigeStatus("Gesichert","success");}catch(e){}}else{const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="objekte_backup.json";a.click();} }
+        
+        async function ladeDateiLokal(){ try{let t;if(window.showOpenFilePicker){const [h]=await window.showOpenFilePicker();const f=await h.getFile();t=await f.text();}else{const i=document.createElement("input");i.type="file";i.click();await new Promise(r=>i.onchange=e=>{const fr=new FileReader();fr.onload=ev=>r(t=ev.target.result);fr.readAsText(e.target.files[0]);});}if(t){const d=JSON.parse(t);
+            if(d.objekte)dbObjekte=new Map(d.objekte);
+            if(d.haeuser)dbHaeuser=new Map(d.haeuser);
+            if(d.einheiten)dbEinheiten=new Map(d.einheiten);
+            if(d.finanzen)dbFinanzen=d.finanzen;
+            if(d.taxKeys)taxKeys=d.taxKeys;
+            if(d.verteilKeys)verteilKeys=d.verteilKeys;
+            if(d.abrechnungen)dbAbrechnungen=d.abrechnungen;
+            if(d.kosten)dbKosten=d.kosten;
+            if(d.customTypes)customTypes=d.customTypes;
+            if(d.kontakte)dbKontakte=new Map(d.kontakte); // BUGFIX: Kontakte laden
+            saveLocal();renderLists();alert("Geladen!");}}catch(e){alert("Fehler");} }
+        
         function loadLocal(){ try{const o=localStorage.getItem("immo_objekte");if(o)dbObjekte=new Map(JSON.parse(o));const h=localStorage.getItem("immo_haeuser");if(h)dbHaeuser=new Map(JSON.parse(h));const e=localStorage.getItem("immo_einheiten");if(e)dbEinheiten=new Map(JSON.parse(e)); const f=localStorage.getItem("immo_finanzen");if(f){const p=JSON.parse(f);dbFinanzen=p.finanzen||p;if(p.taxKeys)taxKeys=p.taxKeys;if(p.verteilKeys)verteilKeys=p.verteilKeys;if(p.abrechnungen)dbAbrechnungen=p.abrechnungen;if(p.kosten)dbKosten=p.kosten;if(p.customTypes)customTypes=p.customTypes||[];} const k=localStorage.getItem("kontakte_personen");if(k)dbKontakte=new Map(JSON.parse(k));}catch(e){} }
-        function saveLocal(){ localStorage.setItem("immo_objekte",JSON.stringify(Array.from(dbObjekte.entries())));localStorage.setItem("immo_haeuser",JSON.stringify(Array.from(dbHaeuser.entries())));localStorage.setItem("immo_einheiten",JSON.stringify(Array.from(dbEinheiten.entries())));localStorage.setItem("immo_finanzen",JSON.stringify({finanzen:dbFinanzen,taxKeys:taxKeys,verteilKeys:verteilKeys,abrechnungen:dbAbrechnungen,kosten:dbKosten,customTypes:customTypes})); }
+        function saveLocal(){ localStorage.setItem("immo_objekte",JSON.stringify(Array.from(dbObjekte.entries())));localStorage.setItem("immo_haeuser",JSON.stringify(Array.from(dbHaeuser.entries())));localStorage.setItem("immo_einheiten",JSON.stringify(Array.from(dbEinheiten.entries())));localStorage.setItem("immo_finanzen",JSON.stringify({finanzen:dbFinanzen,taxKeys:taxKeys,verteilKeys:verteilKeys,abrechnungen:dbAbrechnungen,kosten:dbKosten,customTypes:customTypes})); localStorage.setItem("kontakte_personen", JSON.stringify(Array.from(dbKontakte.entries())));}
         function toggleAbrechnungStatus(l){ const aid=document.getElementById('currentAbrechnungId').value,a=dbAbrechnungen.find(x=>x.id===aid); if(!a)return; if(l){if(!confirm("Abschließen?"))return;a.status='closed';}else{if(!confirm("Öffnen?"))return;a.status='open';} saveLocal(); triggerAutoSave(); renderAbrechnungsListe(); loadKostenEditor(aid); }
         function deleteAbrechnungComplete(){ const aid=document.getElementById('currentAbrechnungId').value; if(!aid||!confirm("Alles löschen?"))return; dbKosten=dbKosten.filter(k=>k.abrechnungId!==aid); dbAbrechnungen=dbAbrechnungen.filter(a=>a.id!==aid); saveLocal(); triggerAutoSave(); document.getElementById('abrechnungWrapper').style.display="none"; document.getElementById('kostenEditor').style.display="none"; renderAbrechnungsListe(); alert("Gelöscht."); }
         function triggerAutoSave(){ if(!accessToken)return; zeigeStatus("...","info"); clearTimeout(autoSaveTimer); autoSaveTimer=setTimeout(()=>saveToOneDrive(false),2000); }
@@ -885,9 +1055,13 @@
             const lohnOpts = LOHN_ARTEN.map(l => `<option value="${l.id}" ${d.lohnArt===l.id?'selected':''}>${l.label}</option>`).join('');
 
             row.innerHTML = `
-                <input class="k-konto" value="${d.konto||''}" placeholder="Kto">
+                <input class="k-konto" value="${d.konto||''}" placeholder="Kto" title="Sachkonto">
                 <input class="k-text" value="${d.text||''}" placeholder="Beschreibung">
                 <input type="number" step="0.01" class="k-brutto" value="${d.brutto||''}" placeholder="0,00" oninput="calcKostenRow(this.parentElement)">
+                <div style="display:flex; flex-direction:column; gap:2px;">
+                    <input type="date" class="k-von" value="${d.von||''}" style="font-size:0.7em; padding:1px;" title="Leistungszeitraum Von">
+                    <input type="date" class="k-bis" value="${d.bis||''}" style="font-size:0.7em; padding:1px;" title="Leistungszeitraum Bis">
+                </div>
                 <input type="number" step="0.01" class="k-lohn" value="${d.lohn||''}" placeholder="Lohn">
                 <select class="k-lohn-art">${lohnOpts}</select>
                 <select class="k-tax" onchange="calcKostenRow(this.parentElement)">${taxOpts}</select>
@@ -953,6 +1127,66 @@
              else html += `<div class="check-item error">⛔ Keine Einheiten gefunden!</div>`;
 
              container.innerHTML = html;
+        }
+
+        // --- RAP MODUL (Rechnungsabgrenzung) ---
+        function calculateRAP() {
+            const aid = document.getElementById('currentAbrechnungId').value;
+            if(!aid) return;
+            const abr = dbAbrechnungen.find(a => a.id === aid);
+            if(!abr || !abr.bis) return;
+            const endDate = new Date(abr.bis);
+            const costs = dbKosten.filter(k => k.abrechnungId === aid);
+            
+            let rapRows = "";
+            let totalPRAP = 0;
+
+            costs.forEach(c => {
+                if(c.von && c.bis) {
+                    const start = new Date(c.von);
+                    const end = new Date(c.bis);
+                    
+                    // Nur wenn Ende nach Abrechnungsende
+                    if(end > endDate) {
+                        // Berechne Gesamttage und Tage im neuen Jahr
+                        const totalDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+                        const daysOverlap = Math.ceil((end - endDate) / (1000 * 60 * 60 * 24));
+                        
+                        if(totalDays > 0 && daysOverlap > 0) {
+                            const ratio = daysOverlap / totalDays;
+                            const pRAP = safeFloat(c.netto) * ratio;
+                            totalPRAP += pRAP;
+                            
+                            rapRows += `
+                                <div style="border-bottom:1px solid #eee; padding:5px; display:grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr; gap:10px; font-size:0.9em;">
+                                    <div>${c.text}</div>
+                                    <div>${formatDate(c.von)} - ${formatDate(c.bis)}</div>
+                                    <div style="text-align:right;">${formatNum(safeFloat(c.netto))} €</div>
+                                    <div style="text-align:center; color:#d97706;">${daysOverlap} / ${totalDays} Tage</div>
+                                    <div style="text-align:right; font-weight:bold; color:#dc2626;">${formatNum(pRAP)} €</div>
+                                </div>
+                            `;
+                        }
+                    }
+                }
+            });
+
+            if(rapRows === "") {
+                rapRows = "<div style='padding:20px; text-align:center; color:#166534;'>✅ Keine aktiven Rechnungsabgrenzungsposten gefunden.</div>";
+            } else {
+                rapRows = `
+                    <div style="background:#f1f5f9; padding:5px; font-weight:bold; display:grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr; gap:10px; border-bottom:2px solid #ccc;">
+                        <div>Position</div><div>Zeitraum</div><div style="text-align:right;">Gesamt (Netto)</div><div style="text-align:center;">Überhang</div><div style="text-align:right;">pRAP (Folgejahr)</div>
+                    </div>
+                    ${rapRows}
+                    <div style="margin-top:10px; text-align:right; font-weight:bold; font-size:1.1em; border-top:2px solid #000; padding-top:5px;">
+                        Gesamtsumme pRAP: ${formatNum(totalPRAP)} €
+                    </div>
+                `;
+            }
+
+            document.getElementById('rapResultContent').innerHTML = rapRows;
+            document.getElementById('rapModal').classList.add('active');
         }
 
 
