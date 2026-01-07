@@ -1,7 +1,7 @@
 <!-- 
     ===========================================================================
     PROJEKT: Hausverwaltung Pro (Enterprise Edition)
-    VERSION: v16.9.35 (Release: Backup & DMS)
+    VERSION: v16.9.36 (Release: Backup & DMS)
     DATUM:   2026-01-06
     STATUS:  STABLE
     
@@ -658,7 +658,13 @@
 
     <!-- OTHER MODALS -->
     <div id="mandantModal" class="modal-overlay" onclick="if(event.target===this)window.closeModals()"><div class="modal-content max-w-lg p-8"><h3 class="text-xl font-bold mb-6">Mandant (Hausverwaltung)</h3><div class="space-y-4"><input type="text" id="manName" class="input-std" placeholder="Firma"><input type="text" id="manStr" class="input-std" placeholder="Str"><input type="text" id="manOrt" class="input-std" placeholder="Ort"><div class="border-t pt-2 mt-2"><label class="label-std">Gläubiger-ID (Zentral)</label><input type="text" id="manGid" class="input-std font-mono" placeholder="DE98ZZZ..."></div></div><div class="flex justify-end mt-6"><button onclick="window.saveMandant()" class="btn-primary">Speichern</button></div></div></div>
-    <div id="sollstellungModal" class="modal-overlay" onclick="if(event.target===this)window.closeModals()"><div class="modal-content max-w-7xl p-8"><div class="flex justify-between items-center mb-6"><div><h3 class="text-2xl font-black">Sollstellung</h3></div><div class="text-right"><p class="label-std">Gesamtsumme</p><p id="sollSumTotal" class="text-2xl font-black text-indigo-600">0,00 €</p></div></div><div class="grid grid-cols-4 gap-4 mb-6 bg-slate-50 p-4 rounded-xl border"><div><label class="label-std">Monat</label><input type="month" id="sollMonth" class="input-std" onchange="window.updateSollPreview()"></div><div><label class="label-std">Belegdatum</label><input type="date" id="sollDate" class="input-std"></div></div><div class="border rounded-xl h-[500px] overflow-auto custom-scrollbar bg-white"><table class="w-full text-[11px]"><thead class="sticky top-0 bg-slate-100 shadow-sm"><tr><th class="w-8"><input type="checkbox" checked onchange="window.toggleAllSoll(this.checked)"></th><th>Objekt / Haus</th><th>Einheit / Mieter</th><th>Debitor</th><th>Konto</th><th class="text-right">Betrag</th><th>Aktion</th></tr></thead><tbody id="sollPreviewBody"></tbody></table></div><div class="flex justify-end gap-3 mt-6 pt-4 border-t"><button onclick="window.closeModals()" class="btn-secondary">Abbruch</button><button onclick="window.executeSollstellung()" class="btn-primary">Verbuchung starten</button></div></div></div>
+    <div id="sollstellungModal" class="modal-overlay" onclick="if(event.target===this)window.closeModals()"><div class="modal-content max-w-7xl p-8"><div class="flex justify-between items-center mb-6"><div><h3 class="text-2xl font-black">Sollstellung</h3></div><div class="text-right"><p class="label-std">Gesamtsumme</p><p id="sollSumTotal" class="text-2xl font-black text-indigo-600">0,00 €</p></div></div><div class="grid grid-cols-4 gap-4 mb-6 bg-slate-50 p-4 rounded-xl border">
+    <div><label class="label-std">Monat</label><input type="month" id="sollMonth" class="input-std" onchange="window.updateSollPreview()"></div>
+    <div><label class="label-std">Belegdatum</label><input type="date" id="sollDate" class="input-std"></div>
+    <!-- NEU: Objekt-Filter für Von-Bis Auswahl -->
+    <div><label class="label-std">Objekt Von</label><select id="sollObjStart" class="input-std" onchange="window.updateSollPreview()"></select></div>
+    <div><label class="label-std">Objekt Bis</label><select id="sollObjEnd" class="input-std" onchange="window.updateSollPreview()"></select></div>
+</div><div class="border rounded-xl h-[500px] overflow-auto custom-scrollbar bg-white"><table class="w-full text-[11px]"><thead class="sticky top-0 bg-slate-100 shadow-sm"><tr><th class="w-8"><input type="checkbox" checked onchange="window.toggleAllSoll(this.checked)"></th><th>Objekt / Haus</th><th>Einheit / Mieter</th><th>Debitor</th><th>Konto</th><th class="text-right">Betrag</th><th>Aktion</th></tr></thead><tbody id="sollPreviewBody"></tbody></table></div><div class="flex justify-end gap-3 mt-6 pt-4 border-t"><button onclick="window.closeModals()" class="btn-secondary">Abbruch</button><button onclick="window.executeSollstellung()" class="btn-primary">Verbuchung starten</button></div></div></div>
     <div id="auditDetailModal" class="modal-overlay" onclick="if(event.target===this)window.closeModals()"><div class="modal-content max-w-2xl p-6"><h3 class="text-xl font-bold mb-4">Audit Trace Details</h3><div id="auditDetailContent" class="bg-slate-900 text-green-400 p-4 rounded-lg font-mono text-xs overflow-auto max-h-80 mb-6 select-all"></div><div class="flex justify-end gap-3"><button onclick="window.copyAuditToClip()" class="btn-secondary">Kopieren</button><button onclick="window.closeModals()" class="btn-primary">Schließen</button></div></div></div>
     <div id="generatorModal" class="modal-overlay" onclick="if(event.target===this)window.closeModals()"><div class="modal-content max-w-4xl p-8"><h3 class="text-xl font-bold mb-6 text-orange-600 flex items-center gap-2"><i class="fas fa-robot"></i> Enterprise Generator 2.0</h3><div class="grid grid-cols-2 gap-8"><div class="space-y-5"><div><label class="label-std">Template Auswahl</label><select id="genTemplate" class="input-std" onchange="window.applyGenTemplate()"><option value="mfh_std">MFH Standard (Wohnpark)</option><option value="gewerbe">Gewerbepark / Business Center</option><option value="mixed">Mischobjekt (Wohnen & Gewerbe)</option></select></div><div><label class="label-std">Objekt Name</label><input type="text" id="genObjName" class="input-std" value="Wohnpark Mitte (Muster)"></div><div><label class="label-std">Start-Adresse (Haus 1)</label><input type="text" id="genAddress" class="input-std" value="Hauptstr. 1"></div><div class="grid grid-cols-2 gap-4"><div><label class="label-std">Anzahl Häuser</label><input type="number" id="genHausCount" class="input-std" value="2"></div><div><label class="label-std">Einheiten pro Haus</label><input type="number" id="genUnitCount" class="input-std" value="6"></div></div><div><div class="flex justify-between"><label class="label-std">Leerstands-Simulation</label><span id="genVacancyDisp" class="text-xs font-bold text-slate-500">10%</span></div><input type="range" id="genVacancy" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer" min="0" max="100" value="10" oninput="document.getElementById('genVacancyDisp').innerText=this.value+'%'"></div></div><div class="flex flex-col h-full"><h4 class="label-std mb-2">Live-Protokoll & Feedback</h4><div id="genLog" class="bg-slate-900 text-green-400 p-4 rounded-lg font-mono text-[10px] flex-1 overflow-y-auto h-80 border border-slate-700 shadow-inner"><div class="opacity-50">// Bereit zum Generieren...</div><div class="opacity-50">// Warte auf Eingabe.</div></div></div></div><div class="flex justify-end mt-8 gap-3 pt-4 border-t"><button onclick="window.closeModals()" class="btn-secondary">Abbruch</button><button onclick="window.runEnterpriseGenerator()" class="btn-primary bg-orange-600 hover:bg-orange-700 shadow-orange-200"><i class="fas fa-play mr-2"></i>Generierung Starten</button></div></div></div>
 
@@ -2015,81 +2021,153 @@
             document.getElementById('sollstellungModal').classList.add('active');
         };
 
+        // --- PROFI SOLLSTELLUNG (Taggenau & Intervalle) ---
         window.updateSollPreview = () => {
             const mStr = document.getElementById('sollMonth').value; 
             if(!mStr) return;
-            // Erster Tag des gewählten Monats
-            const checkDate = mStr + "-01"; 
             
+            // 1. Zeitrahmen & Tage im Monat bestimmen
+            const [year, month] = mStr.split('-').map(Number);
+            const monthIndex = month - 1; // 0-11
+            const daysInMonth = new Date(year, month, 0).getDate();
+            const periodStart = mStr + "-01";
+            const periodEnd = mStr + "-" + daysInMonth;
+
             sollPreviewData = [];
             const tb = document.getElementById('sollPreviewBody');
             tb.innerHTML = "";
-            let total = 0;
+            let totalSum = 0;
 
             db.einheiten.forEach(u => {
                 const o = db.objekte.get(u.objId);
                 const h = db.haeuser.get(u.hausId);
                 
-                // Active Contract check using CheckDate
-                const activeC = (u.contracts||[]).find(c => c.start <= checkDate && (!c.end || c.end >= checkDate));
-                
-                if(activeC) {
-                    const tName = window.resolveContactName(activeC.tenantId);
+                // Steuer-Satz ermitteln (Einheit)
+                let taxRate = 0;
+                if(u.tax === 'opt') taxRate = 19;
+                else if(u.tax === 'fewo') taxRate = 7;
+
+                // Verträge prüfen
+                (u.contracts||[]).forEach(c => {
+                    const cStart = c.start;
+                    const cEnd = c.end || '2099-12-31';
                     
-                    // Conditions loop
-                    (activeC.conds||[]).forEach(c => {
-                        // Check condition validity for that month
-                        if(c.start <= checkDate && (!c.end || c.end >= checkDate)) {
-                            let amt = parseFloat(c.val);
-                            if(c.isM2) amt *= parseFloat(u.area);
-                            
-                            // Check if already booked
-                            const exists = db.finanzen.some(f => 
-                                f.einheitId === u.id && 
-                                f.typ === 'soll' && 
-                                f.buchungsdatum.startsWith(mStr) && 
-                                f.text.includes(c.label)
-                            );
+                    // Nur wenn Vertrag im Monat aktiv ist (Schnittmenge > 0)
+                    if(cStart <= periodEnd && cEnd >= periodStart) {
+                        const tName = window.resolveContactName(c.tenantId);
 
-                            if(!exists) {
-                                total += amt;
-                                const rowId = uuid();
-                                sollPreviewData.push({
-                                    id: rowId, uId: u.id, objId: u.objId, tenant: tName, debtor: activeC.debtor,
-                                    text: `Soll ${mStr}: ${c.label}`, amt: amt, gl: c.gl || '8500', 
-                                    date: document.getElementById('sollDate').value
-                                });
+                        // Konditionen durchgehen
+                        (c.conds||[]).forEach(cond => {
+                            // 1. Intervall-Check
+                            const intv = cond.intervall || 'monat';
+                            let intervalHit = true;
+                            if(intv === 'quartal' && (monthIndex % 3 !== 0)) intervalHit = false;
+                            if(intv === 'halbjahr' && (monthIndex % 6 !== 0)) intervalHit = false;
+                            if(intv === 'jahr' && monthIndex !== 0) intervalHit = false;
 
-                                tb.innerHTML += `<tr>
-                                    <td><input type="checkbox" checked class="soll-chk" data-id="${rowId}"></td>
-                                    <td>${o.nr} / ${h.name}</td>
-                                    <td>${u.name} <span class="text-[9px] text-slate-400">(${tName})</span></td>
-                                    <td class="font-mono">${activeC.debtor}</td>
-                                    <td class="font-mono text-xs">${c.gl||'8500'}</td>
-                                    <td class="text-right font-bold">${formatEuro(amt)}</td>
-                                    <td><span class="badge bg-amber-100 text-amber-700">Offen</span></td>
-                                </tr>`;
+                            if(intervalHit) {
+                                // 2. Gültigkeit der Kondition (Schnittmenge)
+                                const condStart = cond.start || '1900-01-01';
+                                const condEnd = cond.end || '2099-12-31';
+
+                                let effectiveStart = periodStart < cStart ? cStart : periodStart;
+                                if(condStart > effectiveStart) effectiveStart = condStart;
+
+                                let effectiveEnd = periodEnd > cEnd ? cEnd : periodEnd;
+                                if(condEnd < effectiveEnd) effectiveEnd = condEnd;
+
+                                if(effectiveStart <= effectiveEnd) {
+                                    // 3. Betrag berechnen (Basis)
+                                    let baseVal = parseFloat(cond.val);
+                                    if(cond.isM2) baseVal *= (parseFloat(u.area)||0);
+
+                                    // 4. Pro-Rata (Taggenau)
+                                    const d1 = new Date(effectiveStart);
+                                    const d2 = new Date(effectiveEnd);
+                                    // Millisekunden zu Tagen (+1 weil inklusiv)
+                                    const activeDays = Math.round((d2 - d1) / (1000 * 60 * 60 * 24)) + 1;
+                                    
+                                    let finalNetto = baseVal;
+                                    let note = "";
+
+                                    if(activeDays < daysInMonth) {
+                                        finalNetto = (baseVal / daysInMonth) * activeDays;
+                                        note = ` (anteilig ${activeDays}/${daysInMonth} Tage)`;
+                                    }
+
+                                    // Steuer draufrechnen
+                                    const taxAmt = finalNetto * (taxRate / 100);
+                                    const finalBrutto = roundMoney(finalNetto + taxAmt);
+
+                                    // 5. Delta-Check (Korrektur-Logik)
+                                    const alreadyBooked = db.finanzen
+                                        .filter(f => 
+                                            f.einheitId === u.id && 
+                                            f.buchungsdatum.startsWith(mStr) && 
+                                            f.text.includes(cond.label) &&
+                                            f.text.includes(c.debtor)
+                                        )
+                                        .reduce((sum, f) => sum + (f.typ === 'soll' ? f.betrag : -f.betrag), 0);
+
+                                    const delta = roundMoney(finalBrutto - alreadyBooked);
+
+                                    // Nur buchen, wenn Delta > 0.01 €
+                                    if(Math.abs(delta) > 0.01) {
+                                        totalSum += delta;
+                                        const rowId = uuid();
+                                        
+                                        let txt = `Soll ${mStr}: ${cond.label}`;
+                                        if(activeDays < daysInMonth) txt += note;
+                                        if(alreadyBooked !== 0) txt += ` (Korr. zu ${formatEuro(alreadyBooked)})`;
+                                        txt += ` (D-${c.debtor})`;
+
+                                        const colorClass = delta > 0 ? "text-slate-700" : "text-rose-600 font-bold";
+                                        const typeBadge = delta > 0 
+                                            ? '<span class="badge bg-amber-100 text-amber-700">Soll</span>' 
+                                            : '<span class="badge bg-rose-100 text-rose-700">Korrektur</span>';
+
+                                        sollPreviewData.push({
+                                            id: rowId, uId: u.id, objId: u.objId, 
+                                            text: txt, 
+                                            amt: Math.abs(delta), 
+                                            typ: delta > 0 ? 'soll' : 'haben', 
+                                            gl: cond.gl || '8500', 
+                                            date: document.getElementById('sollDate').value
+                                        });
+
+                                        tb.innerHTML += `<tr>
+                                            <td><input type="checkbox" checked class="soll-chk" data-id="${rowId}"></td>
+                                            <td>${o.nr} / ${h.name}</td>
+                                            <td>${u.name} <span class="text-[9px] text-slate-400">(${tName})</span></td>
+                                            <td class="font-mono">${c.debtor}</td>
+                                            <td class="font-mono text-xs">${cond.gl||'8500'}</td>
+                                            <td class="text-right font-bold ${colorClass}">${formatEuro(delta)}</td>
+                                            <td>${typeBadge}</td>
+                                        </tr>`;
+                                    }
+                                }
                             }
-                        }
-                    });
-                }
+                        });
+                    }
+                });
             });
-            document.getElementById('sollSumTotal').innerText = formatEuro(total);
             
+            document.getElementById('sollSumTotal').innerText = formatEuro(totalSum);
             if(sollPreviewData.length === 0) {
-                 tb.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-slate-400">Keine offenen Sollstellungen für diesen Zeitraum gefunden (oder bereits verbucht).</td></tr>';
+                 tb.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-slate-400">Alles aktuell. Keine neuen Buchungen oder Korrekturen erforderlich.</td></tr>';
             }
         };
-
         window.toggleAllSoll = (chk) => { document.querySelectorAll('.soll-chk').forEach(c => c.checked = chk); };
 
-        window.executeSollstellung = () => {
+window.executeSollstellung = () => {
             let count = 0;
             let sum = 0;
             const checks = document.querySelectorAll('.soll-chk:checked');
+            
             checks.forEach(c => {
                 const id = c.getAttribute('data-id');
                 const data = sollPreviewData.find(d => d.id === id);
+                
                 if(data) {
                     db.finanzen.push({
                         id: uuid(),
@@ -2099,21 +2177,22 @@
                         valuta: data.date,
                         text: data.text,
                         betrag: roundMoney(data.amt),
-                        typ: 'soll',
+                        typ: data.typ, // WICHTIG: Übernimmt 'soll' oder 'haben' (Korrektur) aus der Vorschau
                         konto: data.gl,
-                        beleg: 'SOLL-'+data.date.replace(/-/g,'').substr(2)
+                        beleg: 'SOLL-' + data.date.replace(/-/g,'').substr(2)
                     });
                     count++;
-                    sum += data.amt;
+                    // Summe berechnen: Soll positiv, Haben negativ
+                    sum += (data.typ === 'soll' ? data.amt : -data.amt);
                 }
             });
             
             if(count > 0) {
-                logAudit('FINANZEN', 'SOLLSTELLUNG', `${count} Buchungen erzeugt. Summe: ${formatEuro(sum)}`);
+                logAudit('FINANZEN', 'SOLLSTELLUNG', `${count} Buchungen erzeugt. Saldo-Effekt: ${formatEuro(sum)}`);
                 saveLocal();
                 window.closeModals();
-                window.renderAll(); // Updates Dashboard & Journal
-                alert(`${count} Buchungen erfolgreich erstellt.`);
+                window.renderAll(); 
+                alert(`${count} Buchungen erstellt (Inkl. Korrekturen).`);
             } else {
                 alert("Keine Buchungen ausgewählt.");
             }
@@ -2600,10 +2679,33 @@
             document.getElementById('dossierModal').classList.add('active');
         };
 
-        // --- SOLL MASK FIX ---
+        // --- SOLL MASK FIX (Mit Objekt-Selektor) ---
         window.openSollMask = () => {
             document.getElementById('sollMonth').value = nowStr().slice(0,7);
             document.getElementById('sollDate').value = nowStr();
+            
+            // NEU: Objekt-Listen füllen (Sortiert nach Nummer)
+            const oList = Array.from(db.objekte.values()).sort((a,b) => 
+                a.nr.localeCompare(b.nr, undefined, {numeric: true, sensitivity: 'base'})
+            );
+            
+            const selS = document.getElementById('sollObjStart');
+            const selE = document.getElementById('sollObjEnd');
+            selS.innerHTML = '<option value="">(Start)</option>';
+            selE.innerHTML = '<option value="">(Ende)</option>';
+            
+            oList.forEach(o => {
+                const opt = new Option(`${o.nr} - ${o.name}`, o.nr); // Value ist die Nummer!
+                selS.add(opt);
+                selE.add(opt.cloneNode(true));
+            });
+
+            // Standard: Erstes und Letztes vorwählen
+            if(oList.length > 0) {
+                selS.value = oList[0].nr;
+                selE.value = oList[oList.length-1].nr;
+            }
+
             window.updateSollPreview();
             document.getElementById('sollstellungModal').classList.add('active');
         };
