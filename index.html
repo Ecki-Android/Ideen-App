@@ -279,7 +279,8 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
     <input type="file" id="dateien" multiple /> <div class="datei-vorschau" id="dateiVorschau"></div>
     <button id="speichernBtn" onclick="speichereIdee()">💾 Speichern</button> <button id="abbrechenBtn" onclick="abbrechenBearbeiten()" style="display:none;">Abbrechen</button>
 
-  <div class="filter-bar">
+  <div class="filter-bar"><!-- NEU: Text-Suche für DMS-Bridge -->
+    <input type="text" id="filterText" placeholder="🔍 Suche (Titel, Name, Firma)..." oninput="zeigeIdeen()" style="width: 100%; max-width: 300px; display: inline-block; border: 2px solid #0078d4; margin-right: 15px;">
     <label>Filter:</label> 
    <select id="filterKategorie" onchange="zeigeIdeen(); updateVorgangsnummerDropdown(); aktualisiereMandantenFilterDropdown(); aktualisiereBenutzerFilterDropdown()">
         <option value="" class="filter-option-alle">🎯 Alle Ideen</option>
@@ -4095,14 +4096,34 @@ document.addEventListener('DOMContentLoaded', async () => {
         initialisiereKategorien();
         initialisiereBenutzer();
         initialisiereVorgangsnummer();
-        ensureIdeasHaveIds(); // Stellt sicher, dass auch 'telefonNummern' initialisiert wird
+        ensureIdeasHaveIds(); 
         aktualisiereMandantenFilterDropdown();
         zeigeIdeen();
         initialisiereUndStarteBenachrichtigungspruefung();
 
+        // --- URL Parameter zentral verarbeiten (Fix v16.9.35) ---
         const urlParams = new URLSearchParams(window.location.search);
-        const githubCode = urlParams.get('code');
         
+        // 1. Prüfen auf DMS-Suchbegriff (von Hausverwaltung)
+        const searchParam = urlParams.get('search');
+        if (searchParam) {
+            const filterInput = document.getElementById('filterText');
+            if (filterInput) {
+                filterInput.value = searchParam;
+                zeigeIdeen(); // Liste sofort filtern
+                
+                const warnung = document.getElementById("warnung");
+                if(warnung) {
+                    warnung.textContent = `📂 DMS-Modus: Filter auf "${searchParam}" gesetzt.`;
+                    warnung.style.display = "block";
+                    warnung.className = "info-message";
+                    setTimeout(() => warnung.style.display = "none", 5000);
+                }
+            }
+        }
+
+        // 2. Prüfen auf GitHub Login Code
+        const githubCode = urlParams.get('code');
         if (githubCode) {
             await handleGithubCallback(githubCode);
         } else {
@@ -4111,10 +4132,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         pruebeLoginHinweis(); 
         
-        // --- NEUER TEIL ---
-        // Fügt den Klick-Listener für den "Telefonnummer hinzufügen"-Button hinzu
-        document.getElementById('addTelefonNummerBtn').onclick = () => addTelefonNummerInput();
-        // --- ENDE NEUER TEIL ---
+        // Listener für Telefon-Button
+        const btnTel = document.getElementById('addTelefonNummerBtn');
+        if(btnTel) btnTel.onclick = () => addTelefonNummerInput();
         
     } catch (initError) {
         console.error("Fehler während der Initialisierung:", initError);
