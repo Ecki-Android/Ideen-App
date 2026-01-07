@@ -1606,7 +1606,18 @@ function zeigeIdeen() {
     if (!Array.isArray(fIdeen)) fIdeen = [];
 
     let filtered = fIdeen.filter(i => i && i.id); 
-
+// --- NEU: Text-Suche (DMS & Manuell) ---
+    const suchText = document.getElementById("filterText")?.value.toLowerCase();
+    if (suchText) {
+        filtered = filtered.filter(i => {
+            return (i.text || "").toLowerCase().includes(suchText) || 
+                   (i.details || "").toLowerCase().includes(suchText) ||
+                   (i.firmenname || "").toLowerCase().includes(suchText) ||
+                   (i.mandantennummer || "").toLowerCase().includes(suchText) ||
+                   (i.benutzer || "").toLowerCase().includes(suchText);
+        });
+    }
+    // --- ENDE NEU ---
     /* ANFANG ÄNDERUNG: Filter-Logik für Vorgangsnummer */
     const fNummer = document.getElementById("filterVorgangsnummer")?.value;
     if (fNummer) {
