@@ -1,7 +1,7 @@
 <!-- 
     ===========================================================================
     PROJEKT: Hausverwaltung Pro (Enterprise Edition)
-    VERSION: v16.9.36 (Release: Backup & DMS)
+    VERSION: v16.9.39 (Release: Backup & DMS)
     DATUM:   2026-01-06
     STATUS:  STABLE
     
@@ -130,7 +130,7 @@
                     <div class="flex items-center gap-2 text-[10px] text-slate-400 uppercase font-bold">
                         <span id="userDisplay">Offline-Modus</span>
                         <span class="w-1 h-1 bg-slate-600 rounded-full"></span>
-                      <span>v16.9.35 (Backup)</span>
+                      <span>v16.9.39 (Backup)</span>
                     </div>
                 </div>
             </div>
@@ -2340,7 +2340,37 @@ window.executeSollstellung = () => {
 
         // --- AUTH & CLOUD (Mock) ---
         async function getValidToken() { try { const a = await msalInstance.acquireTokenSilent({scopes:["User.Read", "Files.ReadWrite"]}); return a.accessToken; } catch(e) { try { const r = await msalInstance.acquireTokenPopup({scopes:["User.Read", "Files.ReadWrite"]}); return r.accessToken; } catch(ee) { return null; } } }
-        async function loadFromCloud() { const t = await getValidToken(); if(!t) return; try { const r = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:${document.getElementById('onedrivePath').value}:/content`, { headers:{Authorization:`Bearer ${t}`} }); if(r.ok) { const d=await r.text(); const j=JSON.parse(d); db.objekte=new Map(j.o); db.haeuser=new Map(j.h); db.einheiten=new Map(j.e); db.finanzen=j.f||[]; db.audit=j.audit||[]; db.tickets=j.tickets||[]; db.kontakte=new Map(j.k||[]); if(j.s) db.sachkonten=j.s; if(j.ct) db.condTypes=j.ct; if(j.cst) db.costTypes=j.cst; if(j.ut) db.unitTypes=j.ut; if(j.m) db.mandant=j.m; if(j.mt) db.meterTypes=j.mt; saveLocal(); window.renderAll(); } } catch(e) {} }
+        
+        async function loadFromCloud() { 
+            const t = await getValidToken(); 
+            if(!t) return; 
+            try { 
+                const r = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:${document.getElementById('onedrivePath').value}:/content`, { headers:{Authorization:`Bearer ${t}`} }); 
+                if(r.ok) { 
+                    const d=await r.text(); 
+                    const j=JSON.parse(d); 
+                    db.objekte=new Map(j.o); 
+                    db.haeuser=new Map(j.h); 
+                    db.einheiten=new Map(j.e); 
+                    db.finanzen=j.f||[]; 
+                    db.audit=j.audit||[]; 
+                    db.tickets=j.tickets||[]; 
+                    db.kontakte=new Map(j.k||[]); 
+                    if(j.s) db.sachkonten=j.s; 
+                    if(j.ct) db.condTypes=j.ct; 
+                    if(j.cst) db.costTypes=j.cst; 
+                    if(j.ut) db.unitTypes=j.ut; 
+                    if(j.m) db.mandant=j.m; 
+                    if(j.mt) db.meterTypes=j.mt; 
+                    saveLocal(); 
+                    window.renderAll();
+                    
+                    // FIX: Status auf Grün setzen
+                    setStatus('green', 'Online');
+                } 
+            } catch(e) { console.error(e); } 
+        }
+
         window.saveToCloud = async (man=false) => { const t = await getValidToken(); if(!t) return; try { const c = JSON.stringify({o:Array.from(db.objekte), h:Array.from(db.haeuser), e:Array.from(db.einheiten), f:db.finanzen, k:Array.from(db.kontakte), audit:db.audit, tickets:db.tickets, s:db.sachkonten, ct:db.condTypes, cst:db.costTypes, ut:db.unitTypes, m:db.mandant, mt:db.meterTypes}); const u = `https://graph.microsoft.com/v1.0/me/drive/root:${document.getElementById('onedrivePath').value}:/content`; await fetch(u, { method:'PUT', headers:{Authorization:`Bearer ${t}`, 'Content-Type':'application/json'}, body:c }); if(man) alert("Gespeichert!"); } catch(e) { alert("Cloud-Fehler"); } };
         window.handleLogin = async () => { if(!msalInstance) { msalInstance = new msal.PublicClientApplication(MSAL_CFG); } try { const r = await msalInstance.loginPopup({scopes:["User.Read", "Files.ReadWrite"]}); document.getElementById('userDisplay').innerText = r.account.username; document.getElementById('btnLogin').classList.add('hidden'); document.getElementById('btnLogout').classList.remove('hidden'); document.getElementById('btnSave').disabled = false; loadFromCloud(); } catch(e) { console.error(e); } };
         window.handleLogout = () => { msalInstance.logoutPopup(); location.reload(); };
